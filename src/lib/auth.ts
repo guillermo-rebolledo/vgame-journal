@@ -9,9 +9,14 @@ import * as schema from "@/db/schema";
 
 export type Email = { to: string; subject: string; text: string };
 
+// RESEND_EMAIL_DOMAIN comes from the Marketplace integration; without it, Resend's sandbox sender.
+const SENDER = process.env.RESEND_EMAIL_DOMAIN
+  ? `noreply@${process.env.RESEND_EMAIL_DOMAIN}`
+  : "onboarding@resend.dev";
+
 async function sendWithResend(email: Email) {
   const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({
-    from: process.env.EMAIL_FROM ?? `${SITE_NAME} <onboarding@resend.dev>`,
+    from: `${SITE_NAME} <${SENDER}>`,
     ...email,
   });
   if (error) throw new Error(error.message);
