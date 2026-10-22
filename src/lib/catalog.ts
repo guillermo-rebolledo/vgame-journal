@@ -92,6 +92,7 @@ export function createCatalog(db: Db, source: GameSource) {
       );
       await save(games);
       const gameIds = games.map((g) => g.id);
+      // ponytail: expired rows are overwritten, never pruned; add a cleanup to the daily cron if the table grows large.
       await db
         .insert(searchCache)
         .values({ query, gameIds, fetchedAt: now })

@@ -5,22 +5,26 @@ export interface GameSource {
   fetchReleaseDates(ids: number[]): Promise<Map<number, SourceReleaseDate[]>>;
 }
 
-export type GameType =
-  | "main_game"
-  | "dlc_addon"
-  | "expansion"
-  | "bundle"
-  | "standalone_expansion"
-  | "mod"
-  | "episode"
-  | "season"
-  | "remake"
-  | "remaster"
-  | "expanded_game"
-  | "port"
-  | "fork"
-  | "pack"
-  | "update";
+/** IGDB game types; the index is IGDB's `game_types` id. */
+export const GAME_TYPES = [
+  "main_game",
+  "dlc_addon",
+  "expansion",
+  "bundle",
+  "standalone_expansion",
+  "mod",
+  "episode",
+  "season",
+  "remake",
+  "remaster",
+  "expanded_game",
+  "port",
+  "fork",
+  "pack",
+  "update",
+] as const;
+
+export type GameType = (typeof GAME_TYPES)[number];
 
 /** Only these become Catalog games; DLC, remasters, ports, editions etc. never do. */
 export const STANDALONE_TYPES: ReadonlySet<GameType> = new Set([

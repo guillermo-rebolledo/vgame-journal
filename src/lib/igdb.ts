@@ -1,7 +1,7 @@
 import {
   type DatePrecision,
+  GAME_TYPES,
   type GameSource,
-  type GameType,
   type SourceGame,
   type SourceReleaseDate,
   STANDALONE_TYPES,
@@ -94,25 +94,6 @@ async function igdb<T>(endpoint: string, body: string): Promise<T[]> {
     throw new Error(`IGDB ${endpoint} request failed: ${res.status}`);
   return res.json();
 }
-
-// IGDB `game_types` ids.
-const GAME_TYPES: GameType[] = [
-  "main_game",
-  "dlc_addon",
-  "expansion",
-  "bundle",
-  "standalone_expansion",
-  "mod",
-  "episode",
-  "season",
-  "remake",
-  "remaster",
-  "expanded_game",
-  "port",
-  "fork",
-  "pack",
-  "update",
-];
 
 const STANDALONE_TYPE_IDS = [...STANDALONE_TYPES].map((t) =>
   GAME_TYPES.indexOf(t),

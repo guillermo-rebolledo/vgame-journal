@@ -14,6 +14,7 @@ export function GameSearch() {
     const q = query.trim();
     if (q.length < 2) {
       setResults(null);
+      setFailed(false);
       return;
     }
     const controller = new AbortController();
@@ -29,7 +30,9 @@ export function GameSearch() {
         setResults(await res.json());
         setFailed(false);
       } catch {
-        if (!controller.signal.aborted) setFailed(true);
+        if (controller.signal.aborted) return;
+        setResults(null);
+        setFailed(true);
       }
     }, 300);
     return () => {
