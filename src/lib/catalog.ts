@@ -9,6 +9,7 @@ import {
 import { igdbGameSource } from "@/lib/igdb";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_RESULTS = 20;
 
 export type SearchResult = {
   id: number;
@@ -25,10 +26,12 @@ export function createCatalog(db: Db, source: GameSource) {
   async function save(games: SourceGame[]) {
     if (games.length === 0) return;
     const syncedAt = new Date();
-    const rows = games.map(({ type, releaseDates, ...g }) => ({
-      ...g,
-      syncedAt,
-    }));
+    const rows = games.map(
+      ({ type, releaseDates, popularity, fanMade, ...g }) => ({
+        ...g,
+        syncedAt,
+      }),
+    );
     await db
       .insert(game)
       .values(rows)
@@ -59,14 +62,14 @@ export function createCatalog(db: Db, source: GameSource) {
         slug: game.slug,
         coverImageId: game.coverImageId,
         platforms: game.platforms,
-        year: sql<number | null>`(
-          select extract(year from min(${releaseDate.date}))::int
-          from ${releaseDate}
-          where ${releaseDate.gameId} = ${game.id} and ${releaseDate.precision} <> 'tbd'
-        )`,
+        year: sql<
+          number | null
+        >`extract(year from min(${releaseDate.date}) filter (where ${releaseDate.precision} <> 'tbd'))::int`,
       })
       .from(game)
-      .where(inArray(game.id, ids));
+      .leftJoin(releaseDate, eq(releaseDate.gameId, game.id))
+      .where(inArray(game.id, ids))
+      .groupBy(game.id);
     return ids.flatMap((id) => rows.find((r) => r.id === id) ?? []);
   }
 
@@ -87,9 +90,12 @@ export function createCatalog(db: Db, source: GameSource) {
         );
       if (cached) return load(cached.gameIds);
 
-      const games = (await source.search(query)).filter((g) =>
-        STANDALONE_TYPES.has(g.type),
-      );
+      const games = rank(
+        query,
+        (await source.search(query)).filter(
+          (g) => STANDALONE_TYPES.has(g.type) && !g.fanMade,
+        ),
+      ).slice(0, MAX_RESULTS);
       await save(games);
       const gameIds = games.map((g) => g.id);
       // ponytail: expired rows are overwritten, never pruned; add a cleanup to the daily cron if the table grows large.
@@ -104,5 +110,23 @@ export function createCatalog(db: Db, source: GameSource) {
     },
   };
 }
+
+/**
+ * The game you named (an exact title match) first, then the most popular, then games nobody has
+ * rated or hyped in the source's own order. An exact match nobody tracks doesn't jump the queue.
+ */
+function rank(query: string, games: SourceGame[]) {
+  const named = (g: SourceGame) =>
+    g.popularity > 0 && normalize(g.title) === normalize(query);
+  const tier = (g: SourceGame) => (named(g) ? 0 : g.popularity > 0 ? 1 : 2);
+  // Array sort is stable, so ties keep the source's relevance order.
+  return games.toSorted(
+    (a, b) => tier(a) - tier(b) || b.popularity - a.popularity,
+  );
+}
+
+/** "Hollow Knight: Silksong" and "hollow knight silksong" are the same title. */
+const normalize = (title: string) =>
+  title.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 
 export const catalog = createCatalog(db, igdbGameSource);

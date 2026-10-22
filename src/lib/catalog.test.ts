@@ -10,7 +10,7 @@ afterEach(() => {
 test("a query the catalog hasn't seen falls back to the game source", async () => {
   const source = createFakeGameSource([
     sourceGame({
-      id: 1,
+      id: 42,
       title: "Hollow Knight",
       coverImageId: "co1rgi",
       platforms: ["PC", "Nintendo Switch"],
@@ -29,9 +29,9 @@ test("a query the catalog hasn't seen falls back to the game source", async () =
 
   expect(await catalog.search("hollow")).toEqual([
     {
-      id: 1,
+      id: 42,
       title: "Hollow Knight",
-      slug: "game-1",
+      slug: "game-42",
       coverImageId: "co1rgi",
       year: 2017,
       platforms: ["PC", "Nintendo Switch"],
@@ -85,4 +85,40 @@ test("only main games, standalone expansions and remakes are kept", async () => 
     "Resident Evil 2",
     "Resident Evil 2: Extra Chapter",
   ]);
+});
+
+test("fan-made games are left out", async () => {
+  const source = createFakeGameSource([
+    sourceGame({ title: "Hollow Knight Silksong", fanMade: true }),
+    sourceGame({ title: "Hollow Knight: Silksong" }),
+  ]);
+  const catalog = createCatalog(await createTestDb(), source);
+
+  const titles = (await catalog.search("silksong")).map((r) => r.title);
+
+  expect(titles).toEqual(["Hollow Knight: Silksong"]);
+});
+
+test("the game you named comes first, then popular games, then the obscure ones", async () => {
+  const source = createFakeGameSource([
+    sourceGame({ title: "Super Mario Bros. Demake", popularity: 0 }),
+    sourceGame({ title: "Super Mario Bros. Wonder", popularity: 226 }),
+    sourceGame({ title: "Super Mario Bros. 2", popularity: 0 }),
+    sourceGame({ title: "Super Mario Bros.", popularity: 0 }), // an untracked re-release
+    sourceGame({ title: "Super Mario Bros. 3", popularity: 1746 }),
+    sourceGame({ title: "Super Mario Bros.", popularity: 1331 }),
+  ]);
+  const catalog = createCatalog(await createTestDb(), source);
+
+  const results = await catalog.search("super mario bros");
+
+  expect(results.map((r) => r.title)).toEqual([
+    "Super Mario Bros.",
+    "Super Mario Bros. 3",
+    "Super Mario Bros. Wonder",
+    "Super Mario Bros. Demake",
+    "Super Mario Bros. 2",
+    "Super Mario Bros.",
+  ]);
+  expect(results[0].id).not.toBe(results[5].id);
 });

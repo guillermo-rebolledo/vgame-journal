@@ -47,6 +47,10 @@ export type SourceGame = {
   criticScoreCount: number | null;
   userScore: number | null;
   userScoreCount: number | null;
+  /** How many people rated or are waiting for it; 0 for obscure games. */
+  popularity: number;
+  /** Fan games, unofficial ports and the like. */
+  fanMade: boolean;
 };
 
 export type DatePrecision = "day" | "month" | "quarter" | "year" | "tbd";

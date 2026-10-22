@@ -41,6 +41,8 @@ export const sourceGame = (overrides: Partial<SourceGame> = {}): SourceGame => {
     criticScoreCount: null,
     userScore: null,
     userScoreCount: null,
+    popularity: 0,
+    fanMade: false,
     ...overrides,
   };
 };

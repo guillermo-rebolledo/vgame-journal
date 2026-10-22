@@ -95,6 +95,10 @@ async function igdb<T>(endpoint: string, body: string): Promise<T[]> {
   return res.json();
 }
 
+// IGDB keyword ids for "unofficial", "fangame", "fanmade" and "mario fangame". Not "homebrew": that's
+// also original indie games for retro consoles.
+const FAN_KEYWORD_IDS = [2004, 24124, 27216, 25522];
+
 const STANDALONE_TYPE_IDS = [...STANDALONE_TYPES].map((t) =>
   GAME_TYPES.indexOf(t),
 );
@@ -134,6 +138,9 @@ type IgdbGame = {
   aggregated_rating_count?: number;
   rating?: number;
   rating_count?: number;
+  total_rating_count?: number;
+  hypes?: number;
+  keywords?: number[];
 };
 
 const RELEASE_DATE_FIELDS = [
@@ -156,6 +163,9 @@ const GAME_FIELDS = [
   "aggregated_rating_count",
   "rating",
   "rating_count",
+  "total_rating_count",
+  "hypes",
+  "keywords",
   ...RELEASE_DATE_FIELDS.map((f) => `release_dates.${f}`),
 ].join(",");
 
@@ -183,15 +193,20 @@ const toGame = (g: IgdbGame): SourceGame => ({
   criticScoreCount: g.aggregated_rating_count ?? null,
   userScore: g.rating ?? null,
   userScoreCount: g.rating_count ?? null,
+  popularity: (g.total_rating_count ?? 0) + (g.hypes ?? 0),
+  fanMade: g.keywords?.some((k) => FAN_KEYWORD_IDS.includes(k)) ?? false,
 });
 
-/** The live GameSource. Search already asks IGDB for standalone types only, so DLC doesn't use up the result limit. */
+/**
+ * The live GameSource. Search already asks IGDB for standalone, official, non-version games only,
+ * so DLC and fan games don't use up the results the Catalog ranks.
+ */
 export const igdbGameSource: GameSource = {
   async search(query) {
     const q = query.replace(/["\\]/g, "");
     const games = await igdb<IgdbGame>(
       "games",
-      `search "${q}"; fields ${GAME_FIELDS}; where game_type = (${STANDALONE_TYPE_IDS}); limit 20;`,
+      `search "${q}"; fields ${GAME_FIELDS}; where game_type = (${STANDALONE_TYPE_IDS}) & version_parent = null & keywords != (${FAN_KEYWORD_IDS}); limit 50;`,
     );
     return games.map(toGame);
   },
