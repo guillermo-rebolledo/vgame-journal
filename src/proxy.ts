@@ -21,6 +21,6 @@ const redirectTo = (path: string, request: NextRequest) =>
   NextResponse.redirect(new URL(path, request.url));
 
 export const config = {
-  // Everything except auth endpoints, Next internals and static files.
-  matcher: ["/((?!api/auth|_next|.*\\..*).*)"],
+  // Pages only: not API routes, Next internals or static files.
+  matcher: ["/((?!api/|_next|.*\\..*).*)"],
 };

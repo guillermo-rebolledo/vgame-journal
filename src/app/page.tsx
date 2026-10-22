@@ -1,3 +1,4 @@
+import { GameSearch } from "@/components/game-search";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/config/site";
 
 export default function Home() {
@@ -9,6 +10,7 @@ export default function Home() {
       <p className="max-w-xl text-lg text-muted-foreground">
         {SITE_DESCRIPTION}
       </p>
+      <GameSearch />
     </section>
   );
 }

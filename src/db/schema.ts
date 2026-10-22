@@ -1,5 +1,14 @@
 // Better Auth tables (`npx @better-auth/cli generate`), plus the username plugin columns.
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  integer,
+  pgTable,
+  real,
+  serial,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -74,3 +83,42 @@ export const verification = pgTable(
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
+
+// Catalog: our local copy of games, keyed by the GameSource (IGDB) id.
+export const game = pgTable("game", {
+  id: integer("id").primaryKey(),
+  title: text("title").notNull(),
+  slug: text("slug").notNull(),
+  summary: text("summary"),
+  coverImageId: text("cover_image_id"),
+  genres: text("genres").array().notNull(),
+  platforms: text("platforms").array().notNull(),
+  criticScore: real("critic_score"),
+  criticScoreCount: integer("critic_score_count"),
+  userScore: real("user_score"),
+  userScoreCount: integer("user_score_count"),
+  syncedAt: timestamp("synced_at").notNull(),
+});
+
+export const releaseDate = pgTable(
+  "release_date",
+  {
+    id: serial("id").primaryKey(),
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => game.id, { onDelete: "cascade" }),
+    platform: text("platform"),
+    region: text("region").notNull(),
+    date: timestamp("date"),
+    precision: text("precision").notNull(),
+    status: text("status"),
+  },
+  (table) => [index("release_date_gameId_idx").on(table.gameId)],
+);
+
+/** External search results, so a repeated query within 24h is served from the Catalog. */
+export const searchCache = pgTable("search_cache", {
+  query: text("query").primaryKey(),
+  gameIds: integer("game_ids").array().notNull(),
+  fetchedAt: timestamp("fetched_at").notNull(),
+});
