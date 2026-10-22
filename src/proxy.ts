@@ -13,7 +13,9 @@ export async function proxy(request: NextRequest) {
   if (onboarding && !session) return redirectTo("/sign-in", request);
   if (onboarding && session?.user.username) return redirectTo("/", request);
   if (!onboarding && session && !session.user.username)
-    return redirectTo("/onboarding", request);
+    return request.nextUrl.pathname.startsWith("/api/")
+      ? Response.json({ error: "Choose a username first." }, { status: 403 })
+      : redirectTo("/onboarding", request);
   return NextResponse.next();
 }
 
