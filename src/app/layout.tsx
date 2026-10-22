@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/user-menu";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/config/site";
 import "./globals.css";
 
@@ -31,7 +33,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider>
           <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3">
             <span className="font-semibold tracking-tight">{SITE_NAME}</span>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <Suspense>
+                <UserMenu />
+              </Suspense>
+              <ThemeToggle />
+            </div>
           </header>
           <main className="flex flex-1 flex-col">{children}</main>
           <footer className="mx-auto w-full max-w-6xl px-4 py-6 text-muted-foreground text-sm">
