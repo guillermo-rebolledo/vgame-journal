@@ -28,7 +28,7 @@ export default function SignInPage() {
           password,
           callbackURL: "/",
         });
-        if (error?.status === 403)
+        if (error?.code === "EMAIL_NOT_VERIFIED")
           return {
             error: "Verify your email first. We've sent you a new link.",
           };

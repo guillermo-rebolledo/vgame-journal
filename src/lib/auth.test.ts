@@ -28,10 +28,7 @@ async function signUpVerified(email: string) {
 }
 
 const chooseUsername = (headers: Headers, username: string) =>
-  auth.api.updateUser({
-    headers,
-    body: { username, displayUsername: username },
-  });
+  auth.api.updateUser({ headers, body: { username } });
 
 async function usernameError(headers: Headers, username: string) {
   return chooseUsername(headers, username).then(
@@ -61,7 +58,13 @@ test("a verified user starts without a username and can choose one", async () =>
 
   const session = await auth.api.getSession({ headers });
   expect(session?.user.username).toBe("mario_64");
-  expect(session?.user.displayUsername).toBe("Mario_64");
+});
+
+test("a username can't be changed once chosen", async () => {
+  const headers = await signUpVerified("a@example.com");
+  await chooseUsername(headers, "mario");
+
+  expect(await usernameError(headers, "wario")).toMatch(/cannot be updated/i);
 });
 
 test("usernames are unique regardless of case", async () => {
@@ -76,6 +79,7 @@ test.each([
   ["ab", /too short/i],
   ["a".repeat(31), /too long/i],
   ["has space", /invalid/i],
+  ["has.dot", /invalid/i],
   ["emoji🎮", /invalid/i],
 ])("rejects username %j", async (username, error) => {
   const headers = await signUpVerified("a@example.com");

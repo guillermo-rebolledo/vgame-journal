@@ -15,7 +15,7 @@ export async function UserMenu() {
       </Link>
     );
 
-  const { image, displayUsername, username, name } = session.user;
+  const { image, username, name } = session.user;
   return (
     <div className="flex items-center gap-2 text-sm">
       {image && (
@@ -27,7 +27,7 @@ export async function UserMenu() {
           referrerPolicy="no-referrer"
         />
       )}
-      <span>{displayUsername ?? username ?? name}</span>
+      <span>{username ?? name}</span>
       <SignOutButton />
     </div>
   );

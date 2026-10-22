@@ -20,10 +20,15 @@ export default function ResetPasswordPage() {
         },
       ]}
       onSubmit={async ({ password }) => {
+        // Read at submit time so the page stays fully static.
+        const token = new URLSearchParams(location.search).get("token");
+        if (!token)
+          return {
+            error: "This reset link is invalid or expired. Request a new one.",
+          };
         const { error } = await authClient.resetPassword({
           newPassword: password,
-          // Read at submit time so the page stays fully static.
-          token: new URLSearchParams(location.search).get("token") ?? "",
+          token,
         });
         if (error) return { error: error.message };
         router.push("/sign-in");

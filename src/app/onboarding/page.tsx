@@ -15,18 +15,15 @@ export default function OnboardingPage() {
         { name: "username", label: "Username", autoComplete: "username" },
       ]}
       onSubmit={async ({ username }) => {
-        // Stored lowercase for uniqueness; displayUsername keeps the casing you typed.
-        const { error } = await authClient.updateUser({
-          username,
-          displayUsername: username,
-        });
+        const { error } = await authClient.updateUser({ username });
         if (error) return { error: error.message };
         router.push("/");
         router.refresh();
       }}
     >
       <p className="text-muted-foreground text-sm">
-        3–30 letters, numbers, underscores or dots. This is your profile URL.
+        3–30 letters, numbers or underscores. This is your profile URL, and it
+        can’t be changed later.
       </p>
     </AuthForm>
   );

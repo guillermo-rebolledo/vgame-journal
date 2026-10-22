@@ -36,7 +36,7 @@ export function createAuth(
     },
     emailVerification: {
       sendOnSignUp: true,
-      sendOnSignIn: true,
+      sendOnSignIn: true, // The sign-in page tells unverified users a new link is on its way.
       autoSignInAfterVerification: true,
       sendVerificationEmail: ({ user, url }) =>
         sendEmail({
@@ -51,8 +51,14 @@ export function createAuth(
         clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
       },
     },
-    // Usernames are stored lowercase (case-insensitive uniqueness); displayUsername keeps the typed casing.
-    plugins: [username(), nextCookies()],
+    plugins: [
+      // Stored lowercase (case-insensitive uniqueness), set once, URL-safe: it's the /u/<username> profile URL.
+      username({
+        immutableUsername: true,
+        usernameValidator: (name) => /^[a-zA-Z0-9_]+$/.test(name),
+      }),
+      nextCookies(),
+    ],
   });
 }
 
