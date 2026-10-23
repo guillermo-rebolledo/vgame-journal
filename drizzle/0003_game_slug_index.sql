@@ -1,0 +1,1 @@
+CREATE INDEX "game_slug_idx" ON "game" USING btree ("slug");
