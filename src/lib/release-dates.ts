@@ -20,3 +20,7 @@ export function releaseLabel(date: Date | null, precision: DatePrecision) {
     return `Q${Math.floor(date.getUTCMonth() / 3) + 1} ${year}`;
   return (precision === "month" ? month : day).format(date);
 }
+
+/** "north_america" → "North America". */
+export const regionName = (region: string) =>
+  region.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());

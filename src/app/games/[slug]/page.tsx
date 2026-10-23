@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { cache, Suspense } from "react";
 import { catalog } from "@/lib/catalog";
 import { coverUrl } from "@/lib/game-source";
-import { releaseLabel } from "@/lib/release-dates";
+import { regionName, releaseLabel } from "@/lib/release-dates";
 
 const findGame = cache((slug: string) => catalog.findBySlug(slug));
 
@@ -152,14 +152,12 @@ function Score({
         {score === null ? "–" : Math.round(score)}
       </dd>
       <dd className="text-muted-foreground text-xs">
-        {score === null || !count
+        {score === null
           ? "Not enough ratings yet"
-          : `${count.toLocaleString("en-US")} ${noun}${count === 1 ? "" : "s"}`}
+          : count
+            ? `${count.toLocaleString("en-US")} ${noun}${count === 1 ? "" : "s"}`
+            : null}
       </dd>
     </div>
   );
 }
-
-/** "north_america" → "North America". */
-const regionName = (region: string) =>
-  region.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());

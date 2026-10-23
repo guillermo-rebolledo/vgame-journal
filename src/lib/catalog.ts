@@ -74,7 +74,7 @@ export function createCatalog(db: Db, source: GameSource) {
   }
 
   return {
-    /** A Catalog game with its release dates, earliest first (TBD last); null if we've never saved it. */
+    /** A Catalog game with its release dates, earliest first (undated last); null if we've never saved it. */
     async findBySlug(slug: string) {
       const [found] = await db
         .select()
