@@ -74,6 +74,22 @@ export function createCatalog(db: Db, source: GameSource) {
   }
 
   return {
+    /** A Catalog game with its release dates, earliest first (TBD last); null if we've never saved it. */
+    async findBySlug(slug: string) {
+      const [found] = await db
+        .select()
+        .from(game)
+        .where(eq(game.slug, slug))
+        .limit(1);
+      if (!found) return null;
+      const releaseDates = await db
+        .select()
+        .from(releaseDate)
+        .where(eq(releaseDate.gameId, found.id))
+        .orderBy(sql`${releaseDate.date} asc nulls last`, releaseDate.id);
+      return { ...found, releaseDates };
+    },
+
     /** Local-first: a query searched in the last 24h is answered from the Catalog, otherwise the GameSource. */
     async search(rawQuery: string) {
       const query = rawQuery.trim().toLowerCase().replace(/\s+/g, " ");
