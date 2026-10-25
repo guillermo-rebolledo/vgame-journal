@@ -19,7 +19,7 @@ export function createJournal(db: Db) {
     and(eq(journalEntry.userId, userId), eq(journalEntry.gameId, gameId));
 
   // ponytail: entry write and its event aren't atomic (neon-http has no transactions); a crash between them loses one event.
-  const record = (
+  const recordStatusEvent = (
     userId: string,
     gameId: number,
     status: Status | null,
@@ -68,7 +68,7 @@ export function createJournal(db: Db) {
           target: [journalEntry.userId, journalEntry.gameId],
           set: { status, completionTag, updatedAt },
         });
-      await record(userId, gameId, status, completionTag, updatedAt);
+      await recordStatusEvent(userId, gameId, status, completionTag, updatedAt);
     },
 
     /** Takes the game out of the user's journal. */
@@ -77,7 +77,8 @@ export function createJournal(db: Db) {
         .delete(journalEntry)
         .where(owned(userId, gameId))
         .returning();
-      if (removed.length) await record(userId, gameId, null, null, new Date());
+      if (removed.length)
+        await recordStatusEvent(userId, gameId, null, null, new Date());
     },
 
     /** The user's status changes, oldest first. A null status is a removal. */

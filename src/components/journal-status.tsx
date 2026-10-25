@@ -14,6 +14,13 @@ import {
 const signedInUserId = async () =>
   (await auth.api.getSession({ headers: await headers() }))?.user.id ?? null;
 
+/** Actions re-read the session: only the signed-in owner writes their own entries. */
+async function ownerId() {
+  const userId = await signedInUserId();
+  if (!userId) throw new Error("Sign in to edit your journal.");
+  return userId;
+}
+
 /** The signed-in user's Status and Completion tag for a game, editable in place. */
 export async function JournalStatus({ gameId }: { gameId: number }) {
   const userId = await signedInUserId();
@@ -31,11 +38,9 @@ export async function JournalStatus({ gameId }: { gameId: number }) {
     );
   const entry = await journal.entry(userId, gameId);
 
-  // Re-read the session in each action: only the signed-in owner writes their own entries.
   async function save(formData: FormData) {
     "use server";
-    const owner = await signedInUserId();
-    if (!owner) throw new Error("Sign in to edit your journal.");
+    const owner = await ownerId();
     // Buttons submit "status" or "played:<tag>".
     const [status, completionTag = null] = String(formData.get("status")).split(
       ":",
@@ -49,8 +54,7 @@ export async function JournalStatus({ gameId }: { gameId: number }) {
 
   async function remove() {
     "use server";
-    const owner = await signedInUserId();
-    if (!owner) throw new Error("Sign in to edit your journal.");
+    const owner = await ownerId();
     await journal.remove(owner, gameId);
     refresh();
   }
