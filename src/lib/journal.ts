@@ -212,7 +212,7 @@ export function createJournal(db: Db) {
             releasedAt: sql<Date | null>`(
               select min(${releaseDate.date}) from ${releaseDate}
               where ${releaseDate.gameId} = ${game.id} and ${releaseDate.precision} <> 'tbd'
-            )`.mapWith(journalEntry.createdAt),
+            )`.mapWith(releaseDate.date),
           })
           .from(journalEntry)
           .innerJoin(game, eq(game.id, journalEntry.gameId))
