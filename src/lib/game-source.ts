@@ -2,6 +2,7 @@
 export interface GameSource {
   search(query: string): Promise<SourceGame[]>;
   fetchGame(id: number): Promise<SourceGame | null>;
+  fetchBySlug(slug: string): Promise<SourceGame | null>;
   fetchReleaseDates(ids: number[]): Promise<Map<number, SourceReleaseDate[]>>;
 }
 

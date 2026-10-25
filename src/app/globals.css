@@ -46,6 +46,16 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --animate-drift: drift 40s ease-in-out infinite alternate;
+
+  @keyframes drift {
+    from {
+      transform: translate(-4%, -3%) rotate(-2deg);
+    }
+    to {
+      transform: translate(4%, 3%) rotate(2deg) scale(1.1);
+    }
+  }
 }
 
 :root {

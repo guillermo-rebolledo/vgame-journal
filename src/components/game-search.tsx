@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import type { SearchResult } from "@/lib/catalog";
@@ -59,33 +60,38 @@ export function GameSearch() {
       {results && results.length > 0 && (
         <ul className="flex flex-col gap-2">
           {results.map((game) => (
-            <li key={game.id} className="flex items-center gap-3">
-              {game.coverImageId ? (
-                // biome-ignore lint/performance/noImgElement: IGDB CDN serves sized covers; no Next image optimization.
-                <img
-                  src={coverUrl(game.coverImageId, "cover_small")}
-                  alt=""
-                  width={45}
-                  height={64}
-                  loading="lazy"
-                  className="h-16 w-[45px] shrink-0 rounded object-cover"
-                />
-              ) : (
-                <div className="h-16 w-[45px] shrink-0 rounded bg-muted" />
-              )}
-              <div className="min-w-0">
-                <p className="truncate font-medium">
-                  {game.title}
-                  {game.year && (
-                    <span className="ml-2 text-muted-foreground">
-                      {game.year}
-                    </span>
-                  )}
-                </p>
-                <p className="truncate text-muted-foreground text-sm">
-                  {game.platforms.join(", ")}
-                </p>
-              </div>
+            <li key={game.id}>
+              <Link
+                href={`/games/${game.slug}`}
+                className="-mx-2 flex items-center gap-3 rounded-md p-2 hover:bg-muted focus-visible:bg-muted"
+              >
+                {game.coverImageId ? (
+                  // biome-ignore lint/performance/noImgElement: IGDB CDN serves sized covers; no Next image optimization.
+                  <img
+                    src={coverUrl(game.coverImageId, "cover_small")}
+                    alt=""
+                    width={45}
+                    height={64}
+                    loading="lazy"
+                    className="h-16 w-[45px] shrink-0 rounded object-cover"
+                  />
+                ) : (
+                  <div className="h-16 w-[45px] shrink-0 rounded bg-muted" />
+                )}
+                <div className="min-w-0">
+                  <p className="truncate font-medium">
+                    {game.title}
+                    {game.year && (
+                      <span className="ml-2 text-muted-foreground">
+                        {game.year}
+                      </span>
+                    )}
+                  </p>
+                  <p className="truncate text-muted-foreground text-sm">
+                    {game.platforms.join(", ")}
+                  </p>
+                </div>
+              </Link>
             </li>
           ))}
         </ul>

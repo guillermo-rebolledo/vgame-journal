@@ -9,6 +9,7 @@ import {
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
+import type { DatePrecision } from "@/lib/game-source";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -85,20 +86,24 @@ export const verification = pgTable(
 );
 
 // Catalog: our local copy of games, keyed by the GameSource (IGDB) id.
-export const game = pgTable("game", {
-  id: integer("id").primaryKey(),
-  title: text("title").notNull(),
-  slug: text("slug").notNull(),
-  summary: text("summary"),
-  coverImageId: text("cover_image_id"),
-  genres: text("genres").array().notNull(),
-  platforms: text("platforms").array().notNull(),
-  criticScore: real("critic_score"),
-  criticScoreCount: integer("critic_score_count"),
-  userScore: real("user_score"),
-  userScoreCount: integer("user_score_count"),
-  syncedAt: timestamp("synced_at").notNull(),
-});
+export const game = pgTable(
+  "game",
+  {
+    id: integer("id").primaryKey(),
+    title: text("title").notNull(),
+    slug: text("slug").notNull(),
+    summary: text("summary"),
+    coverImageId: text("cover_image_id"),
+    genres: text("genres").array().notNull(),
+    platforms: text("platforms").array().notNull(),
+    criticScore: real("critic_score"),
+    criticScoreCount: integer("critic_score_count"),
+    userScore: real("user_score"),
+    userScoreCount: integer("user_score_count"),
+    syncedAt: timestamp("synced_at").notNull(),
+  },
+  (table) => [index("game_slug_idx").on(table.slug)],
+);
 
 export const releaseDate = pgTable(
   "release_date",
@@ -110,7 +115,7 @@ export const releaseDate = pgTable(
     platform: text("platform"),
     region: text("region").notNull(),
     date: timestamp("date"),
-    precision: text("precision").notNull(),
+    precision: text("precision").$type<DatePrecision>().notNull(),
     status: text("status"),
   },
   (table) => [index("release_date_gameId_idx").on(table.gameId)],

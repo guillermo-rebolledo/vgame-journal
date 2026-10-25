@@ -122,3 +122,80 @@ test("the game you named comes first, then popular games, then the obscure ones"
   ]);
   expect(results[0].id).not.toBe(results[5].id);
 });
+
+test("a searched game can be found by its slug, with scores and every release date", async () => {
+  const source = createFakeGameSource([
+    sourceGame({
+      id: 7,
+      title: "Hades II",
+      slug: "hades-ii",
+      summary: "Battle beyond the Underworld.",
+      genres: ["Roguelike"],
+      platforms: ["PC", "Nintendo Switch 2"],
+      criticScore: 94.5,
+      criticScoreCount: 40,
+      userScore: null,
+      userScoreCount: null,
+      releaseDates: [
+        {
+          platform: "Nintendo Switch 2",
+          region: "worldwide",
+          date: new Date("2025-09-25"),
+          precision: "day",
+          status: "Full Release",
+        },
+        {
+          platform: "PC",
+          region: "worldwide",
+          date: new Date("2024-05-06"),
+          precision: "day",
+          status: "Early Access",
+        },
+      ],
+    }),
+  ]);
+  const catalog = createCatalog(await createTestDb(), source);
+  await catalog.search("hades");
+
+  const game = await catalog.findBySlug("hades-ii");
+
+  expect(game).toMatchObject({
+    id: 7,
+    title: "Hades II",
+    summary: "Battle beyond the Underworld.",
+    genres: ["Roguelike"],
+    platforms: ["PC", "Nintendo Switch 2"],
+    criticScore: 94.5,
+    criticScoreCount: 40,
+    userScore: null,
+    userScoreCount: null,
+  });
+  expect(game?.releaseDates.map((d) => d.platform)).toEqual([
+    "PC",
+    "Nintendo Switch 2",
+  ]);
+  expect(await catalog.findBySlug("hades-iii")).toBeNull();
+});
+
+test("a game nobody has searched yet is fetched from the game source by slug, then kept", async () => {
+  const source = createFakeGameSource([
+    sourceGame({ title: "Celeste", slug: "celeste" }),
+    sourceGame({
+      title: "Celeste: Farewell",
+      slug: "celeste-farewell",
+      type: "dlc_addon",
+    }),
+    sourceGame({ title: "Celeste 64", slug: "celeste-64", fanMade: true }),
+  ]);
+  const catalog = createCatalog(await createTestDb(), source);
+
+  expect(await catalog.findBySlug("celeste")).toMatchObject({
+    title: "Celeste",
+  });
+  expect(await catalog.findBySlug("celeste-farewell")).toBeNull();
+  expect(await catalog.findBySlug("celeste-64")).toBeNull();
+
+  expect((await catalog.search("celeste")).map((r) => r.title)).toEqual([
+    "Celeste",
+  ]);
+});

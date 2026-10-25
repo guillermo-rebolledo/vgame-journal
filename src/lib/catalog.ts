@@ -73,7 +73,33 @@ export function createCatalog(db: Db, source: GameSource) {
     return ids.flatMap((id) => rows.find((r) => r.id === id) ?? []);
   }
 
+  /** The game with its release dates, earliest first (undated last). */
+  async function loadBySlug(slug: string) {
+    const [found] = await db
+      .select()
+      .from(game)
+      .where(eq(game.slug, slug))
+      .limit(1);
+    if (!found) return null;
+    const releaseDates = await db
+      .select()
+      .from(releaseDate)
+      .where(eq(releaseDate.gameId, found.id))
+      .orderBy(sql`${releaseDate.date} asc nulls last`, releaseDate.id);
+    return { ...found, releaseDates };
+  }
+
   return {
+    /** A Catalog game by slug; one nobody has searched yet (a shared link) is fetched from the GameSource and kept. */
+    async findBySlug(slug: string) {
+      const local = await loadBySlug(slug);
+      if (local) return local;
+      const fetched = await source.fetchBySlug(slug);
+      if (!fetched || !STANDALONE_TYPES.has(fetched.type) || fetched.fanMade)
+        return null;
+      await save([fetched]);
+      return loadBySlug(slug);
+    },
     /** Local-first: a query searched in the last 24h is answered from the Catalog, otherwise the GameSource. */
     async search(rawQuery: string) {
       const query = rawQuery.trim().toLowerCase().replace(/\s+/g, " ");
