@@ -1,15 +1,19 @@
 // Better Auth tables (`npx @better-auth/cli generate`), plus the username plugin columns.
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   index,
   integer,
   pgTable,
+  primaryKey,
   real,
   serial,
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
 import type { DatePrecision } from "@/lib/game-source";
+import type { CompletionTag, Status } from "@/lib/journal";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -127,3 +131,44 @@ export const searchCache = pgTable("search_cache", {
   gameIds: integer("game_ids").array().notNull(),
   fetchedAt: timestamp("fetched_at").notNull(),
 });
+
+// Journal: one entry per user and game. A Completion tag only goes with Played.
+export const journalEntry = pgTable(
+  "journal_entry",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => game.id, { onDelete: "cascade" }),
+    status: text("status").$type<Status>().notNull(),
+    completionTag: text("completion_tag").$type<CompletionTag>(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.gameId] }),
+    check(
+      "journal_entry_tag_only_when_played",
+      sql`${table.completionTag} is null or ${table.status} = 'played'`,
+    ),
+  ],
+);
+
+/** Every status change, so stats can chart the backlog over time. A null status means removed. */
+export const statusEvent = pgTable(
+  "status_event",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => game.id, { onDelete: "cascade" }),
+    status: text("status").$type<Status>(),
+    completionTag: text("completion_tag").$type<CompletionTag>(),
+    at: timestamp("at").notNull(),
+  },
+  (table) => [index("status_event_userId_idx").on(table.userId)],
+);
