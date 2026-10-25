@@ -25,14 +25,21 @@ export type PlaythroughInput = {
   notes?: string;
 };
 
-const isDay = (day: string) =>
-  /^\d{4}-\d{2}-\d{2}$/.test(day) &&
-  new Date(`${day}T00:00:00Z`).toISOString().startsWith(day);
+function isDay(day: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  const date = new Date(`${day}T00:00:00Z`);
+  // Unparseable months/days are NaN; Feb 30 parses but rolls over to March.
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(day);
+}
 
 /** Tests pass their own database. Every write is scoped to the given user's own entries. */
 export function createJournal(db: Db) {
-  const owned = (userId: string, gameId: number) =>
-    and(eq(journalEntry.userId, userId), eq(journalEntry.gameId, gameId));
+  /** The user's rows for a game: their journal entry, or that entry's playthroughs. */
+  const owned = (
+    userId: string,
+    gameId: number,
+    table: typeof journalEntry | typeof playthrough = journalEntry,
+  ) => and(eq(table.userId, userId), eq(table.gameId, gameId));
 
   // ponytail: entry write and its event aren't atomic (neon-http has no transactions); a crash between them loses one event.
   const recordStatusEvent = (
@@ -90,11 +97,11 @@ export function createJournal(db: Db) {
       }: { status: Status; completionTag?: CompletionTag | null },
     ) {
       if (!STATUSES.includes(status))
-        throw new Error(`Unknown status: ${status}`);
+        throw new JournalError(`Unknown status: ${status}`);
       if (completionTag !== null && !COMPLETION_TAGS.includes(completionTag))
-        throw new Error(`Unknown completion tag: ${completionTag}`);
+        throw new JournalError(`Unknown completion tag: ${completionTag}`);
       if (completionTag !== null && status !== "played")
-        throw new Error("Only played games get a completion tag.");
+        throw new JournalError("Only played games get a completion tag.");
       const current = await entry(userId, gameId);
       if (current?.status === status && current.completionTag === completionTag)
         return;
@@ -172,9 +179,7 @@ export function createJournal(db: Db) {
       db
         .select()
         .from(playthrough)
-        .where(
-          and(eq(playthrough.userId, userId), eq(playthrough.gameId, gameId)),
-        )
+        .where(owned(userId, gameId, playthrough))
         .orderBy(playthrough.startedOn, playthrough.id),
   };
 }

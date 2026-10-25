@@ -1,22 +1,34 @@
 import { refresh } from "next/cache";
-import { ownerId, signedInUserId } from "@/components/journal-status";
 import {
   PlaythroughForm,
   type SavePlaythrough,
 } from "@/components/playthrough-form";
 import { Button } from "@/components/ui/button";
+import type { playthrough as playthroughTable } from "@/db/schema";
+import { ownerId, signedInUserId } from "@/lib/auth";
 import { JournalError, journal, type PlaythroughInput } from "@/lib/journal";
 
-const fromForm = (v: Record<string, string>): PlaythroughInput => ({
-  platform: v.platform ?? "",
-  startedOn: v.startedOn ?? "",
-  endedOn: v.endedOn || null,
-  hours: v.hours ? Number(v.hours) : null,
-  notes: v.notes ?? "",
+type Playthrough = typeof playthroughTable.$inferSelect;
+type FormValues = Record<string, string>;
+
+const fromForm = (values: FormValues): PlaythroughInput => ({
+  platform: values.platform ?? "",
+  startedOn: values.startedOn ?? "",
+  endedOn: values.endedOn || null,
+  hours: values.hours ? Number(values.hours) : null,
+  notes: values.notes ?? "",
+});
+
+const toForm = (playthrough: Playthrough): FormValues => ({
+  platform: playthrough.platform,
+  startedOn: playthrough.startedOn,
+  endedOn: playthrough.endedOn ?? "",
+  hours: playthrough.hours === null ? "" : String(playthrough.hours),
+  notes: playthrough.notes,
 });
 
 /** Runs a write and refreshes, or hands a broken Journal rule back to the form. */
-async function attempt(write: () => Promise<void>) {
+async function saveOrReturnError(write: () => Promise<void>) {
   try {
     await write();
   } catch (e) {
@@ -42,12 +54,12 @@ export async function Playthroughs({
 }) {
   const userId = await signedInUserId();
   if (!userId || !(await journal.entry(userId, gameId))) return null;
-  const runs = await journal.playthroughs(userId, gameId);
+  const playthroughs = await journal.playthroughs(userId, gameId);
 
   const add: SavePlaythrough = async (values) => {
     "use server";
     const owner = await ownerId();
-    return attempt(() =>
+    return saveOrReturnError(() =>
       journal.addPlaythrough(owner, gameId, fromForm(values)),
     );
   };
@@ -55,35 +67,39 @@ export async function Playthroughs({
   return (
     <section className="flex flex-col gap-3 rounded-lg border bg-background/60 p-4 backdrop-blur sm:max-w-md">
       <h2 className="font-medium">Playthroughs</h2>
-      {runs.length > 0 && (
+      {playthroughs.length > 0 && (
         <ol className="flex flex-col divide-y divide-border/60">
-          {runs.map((run) => {
+          {playthroughs.map((playthrough) => {
             const update: SavePlaythrough = async (values) => {
               "use server";
               const owner = await ownerId();
-              return attempt(() =>
-                journal.updatePlaythrough(owner, run.id, fromForm(values)),
+              return saveOrReturnError(() =>
+                journal.updatePlaythrough(
+                  owner,
+                  playthrough.id,
+                  fromForm(values),
+                ),
               );
             };
             async function remove() {
               "use server";
               const owner = await ownerId();
-              await journal.removePlaythrough(owner, run.id);
+              await journal.removePlaythrough(owner, playthrough.id);
               refresh();
             }
             return (
-              <li key={run.id} className="flex flex-col gap-1 py-3">
+              <li key={playthrough.id} className="flex flex-col gap-1 py-3">
                 <p className="flex flex-wrap items-baseline justify-between gap-x-4">
-                  <span>{run.platform}</span>
+                  <span>{playthrough.platform}</span>
                   <span className="text-muted-foreground text-sm tabular-nums">
-                    {day(run.startedOn)} –{" "}
-                    {run.endedOn ? day(run.endedOn) : "ongoing"}
-                    {run.hours !== null && ` · ${run.hours} h`}
+                    {day(playthrough.startedOn)} –{" "}
+                    {playthrough.endedOn ? day(playthrough.endedOn) : "ongoing"}
+                    {playthrough.hours !== null && ` · ${playthrough.hours} h`}
                   </span>
                 </p>
-                {run.notes && (
+                {playthrough.notes && (
                   <p className="whitespace-pre-line text-pretty text-sm">
-                    {run.notes}
+                    {playthrough.notes}
                   </p>
                 )}
                 <details className="text-sm">
@@ -93,13 +109,7 @@ export async function Playthroughs({
                   <div className="flex flex-col gap-3 pt-3">
                     <PlaythroughForm
                       platforms={platforms}
-                      initial={{
-                        platform: run.platform,
-                        startedOn: run.startedOn,
-                        endedOn: run.endedOn ?? "",
-                        hours: run.hours === null ? "" : String(run.hours),
-                        notes: run.notes,
-                      }}
+                      initial={toForm(playthrough)}
                       submitLabel="Save"
                       onSave={update}
                     />
@@ -121,7 +131,7 @@ export async function Playthroughs({
           logged.
         </p>
       ) : (
-        <details open={runs.length === 0}>
+        <details open={playthroughs.length === 0}>
           <summary className="cursor-pointer text-sm">
             Add a playthrough
           </summary>

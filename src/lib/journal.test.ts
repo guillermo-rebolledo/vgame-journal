@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Db } from "@/db";
 import { game, user } from "@/db/schema";
 import { createTestDb } from "@/test/db";
-import { createJournal } from "./journal";
+import { createJournal, JournalError } from "./journal";
 
 let db: Db;
 let journal: ReturnType<typeof createJournal>;
@@ -78,6 +78,9 @@ test("unknown statuses and tags are rejected", async () => {
     // @ts-expect-error: form input is untrusted
     journal.set("mario", 1, { status: "played", completionTag: "100%" }),
   ).rejects.toThrow(/tag/i);
+  await expect(
+    journal.set("mario", 1, { status: "backlog", completionTag: "completed" }),
+  ).rejects.toBeInstanceOf(JournalError);
 });
 
 test("a removed game leaves the journal", async () => {
@@ -189,9 +192,10 @@ test("a playthrough can't end before it starts, and needs real dates and hours",
   await expect(
     journal.addPlaythrough("mario", 1, { ...run, endedOn: "2026-03-09" }),
   ).rejects.toThrow(/end.*before.*start/i);
-  await expect(
-    journal.addPlaythrough("mario", 1, { ...run, startedOn: "2026-02-30" }),
-  ).rejects.toThrow(/date/i);
+  for (const startedOn of ["2026-02-30", "2026-13-01", "2026-02-32"])
+    await expect(
+      journal.addPlaythrough("mario", 1, { ...run, startedOn }),
+    ).rejects.toThrow(/real days/i);
   await expect(
     journal.addPlaythrough("mario", 1, { ...run, hours: -1 }),
   ).rejects.toThrow(/hours/i);

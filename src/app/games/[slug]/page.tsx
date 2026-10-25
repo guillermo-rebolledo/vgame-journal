@@ -82,7 +82,7 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
           <Suspense fallback={<div className="h-28 sm:max-w-md" />}>
             <JournalStatus gameId={game.id} />
           </Suspense>
-          <Suspense>
+          <Suspense fallback={<div className="h-28 sm:max-w-md" />}>
             <Playthroughs gameId={game.id} platforms={game.platforms} />
           </Suspense>
 

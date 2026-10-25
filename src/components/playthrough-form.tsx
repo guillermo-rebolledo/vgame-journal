@@ -29,14 +29,14 @@ export function PlaythroughForm({
   const id = useId();
   const [state, action, pending] = useActionState(
     async (_: unknown, form: FormData) => {
-      const values = Object.fromEntries(form) as Values;
-      const result = await onSave(values);
-      return result && { ...result, values };
+      const submitted = Object.fromEntries(form) as Values;
+      const result = await onSave(submitted);
+      return result && { ...result, values: submitted };
     },
     undefined,
   );
   // Form actions reset inputs; refill what was typed after an error.
-  const v = state?.values ?? initial;
+  const values = state?.values ?? initial;
 
   return (
     <form action={action} className="flex flex-col gap-3">
@@ -46,7 +46,7 @@ export function PlaythroughForm({
           id={`${id}-platform`}
           name="platform"
           required
-          defaultValue={v.platform ?? platforms[0]}
+          defaultValue={values.platform ?? platforms[0]}
           className="h-8 rounded-lg border border-input bg-transparent px-2 text-base md:text-sm dark:bg-input/30"
         >
           {platforms.map((p) => (
@@ -64,7 +64,7 @@ export function PlaythroughForm({
             name="startedOn"
             type="date"
             required
-            defaultValue={v.startedOn}
+            defaultValue={values.startedOn}
           />
         </div>
         <div className={fieldClass}>
@@ -73,7 +73,7 @@ export function PlaythroughForm({
             id={`${id}-end`}
             name="endedOn"
             type="date"
-            defaultValue={v.endedOn}
+            defaultValue={values.endedOn}
           />
         </div>
       </div>
@@ -86,7 +86,7 @@ export function PlaythroughForm({
           inputMode="decimal"
           min={0}
           step={0.01}
-          defaultValue={v.hours}
+          defaultValue={values.hours}
           className="tabular-nums"
         />
       </div>
@@ -96,7 +96,7 @@ export function PlaythroughForm({
           id={`${id}-notes`}
           name="notes"
           rows={3}
-          defaultValue={v.notes}
+          defaultValue={values.notes}
           className="rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base md:text-sm dark:bg-input/30"
         />
       </div>
