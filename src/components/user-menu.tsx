@@ -17,6 +17,9 @@ export async function UserMenu() {
   const { image, username, name } = session.user;
   return (
     <div className="flex items-center gap-2 text-sm">
+      <Link href="/library" className="underline-offset-4 hover:underline">
+        Library
+      </Link>
       {image && (
         // biome-ignore lint/performance/noImgElement: Google avatars; Next image optimization is off app-wide.
         <img
