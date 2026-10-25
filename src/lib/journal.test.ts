@@ -23,7 +23,7 @@ beforeEach(async () => {
       title: `Game ${id}`,
       slug: `game-${id}`,
       genres: [],
-      platforms: [],
+      platforms: ["PlayStation 4", "PlayStation 5"],
       syncedAt: new Date(),
     })),
   );
@@ -145,4 +145,148 @@ test("a user's writes never touch another user's entries", async () => {
   });
   expect(await journal.entry("luigi", 1)).toBeNull();
   expect(await journal.statusEvents("mario")).toHaveLength(1);
+});
+
+test("a playthrough logged on a journal entry is listed with its details", async () => {
+  await journal.set("mario", 1, { status: "playing" });
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 5",
+    startedOn: "2026-01-02",
+    endedOn: "2026-02-03",
+    hours: 41.5,
+    notes: "Took the long way round.",
+  });
+
+  expect(await journal.playthroughs("mario", 1)).toMatchObject([
+    {
+      platform: "PlayStation 5",
+      startedOn: "2026-01-02",
+      endedOn: "2026-02-03",
+      hours: 41.5,
+      notes: "Took the long way round.",
+    },
+  ]);
+});
+
+test("a playthrough needs the game in the journal, and leaves with it", async () => {
+  const run = { platform: "PlayStation 5", startedOn: "2026-01-02" };
+  await expect(journal.addPlaythrough("mario", 1, run)).rejects.toThrow(
+    /not in your journal/i,
+  );
+
+  await journal.set("mario", 1, { status: "playing" });
+  await journal.addPlaythrough("mario", 1, run);
+  await journal.remove("mario", 1);
+  await journal.set("mario", 1, { status: "playing" });
+
+  expect(await journal.playthroughs("mario", 1)).toEqual([]);
+});
+
+test("a playthrough can't end before it starts, and needs real dates and hours", async () => {
+  await journal.set("mario", 1, { status: "played" });
+  const run = { platform: "PlayStation 5", startedOn: "2026-03-10" };
+
+  await expect(
+    journal.addPlaythrough("mario", 1, { ...run, endedOn: "2026-03-09" }),
+  ).rejects.toThrow(/end.*before.*start/i);
+  await expect(
+    journal.addPlaythrough("mario", 1, { ...run, startedOn: "2026-02-30" }),
+  ).rejects.toThrow(/date/i);
+  await expect(
+    journal.addPlaythrough("mario", 1, { ...run, hours: -1 }),
+  ).rejects.toThrow(/hours/i);
+  expect(await journal.playthroughs("mario", 1)).toEqual([]);
+
+  await journal.addPlaythrough("mario", 1, { ...run, endedOn: "2026-03-10" });
+  expect(await journal.playthroughs("mario", 1)).toHaveLength(1);
+});
+
+test("playthroughs are listed oldest first, whatever order they were logged in", async () => {
+  await journal.set("mario", 1, { status: "played" });
+  for (const startedOn of ["2025-06-01", "2019-03-15", "2022-11-20"])
+    await journal.addPlaythrough("mario", 1, {
+      platform: "PlayStation 4",
+      startedOn,
+    });
+
+  const runs = await journal.playthroughs("mario", 1);
+  expect(runs.map((r) => r.startedOn)).toEqual([
+    "2019-03-15",
+    "2022-11-20",
+    "2025-06-01",
+  ]);
+});
+
+test("a playthrough can be edited and deleted", async () => {
+  await journal.set("mario", 1, { status: "playing" });
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 4",
+    startedOn: "2026-01-02",
+    hours: 3,
+  });
+  const [run] = await journal.playthroughs("mario", 1);
+
+  await journal.updatePlaythrough("mario", run.id, {
+    platform: "PlayStation 5",
+    startedOn: "2026-01-01",
+    endedOn: "2026-01-20",
+    hours: 12.25,
+    notes: "Finally beat it.",
+  });
+  expect(await journal.playthroughs("mario", 1)).toMatchObject([
+    {
+      id: run.id,
+      platform: "PlayStation 5",
+      startedOn: "2026-01-01",
+      endedOn: "2026-01-20",
+      hours: 12.25,
+      notes: "Finally beat it.",
+    },
+  ]);
+
+  await expect(
+    journal.updatePlaythrough("mario", run.id, {
+      platform: "PlayStation 5",
+      startedOn: "2026-01-21",
+      endedOn: "2026-01-20",
+    }),
+  ).rejects.toThrow(/end.*before.*start/i);
+
+  await journal.removePlaythrough("mario", run.id);
+  expect(await journal.playthroughs("mario", 1)).toEqual([]);
+});
+
+test("a user's playthrough writes never touch another user's playthroughs", async () => {
+  await journal.set("mario", 1, { status: "played" });
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 4",
+    startedOn: "2026-01-02",
+    notes: "Mine.",
+  });
+  const [run] = await journal.playthroughs("mario", 1);
+  await journal.set("luigi", 1, { status: "played" });
+
+  await journal.updatePlaythrough("luigi", run.id, {
+    platform: "PlayStation 5",
+    startedOn: "2026-05-05",
+    notes: "Stolen.",
+  });
+  await journal.removePlaythrough("luigi", run.id);
+
+  expect(await journal.playthroughs("mario", 1)).toMatchObject([
+    { platform: "PlayStation 4", startedOn: "2026-01-02", notes: "Mine." },
+  ]);
+  expect(await journal.playthroughs("luigi", 1)).toEqual([]);
+});
+
+test("a playthrough's platform is one of the game's platforms", async () => {
+  await journal.set("mario", 1, { status: "played" });
+
+  await expect(
+    journal.addPlaythrough("mario", 1, {
+      platform: "Xbox Series X|S",
+      startedOn: "2026-03-10",
+    }),
+  ).rejects.toThrow(/platform/i);
+  expect(await journal.playthroughs("mario", 1)).toEqual([]);
 });

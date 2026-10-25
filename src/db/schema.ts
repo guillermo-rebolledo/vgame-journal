@@ -3,8 +3,11 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  date,
+  foreignKey,
   index,
   integer,
+  numeric,
   pgTable,
   primaryKey,
   real,
@@ -171,4 +174,34 @@ export const statusEvent = pgTable(
     at: timestamp("at").notNull(),
   },
   (table) => [index("status_event_userId_idx").on(table.userId)],
+);
+
+/** One dated session of playing a game. Goes away with its journal entry. */
+export const playthrough = pgTable(
+  "playthrough",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    gameId: integer("game_id").notNull(),
+    platform: text("platform").notNull(),
+    startedOn: date("started_on").notNull(),
+    endedOn: date("ended_on"),
+    hours: numeric("hours", { precision: 7, scale: 2, mode: "number" }),
+    notes: text("notes").notNull().default(""),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.userId, table.gameId],
+      foreignColumns: [journalEntry.userId, journalEntry.gameId],
+    }).onDelete("cascade"),
+    index("playthrough_userId_gameId_idx").on(table.userId, table.gameId),
+    check(
+      "playthrough_ends_after_start",
+      sql`${table.endedOn} is null or ${table.endedOn} >= ${table.startedOn}`,
+    ),
+    check(
+      "playthrough_hours_not_negative",
+      sql`${table.hours} is null or ${table.hours} >= 0`,
+    ),
+  ],
 );

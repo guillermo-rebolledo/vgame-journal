@@ -11,11 +11,11 @@ import {
   type Status,
 } from "@/lib/journal";
 
-const signedInUserId = async () =>
+export const signedInUserId = async () =>
   (await auth.api.getSession({ headers: await headers() }))?.user.id ?? null;
 
 /** Actions re-read the session: only the signed-in owner writes their own entries. */
-async function ownerId() {
+export async function ownerId() {
   const userId = await signedInUserId();
   if (!userId) throw new Error("Sign in to edit your journal.");
   return userId;

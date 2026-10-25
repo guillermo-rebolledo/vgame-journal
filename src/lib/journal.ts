@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { type Db, db } from "@/db";
-import { journalEntry, statusEvent } from "@/db/schema";
+import { game, journalEntry, playthrough, statusEvent } from "@/db/schema";
 
 export const STATUSES = ["played", "playing", "backlog", "wishlist"] as const;
 export type Status = (typeof STATUSES)[number];
@@ -12,6 +12,22 @@ export const COMPLETION_TAGS = [
   "abandoned",
 ] as const;
 export type CompletionTag = (typeof COMPLETION_TAGS)[number];
+
+/** A broken Journal rule. Its message is safe to show the user. */
+export class JournalError extends Error {}
+
+/** What a user fills in for a Playthrough. Dates are `YYYY-MM-DD`. */
+export type PlaythroughInput = {
+  platform: string;
+  startedOn: string;
+  endedOn?: string | null;
+  hours?: number | null;
+  notes?: string;
+};
+
+const isDay = (day: string) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(day) &&
+  new Date(`${day}T00:00:00Z`).toISOString().startsWith(day);
 
 /** Tests pass their own database. Every write is scoped to the given user's own entries. */
 export function createJournal(db: Db) {
@@ -29,6 +45,28 @@ export function createJournal(db: Db) {
     db
       .insert(statusEvent)
       .values({ userId, gameId, status, completionTag, at });
+
+  const ownedPlaythrough = (userId: string, id: number) =>
+    and(eq(playthrough.userId, userId), eq(playthrough.id, id));
+
+  /** Validates untrusted form input against the game it's for. */
+  async function playthroughValues(gameId: number, input: PlaythroughInput) {
+    const { platform, startedOn, endedOn = null, hours = null } = input;
+    if (!isDay(startedOn) || (endedOn !== null && !isDay(endedOn)))
+      throw new JournalError("Dates must be real days (YYYY-MM-DD).");
+    // ISO days compare correctly as strings.
+    if (endedOn !== null && endedOn < startedOn)
+      throw new JournalError("A playthrough can't end before it starts.");
+    if (hours !== null && !(hours >= 0 && hours < 100_000))
+      throw new JournalError("Hours must be between 0 and 99,999.");
+    const [found] = await db
+      .select({ platforms: game.platforms })
+      .from(game)
+      .where(eq(game.id, gameId));
+    if (!found?.platforms.includes(platform))
+      throw new JournalError(`Not a platform for this game: ${platform}`);
+    return { platform, startedOn, endedOn, hours, notes: input.notes ?? "" };
+  }
 
   async function entry(userId: string, gameId: number) {
     const [found] = await db
@@ -93,6 +131,51 @@ export function createJournal(db: Db) {
         .from(statusEvent)
         .where(eq(statusEvent.userId, userId))
         .orderBy(statusEvent.at, statusEvent.id),
+
+    /** Logs a playthrough on the user's entry for a game. */
+    async addPlaythrough(
+      userId: string,
+      gameId: number,
+      input: PlaythroughInput,
+    ) {
+      if (!(await entry(userId, gameId)))
+        throw new JournalError("This game is not in your journal.");
+      const values = await playthroughValues(gameId, input);
+      await db.insert(playthrough).values({ userId, gameId, ...values });
+    },
+
+    /** Replaces the details of one of the user's playthroughs. Others' are left alone. */
+    async updatePlaythrough(
+      userId: string,
+      id: number,
+      input: PlaythroughInput,
+    ) {
+      const [found] = await db
+        .select({ gameId: playthrough.gameId })
+        .from(playthrough)
+        .where(ownedPlaythrough(userId, id));
+      if (!found) return;
+      const values = await playthroughValues(found.gameId, input);
+      await db
+        .update(playthrough)
+        .set(values)
+        .where(ownedPlaythrough(userId, id));
+    },
+
+    /** Deletes one of the user's playthroughs. Others' are left alone. */
+    async removePlaythrough(userId: string, id: number) {
+      await db.delete(playthrough).where(ownedPlaythrough(userId, id));
+    },
+
+    /** The user's playthroughs of a game, oldest first. */
+    playthroughs: (userId: string, gameId: number) =>
+      db
+        .select()
+        .from(playthrough)
+        .where(
+          and(eq(playthrough.userId, userId), eq(playthrough.gameId, gameId)),
+        )
+        .orderBy(playthrough.startedOn, playthrough.id),
   };
 }
 
