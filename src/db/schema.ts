@@ -147,6 +147,7 @@ export const journalEntry = pgTable(
       .references(() => game.id, { onDelete: "cascade" }),
     status: text("status").$type<Status>().notNull(),
     completionTag: text("completion_tag").$type<CompletionTag>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").notNull(),
   },
   (table) => [

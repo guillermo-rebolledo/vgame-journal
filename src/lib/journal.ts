@@ -1,17 +1,29 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { type Db, db } from "@/db";
-import { game, journalEntry, playthrough, statusEvent } from "@/db/schema";
+import {
+  game,
+  journalEntry,
+  playthrough,
+  releaseDate,
+  statusEvent,
+} from "@/db/schema";
+import {
+  COMPLETION_TAGS,
+  type CompletionTag,
+  type LibraryEntry,
+  type LibraryFilters,
+  type LibrarySort,
+  queryLibrary,
+  STATUSES,
+  type Status,
+} from "@/lib/library";
 
-export const STATUSES = ["played", "playing", "backlog", "wishlist"] as const;
-export type Status = (typeof STATUSES)[number];
-
-export const COMPLETION_TAGS = [
-  "completed",
-  "retired",
-  "shelved",
-  "abandoned",
-] as const;
-export type CompletionTag = (typeof COMPLETION_TAGS)[number];
+export {
+  COMPLETION_TAGS,
+  type CompletionTag,
+  STATUSES,
+  type Status,
+} from "@/lib/library";
 
 /** A broken Journal rule. Its message is safe to show the user. */
 export class JournalError extends Error {}
@@ -108,7 +120,14 @@ export function createJournal(db: Db) {
       const updatedAt = new Date();
       await db
         .insert(journalEntry)
-        .values({ userId, gameId, status, completionTag, updatedAt })
+        .values({
+          userId,
+          gameId,
+          status,
+          completionTag,
+          createdAt: updatedAt,
+          updatedAt,
+        })
         .onConflictDoUpdate({
           target: [journalEntry.userId, journalEntry.gameId],
           set: { status, completionTag, updatedAt },
@@ -172,6 +191,61 @@ export function createJournal(db: Db) {
     /** Deletes one of the user's playthroughs. Others' are left alone. */
     async removePlaythrough(userId: string, id: number) {
       await db.delete(playthrough).where(ownedPlaythrough(userId, id));
+    },
+
+    /** The user's Journal as Library entries, filtered and sorted (most recently added first by default). */
+    async library(
+      userId: string,
+      filters?: LibraryFilters,
+      sort?: LibrarySort,
+    ): Promise<LibraryEntry[]> {
+      const [entries, playthroughs] = await Promise.all([
+        db
+          .select({
+            gameId: game.id,
+            title: game.title,
+            slug: game.slug,
+            coverImageId: game.coverImageId,
+            status: journalEntry.status,
+            completionTag: journalEntry.completionTag,
+            addedAt: journalEntry.createdAt,
+            releasedAt: sql<Date | null>`(
+              select min(${releaseDate.date}) from ${releaseDate}
+              where ${releaseDate.gameId} = ${game.id} and ${releaseDate.precision} <> 'tbd'
+            )`.mapWith(journalEntry.createdAt),
+          })
+          .from(journalEntry)
+          .innerJoin(game, eq(game.id, journalEntry.gameId))
+          .where(eq(journalEntry.userId, userId)),
+        db
+          .select({
+            gameId: playthrough.gameId,
+            platform: playthrough.platform,
+            startedOn: playthrough.startedOn,
+            endedOn: playthrough.endedOn,
+          })
+          .from(playthrough)
+          .where(eq(playthrough.userId, userId)),
+      ]);
+      const thisYear = new Date().getUTCFullYear();
+      const library = entries.map((entry) => {
+        const own = playthroughs.filter((p) => p.gameId === entry.gameId);
+        const years = own.flatMap((p) => {
+          const from = Number(p.startedOn.slice(0, 4));
+          const to = p.endedOn ? Number(p.endedOn.slice(0, 4)) : thisYear;
+          return Array.from(
+            { length: Math.max(to, from) - from + 1 },
+            (_, i) => from + i,
+          );
+        });
+        return {
+          ...entry,
+          platforms: [...new Set(own.map((p) => p.platform))],
+          years: [...new Set(years)],
+        };
+      });
+      // ponytail: filters in memory, fine for a personal journal's hundreds of games; push into SQL if libraries get huge.
+      return queryLibrary(library, filters, sort);
     },
 
     /** The user's playthroughs of a game, oldest first. */

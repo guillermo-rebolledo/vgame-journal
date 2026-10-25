@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Db } from "@/db";
-import { game, user } from "@/db/schema";
+import { game, releaseDate, user } from "@/db/schema";
 import { createTestDb } from "@/test/db";
 import { createJournal, JournalError } from "./journal";
 
@@ -293,4 +293,136 @@ test("a playthrough's platform is one of the game's platforms", async () => {
     }),
   ).rejects.toThrow(/platform/i);
   expect(await journal.playthroughs("mario", 1)).toEqual([]);
+});
+
+test("the library lists the user's games, most recently added first", async () => {
+  vi.setSystemTime(new Date("2026-01-01T10:00:00Z"));
+  await journal.set("mario", 1, { status: "backlog" });
+  vi.setSystemTime(new Date("2026-02-01T10:00:00Z"));
+  await journal.set("mario", 2, { status: "wishlist" });
+  vi.setSystemTime(new Date("2026-03-01T10:00:00Z"));
+  await journal.set("mario", 1, { status: "playing" }); // a change isn't an add
+  await journal.set("luigi", 1, { status: "played" });
+
+  expect(await journal.library("mario")).toMatchObject([
+    {
+      gameId: 2,
+      title: "Game 2",
+      slug: "game-2",
+      status: "wishlist",
+      addedAt: new Date("2026-02-01T10:00:00Z"),
+    },
+    {
+      gameId: 1,
+      status: "playing",
+      addedAt: new Date("2026-01-01T10:00:00Z"),
+    },
+  ]);
+  expect(await journal.library("peach")).toEqual([]);
+});
+
+test("the library filters by status, playthrough platform and year played, combined", async () => {
+  await db.insert(game).values({
+    id: 3,
+    title: "Game 3",
+    slug: "game-3",
+    genres: [],
+    platforms: ["PlayStation 5"],
+    syncedAt: new Date(),
+  });
+  vi.setSystemTime(new Date("2026-06-01T10:00:00Z"));
+  await journal.set("mario", 1, { status: "played" });
+  await journal.set("mario", 2, { status: "played" });
+  await journal.set("mario", 3, { status: "playing" });
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 4",
+    startedOn: "2022-11-20",
+    endedOn: "2023-01-10", // spans two years
+  });
+  await journal.addPlaythrough("mario", 2, {
+    platform: "PlayStation 5",
+    startedOn: "2024-03-01",
+    endedOn: "2024-04-01",
+  });
+  await journal.addPlaythrough("mario", 3, {
+    platform: "PlayStation 5",
+    startedOn: "2025-12-01", // ongoing, so still being played this year
+  });
+  await journal
+    .addPlaythrough("luigi", 1, {
+      platform: "PlayStation 5",
+      startedOn: "2021-01-01",
+    })
+    .catch(() => {}); // not in luigi's journal
+
+  const ids = async (filters: Parameters<typeof journal.library>[1]) =>
+    (await journal.library("mario", filters)).map((e) => e.gameId).sort();
+
+  expect(await ids({ status: "played" })).toEqual([1, 2]);
+  expect(await ids({ platform: "PlayStation 5" })).toEqual([2, 3]);
+  expect(await ids({ year: 2022 })).toEqual([1]);
+  expect(await ids({ year: 2023 })).toEqual([1]);
+  expect(await ids({ year: 2026 })).toEqual([3]);
+  expect(await ids({ year: 2021 })).toEqual([]);
+  expect(await ids({ status: "played", platform: "PlayStation 5" })).toEqual([
+    2,
+  ]);
+  expect(await ids({ platform: "PlayStation 4", year: 2024 })).toEqual([]);
+  expect(await ids({})).toEqual([1, 2, 3]);
+});
+
+test("the library sorts by date added, release date or title", async () => {
+  await db.insert(game).values({
+    id: 3,
+    title: "another game",
+    slug: "another-game",
+    genres: [],
+    platforms: [],
+    syncedAt: new Date(),
+  });
+  await db.insert(releaseDate).values([
+    // Game 1's earliest release counts; a TBD one is ignored.
+    {
+      gameId: 1,
+      region: "europe",
+      date: new Date("2020-05-01"),
+      precision: "day",
+    },
+    {
+      gameId: 1,
+      region: "japan",
+      date: new Date("2019-03-01"),
+      precision: "day",
+    },
+    {
+      gameId: 2,
+      region: "europe",
+      date: new Date("2018-01-01"),
+      precision: "tbd",
+    },
+    {
+      gameId: 2,
+      region: "japan",
+      date: new Date("2023-01-01"),
+      precision: "year",
+    },
+  ]);
+  vi.setSystemTime(new Date("2026-01-01T10:00:00Z"));
+  await journal.set("mario", 2, { status: "backlog" });
+  vi.setSystemTime(new Date("2026-02-01T10:00:00Z"));
+  await journal.set("mario", 3, { status: "backlog" });
+  vi.setSystemTime(new Date("2026-03-01T10:00:00Z"));
+  await journal.set("mario", 1, { status: "backlog" });
+
+  const order = async (sort: Parameters<typeof journal.library>[2]) =>
+    (await journal.library("mario", {}, sort)).map((e) => e.title);
+
+  expect(await order("added")).toEqual(["Game 1", "another game", "Game 2"]);
+  expect(await order("released")).toEqual(["Game 2", "Game 1", "another game"]);
+  expect(await order("title")).toEqual(["another game", "Game 1", "Game 2"]);
+  expect((await journal.library("mario")).map((e) => e.releasedAt)).toEqual([
+    new Date("2019-03-01"),
+    null,
+    new Date("2023-01-01"),
+  ]);
 });
