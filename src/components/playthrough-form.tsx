@@ -31,7 +31,7 @@ export function PlaythroughForm({
     async (_: unknown, form: FormData) => {
       const submitted = Object.fromEntries(form) as Values;
       const result = await onSave(submitted);
-      return result && { ...result, values: submitted };
+      return result && { ...result, values: submitted, at: Date.now() };
     },
     undefined,
   );
@@ -43,6 +43,8 @@ export function PlaythroughForm({
       <div className={fieldClass}>
         <Label htmlFor={`${id}-platform`}>Platform</Label>
         <select
+          // The form reset doesn't re-apply a select's defaultValue; remount it after every error.
+          key={state?.at}
           id={`${id}-platform`}
           name="platform"
           required
