@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cacheLife } from "next/cache";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { JournalStatus } from "@/components/journal-status";
 import { catalog } from "@/lib/catalog";
 import { coverUrl } from "@/lib/game-source";
 import { regionName, releaseLabel } from "@/lib/release-dates";
@@ -76,6 +77,10 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
               <p className="text-muted-foreground">{game.genres.join(", ")}</p>
             )}
           </header>
+
+          <Suspense fallback={<div className="h-28 sm:max-w-md" />}>
+            <JournalStatus gameId={game.id} />
+          </Suspense>
 
           <dl className="grid grid-cols-2 gap-4 sm:max-w-md">
             <Score
