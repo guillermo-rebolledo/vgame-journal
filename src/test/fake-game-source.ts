@@ -12,6 +12,9 @@ export function createFakeGameSource(games: SourceGame[]) {
     async fetchGame(id: number) {
       return games.find((g) => g.id === id) ?? null;
     },
+    async fetchBySlug(slug: string) {
+      return games.find((g) => g.slug === slug) ?? null;
+    },
     async fetchReleaseDates(ids: number[]) {
       return new Map(
         games

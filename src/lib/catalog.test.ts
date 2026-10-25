@@ -176,3 +176,26 @@ test("a searched game can be found by its slug, with scores and every release da
   ]);
   expect(await catalog.findBySlug("hades-iii")).toBeNull();
 });
+
+test("a game nobody has searched yet is fetched from the game source by slug, then kept", async () => {
+  const source = createFakeGameSource([
+    sourceGame({ title: "Celeste", slug: "celeste" }),
+    sourceGame({
+      title: "Celeste: Farewell",
+      slug: "celeste-farewell",
+      type: "dlc_addon",
+    }),
+    sourceGame({ title: "Celeste 64", slug: "celeste-64", fanMade: true }),
+  ]);
+  const catalog = createCatalog(await createTestDb(), source);
+
+  expect(await catalog.findBySlug("celeste")).toMatchObject({
+    title: "Celeste",
+  });
+  expect(await catalog.findBySlug("celeste-farewell")).toBeNull();
+  expect(await catalog.findBySlug("celeste-64")).toBeNull();
+
+  expect((await catalog.search("celeste")).map((r) => r.title)).toEqual([
+    "Celeste",
+  ]);
+});

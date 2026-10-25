@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { notFound } from "next/navigation";
-import { cache, Suspense } from "react";
+import { Suspense } from "react";
 import { catalog } from "@/lib/catalog";
 import { coverUrl } from "@/lib/game-source";
 import { regionName, releaseLabel } from "@/lib/release-dates";
 
-const findGame = cache((slug: string) => catalog.findBySlug(slug));
+async function findGame(slug: string) {
+  "use cache";
+  cacheLife("hours");
+  return catalog.findBySlug(slug);
+}
 
 export async function generateMetadata({
   params,
@@ -25,7 +30,8 @@ export default function GamePage({ params }: PageProps<"/games/[slug]">) {
 }
 
 async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
-  // ponytail: Catalog only; a game nobody has searched yet 404s. Fetch it from the GameSource when links arrive from outside search.
+  // ponytail: an unknown slug streams the not-found page (noindex) with a 200, since the App Shell has already gone out.
+  // A real 404 needs a slug check in Proxy (docs: loading.md#status-codes); add it if analytics or crawlers need the status.
   const game = await findGame((await params).slug);
   if (!game) notFound();
   const cover = game.coverImageId && coverUrl(game.coverImageId);

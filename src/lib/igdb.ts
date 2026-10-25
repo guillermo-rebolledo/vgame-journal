@@ -219,6 +219,16 @@ export const igdbGameSource: GameSource = {
     return game ? toGame(game) : null;
   },
 
+  async fetchBySlug(slug) {
+    // Slugs come from the URL; anything else can't be an IGDB slug and must not reach the query.
+    if (!/^[a-z0-9-]+$/.test(slug)) return null;
+    const [game] = await igdb<IgdbGame>(
+      "games",
+      `fields ${GAME_FIELDS}; where slug = "${slug}";`,
+    );
+    return game ? toGame(game) : null;
+  },
+
   async fetchReleaseDates(ids) {
     const byGame = new Map<number, SourceReleaseDate[]>(
       ids.map((id) => [id, []]),
