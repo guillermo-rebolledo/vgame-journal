@@ -2,6 +2,8 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { username } from "better-auth/plugins";
+import { headers } from "next/headers";
+import { connection } from "next/server";
 import { Resend } from "resend";
 import { SITE_NAME } from "@/config/site";
 import { db } from "@/db";
@@ -68,3 +70,20 @@ export function createAuth(
 }
 
 export const auth = createAuth(db);
+
+/** The signed-in session, or null. Request-time only: Better Auth reads the clock, which prerendering forbids. */
+export async function currentSession() {
+  await connection();
+  return auth.api.getSession({ headers: await headers() });
+}
+
+/** The signed-in user's id, or null. */
+export const signedInUserId = async () =>
+  (await currentSession())?.user.id ?? null;
+
+/** For server actions: they re-read the session, so only the signed-in owner writes their own journal. */
+export async function ownerId() {
+  const userId = await signedInUserId();
+  if (!userId) throw new Error("Sign in to edit your journal.");
+  return userId;
+}

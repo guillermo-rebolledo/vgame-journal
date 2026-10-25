@@ -1,8 +1,7 @@
 import { refresh } from "next/cache";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { auth } from "@/lib/auth";
+import { ownerId, signedInUserId } from "@/lib/auth";
 import {
   COMPLETION_TAGS,
   type CompletionTag,
@@ -10,16 +9,6 @@ import {
   STATUSES,
   type Status,
 } from "@/lib/journal";
-
-const signedInUserId = async () =>
-  (await auth.api.getSession({ headers: await headers() }))?.user.id ?? null;
-
-/** Actions re-read the session: only the signed-in owner writes their own entries. */
-async function ownerId() {
-  const userId = await signedInUserId();
-  if (!userId) throw new Error("Sign in to edit your journal.");
-  return userId;
-}
 
 /** The signed-in user's Status and Completion tag for a game, editable in place. */
 export async function JournalStatus({ gameId }: { gameId: number }) {

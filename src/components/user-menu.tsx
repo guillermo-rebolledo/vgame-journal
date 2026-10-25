@@ -1,10 +1,9 @@
-import { headers } from "next/headers";
 import Link from "next/link";
 import { SignOutButton } from "@/components/sign-out-button";
-import { auth } from "@/lib/auth";
+import { currentSession } from "@/lib/auth";
 
 export async function UserMenu() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await currentSession();
   if (!session)
     return (
       <Link

@@ -133,6 +133,8 @@ type IgdbGame = {
   cover?: { image_id: string };
   genres?: { name: string }[];
   platforms?: { name: string }[];
+  remasters?: { platforms?: { name: string }[] }[];
+  ports?: { platforms?: { name: string }[] }[];
   release_dates?: IgdbReleaseDate[];
   aggregated_rating?: number;
   aggregated_rating_count?: number;
@@ -159,6 +161,8 @@ const GAME_FIELDS = [
   "cover.image_id",
   "genres.name",
   "platforms.name",
+  "remasters.platforms.name",
+  "ports.platforms.name",
   "aggregated_rating",
   "aggregated_rating_count",
   "rating",
@@ -187,7 +191,14 @@ const toGame = (g: IgdbGame): SourceGame => ({
   summary: g.summary ?? null,
   coverImageId: g.cover?.image_id ?? null,
   genres: g.genres?.map((x) => x.name) ?? [],
-  platforms: g.platforms?.map((x) => x.name) ?? [],
+  // A remaster or port is logged as the base game on its platform (e.g. The Last of Us on PS5).
+  platforms: [
+    ...new Set(
+      [g, ...(g.remasters ?? []), ...(g.ports ?? [])].flatMap(
+        (x) => x.platforms?.map((p) => p.name) ?? [],
+      ),
+    ),
+  ],
   releaseDates: g.release_dates?.map(toReleaseDate) ?? [],
   criticScore: g.aggregated_rating ?? null,
   criticScoreCount: g.aggregated_rating_count ?? null,
