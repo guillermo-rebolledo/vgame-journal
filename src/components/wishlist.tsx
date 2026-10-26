@@ -67,10 +67,7 @@ function Row({
 }) {
   const [pending, startTransition] = useTransition();
   const { release } = entry;
-  const left =
-    release.precision === "day" && release.date && day
-      ? countdown(release.date, day)
-      : null;
+  const left = day && countdown(release, day);
 
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-2 py-4">

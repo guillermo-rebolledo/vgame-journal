@@ -100,14 +100,32 @@ const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
 export const TODAY = "Today!";
 export const OUT_NOW = "Out now";
 
-/** Time left until an exact release, from the user's local day: "2 months, 1 week, 3 days", then "Today!", then "Out now". */
-export function countdown(release: Date, today: string) {
+/** The last day of the month, quarter or year an imprecise date stands for, as a UTC timestamp. */
+function periodEnd(date: Date, precision: DatePrecision) {
+  const month = date.getUTCMonth();
+  const lastMonth =
+    precision === "month"
+      ? month
+      : precision === "quarter"
+        ? month - (month % 3) + 2
+        : 11;
+  return Date.UTC(date.getUTCFullYear(), lastMonth + 1, 0);
+}
+
+/**
+ * Time left until a release, from the user's local day: "2 months, 1 week, 3 days", then "Today!", then "Out now".
+ * An imprecise release has no Countdown (null) until its whole month, quarter or year has passed; then it's "Out now".
+ */
+export function countdown(release: ResolvedRelease, today: string) {
+  if (!release.date) return null;
   const [y, m, d] = today.split("-").map(Number);
   const from = Date.UTC(y, m - 1, d);
+  if (release.precision !== "day")
+    return periodEnd(release.date, release.precision) < from ? OUT_NOW : null;
   const to = Date.UTC(
-    release.getUTCFullYear(),
-    release.getUTCMonth(),
-    release.getUTCDate(),
+    release.date.getUTCFullYear(),
+    release.date.getUTCMonth(),
+    release.date.getUTCDate(),
   );
   if (to === from) return TODAY;
   if (to < from) return OUT_NOW;

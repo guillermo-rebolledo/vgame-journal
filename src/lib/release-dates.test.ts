@@ -127,6 +127,10 @@ describe("resolveRelease", () => {
   });
 });
 
+/** A game's release from a single worldwide date. */
+const on = (date: string | null, precision: DatePrecision = "day") =>
+  resolveRelease([rd("worldwide", date, precision)], "earliest");
+
 describe("countdown", () => {
   test.each([
     ["2026-11-26", "1 month"],
@@ -140,24 +144,33 @@ describe("countdown", () => {
     ["2026-10-25", "Out now"],
     ["2020-01-01", "Out now"],
   ])("on 2026-10-26, a release on %s reads %s", (release, text) => {
-    expect(countdown(new Date(`${release}T00:00:00Z`), "2026-10-26")).toBe(
-      text,
-    );
+    expect(countdown(on(`${release}T00:00:00Z`), "2026-10-26")).toBe(text);
   });
 
   test("a month from the 31st ends on the last day of a shorter month", () => {
-    expect(countdown(new Date("2026-02-28T00:00:00Z"), "2026-01-31")).toBe(
-      "1 month",
-    );
-    expect(countdown(new Date("2026-03-01T00:00:00Z"), "2026-01-31")).toBe(
+    expect(countdown(on("2026-02-28T00:00:00Z"), "2026-01-31")).toBe("1 month");
+    expect(countdown(on("2026-03-01T00:00:00Z"), "2026-01-31")).toBe(
       "1 month, 1 day",
     );
   });
 
   test("the release day is its UTC calendar day", () => {
-    expect(countdown(new Date("2026-10-27T23:00:00Z"), "2026-10-26")).toBe(
-      "1 day",
-    );
+    expect(countdown(on("2026-10-27T23:00:00Z"), "2026-10-26")).toBe("1 day");
+  });
+});
+
+describe("countdown for imprecise releases", () => {
+  test.each([
+    ["2026-10-01T00:00:00Z", "month", "2026-10-31", null],
+    ["2026-10-01T00:00:00Z", "month", "2026-11-01", "Out now"],
+    ["2026-09-01T00:00:00Z", "month", "2026-10-26", "Out now"],
+    ["2026-09-30T00:00:00Z", "quarter", "2026-09-30", null],
+    ["2026-09-30T00:00:00Z", "quarter", "2026-10-01", "Out now"],
+    ["2026-12-31T00:00:00Z", "year", "2026-10-26", null],
+    ["2026-12-31T00:00:00Z", "year", "2027-01-01", "Out now"],
+    [null, "tbd", "2099-01-01", null],
+  ] as const)("%s with %s precision on %s reads %s", (date, precision, today, text) => {
+    expect(countdown(on(date, precision), today)).toBe(text);
   });
 });
 
@@ -172,7 +185,7 @@ describe("localDay", () => {
   });
 
   test("release day arrives at local midnight, not UTC midnight", () => {
-    const release = new Date("2026-10-26T00:00:00Z");
+    const release = on("2026-10-26T00:00:00Z");
     const now = new Date("2026-10-26T03:00:00Z");
     expect(countdown(release, localDay(now, "America/Los_Angeles"))).toBe(
       "1 day",
