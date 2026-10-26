@@ -426,3 +426,74 @@ test("the library sorts by date added, release date or title", async () => {
     new Date("2023-01-01"),
   ]);
 });
+
+test("the wishlist lists only wishlisted games, with releases in the user's region, soonest first", async () => {
+  await db.insert(game).values({
+    id: 3,
+    title: "Game 3",
+    slug: "game-3",
+    genres: [],
+    platforms: [],
+    syncedAt: new Date(),
+  });
+  await db.insert(releaseDate).values([
+    {
+      gameId: 1,
+      region: "japan",
+      date: new Date("2026-11-05T00:00:00Z"),
+      precision: "day",
+    },
+    {
+      gameId: 1,
+      region: "europe",
+      date: new Date("2026-12-10T00:00:00Z"),
+      precision: "day",
+    },
+    {
+      gameId: 2,
+      region: "worldwide",
+      date: new Date("2026-12-01T00:00:00Z"),
+      precision: "day",
+    },
+    {
+      gameId: 3,
+      region: "worldwide",
+      date: new Date("2026-09-30T00:00:00Z"),
+      precision: "quarter",
+    },
+  ]);
+  for (const id of [1, 2, 3])
+    await journal.set("mario", id, { status: "wishlist" });
+  await journal.set("luigi", 1, { status: "backlog" });
+
+  const read = async () =>
+    (await journal.wishlist("mario")).map((e) => [e.title, e.release.label]);
+
+  expect(await read()).toEqual([
+    ["Game 1", "Nov 5, 2026"],
+    ["Game 2", "Dec 1, 2026"],
+    ["Game 3", "Q3 2026"],
+  ]);
+  expect(await journal.wishlist("luigi")).toEqual([]);
+
+  await journal.setRegion("mario", "europe");
+  expect(await read()).toEqual([
+    ["Game 2", "Dec 1, 2026"],
+    ["Game 1", "Dec 10, 2026"],
+    ["Game 3", "Q3 2026"],
+  ]);
+});
+
+test("the region is earliest until the user picks another one, and only known regions are accepted", async () => {
+  expect(await journal.region("mario")).toBe("earliest");
+
+  await journal.setRegion("mario", "japan");
+  expect(await journal.region("mario")).toBe("japan");
+  expect(await journal.region("luigi")).toBe("earliest");
+
+  await expect(
+    // @ts-expect-error: form input is untrusted
+    journal.setRegion("mario", "mars"),
+  ).rejects.toThrow(/region/i);
+  expect(await journal.region("mario")).toBe("japan");
+});

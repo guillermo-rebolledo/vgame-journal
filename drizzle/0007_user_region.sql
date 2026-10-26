@@ -1,0 +1,2 @@
+ALTER TABLE "user" ADD COLUMN "region" text DEFAULT 'earliest' NOT NULL;--> statement-breakpoint
+ALTER TABLE "user" ADD CONSTRAINT "user_region_known" CHECK ("user"."region" in ('earliest', 'north_america', 'europe', 'japan'));

@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { type Db, db } from "@/db";
 import {
   game,
@@ -6,6 +6,7 @@ import {
   playthrough,
   releaseDate,
   statusEvent,
+  user,
 } from "@/db/schema";
 import {
   COMPLETION_TAGS,
@@ -17,6 +18,13 @@ import {
   STATUSES,
   type Status,
 } from "@/lib/library";
+import {
+  compareWishlist,
+  REGIONS,
+  type Region,
+  type ResolvedRelease,
+  resolveRelease,
+} from "@/lib/release-dates";
 
 export {
   COMPLETION_TAGS,
@@ -24,6 +32,15 @@ export {
   STATUSES,
   type Status,
 } from "@/lib/library";
+
+/** A wishlisted game with its release resolved for the user's region. */
+export type WishlistEntry = {
+  gameId: number;
+  title: string;
+  slug: string;
+  coverImageId: string | null;
+  release: ResolvedRelease;
+};
 
 /** A broken Journal rule. Its message is safe to show the user. */
 export class JournalError extends Error {}
@@ -93,6 +110,14 @@ export function createJournal(db: Db) {
       .from(journalEntry)
       .where(owned(userId, gameId));
     return found ?? null;
+  }
+
+  async function region(userId: string): Promise<Region> {
+    const [found] = await db
+      .select({ region: user.region })
+      .from(user)
+      .where(eq(user.id, userId));
+    return found?.region ?? "earliest";
   }
 
   return {
@@ -246,6 +271,56 @@ export function createJournal(db: Db) {
       });
       // ponytail: filters in memory, fine for a personal journal's hundreds of games; push into SQL if libraries get huge.
       return queryLibrary(library, filters, sort);
+    },
+
+    /** The region whose release dates the user's Countdowns follow. */
+    region,
+
+    async setRegion(userId: string, region: Region) {
+      if (!REGIONS.includes(region))
+        throw new JournalError(`Unknown region: ${region}`);
+      await db.update(user).set({ region }).where(eq(user.id, userId));
+    },
+
+    /** The user's Wishlist: exact releases soonest first, then imprecise ones, then TBA. */
+    async wishlist(userId: string): Promise<WishlistEntry[]> {
+      const [games, userRegion] = await Promise.all([
+        db
+          .select({
+            gameId: game.id,
+            title: game.title,
+            slug: game.slug,
+            coverImageId: game.coverImageId,
+          })
+          .from(journalEntry)
+          .innerJoin(game, eq(game.id, journalEntry.gameId))
+          .where(
+            and(
+              eq(journalEntry.userId, userId),
+              eq(journalEntry.status, "wishlist"),
+            ),
+          ),
+        region(userId),
+      ]);
+      if (!games.length) return [];
+      const dates = await db
+        .select()
+        .from(releaseDate)
+        .where(
+          inArray(
+            releaseDate.gameId,
+            games.map((g) => g.gameId),
+          ),
+        );
+      return games
+        .map((g) => ({
+          ...g,
+          release: resolveRelease(
+            dates.filter((d) => d.gameId === g.gameId),
+            userRegion,
+          ),
+        }))
+        .sort(compareWishlist);
     },
 
     /** The user's playthroughs of a game, oldest first. */

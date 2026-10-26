@@ -105,8 +105,8 @@ const STANDALONE_TYPE_IDS = [...STANDALONE_TYPES].map((t) =>
 
 // IGDB `date_formats.format` values.
 const PRECISIONS: Record<string, DatePrecision> = {
-  YYYYMMMMDD: "day",
-  YYYYMMMM: "month",
+  YYYYMMDD: "day",
+  YYYYMM: "month",
   YYYY: "year",
   YYYYQ1: "quarter",
   YYYYQ2: "quarter",

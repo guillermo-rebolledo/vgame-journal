@@ -1,5 +1,7 @@
+import { SettingsIcon } from "lucide-react";
 import Link from "next/link";
 import { SignOutButton } from "@/components/sign-out-button";
+import { Button } from "@/components/ui/button";
 import { currentSession } from "@/lib/auth";
 
 export async function UserMenu() {
@@ -16,10 +18,21 @@ export async function UserMenu() {
 
   const { image, username, name } = session.user;
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <Link href="/library" className="underline-offset-4 hover:underline">
-        Library
-      </Link>
+    <div className="flex items-center gap-1 text-sm sm:gap-2">
+      {(
+        [
+          ["/library", "Library"],
+          ["/wishlist", "Wishlist"],
+        ] as const
+      ).map(([href, label]) => (
+        <Link
+          key={href}
+          href={href}
+          className="underline-offset-4 hover:underline"
+        >
+          {label}
+        </Link>
+      ))}
       {image && (
         // biome-ignore lint/performance/noImgElement: Google avatars; Next image optimization is off app-wide.
         <img
@@ -29,8 +42,17 @@ export async function UserMenu() {
           referrerPolicy="no-referrer"
         />
       )}
-      <span>{username ?? name}</span>
+      <span className="hidden sm:inline">{username ?? name}</span>
       <SignOutButton />
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Settings"
+        render={<Link href="/settings" />}
+        nativeButton={false}
+      >
+        <SettingsIcon />
+      </Button>
     </div>
   );
 }

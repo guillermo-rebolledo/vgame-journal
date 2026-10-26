@@ -17,21 +17,33 @@ import {
 } from "drizzle-orm/pg-core";
 import type { DatePrecision } from "@/lib/game-source";
 import type { CompletionTag, Status } from "@/lib/journal";
+import type { Region } from "@/lib/release-dates";
 
-export const user = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
-    .notNull(),
-  username: text("username").unique(),
-  displayUsername: text("display_username"),
-});
+export const user = pgTable(
+  "user",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    image: text("image"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    username: text("username").unique(),
+    displayUsername: text("display_username"),
+    /** Whose release dates the user's Countdowns follow. */
+    region: text("region").$type<Region>().notNull().default("earliest"),
+  },
+  (table) => [
+    check(
+      "user_region_known",
+      sql`${table.region} in ('earliest', 'north_america', 'europe', 'japan')`,
+    ),
+  ],
+);
 
 export const session = pgTable(
   "session",
