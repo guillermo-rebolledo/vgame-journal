@@ -74,10 +74,12 @@ function Bars({
 
 function BacklogChart({ points }: { points: JournalStats["backlogOverTime"] }) {
   const max = Math.max(1, ...points.map((point) => point.games));
+  const left = Math.max(32, String(max).length * 16 + 12);
   const first = Date.parse(points[0].day);
   const last = Date.parse(points[points.length - 1].day);
   const x = (day: string) =>
-    32 + ((Date.parse(day) - first) / Math.max(1, last - first)) * 656;
+    left +
+    ((Date.parse(day) - first) / Math.max(1, last - first)) * (688 - left);
   const y = (games: number) => 176 - (games / max) * 152;
   const path = points
     .map(
@@ -97,14 +99,14 @@ function BacklogChart({ points }: { points: JournalStats["backlogOverTime"] }) {
         {[0, max].map((value) => (
           <g key={value}>
             <line
-              x1="32"
+              x1={left}
               x2="688"
               y1={y(value)}
               y2={y(value)}
               className="stroke-border"
             />
             <text
-              x="20"
+              x={left - 12}
               y={y(value) + 4}
               textAnchor="end"
               className="fill-muted-foreground text-[24px] sm:text-xs"
