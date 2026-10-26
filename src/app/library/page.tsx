@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { CollectionLoading } from "@/components/collection-loading";
 import { Library } from "@/components/library";
 import { signedInUserId } from "@/lib/auth";
 import { journal } from "@/lib/journal";
@@ -32,7 +33,7 @@ export default function LibraryPage({ searchParams }: PageProps<"/library">) {
           </p>
         </details>
       </div>
-      <Suspense>
+      <Suspense fallback={<CollectionLoading collection="Library" />}>
         <UserLibrary searchParams={searchParams} />
       </Suspense>
     </section>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { CollectionLoading } from "@/components/collection-loading";
 import { Wishlist } from "@/components/wishlist";
 import { ownerId, signedInUserId } from "@/lib/auth";
 import { journal, type Status } from "@/lib/journal";
@@ -12,7 +13,7 @@ export default function WishlistPage() {
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8">
       <h1 className="font-semibold text-3xl tracking-tight">Wishlist</h1>
-      <Suspense>
+      <Suspense fallback={<CollectionLoading collection="Wishlist" />}>
         <UserWishlist />
       </Suspense>
     </section>

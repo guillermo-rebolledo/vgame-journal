@@ -8,9 +8,9 @@ import {
   useSyncExternalStore,
   useTransition,
 } from "react";
+import { GameCover } from "@/components/game-cover";
 import { Odometer } from "@/components/odometer";
 import { Button } from "@/components/ui/button";
-import { coverUrl } from "@/lib/game-source";
 import type { Status, WishlistEntry } from "@/lib/journal";
 import { capitalize } from "@/lib/library";
 import { countdown, localDay, OUT_NOW, TODAY } from "@/lib/release-dates";
@@ -288,19 +288,11 @@ function Row({
         href={`/games/${entry.slug}`}
         className="group flex min-w-0 flex-1 basis-64 items-center gap-4 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        {entry.coverImageId ? (
-          // biome-ignore lint/performance/noImgElement: IGDB CDN serves sized covers; no Next image optimization.
-          <img
-            src={coverUrl(entry.coverImageId, "cover_small")}
-            alt=""
-            width={90}
-            height={128}
-            loading="lazy"
-            className="aspect-[264/374] w-14 shrink-0 rounded object-cover shadow-md"
-          />
-        ) : (
-          <div className="aspect-[264/374] w-14 shrink-0 rounded bg-muted" />
-        )}
+        <GameCover
+          imageId={entry.coverImageId}
+          size="cover_small"
+          className="w-14 rounded"
+        />
         {/* The Countdown sits under the date on phones, on the right from sm up. */}
         <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="min-w-0">

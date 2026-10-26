@@ -4,10 +4,10 @@ import { LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { GameCover } from "@/components/game-cover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { coverUrl } from "@/lib/game-source";
 import {
   capitalize,
   LIBRARY_SORTS,
@@ -240,7 +240,10 @@ export function Library({
                 href={`/games/${e.slug}`}
                 className="group flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               >
-                <Cover entry={e} className="w-full rounded-lg shadow-lg" />
+                <GameCover
+                  imageId={e.coverImageId}
+                  className="w-full rounded-lg shadow-lg"
+                />
                 <div className="min-w-0">
                   <h2 className="line-clamp-2 font-medium text-sm leading-snug group-hover:underline group-hover:underline-offset-4">
                     {e.title}
@@ -269,7 +272,11 @@ export function Library({
                 href={`/games/${e.slug}`}
                 className="-mx-2 flex items-center gap-3 rounded-md p-2 outline-none hover:bg-muted focus-visible:bg-muted"
               >
-                <Cover entry={e} size="cover_small" className="w-10 rounded" />
+                <GameCover
+                  imageId={e.coverImageId}
+                  size="cover_small"
+                  className="w-10 rounded"
+                />
                 <div className="min-w-0 flex-1">
                   <h2 className="truncate font-medium">
                     {e.title}
@@ -314,30 +321,6 @@ function ClearFilters({
     >
       Clear filters
     </Button>
-  );
-}
-
-export function Cover({
-  entry,
-  size,
-  className,
-}: {
-  entry: LibraryEntry;
-  size?: "cover_small";
-  className: string;
-}) {
-  return entry.coverImageId ? (
-    // biome-ignore lint/performance/noImgElement: IGDB CDN serves sized covers; no Next image optimization.
-    <img
-      src={coverUrl(entry.coverImageId, size)}
-      alt=""
-      width={264}
-      height={374}
-      loading="lazy"
-      className={`aspect-[264/374] shrink-0 object-cover ${className}`}
-    />
-  ) : (
-    <div className={`aspect-[264/374] shrink-0 bg-muted ${className}`} />
   );
 }
 
