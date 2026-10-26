@@ -28,6 +28,7 @@ async function UserWishlist() {
     "use server";
     const owner = await ownerId();
     if (status !== "backlog" && status !== "playing") return;
+    if ((await journal.entry(owner, gameId))?.status !== "wishlist") return;
     await journal.set(owner, gameId, { status });
     refresh();
   }

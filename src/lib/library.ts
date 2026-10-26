@@ -40,7 +40,8 @@ export const LIBRARY_VIEW_COOKIE = "library-view";
 export const LIBRARY_SORTS = ["added", "released", "title"] as const;
 export type LibrarySort = (typeof LIBRARY_SORTS)[number];
 
-const byTitle = (a: LibraryEntry, b: LibraryEntry) =>
+/** A to Z, ignoring case and accents. */
+export const byTitle = (a: { title: string }, b: { title: string }) =>
   a.title.localeCompare(b.title, "en", { sensitivity: "base" });
 
 /** Newest first for both dates; undated releases last. Ties go by title. */

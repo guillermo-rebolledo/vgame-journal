@@ -1,4 +1,5 @@
 import type { DatePrecision } from "@/lib/game-source";
+import { byTitle } from "@/lib/library";
 
 // GameSource dates are UTC calendar dates, so they're shown in UTC to avoid slipping a day.
 const day = new Intl.DateTimeFormat("en-US", {
@@ -61,9 +62,7 @@ const byRelease = (a: Dated, b: Dated) =>
 export const compareWishlist = (
   a: { title: string; release: ResolvedRelease },
   b: { title: string; release: ResolvedRelease },
-) =>
-  byRelease(a.release, b.release) ||
-  a.title.localeCompare(b.title, "en", { sensitivity: "base" });
+) => byRelease(a.release, b.release) || byTitle(a, b);
 
 /** The game's release in the user's region (worldwide dates count everywhere; any region if theirs has none). An exact date beats vaguer ones; otherwise the earliest. */
 export function resolveRelease(
@@ -98,6 +97,9 @@ export const localDay = (now: Date, timeZone: string) =>
 const DAY_MS = 86_400_000;
 const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
 
+export const TODAY = "Today!";
+export const OUT_NOW = "Out now";
+
 /** Time left until an exact release, from the user's local day: "2 months, 1 week, 3 days", then "Today!", then "Out now". */
 export function countdown(release: Date, today: string) {
   const [y, m, d] = today.split("-").map(Number);
@@ -107,8 +109,8 @@ export function countdown(release: Date, today: string) {
     release.getUTCMonth(),
     release.getUTCDate(),
   );
-  if (to === from) return "Today!";
-  if (to < from) return "Out now";
+  if (to === from) return TODAY;
+  if (to < from) return OUT_NOW;
 
   // Whole months first; a month from the 31st lands on the last day of a shorter month.
   const monthsLater = (n: number) =>

@@ -5,7 +5,7 @@ import { useSyncExternalStore, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { coverUrl } from "@/lib/game-source";
 import type { WishlistEntry } from "@/lib/journal";
-import { countdown, localDay } from "@/lib/release-dates";
+import { countdown, localDay, OUT_NOW, TODAY } from "@/lib/release-dates";
 
 // Re-read the clock every minute so a Countdown ticks over at local midnight.
 const everyMinute = (onChange: () => void) => {
@@ -103,7 +103,7 @@ function Row({
           </div>
           {left && (
             <p
-              className={`shrink-0 font-semibold tabular-nums sm:text-lg ${left === "Today!" ? "text-primary sm:text-xl" : ""}`}
+              className={`shrink-0 font-semibold tabular-nums sm:text-lg ${left === TODAY ? "text-primary sm:text-xl" : ""}`}
             >
               {left}
             </p>
@@ -111,7 +111,7 @@ function Row({
         </div>
       </Link>
 
-      {left === "Out now" && (
+      {left === OUT_NOW && (
         <div className="flex items-center gap-2 pl-18 sm:pl-0">
           <span className="text-muted-foreground text-sm">Move to</span>
           {(["backlog", "playing"] as const).map((status) => (
