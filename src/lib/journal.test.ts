@@ -1,7 +1,16 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Db } from "@/db";
-import { game, releaseDate, user } from "@/db/schema";
+import {
+  account,
+  game,
+  journalEntry,
+  playthrough,
+  releaseDate,
+  session,
+  statusEvent,
+  user,
+} from "@/db/schema";
 import { createTestDb } from "@/test/db";
 import { createJournal, JournalError } from "./journal";
 
@@ -32,6 +41,149 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.useRealTimers();
+});
+
+test("export includes the owner's profile, entries, full history and private playthrough notes", async () => {
+  await journal.set("mario", 1, { status: "backlog" });
+  await journal.set("mario", 1, {
+    status: "played",
+    completionTag: "completed",
+  });
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 5",
+    startedOn: "2026-01-01",
+    endedOn: "2026-01-10",
+    hours: 12.25,
+    notes: "My private notes",
+  });
+  await journal.set("mario", 2, { status: "wishlist" });
+  await journal.remove("mario", 2);
+  await journal.set("luigi", 2, { status: "playing" });
+  await journal.addPlaythrough("luigi", 2, {
+    platform: "PlayStation 4",
+    startedOn: "2026-02-01",
+    notes: "Someone else's notes",
+  });
+  await journal.feedToken("mario");
+
+  const exported = JSON.parse(
+    JSON.stringify(await journal.exportData("mario")),
+  );
+  expect(exported.profile).toMatchObject({
+    id: "mario",
+    name: "mario",
+    email: "mario@example.com",
+    region: "earliest",
+  });
+  expect(exported.entries).toEqual([
+    expect.objectContaining({
+      gameId: 1,
+      title: "Game 1",
+      slug: "game-1",
+      status: "played",
+      completionTag: "completed",
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String),
+    }),
+  ]);
+  expect(
+    exported.statusHistory.map(
+      (event: { gameId: number; status: string | null }) => [
+        event.gameId,
+        event.status,
+      ],
+    ),
+  ).toEqual([
+    [1, "backlog"],
+    [1, "played"],
+    [2, "wishlist"],
+    [2, null],
+  ]);
+  expect(exported.statusHistory[1]).toMatchObject({
+    completionTag: "completed",
+    at: expect.any(String),
+  });
+  expect(exported.playthroughs).toEqual([
+    expect.objectContaining({
+      gameId: 1,
+      platform: "PlayStation 5",
+      startedOn: "2026-01-01",
+      endedOn: "2026-01-10",
+      hours: 12.25,
+      notes: "My private notes",
+    }),
+  ]);
+  expect(JSON.stringify(exported)).not.toMatch(
+    /luigi|Someone else's|feedToken|password|accessToken/,
+  );
+  await expect(journal.exportData("unknown")).rejects.toThrow(
+    /user not found/i,
+  );
+});
+
+test("account deletion requires typed confirmation and cascades only the owner's data", async () => {
+  for (const owner of ["mario", "luigi"]) {
+    await db.insert(session).values(
+      [1, 2].map((id) => ({
+        id: `${owner}-${id}`,
+        token: `${owner}-token-${id}`,
+        userId: owner,
+        expiresAt: new Date("2030-01-01"),
+        updatedAt: new Date(),
+      })),
+    );
+    await db.insert(account).values({
+      id: owner,
+      accountId: owner,
+      providerId: "credential",
+      userId: owner,
+      password: "hash",
+      updatedAt: new Date(),
+    });
+    await journal.set(owner, 1, { status: "playing" });
+    await journal.addPlaythrough(owner, 1, {
+      platform: "PlayStation 5",
+      startedOn: "2026-01-01",
+      notes: `${owner}'s notes`,
+    });
+    await journal.set(owner, 2, { status: "wishlist" });
+    await journal.remove(owner, 2);
+    await journal.feedToken(owner);
+  }
+  const token = await journal.feedToken("mario");
+  const survivor = await journal.exportData("luigi");
+
+  for (const confirmation of [null, "", "delete", "DELETE ", "luigi"])
+    await expect(journal.deleteAccount("mario", confirmation)).rejects.toThrow(
+      /Type DELETE/,
+    );
+  expect((await journal.exportData("mario")).playthroughs).toHaveLength(1);
+
+  await journal.deleteAccount("mario", "DELETE");
+
+  for (const [table, ownerColumn] of [
+    [user, user.id],
+    [session, session.userId],
+    [account, account.userId],
+    [journalEntry, journalEntry.userId],
+    [statusEvent, statusEvent.userId],
+    [playthrough, playthrough.userId],
+  ] as const) {
+    expect(
+      await db.select().from(table).where(eq(ownerColumn, "mario")),
+    ).toEqual([]);
+  }
+  expect(await journal.calendarFeed(token)).toBeNull();
+  expect(await journal.exportData("luigi")).toEqual(survivor);
+  expect(
+    await db.select().from(session).where(eq(session.userId, "luigi")),
+  ).toHaveLength(2);
+  expect(
+    await db.select().from(account).where(eq(account.userId, "luigi")),
+  ).toHaveLength(1);
+  expect((await db.select().from(game)).map((g) => g.id).sort()).toEqual([
+    1, 2,
+  ]);
 });
 
 test("a game added with a status is in the journal", async () => {

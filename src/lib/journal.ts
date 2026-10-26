@@ -171,6 +171,60 @@ export function createJournal(db: Db) {
   }
 
   return {
+    /** One atomic delete cascades to auth and journal rows; shared catalog games stay. */
+    async deleteAccount(userId: string, confirmation: unknown) {
+      if (confirmation !== "DELETE")
+        throw new JournalError("Type DELETE to confirm account deletion.");
+      await db.delete(user).where(eq(user.id, userId));
+    },
+
+    /** A portable copy of the whole journal, including private notes, without auth secrets. */
+    async exportData(userId: string) {
+      const [profile] = await db
+        .select({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          emailVerified: user.emailVerified,
+          image: user.image,
+          username: user.username,
+          displayUsername: user.displayUsername,
+          region: user.region,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        })
+        .from(user)
+        .where(eq(user.id, userId));
+      if (!profile) throw new JournalError("User not found.");
+      const [entries, statusHistory, playthroughs] = await Promise.all([
+        db
+          .select({
+            gameId: journalEntry.gameId,
+            title: game.title,
+            slug: game.slug,
+            status: journalEntry.status,
+            completionTag: journalEntry.completionTag,
+            createdAt: journalEntry.createdAt,
+            updatedAt: journalEntry.updatedAt,
+          })
+          .from(journalEntry)
+          .innerJoin(game, eq(game.id, journalEntry.gameId))
+          .where(eq(journalEntry.userId, userId))
+          .orderBy(journalEntry.createdAt, journalEntry.gameId),
+        db
+          .select()
+          .from(statusEvent)
+          .where(eq(statusEvent.userId, userId))
+          .orderBy(statusEvent.at, statusEvent.id),
+        db
+          .select()
+          .from(playthrough)
+          .where(eq(playthrough.userId, userId))
+          .orderBy(playthrough.startedOn, playthrough.id),
+      ]);
+      return { profile, entries, statusHistory, playthroughs };
+    },
+
     /** Fast route check before streaming, so unknown profiles get an HTTP 404. */
     async hasPublicProfile(username: string) {
       const [found] = await db
