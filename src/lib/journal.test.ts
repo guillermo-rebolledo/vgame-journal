@@ -498,6 +498,18 @@ test("the region is earliest until the user picks another one, and only known re
   expect(await journal.region("mario")).toBe("japan");
 });
 
+test("simultaneous first settings visits receive the same working calendar feed token", async () => {
+  const tokens = await Promise.all([
+    journal.feedToken("mario"),
+    journal.feedToken("mario"),
+  ]);
+
+  expect(tokens[1]).toBe(tokens[0]);
+  expect(await journal.feedToken("mario")).toBe(tokens[0]);
+  for (const token of tokens)
+    expect(await journal.calendarFeed(token)).toContain("BEGIN:VCALENDAR");
+});
+
 test("a user's feed token stays the same until regenerated, which stops the old one working", async () => {
   await journal.set("mario", 1, { status: "wishlist" });
   const token = await journal.feedToken("mario");
