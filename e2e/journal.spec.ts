@@ -143,10 +143,17 @@ test("sign up, build a journal, and share a read-only public profile without not
     contentType: "image/png",
   });
 
-  const missing = await publicPage.goto("/u/unknown_player");
-  expect(missing?.status()).toBe(404);
+  const encoded = await publicPage.goto(`/u/%70${username.slice(1)}`);
+  expect(encoded?.status()).toBe(200);
   await expect(
-    publicPage.getByRole("heading", { name: "404", exact: true }),
+    publicPage.getByRole("heading", { name: username, exact: true }),
   ).toBeVisible();
+  for (const unknown of ["unknown_player", "unknown.player"]) {
+    const missing = await publicPage.goto(`/u/${unknown}`);
+    expect(missing?.status()).toBe(404);
+    await expect(
+      publicPage.getByRole("heading", { name: "404", exact: true }),
+    ).toBeVisible();
+  }
   await visitor.close();
 });
