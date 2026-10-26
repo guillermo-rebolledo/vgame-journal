@@ -50,6 +50,13 @@
       "when": 1792900252159,
       "tag": "0006_journal_entry_created_at",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793035795476,
+      "tag": "0007_user_region",
+      "breakpoints": true
     }
   ]
 }

@@ -1,15 +1,18 @@
 import { and, eq, getTableColumns, gt, inArray, sql } from "drizzle-orm";
 import { type Db, db } from "@/db";
-import { game, releaseDate, searchCache } from "@/db/schema";
+import { game, journalEntry, releaseDate, searchCache } from "@/db/schema";
 import {
   type GameSource,
   type SourceGame,
+  type SourceReleaseDate,
   STANDALONE_TYPES,
 } from "@/lib/game-source";
 import { igdbGameSource } from "@/lib/igdb";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_RESULTS = 20;
+/** Games per release date fetch; the GameSource pages past its own per-request limits. */
+const REFRESH_BATCH = 50;
 
 export type SearchResult = {
   id: number;
@@ -22,6 +25,18 @@ export type SearchResult = {
 
 /** Tests pass their own database and a fake GameSource. */
 export function createCatalog(db: Db, source: GameSource) {
+  /** Replaces the stored release dates of each game in the map. */
+  async function replaceReleaseDates(byGame: Map<number, SourceReleaseDate[]>) {
+    const ids = [...byGame.keys()];
+    if (ids.length === 0) return;
+    // ponytail: not atomic (neon-http has no transactions); a crash here leaves a game without dates until its next sync.
+    await db.delete(releaseDate).where(inArray(releaseDate.gameId, ids));
+    const dates = [...byGame].flatMap(([gameId, dates]) =>
+      dates.map((d) => ({ ...d, gameId })),
+    );
+    if (dates.length) await db.insert(releaseDate).values(dates);
+  }
+
   /** Saves (or refreshes) games and replaces their release dates. */
   async function save(games: SourceGame[]) {
     if (games.length === 0) return;
@@ -43,13 +58,9 @@ export function createCatalog(db: Db, source: GameSource) {
             .map(([key, column]) => [key, sql.raw(`excluded.${column.name}`)]),
         ),
       });
-    const ids = games.map((g) => g.id);
-    // ponytail: not atomic (neon-http has no transactions); a crash here leaves a game without dates until its next sync.
-    await db.delete(releaseDate).where(inArray(releaseDate.gameId, ids));
-    const dates = games.flatMap((g) =>
-      g.releaseDates.map((d) => ({ ...d, gameId: g.id })),
+    await replaceReleaseDates(
+      new Map(games.map((g) => [g.id, g.releaseDates])),
     );
-    if (dates.length) await db.insert(releaseDate).values(dates);
   }
 
   /** Catalog games in the given order. */
@@ -99,6 +110,43 @@ export function createCatalog(db: Db, source: GameSource) {
         return null;
       await save([fetched]);
       return loadBySlug(slug);
+    },
+    /**
+     * Re-fetches release dates for every game on anyone's Wishlist that has a future or imprecise date (or none),
+     * so Countdowns follow delays. Batched; the GameSource keeps to its own rate limit. A game the source returns no dates for
+     * keeps the ones it has (more likely a hiccup than a game losing every date). Returns how many games were checked.
+     */
+    async refreshReleaseDates() {
+      const now = new Date();
+      const due = await db
+        .selectDistinct({ id: journalEntry.gameId })
+        .from(journalEntry)
+        .where(
+          and(
+            eq(journalEntry.status, "wishlist"),
+            sql`(
+              exists (
+                select 1 from ${releaseDate} where ${releaseDate.gameId} = ${journalEntry.gameId}
+                and (${releaseDate.precision} <> 'day' or ${releaseDate.date} > ${now.toISOString()})
+              )
+              or not exists (select 1 from ${releaseDate} where ${releaseDate.gameId} = ${journalEntry.gameId})
+            )`,
+          ),
+        );
+      const ids = due.map((g) => g.id);
+      for (let i = 0; i < ids.length; i += REFRESH_BATCH) {
+        const fetched = await source.fetchReleaseDates(
+          ids.slice(i, i + REFRESH_BATCH),
+        );
+        const dated = new Map([...fetched].filter(([, dates]) => dates.length));
+        await replaceReleaseDates(dated);
+        if (dated.size)
+          await db
+            .update(game)
+            .set({ syncedAt: new Date() })
+            .where(inArray(game.id, [...dated.keys()]));
+      }
+      return ids.length;
     },
     /** Local-first: a query searched in the last 24h is answered from the Catalog, otherwise the GameSource. */
     async search(rawQuery: string) {

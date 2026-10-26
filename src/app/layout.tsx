@@ -31,9 +31,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         <ThemeProvider>
-          <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3">
-            <span className="font-semibold tracking-tight">{SITE_NAME}</span>
-            <div className="flex items-center gap-2">
+          <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3">
+            <span className="whitespace-nowrap font-semibold tracking-tight">
+              {SITE_NAME}
+            </span>
+            <div className="flex items-center gap-1 sm:gap-2">
               <Suspense>
                 <UserMenu />
               </Suspense>

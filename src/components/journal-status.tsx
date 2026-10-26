@@ -1,5 +1,6 @@
 import { refresh } from "next/cache";
 import Link from "next/link";
+import { BurstButton } from "@/components/burst-button";
 import { Button } from "@/components/ui/button";
 import { ownerId, signedInUserId } from "@/lib/auth";
 import {
@@ -84,6 +85,8 @@ export async function JournalStatus({ gameId }: { gameId: number }) {
             // Pressing the current tag again clears it.
             value: entry.completionTag === t ? "played" : `played:${t}`,
             pressed: entry.completionTag === t,
+            // Finishing a game is worth celebrating.
+            celebrate: t === "completed",
           }))}
         />
       )}
@@ -96,24 +99,32 @@ function Choices({
   options,
 }: {
   label: string;
-  options: { label: string; value: string; pressed: boolean }[];
+  options: {
+    label: string;
+    value: string;
+    pressed: boolean;
+    celebrate?: boolean;
+  }[];
 }) {
   return (
     <fieldset className="flex flex-wrap gap-2">
       <legend className="sr-only">{label}</legend>
-      {options.map((o) => (
-        <Button
-          key={o.label}
-          type="submit"
-          name="status"
-          value={o.value}
-          aria-pressed={o.pressed}
-          variant={o.pressed ? "default" : "outline"}
-          className="capitalize"
-        >
-          {o.label}
-        </Button>
-      ))}
+      {options.map((o) => {
+        const Choice = o.celebrate ? BurstButton : Button;
+        return (
+          <Choice
+            key={o.label}
+            type="submit"
+            name="status"
+            value={o.value}
+            aria-pressed={o.pressed}
+            variant={o.pressed ? "default" : "outline"}
+            className="capitalize"
+          >
+            {o.label}
+          </Choice>
+        );
+      })}
     </fieldset>
   );
 }

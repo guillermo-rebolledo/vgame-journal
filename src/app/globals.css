@@ -47,6 +47,30 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
   --animate-drift: drift 40s ease-in-out infinite alternate;
+  /* From 0 to wherever the digit strip is; later changes roll by transition. */
+  --animate-odometer-in: odometer-in 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-burst: burst 900ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+  @keyframes odometer-in {
+    from {
+      transform: translateY(0);
+    }
+  }
+
+  /* Each particle flies out along its own --angle, fading only at the end. */
+  @keyframes burst {
+    from {
+      transform: rotate(var(--angle)) translateY(0) scale(0.6);
+      opacity: 1;
+    }
+    60% {
+      opacity: 1;
+    }
+    to {
+      transform: rotate(var(--angle)) translateY(var(--distance)) scale(0.2);
+      opacity: 0;
+    }
+  }
 
   @keyframes drift {
     from {

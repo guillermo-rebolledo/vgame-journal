@@ -105,8 +105,8 @@ const STANDALONE_TYPE_IDS = [...STANDALONE_TYPES].map((t) =>
 
 // IGDB `date_formats.format` values.
 const PRECISIONS: Record<string, DatePrecision> = {
-  YYYYMMMMDD: "day",
-  YYYYMMMM: "month",
+  YYYYMMDD: "day",
+  YYYYMM: "month",
   YYYY: "year",
   YYYYQ1: "quarter",
   YYYYQ2: "quarter",
@@ -245,12 +245,14 @@ export const igdbGameSource: GameSource = {
       ids.map((id) => [id, []]),
     );
     if (ids.length === 0) return byGame;
-    // ponytail: one request of up to 500 dates; callers batch ids (~50 games) to stay under it.
-    const dates = await igdb<IgdbReleaseDate>(
-      "release_dates",
-      `fields game,${RELEASE_DATE_FIELDS.join(",")}; where game = (${ids.map(Math.trunc).join(",")}); limit 500;`,
-    );
-    for (const d of dates) byGame.get(d.game)?.push(toReleaseDate(d));
-    return byGame;
+    // IGDB returns at most 500 per request; page until a short page, in a stable order.
+    for (let offset = 0; ; offset += 500) {
+      const dates = await igdb<IgdbReleaseDate>(
+        "release_dates",
+        `fields game,${RELEASE_DATE_FIELDS.join(",")}; where game = (${ids.map(Math.trunc).join(",")}); sort id asc; limit 500; offset ${offset};`,
+      );
+      for (const d of dates) byGame.get(d.game)?.push(toReleaseDate(d));
+      if (dates.length < 500) return byGame;
+    }
   },
 };
