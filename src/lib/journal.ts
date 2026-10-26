@@ -337,10 +337,14 @@ export function createJournal(db: Db) {
     /** The secret in the user's calendar feed URL, made on first use. */
     async feedToken(userId: string) {
       const [found] = await db
-        .select({ feedToken: user.feedToken })
-        .from(user)
-        .where(eq(user.id, userId));
-      return found?.feedToken ?? regenerateFeedToken(userId);
+        .update(user)
+        .set({
+          feedToken: sql`coalesce(${user.feedToken}, ${randomBytes(24).toString("base64url")})`,
+        })
+        .where(eq(user.id, userId))
+        .returning({ feedToken: user.feedToken });
+      if (!found?.feedToken) throw new JournalError("User not found.");
+      return found.feedToken;
     },
 
     regenerateFeedToken,
