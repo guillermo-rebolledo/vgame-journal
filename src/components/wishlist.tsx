@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSyncExternalStore, useTransition } from "react";
+import { Odometer } from "@/components/odometer";
 import { Button } from "@/components/ui/button";
 import { coverUrl } from "@/lib/game-source";
 import type { WishlistEntry } from "@/lib/journal";
@@ -102,7 +103,7 @@ function Row({
             <p
               className={`shrink-0 font-semibold tabular-nums sm:text-lg ${left === TODAY ? "text-primary sm:text-xl" : ""}`}
             >
-              {left}
+              <Odometer text={left} />
             </p>
           )}
         </div>
