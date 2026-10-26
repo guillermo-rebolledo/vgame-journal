@@ -60,6 +60,36 @@ test("each game shows its Countdown, Today! or its imprecise label", () => {
   ]);
 });
 
+test("games are counted and split into out now, upcoming and unannounced, skipping empty sections", () => {
+  const { rerender } = render(
+    <Wishlist
+      entries={[
+        entry(1, "2026-10-01T00:00:00Z"),
+        entry(2, "2026-10-26T00:00:00Z"),
+        entry(3, "2026-12-01T00:00:00Z"),
+        entry(4, "2026-01-01T00:00:00Z", "quarter"),
+        entry(5, "2027-01-01T00:00:00Z", "year"),
+        entry(6, null),
+      ]}
+    />,
+  );
+
+  expect(screen.getByText("6 games")).toBeTruthy();
+  const section = (name: RegExp) =>
+    within(screen.getByRole("region", { name }))
+      .getAllByRole("heading", { level: 3 })
+      .map((h) => h.textContent);
+  // Exact dates first, nearest first; a passed quarter is out, a future year isn't.
+  expect(section(/^Out now/)).toEqual(["Game 1", "Game 4"]);
+  expect(section(/^Upcoming/)).toEqual(["Game 2", "Game 3", "Game 5"]);
+  expect(section(/^Release date not announced/)).toEqual(["Game 6"]);
+  expect(screen.getByRole("heading", { name: "Out now 2" })).toBeTruthy();
+
+  rerender(<Wishlist entries={[entry(3, "2026-12-01T00:00:00Z")]} />);
+  expect(screen.getByText("1 game")).toBeTruthy();
+  expect(screen.getAllByRole("region")).toHaveLength(1);
+});
+
 test("the Countdown ticks over at local midnight", () => {
   render(
     <Wishlist entries={[entry(2, "2026-11-02T00:00:00Z")]} onMove={vi.fn()} />,
@@ -72,22 +102,133 @@ test("the Countdown ticks over at local midnight", () => {
   expect(within(row).getByText("6 days")).toBeTruthy();
 });
 
-test("a released game offers a one-click move to Backlog or Playing", async () => {
-  // userEvent waits on real timers; keep only the clock fake.
+/** userEvent waits on real timers; keep only the clock fake. */
+function realTimers() {
   vi.useRealTimers();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-26T12:00:00"));
-  const onMove = vi.fn(async () => {});
+}
+
+const deferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
+test("a released game moves to Backlog or Playing once, then offers its destination and undo", async () => {
+  realTimers();
+  const user = userEvent.setup();
+  const moving = deferred<Date | null>();
+  const at = new Date("2026-10-26T12:00:01Z");
+  const onMove = vi.fn().mockReturnValueOnce(moving.promise);
   render(
     <Wishlist entries={[entry(7, "2026-10-01T00:00:00Z")]} onMove={onMove} />,
   );
 
   expect(rows()).toEqual(["Game 7Oct 1, 2026Out nowMove tobacklogplaying"]);
-  await userEvent.click(
+  await user.click(
     screen.getByRole("button", { name: "Move Game 7 to playing" }),
   );
-  expect(onMove).toHaveBeenCalledWith(7, "playing");
+  // Pending: both moves are locked, so a second click can't send a duplicate.
+  expect(screen.getByText("Moving Game 7 to Playing…")).toBeTruthy();
+  for (const button of screen.getAllByRole("button", { name: /^Move/ }))
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+  await act(async () => moving.resolve(at));
+  expect(onMove).toHaveBeenCalledTimes(1);
+  expect(onMove).toHaveBeenCalledWith(7, { status: "wishlist" }, "playing");
+
+  const notice = screen.getByRole("status", { name: "Wishlist updates" });
+  expect(notice.textContent).toContain("Moved Game 7 to Playing.");
   expect(
+    within(notice)
+      .getByRole("link", { name: "Open Playing in Library" })
+      .getAttribute("href"),
+  ).toBe("/library?status=playing");
+
+  onMove.mockResolvedValueOnce(new Date());
+  await user.click(within(notice).getByRole("button", { name: "Undo" }));
+  expect(onMove).toHaveBeenLastCalledWith(
+    7,
+    { status: "playing", updatedAt: at },
+    "wishlist",
+  );
+  expect(notice.textContent).toContain("Game 7 is back on your Wishlist.");
+});
+
+test("a failed move or undo explains itself in place and can be retried", async () => {
+  realTimers();
+  const user = userEvent.setup();
+  const onMove = vi.fn().mockRejectedValueOnce(new Error("offline"));
+  render(
+    <Wishlist entries={[entry(7, "2026-10-01T00:00:00Z")]} onMove={onMove} />,
+  );
+
+  await user.click(
     screen.getByRole("button", { name: "Move Game 7 to backlog" }),
-  ).toBeTruthy();
+  );
+  const row = screen.getByRole("listitem");
+  expect((await within(row).findByRole("alert")).textContent).toContain(
+    "Couldn’t move Game 7 to Backlog.",
+  );
+  onMove.mockResolvedValueOnce(new Date());
+  await user.click(within(row).getByRole("button", { name: "Try again" }));
+  expect(onMove).toHaveBeenCalledTimes(2);
+  expect(onMove).toHaveBeenLastCalledWith(7, { status: "wishlist" }, "backlog");
+
+  const notice = screen.getByRole("status", { name: "Wishlist updates" });
+  await within(notice).findByRole("button", { name: "Undo" });
+  onMove.mockRejectedValueOnce(new Error("offline"));
+  await user.click(within(notice).getByRole("button", { name: "Undo" }));
+  expect((await within(notice).findByRole("alert")).textContent).toContain(
+    "Couldn’t put Game 7 back on your Wishlist.",
+  );
+  onMove.mockResolvedValueOnce(new Date());
+  await user.click(within(notice).getByRole("button", { name: "Try again" }));
+  await vi.waitFor(() =>
+    expect(notice.textContent).toContain("Game 7 is back on your Wishlist."),
+  );
+});
+
+test("a change made elsewhere stops a move or undo instead of overwriting it", async () => {
+  realTimers();
+  const user = userEvent.setup();
+  const onMove = vi.fn().mockResolvedValueOnce(null);
+  render(
+    <Wishlist entries={[entry(7, "2026-10-01T00:00:00Z")]} onMove={onMove} />,
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Move Game 7 to backlog" }),
+  );
+  // The refresh drops the row, so the explanation sits in the notice above the list.
+  expect(
+    within(screen.getByRole("status", { name: "Wishlist updates" })).getByRole(
+      "alert",
+    ).textContent,
+  ).toContain("Game 7 isn’t on your Wishlist any more");
+
+  onMove.mockResolvedValueOnce(new Date()).mockResolvedValueOnce(null);
+  await user.click(
+    screen.getByRole("button", { name: "Move Game 7 to backlog" }),
+  );
+  const notice = screen.getByRole("status", { name: "Wishlist updates" });
+  await user.click(within(notice).getByRole("button", { name: "Undo" }));
+  expect(within(notice).getByRole("alert").textContent).toContain(
+    "Game 7 changed after the move, so it was left as is.",
+  );
+  expect(
+    within(notice)
+      .getByRole("link", { name: "Open Game 7" })
+      .getAttribute("href"),
+  ).toBe("/games/game-7");
+});
+
+test("long titles wrap instead of being cut off", () => {
+  render(<Wishlist entries={[entry(1, null)]} />);
+  const title = screen.getByRole("heading", { name: "Game 1" });
+  expect(title.className).not.toContain("truncate");
+  expect(title.className).toContain("break-words");
 });

@@ -20,7 +20,7 @@ test("sign up, share a profile without notes, export the journal, and delete the
   await page.getByRole("link", { name: /^wishlist$/i }).click();
   await expect(
     page
-      .getByRole("list", { name: /^wishlist$/i })
+      .getByRole("region", { name: /^Out now/ })
       .getByRole("link", { name: /Celeste/ }),
   ).toBeVisible();
   await page.getByRole("link", { name: /Celeste/ }).click();
@@ -65,7 +65,7 @@ test("sign up, share a profile without notes, export the journal, and delete the
   ).toBeVisible();
   await expect(
     publicPage.getByRole("link", {
-      name: "Celeste Played · Completed",
+      name: "Celeste Played · Completed 2018 · PC",
       exact: true,
     }),
   ).toBeVisible();

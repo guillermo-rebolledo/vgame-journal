@@ -1,11 +1,6 @@
-import {
-  expect,
-  type Locator,
-  type Page,
-  type TestInfo,
-  test,
-} from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { signUp } from "./support/sign-up";
+import { snap } from "./support/snap";
 
 /** Every visible target is at least 44 × 44 CSS px and none overlap. */
 async function expectTouchTargets(targets: Locator) {
@@ -38,15 +33,6 @@ async function expectNoHorizontalOverflow(page: Page) {
     width: window.innerWidth,
   }));
   expect(scroll).toBeLessThanOrEqual(width);
-}
-
-async function snap(page: Page, testInfo: TestInfo, name: string) {
-  await page.evaluate(() =>
-    Promise.all(document.getAnimations().map((a) => a.finished)),
-  );
-  const path = testInfo.outputPath(`${name}.png`);
-  await page.screenshot({ path });
-  await testInfo.attach(name, { path, contentType: "image/png" });
 }
 
 test("populated collections keep Find a game reachable with comfortable phone controls", async ({
@@ -128,7 +114,10 @@ test("populated collections keep Find a game reachable with comfortable phone co
     "page",
   );
   await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
-  await page.getByRole("link", { name: /Celeste/ }).click();
+  await page
+    .getByRole("list", { name: "Search results" })
+    .getByRole("link", { name: /Celeste/ })
+    .click();
   await expect(page).toHaveURL(/\/games\/celeste/);
   await expect(nav.locator('[aria-current="page"]')).toHaveCount(0);
   await brand.click();

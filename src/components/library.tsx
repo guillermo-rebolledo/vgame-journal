@@ -2,11 +2,14 @@
 
 import { LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { coverUrl } from "@/lib/game-source";
 import {
+  capitalize,
   LIBRARY_SORTS,
   LIBRARY_VIEW_COOKIE,
   type LibraryEntry,
@@ -14,22 +17,29 @@ import {
   type LibrarySort,
   type LibraryView,
   libraryChoices,
+  libraryParams,
+  parseLibraryParams,
   queryLibrary,
   STATUSES,
 } from "@/lib/library";
 
 const SORT_LABELS: Record<LibrarySort, string> = {
-  added: "Date added",
-  released: "Release date",
-  title: "Title",
+  added: "Recently added",
+  released: "Release date (newest first)",
+  title: "Title (A–Z)",
 };
 
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const statusLabel = (e: LibraryEntry) =>
   capitalize(e.status) +
   (e.completionTag ? ` · ${capitalize(e.completionTag)}` : "");
 
-/** The user's Journal as a cover grid or compact list, filtered and sorted in place. */
+/** Release year and Playthrough platforms, to tell games apart in either view. */
+const releaseAndPlatforms = (e: LibraryEntry) =>
+  [e.releasedAt?.getUTCFullYear(), e.platforms.join(", ")]
+    .filter(Boolean)
+    .join(" · ");
+
+/** The user's Journal as a cover grid or compact list, searched, filtered and sorted in place; all but the view live in the URL. */
 export function Library({
   entries,
   initialView,
@@ -39,9 +49,11 @@ export function Library({
   initialView: LibraryView;
   readOnly?: boolean;
 }) {
+  const searchParams = useSearchParams();
   const [view, setView] = useState(initialView);
-  const [filters, setFilters] = useState<LibraryFilters>({});
-  const [sort, setSort] = useState<LibrarySort>("added");
+  const [{ filters: chosen, sort }, setState] = useState(() =>
+    parseLibraryParams(searchParams),
+  );
 
   if (entries.length === 0 && readOnly)
     return (
@@ -65,7 +77,27 @@ export function Library({
     );
 
   const { platforms, years } = libraryChoices(entries);
+  // A platform or year from an old link that no game has any more would hide everything.
+  const filters: LibraryFilters = {
+    ...chosen,
+    platform: platforms.find((p) => p === chosen.platform),
+    year: years.find((y) => y === chosen.year),
+  };
   const shown = queryLibrary(entries, filters, sort);
+  const filtered = Object.values(filters).some(Boolean);
+
+  // replaceState keeps one history entry while browsing; Next's router follows it.
+  function update(next: { filters?: LibraryFilters; sort?: LibrarySort }) {
+    const state = { filters: next.filters ?? filters, sort: next.sort ?? sort };
+    setState(state);
+    const query = libraryParams(state.filters, state.sort);
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${query && `?${query}`}`,
+    );
+  }
+  const setFilters = (next: LibraryFilters) => update({ filters: next });
 
   function choose(next: LibraryView) {
     setView(next);
@@ -75,57 +107,101 @@ export function Library({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end">
-        <Select
-          label="Status"
-          value={filters.status ?? ""}
-          onChange={(status) =>
-            setFilters({
-              ...filters,
-              status: (status || undefined) as LibraryFilters["status"],
-            })
-          }
-          options={[
-            ["", "All statuses"],
-            ...STATUSES.map((s) => [s, capitalize(s)] as const),
-          ]}
-        />
-        <Select
-          label="Platform"
-          value={filters.platform ?? ""}
-          onChange={(platform) =>
-            setFilters({ ...filters, platform: platform || undefined })
-          }
-          options={[
-            ["", "All platforms"],
-            ...platforms.map((p) => [p, p] as const),
-          ]}
-        />
-        <Select
-          label="Year played"
-          value={filters.year ? String(filters.year) : ""}
-          onChange={(year) =>
-            setFilters({ ...filters, year: year ? Number(year) : undefined })
-          }
-          options={[
-            ["", "Any year"],
-            ...years.map((y) => [String(y), String(y)] as const),
-          ]}
-        />
-        <Select
-          label="Sort by"
-          value={sort}
-          onChange={(s) => setSort(s as LibrarySort)}
-          options={LIBRARY_SORTS.map((s) => [s, SORT_LABELS[s]] as const)}
-        />
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end">
+          <div className="col-span-2 flex min-w-0 flex-col gap-1.5 sm:w-64">
+            <Label htmlFor="library-search">Search your Library</Label>
+            <Input
+              id="library-search"
+              type="search"
+              placeholder="Title…"
+              value={filters.query ?? ""}
+              onChange={(e) =>
+                setFilters({ ...filters, query: e.target.value || undefined })
+              }
+              className="h-11 sm:pointer-fine:h-8"
+            />
+          </div>
+          <Select
+            label="Status"
+            value={filters.status ?? ""}
+            onChange={(status) =>
+              setFilters({
+                ...filters,
+                status: (status || undefined) as LibraryFilters["status"],
+              })
+            }
+            options={[
+              ["", "All statuses"],
+              ...STATUSES.map((s) => [s, capitalize(s)] as const),
+            ]}
+          />
+          <Select
+            label="Sort by"
+            value={sort}
+            onChange={(s) => update({ sort: s as LibrarySort })}
+            options={LIBRARY_SORTS.map((s) => [s, SORT_LABELS[s]] as const)}
+          />
+        </div>
+        {(platforms.length > 0 || years.length > 0) && (
+          <details
+            open={!!(filters.platform || filters.year) || undefined}
+            className="group"
+          >
+            <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-md text-muted-foreground text-sm underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:pointer-fine:min-h-8">
+              More filters
+              {(filters.platform || filters.year) && (
+                <span className="ml-1 text-foreground">
+                  ({[filters.platform, filters.year].filter(Boolean).length} on)
+                </span>
+              )}
+            </summary>
+            <div className="mt-2 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end">
+              {platforms.length > 0 && (
+                <Select
+                  label="Platform"
+                  value={filters.platform ?? ""}
+                  onChange={(platform) =>
+                    setFilters({ ...filters, platform: platform || undefined })
+                  }
+                  options={[
+                    ["", "All platforms"],
+                    ...platforms.map((p) => [p, p] as const),
+                  ]}
+                />
+              )}
+              {years.length > 0 && (
+                <Select
+                  label="Year played"
+                  value={filters.year ? String(filters.year) : ""}
+                  onChange={(year) =>
+                    setFilters({
+                      ...filters,
+                      year: year ? Number(year) : undefined,
+                    })
+                  }
+                  options={[
+                    ["", "Any year"],
+                    ...years.map((y) => [String(y), String(y)] as const),
+                  ]}
+                />
+              )}
+            </div>
+          </details>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <p className="text-muted-foreground text-sm" aria-live="polite">
-          {shown.length === entries.length
-            ? `${entries.length} ${entries.length === 1 ? "game" : "games"}`
-            : `${shown.length} of ${entries.length} games`}
-        </p>
+        <div className="flex flex-wrap items-center gap-x-3">
+          <p className="text-muted-foreground text-sm" aria-live="polite">
+            {filtered
+              ? `${shown.length} of ${entries.length} games`
+              : `${entries.length} ${entries.length === 1 ? "game" : "games"}`}
+          </p>
+          {filtered && shown.length > 0 && (
+            <ClearFilters onClick={() => setFilters({})} />
+          )}
+        </div>
         <fieldset className="flex gap-1">
           <legend className="sr-only">View</legend>
           {(
@@ -151,13 +227,7 @@ export function Library({
       {shown.length === 0 ? (
         <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-8">
           <p className="font-medium">No games match these filters.</p>
-          <Button
-            variant="outline"
-            className="h-11 sm:pointer-fine:h-8"
-            onClick={() => setFilters({})}
-          >
-            Clear filters
-          </Button>
+          <ClearFilters variant="outline" onClick={() => setFilters({})} />
         </div>
       ) : view === "grid" ? (
         <ul
@@ -178,6 +248,11 @@ export function Library({
                   <p className="text-muted-foreground text-xs">
                     {statusLabel(e)}
                   </p>
+                  {releaseAndPlatforms(e) && (
+                    <p className="line-clamp-2 text-muted-foreground text-xs tabular-nums">
+                      {releaseAndPlatforms(e)}
+                    </p>
+                  )}
                 </div>
               </Link>
             </li>
@@ -222,7 +297,27 @@ export function Library({
   );
 }
 
-function Cover({
+/** Resets search and filters; sort and view stay as chosen. */
+function ClearFilters({
+  variant = "ghost",
+  onClick,
+}: {
+  variant?: "ghost" | "outline";
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      variant={variant}
+      className="h-11 sm:pointer-fine:h-8"
+      onClick={onClick}
+      title="Sort and view stay as they are"
+    >
+      Clear filters
+    </Button>
+  );
+}
+
+export function Cover({
   entry,
   size,
   className,

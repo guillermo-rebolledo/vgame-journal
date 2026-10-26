@@ -381,6 +381,35 @@ export function createJournal(db: Db) {
       await recordStatusEvent(userId, gameId, status, completionTag, updatedAt);
     },
 
+    /**
+     * Changes the status only if the entry is still as the caller saw it: in `from.status`, and, given `from.updatedAt`, untouched since then.
+     * Returns the change's time (pass it back to undo), or null if the entry had changed. One conditional UPDATE, so racing writes can't both win.
+     */
+    async move(
+      userId: string,
+      gameId: number,
+      from: { status: Status; updatedAt?: Date },
+      to: Status,
+    ) {
+      if (!STATUSES.includes(to))
+        throw new JournalError(`Unknown status: ${to}`);
+      const updatedAt = new Date();
+      const [moved] = await db
+        .update(journalEntry)
+        .set({ status: to, completionTag: null, updatedAt })
+        .where(
+          and(
+            owned(userId, gameId),
+            eq(journalEntry.status, from.status),
+            from.updatedAt && eq(journalEntry.updatedAt, from.updatedAt),
+          ),
+        )
+        .returning({ updatedAt: journalEntry.updatedAt });
+      if (!moved) return null;
+      await recordStatusEvent(userId, gameId, to, null, updatedAt);
+      return moved.updatedAt;
+    },
+
     /** Takes the game out of the user's journal. */
     async remove(userId: string, gameId: number) {
       const removed = await db
