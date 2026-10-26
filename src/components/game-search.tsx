@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { type CSSProperties, useEffect, useState, ViewTransition } from "react";
+import { GameCover } from "@/components/game-cover";
 import { TiltCover } from "@/components/tilt-cover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { SearchResult } from "@/lib/catalog";
-import { coverUrl } from "@/lib/game-source";
 
 const MIN_QUERY = 2;
 
@@ -114,19 +114,11 @@ export function GameSearch() {
                     share="cover-morph"
                   >
                     <TiltCover>
-                      {game.coverImageId ? (
-                        // biome-ignore lint/performance/noImgElement: IGDB CDN serves sized covers; no Next image optimization.
-                        <img
-                          src={coverUrl(game.coverImageId, "cover_small")}
-                          alt=""
-                          width={45}
-                          height={64}
-                          loading="lazy"
-                          className="h-16 w-[45px] shrink-0 rounded object-cover"
-                        />
-                      ) : (
-                        <div className="h-16 w-[45px] shrink-0 rounded bg-muted" />
-                      )}
+                      <GameCover
+                        imageId={game.coverImageId}
+                        size="cover_small"
+                        className="w-[45px] rounded"
+                      />
                     </TiltCover>
                   </ViewTransition>
                 </div>
@@ -135,6 +127,7 @@ export function GameSearch() {
                     {game.title}
                     {game.year && (
                       <span className="ml-2 text-muted-foreground">
+                        {" "}
                         {game.year}
                       </span>
                     )}

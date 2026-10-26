@@ -6,6 +6,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 const database = new PGlite();
 await migrate(drizzle(database), { migrationsFolder: "./drizzle" });
 const mailbox = [];
+const collectionDelays = new Map();
 const server = createServer(async (request, response) => {
   try {
     let body = "";
@@ -13,6 +14,9 @@ const server = createServer(async (request, response) => {
     response.setHeader("Content-Type", "application/json");
     if (request.url === "/query" && request.method === "POST") {
       const { sql, params } = JSON.parse(body);
+      const delay = collectionDelays.get(params?.[0]);
+      if (delay && sql.includes('from "journal_entry"'))
+        await new Promise((resolve) => setTimeout(resolve, delay));
       const result = await database.query(sql, params, {
         rowMode: "array",
         parsers: {
@@ -22,6 +26,18 @@ const server = createServer(async (request, response) => {
         },
       });
       response.end(JSON.stringify({ rows: result.rows }));
+    } else if (
+      request.url === "/collection-delay" &&
+      request.method === "POST"
+    ) {
+      const { email, milliseconds } = JSON.parse(body);
+      const { rows } = await database.query(
+        'select id from "user" where email = $1',
+        [email],
+      );
+      if (!rows.length) throw new Error("Unknown test user");
+      collectionDelays.set(rows[0].id, milliseconds);
+      response.end("{}");
     } else if (request.url === "/emails" && request.method === "POST") {
       mailbox.push(JSON.parse(body));
       response.end(JSON.stringify({ id: String(mailbox.length) }));

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { GameCover } from "@/components/game-cover";
 import { GameSearch } from "@/components/game-search";
-import { Cover } from "@/components/library";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/config/site";
 import { signedInUserId } from "@/lib/auth";
@@ -111,7 +111,10 @@ function Shelf({ title, games }: { title: string; games: LibraryEntry[] }) {
               href={`/games/${e.slug}`}
               className="group flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              <Cover entry={e} className="w-full rounded-lg shadow-lg" />
+              <GameCover
+                imageId={e.coverImageId}
+                className="w-full rounded-lg shadow-lg"
+              />
               <span className="line-clamp-2 font-medium text-sm leading-snug group-hover:underline group-hover:underline-offset-4">
                 {e.title}
               </span>
