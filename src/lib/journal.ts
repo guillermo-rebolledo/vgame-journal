@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { type Db, db } from "@/db";
 import {
@@ -8,6 +9,7 @@ import {
   statusEvent,
   user,
 } from "@/db/schema";
+import { calendarFeed } from "@/lib/calendar-feed";
 import {
   COMPLETION_TAGS,
   type CompletionTag,
@@ -118,6 +120,54 @@ export function createJournal(db: Db) {
       .from(user)
       .where(eq(user.id, userId));
     return found?.region ?? "earliest";
+  }
+
+  /** The user's Wishlist: exact releases soonest first, then imprecise ones, then TBA. */
+  async function wishlist(userId: string): Promise<WishlistEntry[]> {
+    const [games, userRegion] = await Promise.all([
+      db
+        .select({
+          gameId: game.id,
+          title: game.title,
+          slug: game.slug,
+          coverImageId: game.coverImageId,
+        })
+        .from(journalEntry)
+        .innerJoin(game, eq(game.id, journalEntry.gameId))
+        .where(
+          and(
+            eq(journalEntry.userId, userId),
+            eq(journalEntry.status, "wishlist"),
+          ),
+        ),
+      region(userId),
+    ]);
+    if (!games.length) return [];
+    const dates = await db
+      .select()
+      .from(releaseDate)
+      .where(
+        inArray(
+          releaseDate.gameId,
+          games.map((g) => g.gameId),
+        ),
+      );
+    return games
+      .map((g) => ({
+        ...g,
+        release: resolveRelease(
+          dates.filter((d) => d.gameId === g.gameId),
+          userRegion,
+        ),
+      }))
+      .sort(compareWishlist);
+  }
+
+  /** Replaces the user's feed token, so URLs with the old one stop working. */
+  async function regenerateFeedToken(userId: string) {
+    const feedToken = randomBytes(24).toString("base64url");
+    await db.update(user).set({ feedToken }).where(eq(user.id, userId));
+    return feedToken;
   }
 
   return {
@@ -282,45 +332,31 @@ export function createJournal(db: Db) {
       await db.update(user).set({ region }).where(eq(user.id, userId));
     },
 
-    /** The user's Wishlist: exact releases soonest first, then imprecise ones, then TBA. */
-    async wishlist(userId: string): Promise<WishlistEntry[]> {
-      const [games, userRegion] = await Promise.all([
-        db
-          .select({
-            gameId: game.id,
-            title: game.title,
-            slug: game.slug,
-            coverImageId: game.coverImageId,
-          })
-          .from(journalEntry)
-          .innerJoin(game, eq(game.id, journalEntry.gameId))
-          .where(
-            and(
-              eq(journalEntry.userId, userId),
-              eq(journalEntry.status, "wishlist"),
-            ),
-          ),
-        region(userId),
-      ]);
-      if (!games.length) return [];
-      const dates = await db
-        .select()
-        .from(releaseDate)
-        .where(
-          inArray(
-            releaseDate.gameId,
-            games.map((g) => g.gameId),
-          ),
-        );
-      return games
-        .map((g) => ({
-          ...g,
-          release: resolveRelease(
-            dates.filter((d) => d.gameId === g.gameId),
-            userRegion,
-          ),
-        }))
-        .sort(compareWishlist);
+    wishlist,
+
+    /** The secret in the user's calendar feed URL, made on first use. */
+    async feedToken(userId: string) {
+      const [found] = await db
+        .update(user)
+        .set({
+          feedToken: sql`coalesce(${user.feedToken}, ${randomBytes(24).toString("base64url")})`,
+        })
+        .where(eq(user.id, userId))
+        .returning({ feedToken: user.feedToken });
+      if (!found?.feedToken) throw new JournalError("User not found.");
+      return found.feedToken;
+    },
+
+    regenerateFeedToken,
+
+    /** The iCalendar feed of the Wishlist whose owner has this feed token, or null for an unknown token. */
+    async calendarFeed(feedToken: string) {
+      if (!feedToken) return null;
+      const [owner] = await db
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.feedToken, feedToken));
+      return owner ? calendarFeed(await wishlist(owner.id)) : null;
     },
 
     /** The user's playthroughs of a game, oldest first. */

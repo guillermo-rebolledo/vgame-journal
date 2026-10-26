@@ -36,6 +36,8 @@ export const user = pgTable(
     displayUsername: text("display_username"),
     /** Whose release dates the user's Countdowns follow. */
     region: text("region").$type<Region>().notNull().default("earliest"),
+    /** Secret in the user's calendar feed URL; null until they first see it. */
+    feedToken: text("feed_token").unique(),
   },
   (table) => [
     check(
