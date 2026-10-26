@@ -1,6 +1,7 @@
+import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
-test("sign up, build a journal, and share a read-only public profile without notes", async ({
+test("sign up, share a profile without notes, export the journal, and delete the account", async ({
   page,
   request,
   browser,
@@ -156,4 +157,83 @@ test("sign up, build a journal, and share a read-only public profile without not
     ).toBeVisible();
   }
   await visitor.close();
+
+  await page.goto("/settings");
+  await expect(
+    page.getByRole("heading", { name: "Export journal" }),
+  ).toBeVisible();
+  const exportedResponse = await page.request.get("/api/account/export");
+  expect(exportedResponse.status()).toBe(200);
+  expect(exportedResponse.headers()["cache-control"]).toBe("private, no-store");
+  expect(exportedResponse.headers()["content-disposition"]).toContain(
+    "attachment;",
+  );
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download JSON" }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toBe("vgame-journal.json");
+  const exported = JSON.parse(
+    await readFile((await download.path()) ?? "", "utf8"),
+  );
+  expect(exported.profile).toMatchObject({ email, username });
+  expect(exported.entries).toHaveLength(2);
+  expect(exported.statusHistory).toHaveLength(4);
+  expect(exported.playthroughs).toEqual([
+    expect.objectContaining({
+      notes: privateNote,
+      hours: 12,
+      startedOn: "2026-01-01",
+      endedOn: "2026-01-10",
+    }),
+  ]);
+
+  const deleteButton = page.getByRole("button", {
+    name: "Permanently delete account",
+  });
+  await expect(deleteButton).toBeDisabled();
+  await page.getByLabel("Type DELETE to confirm").fill("delete");
+  await expect(deleteButton).toBeDisabled();
+  await page.getByLabel("Type DELETE to confirm").fill("");
+  for (const [name, width, height, theme] of [
+    ["account-settings-desktop", 1440, 1000, "light"],
+    ["account-settings-dark", 1440, 1000, "dark"],
+    ["account-settings-mobile", 390, 844, "light"],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await page.evaluate((theme) => {
+      localStorage.setItem("theme", theme);
+    }, theme);
+    await page.reload();
+    await expect(deleteButton).toBeDisabled();
+    const screenshot = testInfo.outputPath(`${name}.png`);
+    await page.screenshot({ path: screenshot, fullPage: true });
+    await testInfo.attach(name, { path: screenshot, contentType: "image/png" });
+  }
+  await page.getByLabel("Type DELETE to confirm").fill("DELETE");
+  await expect(deleteButton).toBeEnabled();
+  const confirmationScreenshot = testInfo.outputPath(
+    "account-delete-confirmation.png",
+  );
+  await page.screenshot({ path: confirmationScreenshot, fullPage: true });
+  await testInfo.attach("Typed deletion confirmation", {
+    path: confirmationScreenshot,
+    contentType: "image/png",
+  });
+  const staleSession = await browser.newContext({
+    storageState: await page.context().storageState(),
+  });
+  await deleteButton.click();
+  await expect(page).toHaveURL("/");
+  await expect(
+    page.getByRole("link", { name: "Sign in", exact: true }),
+  ).toBeVisible();
+  expect((await page.request.get("/api/account/export")).status()).toBe(401);
+  expect((await staleSession.request.get("/api/account/export")).status()).toBe(
+    401,
+  );
+  expect((await page.request.get(`/u/${username}`)).status()).toBe(404);
+  expect((await page.request.get("/games/celeste")).status()).toBe(200);
+  await page.goto("/settings");
+  await expect(page).toHaveURL(/\/sign-in$/);
+  await staleSession.close();
 });

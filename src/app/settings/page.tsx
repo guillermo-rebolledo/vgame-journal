@@ -4,10 +4,11 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { DeleteAccountForm } from "@/components/delete-account-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ownerId, signedInUserId } from "@/lib/auth";
-import { journal } from "@/lib/journal";
+import { auth, ownerId, signedInUserId } from "@/lib/auth";
+import { JournalError, journal } from "@/lib/journal";
 import { REGIONS, type Region } from "@/lib/release-dates";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -29,7 +30,61 @@ export default function SettingsPage() {
       <Suspense>
         <CalendarFeedSetting />
       </Suspense>
+      <Suspense>
+        <AccountDataSetting />
+      </Suspense>
     </section>
+  );
+}
+
+async function AccountDataSetting() {
+  if (!(await signedInUserId())) redirect("/sign-in");
+
+  async function deleteAccount(form: FormData) {
+    "use server";
+    const userId = await ownerId();
+    try {
+      await journal.deleteAccount(userId, form.get("confirmation"));
+    } catch (error) {
+      return {
+        error:
+          error instanceof JournalError
+            ? error.message
+            : "Could not delete your account. Please try again.",
+      };
+    }
+    await auth.api.signOut({ headers: await headers() });
+    redirect("/");
+  }
+
+  return (
+    <>
+      <section
+        className="flex flex-col gap-3 border-t pt-6"
+        aria-labelledby="export-heading"
+      >
+        <div className="flex flex-col gap-1">
+          <h2 id="export-heading" className="font-medium">
+            Export journal
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            Download your profile, journal entries, status history, and
+            playthroughs with private notes as JSON. Keep this file private.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="self-start"
+          nativeButton={false}
+          render={
+            <a href="/api/account/export" download>
+              Download JSON
+            </a>
+          }
+        />
+      </section>
+      <DeleteAccountForm onDelete={deleteAccount} />
+    </>
   );
 }
 
