@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
+import { PageTransition } from "@/components/page-transition";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
@@ -42,7 +43,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <ThemeToggle />
             </div>
           </header>
-          <main className="flex flex-1 flex-col">{children}</main>
+          <main className="flex flex-1 flex-col">
+            <Suspense fallback={<div className="flex-1" />}>
+              <PageTransition>{children}</PageTransition>
+            </Suspense>
+          </main>
           <footer className="mx-auto w-full max-w-6xl px-4 py-6 text-muted-foreground text-sm">
             Game data provided by{" "}
             <a

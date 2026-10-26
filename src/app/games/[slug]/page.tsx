@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { cacheLife } from "next/cache";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, ViewTransition } from "react";
 import { JournalStatus } from "@/components/journal-status";
 import { Playthroughs } from "@/components/playthroughs";
 import { catalog } from "@/lib/catalog";
@@ -22,13 +22,7 @@ export async function generateMetadata({
 }
 
 export default function GamePage({ params }: PageProps<"/games/[slug]">) {
-  return (
-    <Suspense
-      fallback={<div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8" />}
-    >
-      <Game params={params} />
-    </Suspense>
-  );
+  return <Game params={params} />;
 }
 
 async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
@@ -57,14 +51,20 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
 
       <div className="mx-auto grid w-full max-w-5xl gap-8 px-4 py-8 sm:grid-cols-[minmax(0,15rem)_1fr] sm:py-12 md:grid-cols-[minmax(0,17rem)_1fr]">
         {cover ? (
-          // biome-ignore lint/performance/noImgElement: IGDB CDN serves sized covers; no Next image optimization.
-          <img
-            src={cover}
-            alt={`${game.title} cover`}
-            width={264}
-            height={374}
-            className="mx-auto aspect-[264/374] w-48 rounded-lg object-cover shadow-2xl sm:w-full"
-          />
+          <ViewTransition
+            name={`game-cover-${game.id}`}
+            default="none"
+            share="cover-morph"
+          >
+            {/* biome-ignore lint/performance/noImgElement: IGDB CDN serves sized covers; no Next image optimization. */}
+            <img
+              src={cover}
+              alt={`${game.title} cover`}
+              width={264}
+              height={374}
+              className="mx-auto aspect-[264/374] w-48 rounded-lg object-cover shadow-2xl sm:w-full"
+            />
+          </ViewTransition>
         ) : (
           <div className="mx-auto aspect-[264/374] w-48 rounded-lg bg-muted sm:w-full" />
         )}
