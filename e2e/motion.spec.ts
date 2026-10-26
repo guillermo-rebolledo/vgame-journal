@@ -199,6 +199,9 @@ test("touch on a desktop with a fine primary pointer still presses the cover", a
   );
   const box = await cover.boundingBox();
   if (!box) throw new Error("Cover has no bounds");
+  await page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.2);
+  await expect(cover).not.toHaveCSS("transform", "none");
+  await expect(page.locator("[data-cover-glare]")).toHaveCSS("opacity", "1");
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchStart",
@@ -206,6 +209,7 @@ test("touch on a desktop with a fine primary pointer still presses the cover", a
   });
   await expect(cover).toHaveCSS("scale", "0.96");
   await expect(cover).toHaveCSS("transform", "none");
+  await expect(page.locator("[data-cover-glare]")).toHaveCSS("opacity", "0");
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchCancel",
     touchPoints: [],

@@ -39,6 +39,9 @@ export function TiltCover({ children }: { children: ReactNode }) {
           (event.pointerType === "touch" ||
             window.matchMedia("(pointer: coarse)").matches)
         ) {
+          rotateX.jump(0);
+          rotateY.jump(0);
+          glare.jump(0);
           event.currentTarget.setPointerCapture(event.pointerId);
           setPressed(true);
         }
