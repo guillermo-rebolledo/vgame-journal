@@ -171,6 +171,71 @@ export function createJournal(db: Db) {
   }
 
   return {
+    /** Games count once per end-date year; only entries currently marked Played qualify. */
+    async stats(userId: string) {
+      const finishedPerYear = await db
+        .select({
+          year: sql<number>`extract(year from ${playthrough.endedOn})`.mapWith(
+            Number,
+          ),
+          games: sql<number>`count(distinct ${playthrough.gameId})`.mapWith(
+            Number,
+          ),
+        })
+        .from(playthrough)
+        .innerJoin(
+          journalEntry,
+          and(
+            eq(journalEntry.userId, playthrough.userId),
+            eq(journalEntry.gameId, playthrough.gameId),
+          ),
+        )
+        .where(
+          and(
+            eq(playthrough.userId, userId),
+            eq(journalEntry.status, "played"),
+            sql`${playthrough.endedOn} is not null`,
+          ),
+        )
+        .groupBy(sql`extract(year from ${playthrough.endedOn})`)
+        .orderBy(sql`extract(year from ${playthrough.endedOn})`);
+      const hoursByPlatform = await db
+        .select({
+          platform: playthrough.platform,
+          hours: sql<number>`sum(${playthrough.hours})`.mapWith(Number),
+        })
+        .from(playthrough)
+        .where(
+          and(
+            eq(playthrough.userId, userId),
+            sql`${playthrough.hours} is not null`,
+          ),
+        )
+        .groupBy(playthrough.platform)
+        .orderBy(sql`sum(${playthrough.hours}) desc`, playthrough.platform);
+      const events = await db
+        .select({
+          gameId: statusEvent.gameId,
+          status: statusEvent.status,
+          at: statusEvent.at,
+        })
+        .from(statusEvent)
+        .where(eq(statusEvent.userId, userId))
+        .orderBy(statusEvent.at, statusEvent.id);
+      const backlog = new Set<number>();
+      const days = new Map<string, number>();
+      for (const event of events) {
+        if (event.status === "backlog") backlog.add(event.gameId);
+        else backlog.delete(event.gameId);
+        days.set(event.at.toISOString().slice(0, 10), backlog.size);
+      }
+      const backlogOverTime = Array.from(days, ([day, games]) => ({
+        day,
+        games,
+      }));
+      return { finishedPerYear, hoursByPlatform, backlogOverTime };
+    },
+
     /** The user's entry for a game, or null if it isn't in their journal. */
     entry,
 
