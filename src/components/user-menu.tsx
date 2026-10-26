@@ -23,6 +23,7 @@ export async function UserMenu() {
         [
           ["/library", "Library"],
           ["/wishlist", "Wishlist"],
+          ["/stats", "Stats"],
         ] as const
       ).map(([href, label]) => (
         <Link

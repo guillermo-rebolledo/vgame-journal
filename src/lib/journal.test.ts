@@ -611,3 +611,80 @@ test("the calendar feed has an all-day event per wishlisted game with an exact d
     ],
   ]);
 });
+
+test("finished games are distinct Played entries per playthrough end year, scoped to the owner", async () => {
+  await journal.set("mario", 1, { status: "played" });
+  await journal.set("mario", 2, { status: "playing" });
+  await journal.set("luigi", 1, { status: "played" });
+  for (const endedOn of ["2024-12-31", "2026-01-01", "2026-06-01", null])
+    await journal.addPlaythrough("mario", 1, {
+      platform: "PlayStation 5",
+      startedOn: "2024-01-01",
+      endedOn,
+    });
+  for (const [owner, gameId] of [
+    ["mario", 2],
+    ["luigi", 1],
+  ] as const)
+    await journal.addPlaythrough(owner, gameId, {
+      platform: "PlayStation 5",
+      startedOn: "2025-01-01",
+      endedOn: "2025-12-31",
+    });
+  expect((await journal.stats("mario")).finishedPerYear).toEqual([
+    { year: 2024, games: 1 },
+    { year: 2026, games: 1 },
+  ]);
+  expect((await journal.stats("nobody")).finishedPerYear).toEqual([]);
+});
+
+test("hours sum every logged playthrough by platform, preserving decimals and zero", async () => {
+  await journal.set("mario", 1, { status: "played" });
+  await journal.set("mario", 2, { status: "backlog" });
+  await journal.set("luigi", 1, { status: "played" });
+  for (const [owner, gameId, platform, hours] of [
+    ["mario", 1, "PlayStation 5", 12.25],
+    ["mario", 2, "PlayStation 5", 0.5],
+    ["mario", 1, "PlayStation 4", 0],
+    ["mario", 2, "PlayStation 4", null],
+    ["luigi", 1, "PlayStation 5", 99],
+  ] as const)
+    await journal.addPlaythrough(owner, gameId, {
+      platform,
+      hours,
+      startedOn: "2026-01-01",
+    });
+  expect((await journal.stats("mario")).hoursByPlatform).toEqual([
+    { platform: "PlayStation 5", hours: 12.75 },
+    { platform: "PlayStation 4", hours: 0 },
+  ]);
+  expect((await journal.stats("nobody")).hoursByPlatform).toEqual([]);
+});
+
+test("backlog history replays status events in order, including removals and re-additions", async () => {
+  const change = async (
+    day: string,
+    gameId: number,
+    status: "backlog" | "playing" | "played" | null,
+  ) => {
+    vi.setSystemTime(new Date(`${day}T23:00:00Z`));
+    if (status === null) await journal.remove("mario", gameId);
+    else await journal.set("mario", gameId, { status });
+  };
+  await change("2026-01-01", 1, "backlog");
+  await change("2026-01-01", 2, "backlog");
+  await journal.set("luigi", 1, { status: "backlog" });
+  await change("2026-01-03", 1, "playing");
+  await change("2026-02-01", 2, null);
+  await change("2026-03-01", 1, "backlog");
+  await change("2026-03-01", 1, "played");
+  await change("2026-04-01", 2, "backlog");
+  expect((await journal.stats("mario")).backlogOverTime).toEqual([
+    { day: "2026-01-01", games: 2 },
+    { day: "2026-01-03", games: 1 },
+    { day: "2026-02-01", games: 0 },
+    { day: "2026-03-01", games: 0 },
+    { day: "2026-04-01", games: 1 },
+  ]);
+  expect((await journal.stats("nobody")).backlogOverTime).toEqual([]);
+});
