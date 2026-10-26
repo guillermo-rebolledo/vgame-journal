@@ -8,6 +8,7 @@ import {
   releaseDate,
   statusEvent,
   user,
+  verification,
 } from "@/db/schema";
 import { calendarFeed } from "@/lib/calendar-feed";
 import {
@@ -171,11 +172,18 @@ export function createJournal(db: Db) {
   }
 
   return {
-    /** One atomic delete cascades to auth and journal rows; shared catalog games stay. */
+    /** One statement also removes reset tokens, which have no user foreign key. */
     async deleteAccount(userId: string, confirmation: unknown) {
       if (confirmation !== "DELETE")
         throw new JournalError("Type DELETE to confirm account deletion.");
-      await db.delete(user).where(eq(user.id, userId));
+      await db.execute(sql`
+        with deleted_user as (
+          delete from ${user} where ${user.id} = ${userId} returning ${user.id}
+        )
+        delete from ${verification}
+        where ${verification.value} in (select id from deleted_user)
+          and ${verification.identifier} like 'reset-password:%'
+      `);
     },
 
     /** A portable copy of the whole journal, including private notes, without auth secrets. */

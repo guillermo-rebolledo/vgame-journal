@@ -10,6 +10,7 @@ import {
   session,
   statusEvent,
   user,
+  verification,
 } from "@/db/schema";
 import { createTestDb } from "@/test/db";
 import { createJournal, JournalError } from "./journal";
@@ -123,6 +124,12 @@ test("export includes the owner's profile, entries, full history and private pla
 
 test("account deletion requires typed confirmation and cascades only the owner's data", async () => {
   for (const owner of ["mario", "luigi"]) {
+    await db.insert(verification).values({
+      id: `${owner}-reset`,
+      identifier: `reset-password:${owner}-token`,
+      value: owner,
+      expiresAt: new Date("2030-01-01"),
+    });
     await db.insert(session).values(
       [1, 2].map((id) => ({
         id: `${owner}-${id}`,
@@ -174,6 +181,12 @@ test("account deletion requires typed confirmation and cascades only the owner's
     ).toEqual([]);
   }
   expect(await journal.calendarFeed(token)).toBeNull();
+  expect(
+    await db.select().from(verification).where(eq(verification.value, "mario")),
+  ).toEqual([]);
+  expect(
+    await db.select().from(verification).where(eq(verification.value, "luigi")),
+  ).toHaveLength(1);
   expect(await journal.exportData("luigi")).toEqual(survivor);
   expect(
     await db.select().from(session).where(eq(session.userId, "luigi")),
