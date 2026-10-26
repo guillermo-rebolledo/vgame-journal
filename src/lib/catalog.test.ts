@@ -1,4 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
+import { game, journalEntry, user } from "@/db/schema";
+import type { DatePrecision } from "@/lib/game-source";
 import { createTestDb } from "@/test/db";
 import { createFakeGameSource, sourceGame } from "@/test/fake-game-source";
 import { createCatalog } from "./catalog";
@@ -197,5 +199,121 @@ test("a game nobody has searched yet is fetched from the game source by slug, th
 
   expect((await catalog.search("celeste")).map((r) => r.title)).toEqual([
     "Celeste",
+  ]);
+});
+
+test("refreshing release dates picks up a delay for wishlisted games still to come, and skips the rest", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-26T12:00:00Z"));
+  const day = (date: string, precision: DatePrecision = "day") => [
+    {
+      platform: null,
+      region: "worldwide",
+      date: new Date(date),
+      precision,
+      status: null,
+    },
+  ];
+  const games = [
+    sourceGame({ id: 1, title: "Upcoming", releaseDates: day("2026-11-19") }),
+    sourceGame({
+      id: 2,
+      title: "Vague",
+      releaseDates: day("2027-12-31", "year"),
+    }),
+    sourceGame({ id: 3, title: "Released", releaseDates: day("2025-09-04") }),
+    sourceGame({ id: 4, title: "Backlogged", releaseDates: day("2026-12-01") }),
+    sourceGame({ id: 5, title: "Undated", releaseDates: [] }),
+  ];
+  const source = createFakeGameSource(games);
+  const db = await createTestDb();
+  const catalog = createCatalog(db, source);
+  for (const g of games) await catalog.findBySlug(g.slug);
+  await db
+    .insert(user)
+    .values({ id: "mario", name: "mario", email: "mario@example.com" });
+  await db.insert(journalEntry).values(
+    games.map((g) => ({
+      userId: "mario",
+      gameId: g.id,
+      status: g.id === 4 ? ("backlog" as const) : ("wishlist" as const),
+      updatedAt: new Date(),
+    })),
+  );
+  // The source announces delays after the games were saved.
+  games[0].releaseDates = day("2027-05-26");
+  games[1].releaseDates = day("2027-03-31", "quarter");
+  games[2].releaseDates = day("2030-01-01");
+  games[3].releaseDates = day("2030-01-01");
+  games[4].releaseDates = day("2027-02-01");
+  vi.setSystemTime(new Date("2026-10-27T06:00:00Z"));
+
+  expect(await catalog.refreshReleaseDates()).toBe(3);
+
+  expect(source.releaseDateFetches.flat().sort()).toEqual([1, 2, 5]);
+  const stored = async (slug: string) => {
+    const g = await catalog.findBySlug(slug);
+    return [
+      g?.releaseDates.map((d) => [
+        d.date?.toISOString().slice(0, 10),
+        d.precision,
+      ]),
+      g?.syncedAt.toISOString().slice(0, 10),
+    ];
+  };
+  expect(await stored("game-1")).toEqual([
+    [["2027-05-26", "day"]],
+    "2026-10-27",
+  ]);
+  expect(await stored("game-2")).toEqual([
+    [["2027-03-31", "quarter"]],
+    "2026-10-27",
+  ]);
+  expect(await stored("game-5")).toEqual([
+    [["2027-02-01", "day"]],
+    "2026-10-27",
+  ]);
+  expect(await stored("game-3")).toEqual([
+    [["2025-09-04", "day"]],
+    "2026-10-26",
+  ]);
+  expect(await stored("game-4")).toEqual([
+    [["2026-12-01", "day"]],
+    "2026-10-26",
+  ]);
+});
+
+test("refreshing release dates asks the source in batches of 50", async () => {
+  const games = Array.from({ length: 120 }, (_, i) =>
+    sourceGame({ id: 1000 + i, title: `Game ${1000 + i}`, releaseDates: [] }),
+  );
+  const source = createFakeGameSource(games);
+  const db = await createTestDb();
+  const catalog = createCatalog(db, source);
+  await db.insert(game).values(
+    games.map((g) => ({
+      id: g.id,
+      title: g.title,
+      slug: g.slug,
+      genres: [],
+      platforms: [],
+      syncedAt: new Date(),
+    })),
+  );
+  await db
+    .insert(user)
+    .values({ id: "mario", name: "mario", email: "mario@example.com" });
+  await db.insert(journalEntry).values(
+    games.map((g) => ({
+      userId: "mario",
+      gameId: g.id,
+      status: "wishlist" as const,
+      updatedAt: new Date(),
+    })),
+  );
+
+  expect(await catalog.refreshReleaseDates()).toBe(120);
+  expect(source.releaseDateFetches.map((ids) => ids.length)).toEqual([
+    50, 50, 20,
   ]);
 });

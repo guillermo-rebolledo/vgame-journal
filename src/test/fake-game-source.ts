@@ -1,9 +1,10 @@
 import type { GameSource, SourceGame } from "@/lib/game-source";
 
-/** In-memory GameSource: title-substring search, and a count of searches so tests can see the cache work. */
+/** In-memory GameSource: title-substring search, and logs of searches and release date fetches so tests can see what was asked. */
 export function createFakeGameSource(games: SourceGame[]) {
   const source = {
     searches: 0,
+    releaseDateFetches: [] as number[][],
     async search(query: string) {
       source.searches++;
       const q = query.toLowerCase();
@@ -16,13 +17,17 @@ export function createFakeGameSource(games: SourceGame[]) {
       return games.find((g) => g.slug === slug) ?? null;
     },
     async fetchReleaseDates(ids: number[]) {
+      source.releaseDateFetches.push(ids);
       return new Map(
         games
           .filter((g) => ids.includes(g.id))
           .map((g) => [g.id, g.releaseDates]),
       );
     },
-  } satisfies GameSource & { searches: number };
+  } satisfies GameSource & {
+    searches: number;
+    releaseDateFetches: number[][];
+  };
   return source;
 }
 
