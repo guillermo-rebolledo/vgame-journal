@@ -33,13 +33,22 @@ const statusLabel = (e: LibraryEntry) =>
 export function Library({
   entries,
   initialView,
+  readOnly = false,
 }: {
   entries: LibraryEntry[];
   initialView: LibraryView;
+  readOnly?: boolean;
 }) {
   const [view, setView] = useState(initialView);
   const [filters, setFilters] = useState<LibraryFilters>({});
   const [sort, setSort] = useState<LibrarySort>("added");
+
+  if (entries.length === 0 && readOnly)
+    return (
+      <p className="py-8 text-muted-foreground">
+        No games in this library yet.
+      </p>
+    );
 
   if (entries.length === 0)
     return (

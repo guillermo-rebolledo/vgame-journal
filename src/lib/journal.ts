@@ -171,6 +171,50 @@ export function createJournal(db: Db) {
   }
 
   return {
+    /** Fast route check before streaming, so unknown profiles get an HTTP 404. */
+    async hasPublicProfile(username: string) {
+      const [found] = await db
+        .select({ username: user.username })
+        .from(user)
+        .where(eq(user.username, username.toLowerCase()));
+      return !!found;
+    },
+
+    /** Public allowlist: never select notes, email, auth fields or the calendar token. */
+    async publicProfile(username: string) {
+      const [owner] = await db
+        .select({ id: user.id, username: user.username, image: user.image })
+        .from(user)
+        .where(eq(user.username, username.toLowerCase()));
+      if (!owner) return null;
+      const [library, wishlistEntries, stats, playthroughs] = await Promise.all(
+        [
+          this.library(owner.id),
+          wishlist(owner.id),
+          this.stats(owner.id),
+          db
+            .select({
+              gameId: playthrough.gameId,
+              platform: playthrough.platform,
+              startedOn: playthrough.startedOn,
+              endedOn: playthrough.endedOn,
+              hours: playthrough.hours,
+            })
+            .from(playthrough)
+            .where(eq(playthrough.userId, owner.id))
+            .orderBy(playthrough.startedOn, playthrough.id),
+        ],
+      );
+      return {
+        username: owner.username,
+        image: owner.image,
+        library,
+        wishlist: wishlistEntries,
+        stats,
+        playthroughs,
+      };
+    },
+
     /** Games count once per end-date year; only entries currently marked Played qualify. */
     async stats(userId: string) {
       const finishedPerYear = await db

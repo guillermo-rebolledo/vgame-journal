@@ -43,7 +43,12 @@ export async function UserMenu() {
           referrerPolicy="no-referrer"
         />
       )}
-      <span className="hidden sm:inline">{username ?? name}</span>
+      <Link
+        href={username ? `/u/${username}` : "/onboarding"}
+        className="hidden underline-offset-4 hover:underline sm:inline"
+      >
+        {username ?? name}
+      </Link>
       <SignOutButton />
       <Button
         variant="ghost"

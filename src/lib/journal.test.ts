@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Db } from "@/db";
 import { game, releaseDate, user } from "@/db/schema";
@@ -687,4 +688,64 @@ test("backlog history replays status events in order, including removals and re-
     { day: "2026-04-01", games: 1 },
   ]);
   expect((await journal.stats("nobody")).backlogOverTime).toEqual([]);
+});
+
+test("public profiles include the journal and playthroughs without notes or account secrets", async () => {
+  await db
+    .update(user)
+    .set({
+      username: "mario",
+      image: "https://example.com/avatar.png",
+      feedToken: "secret-feed",
+    })
+    .where(eq(user.id, "mario"));
+  await journal.set("mario", 1, {
+    status: "played",
+    completionTag: "completed",
+  });
+  await journal.set("mario", 2, { status: "wishlist" });
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 5",
+    startedOn: "2026-01-01",
+    endedOn: "2026-01-10",
+    hours: 12,
+    notes: "Private thoughts that must never be public",
+  });
+  await journal.set("luigi", 2, { status: "backlog" });
+  await journal.addPlaythrough("luigi", 2, {
+    platform: "PlayStation 4",
+    startedOn: "2025-01-01",
+    notes: "Luigi's secret",
+  });
+
+  expect(await journal.hasPublicProfile("MARIO")).toBe(true);
+  expect(await journal.hasPublicProfile("unknown")).toBe(false);
+  const profile = await journal.publicProfile("MARIO");
+  expect(profile).toMatchObject({
+    username: "mario",
+    image: "https://example.com/avatar.png",
+    library: [
+      { gameId: 2, status: "wishlist" },
+      { gameId: 1, status: "played", completionTag: "completed" },
+    ],
+    wishlist: [{ gameId: 2 }],
+    playthroughs: [
+      {
+        gameId: 1,
+        platform: "PlayStation 5",
+        startedOn: "2026-01-01",
+        endedOn: "2026-01-10",
+        hours: 12,
+      },
+    ],
+    stats: {
+      finishedPerYear: [{ year: 2026, games: 1 }],
+      hoursByPlatform: [{ platform: "PlayStation 5", hours: 12 }],
+    },
+  });
+  expect(profile?.playthroughs).toHaveLength(1);
+  expect(JSON.stringify(profile)).not.toMatch(
+    /notes|Private thoughts|secret|email|userId/i,
+  );
+  expect(await journal.publicProfile("unknown")).toBeNull();
 });
