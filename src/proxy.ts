@@ -1,6 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { journal } from "@/lib/journal";
 
 /** Signed-in users can't use the app until they've chosen a username. */
 export async function proxy(request: NextRequest) {
@@ -16,6 +17,9 @@ export async function proxy(request: NextRequest) {
     return request.nextUrl.pathname.startsWith("/api/")
       ? Response.json({ error: "Choose a username first." }, { status: 403 })
       : redirectTo("/onboarding", request);
+  const username = request.nextUrl.pathname.match(/^\/u\/([^/]+)\/?$/)?.[1];
+  if (username && !(await journal.hasPublicProfile(username)))
+    return NextResponse.rewrite(new URL("/404", request.url), { status: 404 });
   return NextResponse.next();
 }
 

@@ -25,12 +25,18 @@ function ChartSection({
   );
 }
 
-function Empty({ children }: { children: ReactNode }) {
+function Empty({
+  children,
+  libraryHref,
+}: {
+  children: ReactNode;
+  libraryHref: string;
+}) {
   return (
     <p className="py-8 text-muted-foreground text-sm">
       {children}{" "}
       <Link
-        href="/library"
+        href={libraryHref}
         className="text-foreground underline underline-offset-4"
       >
         Go to Library
@@ -174,7 +180,15 @@ function BacklogChart({ points }: { points: JournalStats["backlogOverTime"] }) {
   );
 }
 
-export function Stats({ stats }: { stats: JournalStats }) {
+export function Stats({
+  stats,
+  libraryHref = "/library",
+  readOnly = false,
+}: {
+  stats: JournalStats;
+  libraryHref?: string;
+  readOnly?: boolean;
+}) {
   return (
     <div className="space-y-10">
       <div className="grid gap-10 md:grid-cols-2 md:gap-12">
@@ -191,15 +205,16 @@ export function Stats({ stats }: { stats: JournalStats }) {
               unit="games"
             />
           ) : (
-            <Empty>
-              No finished games yet. Mark a game Played and add a playthrough
-              end date.
+            <Empty libraryHref={libraryHref}>
+              {readOnly
+                ? "No finished games yet."
+                : "No finished games yet. Mark a game Played and add a playthrough end date."}
             </Empty>
           )}
         </ChartSection>
         <ChartSection
           title="Hours by platform"
-          description="Total logged hours across all your playthroughs."
+          description="Total logged hours across all playthroughs."
         >
           {stats.hoursByPlatform.length ? (
             <Bars
@@ -210,7 +225,11 @@ export function Stats({ stats }: { stats: JournalStats }) {
               unit="hours"
             />
           ) : (
-            <Empty>No hours logged yet. Add hours to a playthrough.</Empty>
+            <Empty libraryHref={libraryHref}>
+              {readOnly
+                ? "No hours logged yet."
+                : "No hours logged yet. Add hours to a playthrough."}
+            </Empty>
           )}
         </ChartSection>
       </div>
@@ -221,8 +240,10 @@ export function Stats({ stats }: { stats: JournalStats }) {
         {stats.backlogOverTime.length ? (
           <BacklogChart points={stats.backlogOverTime} />
         ) : (
-          <Empty>
-            No status history yet. Add a game to your journal to start tracking.
+          <Empty libraryHref={libraryHref}>
+            {readOnly
+              ? "No status history yet."
+              : "No status history yet. Add a game to your journal to start tracking."}
           </Empty>
         )}
       </ChartSection>

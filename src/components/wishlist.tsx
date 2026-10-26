@@ -27,9 +27,16 @@ export function Wishlist({
   onMove,
 }: {
   entries: WishlistEntry[];
-  onMove: Move;
+  onMove?: Move;
 }) {
   const day = useToday();
+
+  if (entries.length === 0 && !onMove)
+    return (
+      <p className="py-8 text-muted-foreground">
+        No games on this wishlist yet.
+      </p>
+    );
 
   if (entries.length === 0)
     return (
@@ -64,7 +71,7 @@ function Row({
 }: {
   entry: WishlistEntry;
   day: string | null;
-  onMove: Move;
+  onMove?: Move;
 }) {
   const [pending, startTransition] = useTransition();
   const { release } = entry;
@@ -109,7 +116,7 @@ function Row({
         </div>
       </Link>
 
-      {left === OUT_NOW && (
+      {left === OUT_NOW && onMove && (
         <div className="flex items-center gap-2 pl-18 sm:pl-0">
           <span className="text-muted-foreground text-sm">Move to</span>
           {(["backlog", "playing"] as const).map((status) => (
