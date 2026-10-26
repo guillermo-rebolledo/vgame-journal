@@ -11,7 +11,7 @@ import { igdbGameSource } from "@/lib/igdb";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_RESULTS = 20;
-/** Games per release date request; IGDB returns at most 500 dates per request. */
+/** Games per release date fetch; the GameSource pages past its own per-request limits. */
 const REFRESH_BATCH = 50;
 
 export type SearchResult = {
@@ -113,7 +113,8 @@ export function createCatalog(db: Db, source: GameSource) {
     },
     /**
      * Re-fetches release dates for every game on anyone's Wishlist that has a future or imprecise date (or none),
-     * so Countdowns follow delays. Batched; the GameSource keeps to its own rate limit. Returns how many games were refreshed.
+     * so Countdowns follow delays. Batched; the GameSource keeps to its own rate limit. A game the source returns no dates for
+     * keeps the ones it has (more likely a hiccup than a game losing every date). Returns how many games were checked.
      */
     async refreshReleaseDates() {
       const now = new Date();
@@ -134,12 +135,16 @@ export function createCatalog(db: Db, source: GameSource) {
         );
       const ids = due.map((g) => g.id);
       for (let i = 0; i < ids.length; i += REFRESH_BATCH) {
-        const batch = ids.slice(i, i + REFRESH_BATCH);
-        await replaceReleaseDates(await source.fetchReleaseDates(batch));
-        await db
-          .update(game)
-          .set({ syncedAt: new Date() })
-          .where(inArray(game.id, batch));
+        const fetched = await source.fetchReleaseDates(
+          ids.slice(i, i + REFRESH_BATCH),
+        );
+        const dated = new Map([...fetched].filter(([, dates]) => dates.length));
+        await replaceReleaseDates(dated);
+        if (dated.size)
+          await db
+            .update(game)
+            .set({ syncedAt: new Date() })
+            .where(inArray(game.id, [...dated.keys()]));
       }
       return ids.length;
     },

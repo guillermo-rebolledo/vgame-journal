@@ -317,3 +317,38 @@ test("refreshing release dates asks the source in batches of 50", async () => {
     50, 50, 20,
   ]);
 });
+
+test("refreshing never wipes a game's dates when the source has none for it", async () => {
+  const games = [
+    sourceGame({
+      id: 1,
+      releaseDates: [
+        {
+          platform: null,
+          region: "worldwide",
+          date: new Date("2027-05-26"),
+          precision: "day",
+          status: null,
+        },
+      ],
+    }),
+  ];
+  const source = createFakeGameSource(games);
+  const db = await createTestDb();
+  const catalog = createCatalog(db, source);
+  await catalog.findBySlug("game-1");
+  await db
+    .insert(user)
+    .values({ id: "mario", name: "mario", email: "mario@example.com" });
+  await db.insert(journalEntry).values({
+    userId: "mario",
+    gameId: 1,
+    status: "wishlist",
+    updatedAt: new Date(),
+  });
+  games[0].releaseDates = [];
+
+  await catalog.refreshReleaseDates();
+
+  expect((await catalog.findBySlug("game-1"))?.releaseDates).toHaveLength(1);
+});

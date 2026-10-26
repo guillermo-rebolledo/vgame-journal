@@ -73,6 +73,7 @@ test("the Countdown ticks over at local midnight", () => {
 });
 
 test("a released game offers a one-click move to Backlog or Playing", async () => {
+  // userEvent waits on real timers; keep only the clock fake.
   vi.useRealTimers();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-26T12:00:00"));
@@ -81,7 +82,7 @@ test("a released game offers a one-click move to Backlog or Playing", async () =
     <Wishlist entries={[entry(7, "2026-10-01T00:00:00Z")]} onMove={onMove} />,
   );
 
-  expect(screen.getAllByText("Out now").length).toBeGreaterThan(0);
+  expect(rows()).toEqual(["Game 7Oct 1, 2026Out nowMove tobacklogplaying"]);
   await userEvent.click(
     screen.getByRole("button", { name: "Move Game 7 to playing" }),
   );

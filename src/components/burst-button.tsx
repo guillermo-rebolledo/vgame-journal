@@ -12,8 +12,9 @@ const COLORS = [
   "bg-rose-400",
   "bg-violet-400",
 ];
-const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
-  angle: `${(i * 360) / 20 + (i % 2 ? 7 : -7)}deg`,
+const COUNT = 20;
+const PARTICLES = Array.from({ length: COUNT }, (_, i) => ({
+  angle: `${(i * 360) / COUNT + (i % 2 ? 7 : -7)}deg`,
   distance: ["-3.5rem", "-4.75rem", "-4rem"][i % 3],
   // Dots and confetti strips.
   shape: i % 2 ? "size-2 rounded-full" : "h-3 w-1.5 rounded-xs",

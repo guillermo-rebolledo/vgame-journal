@@ -23,7 +23,7 @@ test("only Vercel Cron, with the CRON_SECRET, can run the refresh", async () => 
 
   const response = await call("Bearer s3cret");
   expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({ refreshed: 7 });
+  expect(await response.json()).toEqual({ checked: 7 });
 });
 
 test("without a CRON_SECRET configured, nobody can run it", async () => {
