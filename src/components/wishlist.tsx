@@ -125,7 +125,7 @@ function Row({
               size="sm"
               variant="outline"
               disabled={pending}
-              className="capitalize"
+              className="h-11 capitalize sm:pointer-fine:h-7"
               aria-label={`Move ${entry.title} to ${status}`}
               onClick={() =>
                 startTransition(() => onMove(entry.gameId, status))

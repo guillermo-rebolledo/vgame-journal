@@ -138,6 +138,7 @@ export function Library({
               key={value}
               variant={view === value ? "secondary" : "ghost"}
               aria-pressed={view === value}
+              className="h-11 sm:pointer-fine:h-8"
               onClick={() => choose(value)}
             >
               <Icon aria-hidden />
@@ -150,7 +151,11 @@ export function Library({
       {shown.length === 0 ? (
         <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-8">
           <p className="font-medium">No games match these filters.</p>
-          <Button variant="outline" onClick={() => setFilters({})}>
+          <Button
+            variant="outline"
+            className="h-11 sm:pointer-fine:h-8"
+            onClick={() => setFilters({})}
+          >
             Clear filters
           </Button>
         </div>
@@ -260,7 +265,7 @@ function Select({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8 w-full rounded-lg sm:w-auto border border-input bg-transparent px-2 text-base md:text-sm dark:bg-input/30"
+        className="h-11 w-full rounded-lg sm:w-auto sm:pointer-fine:h-8 border border-input bg-transparent px-2 text-base md:text-sm dark:bg-input/30"
       >
         {options.map(([v, l]) => (
           <option key={v} value={v}>
