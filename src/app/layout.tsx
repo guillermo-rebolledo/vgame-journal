@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import { Suspense } from "react";
 import { PageTransition } from "@/components/page-transition";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -32,16 +33,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         <ThemeProvider>
-          <header className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-3">
-            <span className="whitespace-nowrap font-semibold tracking-tight">
+          <header className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 px-4 py-1.5">
+            <Link
+              href="/"
+              className="inline-flex min-h-11 items-center whitespace-nowrap rounded-md font-semibold tracking-tight outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
               {SITE_NAME}
-            </span>
-            <div className="flex items-center gap-1 sm:gap-2">
-              <Suspense>
-                <UserMenu />
-              </Suspense>
-              <ThemeToggle />
-            </div>
+            </Link>
+            <Suspense fallback={<ThemeToggle />}>
+              <UserMenu />
+            </Suspense>
           </header>
           <main className="flex flex-1 flex-col">
             <Suspense fallback={<div className="flex-1" />}>
