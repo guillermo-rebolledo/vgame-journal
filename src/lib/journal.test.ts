@@ -497,3 +497,105 @@ test("the region is earliest until the user picks another one, and only known re
   ).rejects.toThrow(/region/i);
   expect(await journal.region("mario")).toBe("japan");
 });
+
+test("a user's feed token stays the same until regenerated, which stops the old one working", async () => {
+  await journal.set("mario", 1, { status: "wishlist" });
+  const token = await journal.feedToken("mario");
+  expect(token).toMatch(/^[\w-]{32,}$/);
+  expect(await journal.feedToken("mario")).toBe(token);
+  expect(await journal.feedToken("luigi")).not.toBe(token);
+  expect(await journal.calendarFeed(token)).toContain("BEGIN:VCALENDAR");
+
+  const fresh = await journal.regenerateFeedToken("mario");
+  expect(fresh).not.toBe(token);
+  expect(await journal.feedToken("mario")).toBe(fresh);
+  expect(await journal.calendarFeed(token)).toBeNull();
+  expect(await journal.calendarFeed(fresh)).toContain("BEGIN:VCALENDAR");
+  expect(await journal.calendarFeed("")).toBeNull();
+});
+
+test("the calendar feed has an all-day event per wishlisted game with an exact date in the user's region", async () => {
+  await db.insert(game).values(
+    [
+      [
+        3,
+        "Hollow Knight: Silksong, Deluxe; Edition — Collector’s Bündle für alle",
+      ],
+      [4, "Vague Game"],
+      [5, "TBA Game"],
+    ].map(([id, title]) => ({
+      id: id as number,
+      title: title as string,
+      slug: `game-${id}`,
+      genres: [],
+      platforms: [],
+      syncedAt: new Date(),
+    })),
+  );
+  await db.insert(releaseDate).values([
+    {
+      gameId: 1,
+      region: "japan",
+      date: new Date("2026-11-05"),
+      precision: "day",
+    },
+    {
+      gameId: 1,
+      region: "europe",
+      date: new Date("2026-12-31"),
+      precision: "day",
+    },
+    {
+      gameId: 2,
+      region: "worldwide",
+      date: new Date("2027-03-01"),
+      precision: "day",
+    },
+    {
+      gameId: 3,
+      region: "worldwide",
+      date: new Date("2026-12-01"),
+      precision: "day",
+    },
+    {
+      gameId: 4,
+      region: "worldwide",
+      date: new Date("2026-09-30"),
+      precision: "quarter",
+    },
+  ]);
+  for (const id of [1, 3, 4, 5])
+    await journal.set("mario", id, { status: "wishlist" });
+  await journal.set("mario", 2, { status: "backlog" });
+  await journal.setRegion("mario", "europe");
+
+  const feed =
+    (await journal.calendarFeed(await journal.feedToken("mario"))) ?? "";
+  const lines = feed.split("\r\n");
+
+  expect(feed.endsWith("END:VCALENDAR\r\n")).toBe(true);
+  expect(
+    lines.every((line) => new TextEncoder().encode(line).length <= 75),
+  ).toBe(true);
+  const events = feed
+    .replace(/\r\n /g, "")
+    .split("BEGIN:VEVENT")
+    .slice(1)
+    .map((event) =>
+      event.split("\r\n").filter((l) => /^(UID|DTSTART|DTEND|SUMMARY)/.test(l)),
+    );
+  expect(events).toEqual([
+    [
+      "UID:game-3@vgame-journal",
+      "DTSTART;VALUE=DATE:20261201",
+      "DTEND;VALUE=DATE:20261202",
+      "SUMMARY:Hollow Knight: Silksong\\, Deluxe\\; Edition — Collector’s Bündle für alle releases",
+    ],
+    [
+      "UID:game-1@vgame-journal",
+      "DTSTART;VALUE=DATE:20261231",
+      "DTEND;VALUE=DATE:20270101",
+      "SUMMARY:Game 1 releases",
+    ],
+  ]);
+});

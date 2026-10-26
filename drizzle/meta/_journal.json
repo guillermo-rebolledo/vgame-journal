@@ -57,6 +57,13 @@
       "when": 1793035795476,
       "tag": "0007_user_region",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793038654576,
+      "tag": "0008_calendar_feed",
+      "breakpoints": true
     }
   ]
 }

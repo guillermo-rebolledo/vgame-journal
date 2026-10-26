@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { refresh } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { CopyButton } from "@/components/copy-button";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ownerId, signedInUserId } from "@/lib/auth";
 import { journal } from "@/lib/journal";
 import { REGIONS, type Region } from "@/lib/release-dates";
@@ -22,6 +25,9 @@ export default function SettingsPage() {
       <h1 className="font-semibold text-3xl tracking-tight">Settings</h1>
       <Suspense>
         <RegionSetting />
+      </Suspense>
+      <Suspense>
+        <CalendarFeedSetting />
       </Suspense>
     </section>
   );
@@ -73,6 +79,58 @@ async function RegionSetting() {
       <Button type="submit" className="self-start">
         Save
       </Button>
+    </form>
+  );
+}
+
+async function CalendarFeedSetting() {
+  const userId = await signedInUserId();
+  if (!userId) redirect("/sign-in");
+  const head = await headers();
+  const host = head.get("host");
+  const proto = head.get("x-forwarded-proto") ?? "http";
+  const path = `${host}/api/calendar/${await journal.feedToken(userId)}.ics`;
+  const url = `${proto}://${path}`;
+
+  async function regenerate() {
+    "use server";
+    await journal.regenerateFeedToken(await ownerId());
+    refresh();
+  }
+
+  return (
+    <form action={regenerate} className="flex flex-col gap-3 border-t pt-6">
+      <div className="flex flex-col gap-1">
+        <h2 className="font-medium">Calendar feed</h2>
+        <p className="text-muted-foreground text-sm">
+          Subscribe in your calendar app to see wishlisted games on their
+          release day. Only games with an exact date are included. Keep this URL
+          private: anyone with it can see your Wishlist.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Input
+          readOnly
+          value={url}
+          aria-label="Calendar feed URL"
+          className="font-mono text-xs md:text-xs"
+        />
+        <CopyButton text={url} />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          nativeButton={false}
+          render={<a href={`webcal://${path}`}>Subscribe</a>}
+        />
+        <Button type="submit" variant="ghost">
+          Regenerate URL
+        </Button>
+      </div>
+      <p className="text-muted-foreground text-xs">
+        Regenerating stops the old URL working. Subscribe again with the new
+        one.
+      </p>
     </form>
   );
 }
