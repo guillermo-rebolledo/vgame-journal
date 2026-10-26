@@ -59,7 +59,7 @@ test("explains the minimum length, then shows searching and the results", async 
   await until(1);
   await act(async () => requests[0].answer([game(1, "Celeste")]));
   expect(status()).toBe("1 game found.");
-  expect(titles()).toEqual(["Celeste2018PC"]);
+  expect(titles()).toEqual(["Celeste 2018PC"]);
 });
 
 test("old results make way while a new search loads, and late answers can't replace newer ones", async () => {
@@ -76,7 +76,7 @@ test("old results make way while a new search loads, and late answers can't repl
   await until(3);
   await act(async () => requests[2].answer([game(1, "Celeste")]));
   await act(async () => requests[1].answer([game(9, "Stale")]));
-  expect(titles()).toEqual(["Celeste2018PC"]);
+  expect(titles()).toEqual(["Celeste 2018PC"]);
 });
 
 test("no results suggests what to try", async () => {
@@ -105,5 +105,5 @@ test("a failed search keeps the query and can be retried", async () => {
   expect((box() as HTMLInputElement).value).toBe("celeste");
   await act(async () => requests[1].answer([game(1, "Celeste")]));
   expect(screen.queryByRole("alert")).toBeNull();
-  expect(titles()).toEqual(["Celeste2018PC"]);
+  expect(titles()).toEqual(["Celeste 2018PC"]);
 });

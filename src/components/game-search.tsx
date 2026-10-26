@@ -127,6 +127,7 @@ export function GameSearch() {
                     {game.title}
                     {game.year && (
                       <span className="ml-2 text-muted-foreground">
+                        {" "}
                         {game.year}
                       </span>
                     )}
