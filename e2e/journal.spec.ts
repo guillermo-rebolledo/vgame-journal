@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { signUp } from "./support/sign-up";
 
 test("sign up, share a profile without notes, export the journal, and delete the account", async ({
   page,
@@ -7,30 +8,8 @@ test("sign up, share a profile without notes, export the journal, and delete the
   browser,
 }, testInfo) => {
   const username = `player_${Date.now()}`;
-  const email = `${username}@example.com`;
   const privateNote = "PRIVATE_NOTE_only_the_owner_should_see_this";
-  await page.goto("/sign-up");
-  await page.getByLabel("Name", { exact: true }).fill("Player");
-  await page.getByLabel("Email", { exact: true }).fill(email);
-  await page.getByLabel("Password", { exact: true }).fill("password123");
-  await page.getByRole("button", { name: "Sign up", exact: true }).click();
-  await expect(
-    page.getByText(`Check ${email} for a link to verify your email.`),
-  ).toBeVisible();
-
-  const mailbox = await (
-    await request.get("http://127.0.0.1:3101/mailbox")
-  ).json();
-  const verification = mailbox.findLast(
-    (mail: { to: string }) => mail.to === email,
-  );
-  const link = verification.text.match(/https?:\S+/)?.[0];
-  expect(link).toBeTruthy();
-  await page.goto(link);
-  await expect(page).toHaveURL(/\/onboarding$/);
-  await page.getByLabel("Username", { exact: true }).fill(username);
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page).toHaveURL("/");
+  const email = await signUp(page, request, username);
 
   await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
   await page.getByRole("link", { name: /Celeste/ }).click();

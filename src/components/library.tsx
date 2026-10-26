@@ -151,7 +151,11 @@ export function Library({
       {shown.length === 0 ? (
         <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-8">
           <p className="font-medium">No games match these filters.</p>
-          <Button variant="outline" onClick={() => setFilters({})}>
+          <Button
+            variant="outline"
+            className="h-11 sm:pointer-fine:h-8"
+            onClick={() => setFilters({})}
+          >
             Clear filters
           </Button>
         </div>

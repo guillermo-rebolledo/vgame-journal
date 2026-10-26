@@ -5,6 +5,7 @@ import {
   type TestInfo,
   test,
 } from "@playwright/test";
+import { signUp } from "./support/sign-up";
 
 /** Every visible target is at least 44 × 44 CSS px and none overlap. */
 async function expectTouchTargets(targets: Locator) {
@@ -63,25 +64,7 @@ test("populated collections keep Find a game reachable with comfortable phone co
   await signedOut.close();
 
   const username = `nav_${Date.now()}`;
-  const email = `${username}@example.com`;
-  await page.goto("/sign-up");
-  await page.getByLabel("Name", { exact: true }).fill("Player");
-  await page.getByLabel("Email", { exact: true }).fill(email);
-  await page.getByLabel("Password", { exact: true }).fill("password123");
-  await page.getByRole("button", { name: "Sign up", exact: true }).click();
-  await expect(
-    page.getByText(`Check ${email} for a link to verify your email.`),
-  ).toBeVisible();
-  const mailbox = await (
-    await request.get("http://127.0.0.1:3101/mailbox")
-  ).json();
-  const link = mailbox
-    .findLast((mail: { to: string }) => mail.to === email)
-    .text.match(/https?:\S+/)?.[0];
-  await page.goto(link);
-  await page.getByLabel("Username", { exact: true }).fill(username);
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page).toHaveURL("/");
+  await signUp(page, request, username);
 
   // Released Celeste on the wishlist offers moves; upcoming Silksong counts down.
   for (const title of ["Celeste", "Silksong"]) {
@@ -113,9 +96,8 @@ test("populated collections keep Find a game reachable with comfortable phone co
     const signOut = page.getByRole("button", { name: "Sign out" });
     const navBox = await nav.boundingBox();
     const signOutBox = await signOut.boundingBox();
-    expect(
-      signOutBox && navBox && signOutBox.y + signOutBox.height,
-    ).toBeLessThanOrEqual(navBox?.y ?? 0);
+    if (!navBox || !signOutBox) throw new Error("Header has no bounds");
+    expect(signOutBox.y + signOutBox.height).toBeLessThanOrEqual(navBox.y);
   }
   await snap(page, testInfo, "library-mobile");
 
