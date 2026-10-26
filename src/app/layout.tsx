@@ -44,7 +44,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </div>
           </header>
           <main className="flex flex-1 flex-col">
-            <Suspense fallback={children}>
+            <Suspense fallback={<div className="flex-1" />}>
               <PageTransition>{children}</PageTransition>
             </Suspense>
           </main>

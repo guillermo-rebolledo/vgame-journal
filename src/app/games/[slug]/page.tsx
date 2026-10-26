@@ -22,13 +22,7 @@ export async function generateMetadata({
 }
 
 export default function GamePage({ params }: PageProps<"/games/[slug]">) {
-  return (
-    <Suspense
-      fallback={<div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8" />}
-    >
-      <Game params={params} />
-    </Suspense>
-  );
+  return <Game params={params} />;
 }
 
 async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {

@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+test.use({ video: "on" });
+
 declare global {
   interface Window {
     motionAnimations: string[];
@@ -73,20 +75,14 @@ test("search cover morphs into the hero with a route fade and upward slide", asy
     }
     requestAnimationFrame(sample);
   });
+  await page.route("**/games/celeste?*", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await route.continue();
+  });
   await page.goto("/");
   await page.getByRole("searchbox").fill("Celeste");
   const link = page.getByRole("link", { name: /Celeste/ });
   await expect(link).toBeVisible();
-  // Wait for the full destination prefetch so the hero is in the navigation commit.
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        performance
-          .getEntriesByType("resource")
-          .some((entry) => entry.name.includes("/games/celeste?")),
-      ),
-    )
-    .toBe(true);
   await link.click();
   await expect(
     page.getByRole("heading", { name: "Celeste", exact: true }),
@@ -190,3 +186,29 @@ for (const reduced of [false, true]) {
     await expect(page.getByRole("searchbox")).toBeVisible();
   });
 }
+
+test("touch on a desktop with a fine primary pointer still presses the cover", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("searchbox").fill("Celeste");
+  const cover = page.locator("[data-tilt-cover]");
+  await expect(cover).toBeVisible();
+  expect(await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(
+    true,
+  );
+  const box = await cover.boundingBox();
+  if (!box) throw new Error("Cover has no bounds");
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
+  });
+  await expect(cover).toHaveCSS("scale", "0.96");
+  await expect(cover).toHaveCSS("transform", "none");
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchCancel",
+    touchPoints: [],
+  });
+  await expect(cover).toHaveCSS("scale", "none");
+});
