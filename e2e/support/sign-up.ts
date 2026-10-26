@@ -8,10 +8,19 @@ export async function signUp(
 ) {
   const email = `${username}@example.com`;
   await page.goto("/sign-up");
-  await page.getByLabel("Name", { exact: true }).fill("Player");
-  await page.getByLabel("Email", { exact: true }).fill(email);
-  await page.getByLabel("Password", { exact: true }).fill("password123");
-  await page.getByRole("button", { name: "Sign up", exact: true }).click();
+  // Parallel specs can trip Better Auth's sign-up rate limit; wait out its 10s window.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    // The form resets after each submit.
+    await page.getByLabel("Name", { exact: true }).fill("Player");
+    await page.getByLabel("Email", { exact: true }).fill(email);
+    await page.getByLabel("Password", { exact: true }).fill("password123");
+    const response = page.waitForResponse((r) =>
+      r.url().includes("/api/auth/sign-up"),
+    );
+    await page.getByRole("button", { name: "Sign up", exact: true }).click();
+    if ((await response).status() !== 429) break;
+    await page.waitForTimeout(10_000);
+  }
   await expect(
     page.getByText(`Check ${email} for a link to verify your email.`),
   ).toBeVisible();

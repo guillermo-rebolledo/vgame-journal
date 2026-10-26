@@ -316,6 +316,65 @@ test("a user's writes never touch another user's entries", async () => {
   expect(await journal.statusEvents("mario")).toHaveLength(1);
 });
 
+test("a move happens only from the expected status, and undo only if nothing changed since", async () => {
+  await journal.set("mario", 1, { status: "wishlist" });
+  await journal.set("luigi", 1, { status: "wishlist" });
+
+  const moved = await journal.move(
+    "mario",
+    1,
+    { status: "wishlist" },
+    "backlog",
+  );
+  expect(moved).toBeInstanceOf(Date);
+  expect(await journal.entry("mario", 1)).toMatchObject({ status: "backlog" });
+  expect(await journal.entry("luigi", 1)).toMatchObject({ status: "wishlist" });
+  // A second click, or another tab, finds it already moved.
+  expect(
+    await journal.move("mario", 1, { status: "wishlist" }, "playing"),
+  ).toBeNull();
+
+  // Undo succeeds while the entry is exactly as the move left it.
+  const undo = { status: "backlog" as const, updatedAt: moved ?? undefined };
+  expect(await journal.move("mario", 1, undo, "wishlist")).toBeInstanceOf(Date);
+  expect(await journal.entry("mario", 1)).toMatchObject({ status: "wishlist" });
+
+  // A later change, even one that lands on the same status, blocks undo.
+  const again = await journal.move(
+    "mario",
+    1,
+    { status: "wishlist" },
+    "backlog",
+  );
+  await journal.set("mario", 1, { status: "playing" });
+  await journal.set("mario", 1, { status: "backlog" });
+  expect(
+    await journal.move(
+      "mario",
+      1,
+      { status: "backlog", updatedAt: again ?? undefined },
+      "wishlist",
+    ),
+  ).toBeNull();
+  expect(await journal.entry("mario", 1)).toMatchObject({ status: "backlog" });
+
+  // Nobody moves another user's entry, and moves are recorded like any change.
+  expect(
+    await journal.move("mario", 2, { status: "wishlist" }, "backlog"),
+  ).toBeNull();
+  expect((await journal.statusEvents("mario")).map((e) => e.status)).toEqual([
+    "wishlist",
+    "backlog",
+    "wishlist",
+    "backlog",
+    "playing",
+    "backlog",
+  ]);
+  await expect(
+    journal.move("mario", 1, { status: "backlog" }, "nope" as "backlog"),
+  ).rejects.toThrow(JournalError);
+});
+
 test("a playthrough logged on a journal entry is listed with its details", async () => {
   await journal.set("mario", 1, { status: "playing" });
   await journal.addPlaythrough("mario", 1, {

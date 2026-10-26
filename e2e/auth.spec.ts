@@ -15,7 +15,7 @@ test("signed-out visitors see Sign in and can't reach onboarding", async ({
   ).toBeVisible();
 
   await page.goto("/");
-  await page.getByRole("link", { name: "Sign in" }).click();
+  await page.getByRole("link", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/sign-in$/);
 });
 

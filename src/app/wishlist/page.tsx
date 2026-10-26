@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Wishlist } from "@/components/wishlist";
 import { ownerId, signedInUserId } from "@/lib/auth";
-import { journal } from "@/lib/journal";
+import { journal, type Status } from "@/lib/journal";
 
 export const metadata: Metadata = { title: "Wishlist" };
 
@@ -23,14 +23,30 @@ async function UserWishlist() {
   const userId = await signedInUserId();
   if (!userId) redirect("/sign-in");
 
-  /** Moves a released game off the wishlist. */
-  async function move(gameId: number, status: "backlog" | "playing") {
+  /** Moves a released game off the wishlist, or undoes that move if the entry is untouched since. */
+  async function move(
+    gameId: number,
+    from: { status: Status; updatedAt?: Date },
+    to: Status,
+  ) {
     "use server";
     const owner = await ownerId();
-    if (status !== "backlog" && status !== "playing") return;
-    if ((await journal.entry(owner, gameId))?.status !== "wishlist") return;
-    await journal.set(owner, gameId, { status });
+    const offWishlist =
+      from.status === "wishlist" && (to === "backlog" || to === "playing");
+    // Undo must name the move it reverses, so it can't overwrite a later change.
+    const undo =
+      (from.status === "backlog" || from.status === "playing") &&
+      to === "wishlist" &&
+      from.updatedAt instanceof Date;
+    if (!offWishlist && !undo) throw new Error("Not a Wishlist move.");
+    const at = await journal.move(
+      owner,
+      gameId,
+      { status: from.status, updatedAt: undo ? from.updatedAt : undefined },
+      to,
+    );
     refresh();
+    return at;
   }
 
   return <Wishlist entries={await journal.wishlist(userId)} onMove={move} />;
