@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { coverUrl } from "@/lib/game-source";
 import {
+  capitalize,
   LIBRARY_SORTS,
   LIBRARY_VIEW_COOKIE,
   type LibraryEntry,
@@ -28,13 +29,12 @@ const SORT_LABELS: Record<LibrarySort, string> = {
   title: "Title (A–Z)",
 };
 
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const statusLabel = (e: LibraryEntry) =>
   capitalize(e.status) +
   (e.completionTag ? ` · ${capitalize(e.completionTag)}` : "");
 
 /** Release year and Playthrough platforms, to tell games apart in either view. */
-const details = (e: LibraryEntry) =>
+const releaseAndPlatforms = (e: LibraryEntry) =>
   [e.releasedAt?.getUTCFullYear(), e.platforms.join(", ")]
     .filter(Boolean)
     .join(" · ");
@@ -52,7 +52,7 @@ export function Library({
   const searchParams = useSearchParams();
   const [view, setView] = useState(initialView);
   const [{ filters: chosen, sort }, setState] = useState(() =>
-    parseLibraryParams(new URLSearchParams(searchParams.toString())),
+    parseLibraryParams(searchParams),
   );
 
   if (entries.length === 0 && readOnly)
@@ -248,9 +248,9 @@ export function Library({
                   <p className="text-muted-foreground text-xs">
                     {statusLabel(e)}
                   </p>
-                  {details(e) && (
+                  {releaseAndPlatforms(e) && (
                     <p className="line-clamp-2 text-muted-foreground text-xs tabular-nums">
-                      {details(e)}
+                      {releaseAndPlatforms(e)}
                     </p>
                   )}
                 </div>
@@ -317,7 +317,7 @@ function ClearFilters({
   );
 }
 
-function Cover({
+export function Cover({
   entry,
   size,
   className,

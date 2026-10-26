@@ -12,6 +12,7 @@ import { Odometer } from "@/components/odometer";
 import { Button } from "@/components/ui/button";
 import { coverUrl } from "@/lib/game-source";
 import type { Status, WishlistEntry } from "@/lib/journal";
+import { capitalize } from "@/lib/library";
 import { countdown, localDay, OUT_NOW, TODAY } from "@/lib/release-dates";
 
 // Re-read the clock every minute so a Countdown ticks over at local midnight.
@@ -33,11 +34,12 @@ type Move = (
   to: Status,
 ) => Promise<Date | null>;
 type Moved = { entry: WishlistEntry; to: Destination; at: Date };
-type Notice = Moved & {
-  state: "moved" | "undoing" | "undo-failed" | "undo-conflict" | "undone";
-};
-
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+type Notice =
+  | (Moved & {
+      state: "moved" | "undoing" | "undo-failed" | "undo-conflict" | "undone";
+    })
+  // Changed elsewhere first; the refresh then drops its row, so the notice says why.
+  | { entry: WishlistEntry; state: "move-conflict" };
 
 const SECTIONS = [
   ["out", "Out now"],
@@ -107,11 +109,7 @@ export function Wishlist({
           className="outline-none empty:hidden"
         >
           {notice && (
-            <MoveNotice
-              notice={notice}
-              pending={undoing}
-              onUndo={() => undo(notice)}
-            />
+            <MoveNotice notice={notice} pending={undoing} onUndo={undo} />
           )}
         </div>
       )}
@@ -154,7 +152,11 @@ export function Wishlist({
                       day={day}
                       onMove={onMove}
                       onMoved={(moved) =>
-                        setNotice({ ...moved, state: "moved" })
+                        setNotice(
+                          moved
+                            ? { ...moved, state: "moved" }
+                            : { entry: e, state: "move-conflict" },
+                        )
                       }
                     />
                   ))}
@@ -175,26 +177,36 @@ function MoveNotice({
 }: {
   notice: Notice;
   pending: boolean;
-  onUndo: () => void;
+  onUndo: (moved: Moved) => void;
 }) {
-  const { entry, to, state } = notice;
-  const title = entry.title;
-  const button = "h-11 sm:pointer-fine:h-7";
+  const title = notice.entry.title;
+  const open = (
+    <Link
+      href={`/games/${notice.entry.slug}`}
+      aria-label={`Open ${title}`}
+      className="underline underline-offset-4"
+    >
+      Open it
+    </Link>
+  );
+  if (notice.state === "move-conflict")
+    return (
+      <Box>
+        <p role="alert">
+          {title} isn’t on your Wishlist any more; its Status was changed
+          elsewhere. {open} to see where it is now.
+        </p>
+      </Box>
+    );
+  const { to, state } = notice;
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+    <Box>
       {state === "undone" ? (
         <p>{title} is back on your Wishlist.</p>
       ) : state === "undo-conflict" ? (
         <p role="alert">
-          {title} changed after the move, so it was left as is.{" "}
-          <Link
-            href={`/games/${entry.slug}`}
-            aria-label={`Open ${title}`}
-            className="underline underline-offset-4"
-          >
-            Open it
-          </Link>{" "}
-          to set its Status.
+          {title} changed after the move, so it was left as is. {open} to set
+          its Status.
         </p>
       ) : (
         <>
@@ -218,8 +230,8 @@ function MoveNotice({
             size="sm"
             variant="outline"
             disabled={pending}
-            className={button}
-            onClick={onUndo}
+            className="h-11 sm:pointer-fine:h-7"
+            onClick={() => onUndo(notice)}
           >
             {pending
               ? "Undoing…"
@@ -229,9 +241,15 @@ function MoveNotice({
           </Button>
         </>
       )}
-    </div>
+    </Box>
   );
 }
+
+const Box = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+    {children}
+  </div>
+);
 
 function Row({
   entry,
@@ -242,24 +260,24 @@ function Row({
   entry: WishlistEntry;
   day: string | null;
   onMove?: Move;
-  onMoved: (moved: Moved) => void;
+  /** Null when the entry had already left the Wishlist. */
+  onMoved: (moved: Moved | null) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [target, setTarget] = useState<Destination | null>(null);
-  const [error, setError] = useState<"failed" | "conflict" | null>(null);
+  const [failed, setFailed] = useState(false);
   const { release } = entry;
   const left = day && countdown(release, day);
 
   function move(to: Destination) {
     setTarget(to);
-    setError(null);
+    setFailed(false);
     startTransition(async () => {
       try {
         const at = await onMove?.(entry.gameId, { status: "wishlist" }, to);
-        if (at) onMoved({ entry, to, at });
-        else setError("conflict");
+        onMoved(at ? { entry, to, at } : null);
       } catch {
-        setError("failed");
+        setFailed(true);
       }
     });
   }
@@ -325,35 +343,24 @@ function Row({
           ))}
         </div>
       )}
-      {error && (
+      {failed && target && (
         <div
           role="alert"
           className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 pl-18 text-destructive text-sm"
         >
-          {error === "conflict" ? (
-            <p>
-              {entry.title} isn’t on your Wishlist any more; its Status was
-              changed elsewhere.
-            </p>
-          ) : (
-            <>
-              <p>
-                Couldn’t move {entry.title} to {capitalize(target ?? "")}. Check
-                your connection and try again.
-              </p>
-              {target && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={pending}
-                  className="h-11 sm:pointer-fine:h-7"
-                  onClick={() => move(target)}
-                >
-                  Try again
-                </Button>
-              )}
-            </>
-          )}
+          <p>
+            Couldn’t move {entry.title} to {capitalize(target)}. Check your
+            connection and try again.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            className="h-11 sm:pointer-fine:h-7"
+            onClick={() => move(target)}
+          >
+            Try again
+          </Button>
         </div>
       )}
     </li>

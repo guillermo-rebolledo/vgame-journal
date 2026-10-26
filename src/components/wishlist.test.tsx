@@ -171,7 +171,7 @@ test("a failed move or undo explains itself in place and can be retried", async 
     screen.getByRole("button", { name: "Move Game 7 to backlog" }),
   );
   const row = screen.getByRole("listitem");
-  expect(within(row).getByRole("alert").textContent).toContain(
+  expect((await within(row).findByRole("alert")).textContent).toContain(
     "Couldn’t move Game 7 to Backlog.",
   );
   onMove.mockResolvedValueOnce(new Date());
@@ -180,14 +180,17 @@ test("a failed move or undo explains itself in place and can be retried", async 
   expect(onMove).toHaveBeenLastCalledWith(7, { status: "wishlist" }, "backlog");
 
   const notice = screen.getByRole("status", { name: "Wishlist updates" });
+  await within(notice).findByRole("button", { name: "Undo" });
   onMove.mockRejectedValueOnce(new Error("offline"));
   await user.click(within(notice).getByRole("button", { name: "Undo" }));
-  expect(within(notice).getByRole("alert").textContent).toContain(
+  expect((await within(notice).findByRole("alert")).textContent).toContain(
     "Couldn’t put Game 7 back on your Wishlist.",
   );
   onMove.mockResolvedValueOnce(new Date());
   await user.click(within(notice).getByRole("button", { name: "Try again" }));
-  expect(notice.textContent).toContain("Game 7 is back on your Wishlist.");
+  await vi.waitFor(() =>
+    expect(notice.textContent).toContain("Game 7 is back on your Wishlist."),
+  );
 });
 
 test("a change made elsewhere stops a move or undo instead of overwriting it", async () => {
@@ -200,8 +203,11 @@ test("a change made elsewhere stops a move or undo instead of overwriting it", a
   await user.click(
     screen.getByRole("button", { name: "Move Game 7 to backlog" }),
   );
+  // The refresh drops the row, so the explanation sits in the notice above the list.
   expect(
-    within(screen.getByRole("listitem")).getByRole("alert").textContent,
+    within(screen.getByRole("status", { name: "Wishlist updates" })).getByRole(
+      "alert",
+    ).textContent,
   ).toContain("Game 7 isn’t on your Wishlist any more");
 
   onMove.mockResolvedValueOnce(new Date()).mockResolvedValueOnce(null);

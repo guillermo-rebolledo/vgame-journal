@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { GameSearch } from "@/components/game-search";
+import { Cover } from "@/components/library";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/config/site";
 import { signedInUserId } from "@/lib/auth";
-import { coverUrl } from "@/lib/game-source";
 import { journal } from "@/lib/journal";
 import type { LibraryEntry } from "@/lib/library";
 
@@ -98,9 +98,10 @@ async function YourJournal() {
 }
 
 function Shelf({ title, games }: { title: string; games: LibraryEntry[] }) {
+  const id = `home-${title.toLowerCase().replace(/ /g, "-")}`;
   return (
-    <section aria-labelledby={`home-${title}`} className="flex flex-col gap-3">
-      <h2 id={`home-${title}`} className="font-semibold text-xl">
+    <section aria-labelledby={id} className="flex flex-col gap-3">
+      <h2 id={id} className="font-semibold text-xl">
         {title}
       </h2>
       <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -110,19 +111,7 @@ function Shelf({ title, games }: { title: string; games: LibraryEntry[] }) {
               href={`/games/${e.slug}`}
               className="group flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              {e.coverImageId ? (
-                // biome-ignore lint/performance/noImgElement: IGDB CDN serves sized covers; no Next image optimization.
-                <img
-                  src={coverUrl(e.coverImageId)}
-                  alt=""
-                  width={264}
-                  height={374}
-                  loading="lazy"
-                  className="aspect-[264/374] w-full rounded-lg object-cover shadow-lg"
-                />
-              ) : (
-                <div className="aspect-[264/374] w-full rounded-lg bg-muted" />
-              )}
+              <Cover entry={e} className="w-full rounded-lg shadow-lg" />
               <span className="line-clamp-2 font-medium text-sm leading-snug group-hover:underline group-hover:underline-offset-4">
                 {e.title}
               </span>

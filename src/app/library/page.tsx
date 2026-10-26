@@ -10,7 +10,7 @@ import { LIBRARY_VIEW_COOKIE } from "@/lib/library";
 
 export const metadata: Metadata = { title: "Library" };
 
-export default function LibraryPage() {
+export default function LibraryPage({ searchParams }: PageProps<"/library">) {
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8">
       <div className="flex flex-col gap-2">
@@ -33,21 +33,27 @@ export default function LibraryPage() {
         </details>
       </div>
       <Suspense>
-        <UserLibrary />
+        <UserLibrary searchParams={searchParams} />
       </Suspense>
     </section>
   );
 }
 
-async function UserLibrary() {
+async function UserLibrary({
+  searchParams,
+}: Pick<PageProps<"/library">, "searchParams">) {
   const userId = await signedInUserId();
   if (!userId) redirect("/sign-in");
-  const [entries, cookieStore] = await Promise.all([
+  const [entries, cookieStore, params] = await Promise.all([
     journal.library(userId),
     cookies(),
+    searchParams,
   ]);
   return (
     <Library
+      // Library writes its own URL with replaceState, which doesn't reach the server; a real navigation (say, the nav's
+      // bare /library) does, and the new key remounts it to read that URL.
+      key={JSON.stringify(params)}
       entries={entries}
       initialView={
         cookieStore.get(LIBRARY_VIEW_COOKIE)?.value === "list" ? "list" : "grid"

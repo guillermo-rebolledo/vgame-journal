@@ -42,6 +42,9 @@ export const LIBRARY_VIEW_COOKIE = "library-view";
 export const LIBRARY_SORTS = ["added", "released", "title"] as const;
 export type LibrarySort = (typeof LIBRARY_SORTS)[number];
 
+/** "backlog" → "Backlog", for Status and Completion tag labels. */
+export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 /** A to Z, ignoring case and accents. */
 export const byTitle = (a: { title: string }, b: { title: string }) =>
   a.title.localeCompare(b.title, "en", { sensitivity: "base" });
@@ -89,7 +92,7 @@ export function libraryChoices(entries: LibraryEntry[]) {
 }
 
 /** Library search, filters and sort from the URL (`?q=&status=&platform=&year=&sort=`); unknown values fall back to none. */
-export function parseLibraryParams(params: URLSearchParams) {
+export function parseLibraryParams(params: Pick<URLSearchParams, "get">) {
   const status = params.get("status") as Status;
   const sort = params.get("sort") as LibrarySort;
   const year = Number(params.get("year"));

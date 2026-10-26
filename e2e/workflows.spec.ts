@@ -149,6 +149,15 @@ test("Library search, filters and sort survive game visits, Back and reload", as
   await page.getByLabel("Status").selectOption("backlog");
   await expectNoHorizontalOverflow(page);
   await snap(page, testInfo, "library-filtered-mobile", true);
+
+  // The nav's bare Library link starts over instead of keeping stale filters.
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "Library" })
+    .click();
+  await expect(page).toHaveURL(/\/library$/);
+  await expect(page.getByLabel("Status")).toHaveValue("");
+  await expect(page.getByText("3 games", { exact: true })).toBeVisible();
 });
 
 test("Wishlist sections released, upcoming and unannounced games, and moves are undoable and retryable", async ({

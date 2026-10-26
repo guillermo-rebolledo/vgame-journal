@@ -8,7 +8,8 @@ export async function signUp(
 ) {
   const email = `${username}@example.com`;
   await page.goto("/sign-up");
-  // Parallel specs can trip Better Auth's sign-up rate limit; wait out its 10s window.
+  // ponytail: parallel specs can trip Better Auth's sign-up rate limit (3 per 10s); waits out the window up to 3 times.
+  // Raise the attempts, or turn the limit off for E2E_TEST, if more specs sign up at once.
   for (let attempt = 0; attempt < 4; attempt++) {
     // The form resets after each submit.
     await page.getByLabel("Name", { exact: true }).fill("Player");
