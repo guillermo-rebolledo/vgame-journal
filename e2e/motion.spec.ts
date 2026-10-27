@@ -1,10 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { signUp } from "./support/sign-up";
 
 test.use({ video: "on" });
 
 declare global {
   interface Window {
     motionAnimations: string[];
+    motionCoverWidth?: string;
   }
 }
 
@@ -96,6 +98,157 @@ test("search cover morphs into the hero with a route fade and upward slide", asy
   expect(
     await page.evaluate(() => window.motionAnimations.join("\n")),
   ).toContain("route-out");
+});
+
+for (const view of ["Grid", "List"] as const) {
+  test(`library ${view.toLowerCase()} cover morphs into the hero`, async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(90_000);
+    await signUp(page, request, `morph_${view.toLowerCase()}_${Date.now()}`);
+    await page.goto("/games/celeste");
+    await page.getByRole("button", { name: /^backlog$/i }).click();
+    await expect(
+      page.getByRole("button", { name: /^backlog$/i }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await page.addInitScript(() => {
+      const observed = window;
+      observed.motionAnimations = [];
+      function sample() {
+        for (const animation of document.getAnimations()) {
+          if (animation instanceof CSSAnimation) {
+            observed.motionAnimations.push(
+              `${animation.animationName}:${(animation.effect as KeyframeEffect).pseudoElement}`,
+            );
+          }
+        }
+        requestAnimationFrame(sample);
+      }
+      requestAnimationFrame(sample);
+    });
+
+    await page.goto("/library");
+    await page.getByRole("button", { name: view, exact: true }).click();
+    await page
+      .getByRole("list", { name: "Games", exact: true })
+      .getByRole("link", { name: /Celeste/ })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Celeste", exact: true }),
+    ).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => window.motionAnimations.join("\n")))
+      .toContain("game-cover-1");
+  });
+}
+
+for (const source of ["search", "shelf"] as const) {
+  test(`Home ${source} morph starts from the clicked cover when search overlaps a shelf`, async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(90_000);
+    await signUp(page, request, `overlap_${source}_${Date.now()}`);
+    await page.goto("/games/celeste");
+    await page.getByRole("button", { name: /^backlog$/i }).click();
+    await expect(
+      page.getByRole("button", { name: /^backlog$/i }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await page.addInitScript(() => {
+      const observed = window;
+      observed.motionAnimations = [];
+      function sample() {
+        for (const animation of document.getAnimations()) {
+          if (animation instanceof CSSAnimation) {
+            observed.motionAnimations.push(
+              `${animation.animationName}:${(animation.effect as KeyframeEffect).pseudoElement}`,
+            );
+          }
+        }
+        requestAnimationFrame(sample);
+      }
+      requestAnimationFrame(sample);
+    });
+
+    await page.goto("/");
+    await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
+    const search = page
+      .getByRole("list", { name: "Search results" })
+      .getByRole("link");
+    await expect(search).toBeVisible();
+    const shelf = page
+      .getByRole("region", { name: "Recently added" })
+      .getByRole("link", { name: "Celeste", exact: true });
+    await expect(shelf).toBeVisible();
+    const link = source === "search" ? search : shelf;
+    const cover = link.locator("img");
+    const width = (await cover.boundingBox())?.width;
+    expect(width).toBeGreaterThan(0);
+    await page.evaluate(() => {
+      function sample() {
+        for (const animation of document.getAnimations()) {
+          if (
+            animation instanceof CSSAnimation &&
+            (animation.effect as KeyframeEffect).pseudoElement ===
+              "::view-transition-group(game-cover-1)"
+          ) {
+            window.motionCoverWidth = (
+              animation.effect as KeyframeEffect
+            ).getKeyframes()[0].width as string;
+            return;
+          }
+        }
+        requestAnimationFrame(sample);
+      }
+      requestAnimationFrame(sample);
+    });
+    await link.click();
+    await expect(
+      page.getByRole("heading", { name: "Celeste", exact: true }),
+    ).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => window.motionCoverWidth))
+      .toBe(`${width}px`);
+  });
+}
+
+test("filtering the library never animates covers", async ({
+  page,
+  request,
+}) => {
+  test.setTimeout(90_000);
+  await signUp(page, request, `filter_motion_${Date.now()}`);
+  for (const slug of ["celeste", "silksong"]) {
+    await page.goto(`/games/${slug}`);
+    await page.getByRole("button", { name: /^backlog$/i }).click();
+    await expect(
+      page.getByRole("button", { name: /^backlog$/i }),
+    ).toHaveAttribute("aria-pressed", "true");
+  }
+  await page.addInitScript(() => {
+    const observed = window;
+    observed.motionAnimations = [];
+    function sample() {
+      for (const animation of document.getAnimations()) {
+        if (animation instanceof CSSAnimation) {
+          observed.motionAnimations.push(
+            `${animation.animationName}:${(animation.effect as KeyframeEffect).pseudoElement}`,
+          );
+        }
+      }
+      requestAnimationFrame(sample);
+    }
+    requestAnimationFrame(sample);
+  });
+
+  await page.goto("/library");
+  await page.getByLabel("Search your Library").fill("Celeste");
+  await expect(page.getByText("1 of 2 games", { exact: true })).toBeVisible();
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  expect(
+    await page.evaluate(() => window.motionAnimations.join("\n")),
+  ).not.toContain("game-cover-");
 });
 
 test("touch presses scale covers without tilt or glare", async ({

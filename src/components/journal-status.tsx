@@ -78,17 +78,19 @@ export async function JournalStatus({ gameId }: { gameId: number }) {
         }))}
       />
       {played && (
-        <Choices
-          label="Completion tag"
-          options={COMPLETION_TAGS.map((t) => ({
-            label: t,
-            // Pressing the current tag again clears it.
-            value: entry.completionTag === t ? "played" : `played:${t}`,
-            pressed: entry.completionTag === t,
-            // Finishing a game is worth celebrating.
-            celebrate: t === "completed",
-          }))}
-        />
+        <div className="enter">
+          <Choices
+            label="Completion tag"
+            options={COMPLETION_TAGS.map((t) => ({
+              label: t,
+              // Pressing the current tag again clears it.
+              value: entry.completionTag === t ? "played" : `played:${t}`,
+              pressed: entry.completionTag === t,
+              // Finishing a game is worth celebrating.
+              celebrate: t === "completed",
+            }))}
+          />
+        </div>
       )}
     </form>
   );

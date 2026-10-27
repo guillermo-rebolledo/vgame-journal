@@ -2,6 +2,10 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { GameCover } from "@/components/game-cover";
 import { GameSearch } from "@/components/game-search";
+import {
+  HomeCoverLink,
+  HomeCoverTransitions,
+} from "@/components/home-cover-link";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/config/site";
 import { signedInUserId } from "@/lib/auth";
@@ -17,10 +21,12 @@ export default function Home() {
       <p className="max-w-xl text-lg text-muted-foreground">
         {SITE_DESCRIPTION}
       </p>
-      <GameSearch />
-      <Suspense>
-        <YourJournal />
-      </Suspense>
+      <HomeCoverTransitions>
+        <GameSearch />
+        <Suspense>
+          <YourJournal />
+        </Suspense>
+      </HomeCoverTransitions>
     </section>
   );
 }
@@ -107,18 +113,22 @@ function Shelf({ title, games }: { title: string; games: LibraryEntry[] }) {
       <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {games.map((e) => (
           <li key={e.gameId}>
-            <Link
+            <HomeCoverLink
+              gameId={e.gameId}
+              source="shelf"
               href={`/games/${e.slug}`}
               className="group flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              cover={
+                <GameCover
+                  imageId={e.coverImageId}
+                  className="w-full rounded-lg shadow-lg"
+                />
+              }
             >
-              <GameCover
-                imageId={e.coverImageId}
-                className="w-full rounded-lg shadow-lg"
-              />
               <span className="line-clamp-2 font-medium text-sm leading-snug group-hover:underline group-hover:underline-offset-4">
                 {e.title}
               </span>
-            </Link>
+            </HomeCoverLink>
           </li>
         ))}
       </ul>

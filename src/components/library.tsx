@@ -3,7 +3,7 @@
 import { LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useState, ViewTransition } from "react";
 import { GameCover } from "@/components/game-cover";
 import { PagedList } from "@/components/paged-list";
 import { Button } from "@/components/ui/button";
@@ -253,12 +253,23 @@ export function Library({
                     <li key={e.gameId}>
                       <Link
                         href={`/games/${e.slug}`}
+                        transitionTypes={["open-game"]}
                         className="group flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                       >
-                        <GameCover
-                          imageId={e.coverImageId}
-                          className="w-full rounded-lg shadow-lg"
-                        />
+                        <ViewTransition
+                          name={`game-cover-${e.gameId}`}
+                          default="none"
+                          // Filters and paging remount covers too; morph only when opening a game.
+                          share={{
+                            "open-game": "cover-morph",
+                            default: "none",
+                          }}
+                        >
+                          <GameCover
+                            imageId={e.coverImageId}
+                            className="w-full rounded-lg shadow-lg"
+                          />
+                        </ViewTransition>
                         <div className="min-w-0">
                           <h2 className="line-clamp-2 font-medium text-sm leading-snug group-hover:underline group-hover:underline-offset-4">
                             {e.title}
@@ -285,13 +296,23 @@ export function Library({
                     <li key={e.gameId}>
                       <Link
                         href={`/games/${e.slug}`}
+                        transitionTypes={["open-game"]}
                         className="-mx-2 flex items-center gap-3 rounded-md p-2 outline-none hover:bg-muted focus-visible:bg-muted"
                       >
-                        <GameCover
-                          imageId={e.coverImageId}
-                          size="cover_small"
-                          className="w-10 rounded"
-                        />
+                        <ViewTransition
+                          name={`game-cover-${e.gameId}`}
+                          default="none"
+                          share={{
+                            "open-game": "cover-morph",
+                            default: "none",
+                          }}
+                        >
+                          <GameCover
+                            imageId={e.coverImageId}
+                            size="cover_small"
+                            className="w-10 rounded"
+                          />
+                        </ViewTransition>
                         <div className="min-w-0 flex-1">
                           <h2 className="truncate font-medium">
                             {e.title}

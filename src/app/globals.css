@@ -209,6 +209,46 @@
   }
 }
 
+/* Unsupported browsers keep the native disclosure behavior. */
+@media (prefers-reduced-motion: no-preference) {
+  .details-expand {
+    interpolate-size: allow-keywords;
+  }
+  .details-expand::details-content {
+    block-size: 0;
+    opacity: 0;
+    overflow-y: clip;
+    transition:
+      block-size 200ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 200ms cubic-bezier(0.22, 1, 0.36, 1),
+      content-visibility 200ms allow-discrete;
+  }
+  .details-expand[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+  }
+}
+
+/* Inserted panels and notices animate only on insertion. */
+.enter {
+  transition:
+    opacity 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    translate 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@starting-style {
+  .enter {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter {
+    transition: opacity 150ms ease-out;
+  }
+}
+
 ::view-transition {
   pointer-events: none;
 }

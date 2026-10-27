@@ -83,7 +83,7 @@ function HistoryRow({
         </p>
       )}
       <details
-        className="text-sm"
+        className="details-expand text-sm"
         onToggle={(event) => {
           if (event.currentTarget.open) setEditorOpened(true);
         }}

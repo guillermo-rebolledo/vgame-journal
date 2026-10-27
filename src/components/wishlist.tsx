@@ -7,6 +7,7 @@ import {
   useState,
   useSyncExternalStore,
   useTransition,
+  ViewTransition,
 } from "react";
 import { GameCover } from "@/components/game-cover";
 import { Odometer } from "@/components/odometer";
@@ -258,7 +259,7 @@ function MoveNotice({
 }
 
 const Box = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+  <div className="enter flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
     {children}
   </div>
 );
@@ -300,11 +301,17 @@ function Row({
         href={`/games/${entry.slug}`}
         className="group flex min-w-0 flex-1 basis-64 items-center gap-4 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        <GameCover
-          imageId={entry.coverImageId}
-          size="cover_small"
-          className="w-14 rounded"
-        />
+        <ViewTransition
+          name={`game-cover-${entry.gameId}`}
+          default="none"
+          share="cover-morph"
+        >
+          <GameCover
+            imageId={entry.coverImageId}
+            size="cover_small"
+            className="w-14 rounded"
+          />
+        </ViewTransition>
         {/* The Countdown sits under the date on phones, on the right from sm up. */}
         <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="min-w-0">
