@@ -1,0 +1,16 @@
+# shelve.games
+
+> A personal journal of every game you've played and every game you're waiting for. Sign up, search a game, and set its Status (Played, Playing, Backlog or Wishlist). Your Library collects them, your Wishlist counts down to releases, and your Stats add them up.
+
+Game data is provided by IGDB (https://www.igdb.com).
+
+## Public pages
+
+- [Home](https://shelve.games/): search the catalog and see how a Journal starts.
+- [Game pages](https://shelve.games/games/): one page per game at `/games/{slug}`, with the summary, platforms, genres, critic and user scores, and every known regional release date. Listed in the sitemap.
+- [Public profiles](https://shelve.games/u/): a member's Library, Wishlist and Stats at `/u/{username}`. Private notes are never shown.
+- [Sitemap](https://shelve.games/sitemap.xml)
+
+## Not available to crawlers
+
+A member's own Library, Wishlist, Stats, Settings and calendar feed are behind a sign-in and are disallowed in robots.txt. Playthrough notes are private and never appear on a public page or in an API response.

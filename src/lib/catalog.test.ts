@@ -352,3 +352,22 @@ test("refreshing never wipes a game's dates when the source has none for it", as
 
   expect((await catalog.findBySlug("game-1"))?.releaseDates).toHaveLength(1);
 });
+
+test("the sitemap gets every catalog game, most recently synced first", async () => {
+  const source = createFakeGameSource([
+    sourceGame({ id: 1, title: "First" }),
+    sourceGame({ id: 2, title: "Second" }),
+  ]);
+  const catalog = createCatalog(await createTestDb(), source);
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-01-01"));
+  await catalog.findBySlug("game-1");
+  vi.setSystemTime(new Date("2026-01-02"));
+  await catalog.findBySlug("game-2");
+
+  expect((await catalog.indexedGames()).map((g) => g.slug)).toEqual([
+    "game-2",
+    "game-1",
+  ]);
+  expect(await catalog.indexedGames(1)).toHaveLength(1);
+});

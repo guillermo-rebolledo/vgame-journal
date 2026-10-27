@@ -1,25 +1,39 @@
 import type { Metadata } from "next";
-import { cacheLife } from "next/cache";
 import { notFound } from "next/navigation";
 import { Suspense, ViewTransition } from "react";
+import { JsonLd } from "@/components/json-ld";
 import { PlatformName, PlatformNames } from "@/components/platform";
 import { Playthroughs } from "@/components/playthroughs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { catalog } from "@/lib/catalog";
+import { SITE_NAME, SITE_URL } from "@/config/site";
 import { coverUrl } from "@/lib/game-source";
 import { regionName, releaseLabel } from "@/lib/release-dates";
+import { findGame } from "./game";
 
-async function findGame(slug: string) {
-  "use cache";
-  cacheLife("hours");
-  return catalog.findBySlug(slug);
+/** Search engines show about 160 characters; a summary cut mid-word reads worse than one cut at a space. */
+function clamp(text: string, max = 160) {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  return `${cut.slice(0, cut.lastIndexOf(" ")) || cut}…`;
 }
 
 export async function generateMetadata({
   params,
 }: PageProps<"/games/[slug]">): Promise<Metadata> {
   const game = await findGame((await params).slug);
-  return game ? { title: game.title, description: game.summary } : {};
+  if (!game) return {};
+  const description = clamp(
+    game.summary ??
+      `${game.title}: platforms, release dates and scores, plus your own playthroughs, on ${SITE_NAME}.`,
+  );
+  const url = `/games/${game.slug}`;
+  return {
+    title: game.title,
+    description,
+    alternates: { canonical: url },
+    // og:image comes from opengraph-image.tsx; file-based metadata wins over anything set here.
+    openGraph: { title: game.title, description, url },
+  };
 }
 
 export default function GamePage({ params }: PageProps<"/games/[slug]">) {
@@ -35,6 +49,7 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
 
   return (
     <article className="relative isolate flex-1">
+      <JsonLd data={videoGameSchema(game, cover)} />
       {cover && (
         <div
           aria-hidden
@@ -166,6 +181,38 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
       </div>
     </article>
   );
+}
+
+/** A VideoGame record, so a crawler reads the platforms, dates and scores without parsing the page. */
+function videoGameSchema(
+  game: Awaited<ReturnType<typeof findGame>> & object,
+  cover: string | false | null,
+) {
+  const released = game.releaseDates
+    .filter((d) => d.date && d.precision === "day")
+    .map((d) => d.date as Date)
+    .sort((a, b) => a.getTime() - b.getTime())[0];
+  return {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    name: game.title,
+    url: `${SITE_URL}/games/${game.slug}`,
+    ...(game.summary && { description: game.summary }),
+    ...(cover && { image: cover }),
+    ...(game.genres.length > 0 && { genre: game.genres }),
+    ...(game.platforms.length > 0 && { gamePlatform: game.platforms }),
+    ...(released && { datePublished: released.toISOString().slice(0, 10) }),
+    ...(game.userScore !== null &&
+      game.userScoreCount && {
+        aggregateRating: {
+          "@type": "AggregateRating",
+          ratingValue: Math.round(game.userScore),
+          ratingCount: game.userScoreCount,
+          bestRating: 100,
+          worstRating: 0,
+        },
+      }),
+  };
 }
 
 function Score({

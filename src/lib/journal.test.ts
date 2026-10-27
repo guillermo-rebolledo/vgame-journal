@@ -824,13 +824,13 @@ test("the calendar feed has an all-day event per wishlisted game with an exact d
     );
   expect(events).toEqual([
     [
-      "UID:game-3@vgame-journal",
+      "UID:game-3@shelve.games",
       "DTSTART;VALUE=DATE:20261201",
       "DTEND;VALUE=DATE:20261202",
       "SUMMARY:Hollow Knight: Silksong\\, Deluxe\\; Edition — Collector’s Bündle für alle releases",
     ],
     [
-      "UID:game-1@vgame-journal",
+      "UID:game-1@shelve.games",
       "DTSTART;VALUE=DATE:20261231",
       "DTEND;VALUE=DATE:20270101",
       "SUMMARY:Game 1 releases",

@@ -1,4 +1,4 @@
-import { and, eq, getTableColumns, gt, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, gt, inArray, sql } from "drizzle-orm";
 import { type Db, db } from "@/db";
 import { game, journalEntry, releaseDate, searchCache } from "@/db/schema";
 import {
@@ -101,6 +101,14 @@ export function createCatalog(db: Db, source: GameSource) {
   }
 
   return {
+    /** Slugs of every Catalog game, most recently synced first, for the sitemap. Google allows 50,000 URLs per sitemap. */
+    async indexedGames(limit = 10_000) {
+      return db
+        .select({ slug: game.slug, syncedAt: game.syncedAt })
+        .from(game)
+        .orderBy(desc(game.syncedAt))
+        .limit(limit);
+    },
     /** A Catalog game by slug; one nobody has searched yet (a shared link) is fetched from the GameSource and kept. */
     async findBySlug(slug: string) {
       const local = await loadBySlug(slug);

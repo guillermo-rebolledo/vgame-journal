@@ -101,7 +101,7 @@ test("populated collections keep Find a game reachable with comfortable phone co
 
   // Keyboard: the brand is the first stop and carries a visible focus ring.
   await page.keyboard.press("Tab");
-  const brand = page.getByRole("link", { name: "vgame journal" });
+  const brand = page.getByRole("link", { name: "shelve.games" });
   await expect(brand).toBeFocused();
   await expect(brand).not.toHaveCSS("box-shadow", "none");
 

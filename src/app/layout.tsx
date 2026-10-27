@@ -6,7 +6,7 @@ import { PageTransition } from "@/components/page-transition";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
-import { SITE_DESCRIPTION, SITE_NAME } from "@/config/site";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,8 +20,30 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: SITE_NAME,
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
   description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "game journal",
+    "game backlog tracker",
+    "video game library",
+    "wishlist",
+    "playthrough log",
+    "game release calendar",
+  ],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    locale: "en_US",
+  },
+  twitter: { card: "summary_large_image" },
+  // Crawlers may index and follow everywhere robots.txt lets them in.
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
