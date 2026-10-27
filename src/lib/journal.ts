@@ -456,6 +456,23 @@ export function createJournal(db: Db) {
       await db.insert(playthrough).values({ userId, gameId, ...values });
     },
 
+    /** Validate before any write; existing membership and completion tags stay intact. */
+    async recordPlaythrough(
+      userId: string,
+      gameId: number,
+      input: PlaythroughInput,
+      status: Status,
+    ) {
+      const values = await playthroughValues(gameId, input);
+      if (!STATUSES.includes(status))
+        throw new JournalError(`Unknown status: ${status}`);
+      // shortcut: Neon HTTP writes are sequential; if logging fails after membership saves,
+      // the game remains in the journal. The form reports this and retains the draft.
+      if (!(await entry(userId, gameId)))
+        await this.set(userId, gameId, { status });
+      await db.insert(playthrough).values({ userId, gameId, ...values });
+    },
+
     /** Replaces the details of one of the user's playthroughs. Others' are left alone. */
     async updatePlaythrough(
       userId: string,

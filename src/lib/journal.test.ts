@@ -973,3 +973,28 @@ test("public profiles include the journal and playthroughs without notes or acco
   );
   expect(await journal.publicProfile("unknown")).toBeNull();
 });
+
+test("recording outside the journal validates before adding the chosen status and preserves existing tags", async () => {
+  const input = { platform: "PlayStation 5", startedOn: "2026-01-01" };
+  await expect(
+    journal.recordPlaythrough(
+      "mario",
+      1,
+      { ...input, endedOn: "2025-01-01" },
+      "backlog",
+    ),
+  ).rejects.toThrow(JournalError);
+  expect(await journal.entry("mario", 1)).toBeNull();
+  await journal.recordPlaythrough("mario", 1, input, "backlog");
+  expect(await journal.entry("mario", 1)).toMatchObject({ status: "backlog" });
+  expect(await journal.playthroughs("mario", 1)).toHaveLength(1);
+  await journal.set("mario", 1, {
+    status: "played",
+    completionTag: "completed",
+  });
+  await journal.recordPlaythrough("mario", 1, input, "playing");
+  expect(await journal.entry("mario", 1)).toMatchObject({
+    status: "played",
+    completionTag: "completed",
+  });
+});

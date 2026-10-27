@@ -47,34 +47,42 @@ test("platform names stay readable with distinct, decorative icons", () => {
   expect(icons[0].classList.contains("lucide-monitor")).toBe(true);
 });
 
-test("the picker icon follows selection, survives errors and resets after saving", async () => {
+test("the themed picker and entered fields survive a failed save", async () => {
   const user = userEvent.setup();
   const onSave = vi
     .fn()
     .mockResolvedValueOnce({ error: "Try again" })
     .mockResolvedValueOnce(undefined);
+  const onSuccess = vi.fn();
   render(
     <PlaythroughForm
       platforms={["PC", "PS5"]}
       initial={{ startedOn: "2026-01-01" }}
-      submitLabel="Save"
       onSave={onSave}
+      onSuccess={onSuccess}
+      onCancel={vi.fn()}
+      onDraft={vi.fn()}
+      onPending={vi.fn()}
     />,
   );
-  const picker = () => screen.getByLabelText("Platform") as HTMLSelectElement;
-  const icon = () => picker().parentElement?.querySelector("svg");
-  const pc = icon()?.innerHTML;
-  await user.selectOptions(picker(), "PS5");
-  const ps5 = icon()?.innerHTML;
-  expect(ps5).not.toBe(pc);
+  await user.click(screen.getByRole("combobox", { name: "Platform" }));
+  await user.click(await screen.findByRole("option", { name: "PS5" }));
+  await user.type(
+    screen.getByLabelText("Notes (private, optional)"),
+    "Keep my draft",
+  );
   await user.click(screen.getByRole("button", { name: "Save" }));
   await screen.findByRole("alert");
-  expect(picker().value).toBe("PS5");
-  expect(icon()?.innerHTML).toBe(ps5);
+  expect(
+    screen.getByRole("combobox", { name: "Platform" }).textContent,
+  ).toContain("PS5");
+  expect(
+    (screen.getByLabelText("Notes (private, optional)") as HTMLTextAreaElement)
+      .value,
+  ).toBe("Keep my draft");
   await user.click(screen.getByRole("button", { name: "Save" }));
-  await waitFor(() => expect(picker().value).toBe("PC"));
-  expect(icon()?.innerHTML).toBe(pc);
+  await waitFor(() => expect(onSuccess).toHaveBeenCalled());
   expect(onSave).toHaveBeenLastCalledWith(
-    expect.objectContaining({ platform: "PS5" }),
+    expect.objectContaining({ platform: "PS5", notes: "Keep my draft" }),
   );
 });

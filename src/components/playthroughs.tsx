@@ -1,15 +1,15 @@
 import { refresh } from "next/cache";
-import {
-  PlaythroughForm,
-  type SavePlaythrough,
-} from "@/components/playthrough-form";
-import { PlaythroughHistory } from "@/components/playthrough-history";
+import { GameRecording } from "@/components/game-recording";
 import { ownerId, signedInUserId } from "@/lib/auth";
-import { JournalError, journal, type PlaythroughInput } from "@/lib/journal";
+import {
+  type CompletionTag,
+  JournalError,
+  journal,
+  type PlaythroughInput,
+  type Status,
+} from "@/lib/journal";
 
-type FormValues = Record<string, string>;
-
-const fromForm = (values: FormValues): PlaythroughInput => ({
+const fromForm = (values: Record<string, string>): PlaythroughInput => ({
   platform: values.platform ?? "",
   startedOn: values.startedOn ?? "",
   endedOn: values.endedOn || null,
@@ -17,82 +17,85 @@ const fromForm = (values: FormValues): PlaythroughInput => ({
   notes: values.notes ?? "",
 });
 
-/** Runs a write and refreshes, or hands a broken Journal rule back to the form. */
 async function saveOrReturnError(write: () => Promise<void>) {
   try {
     await write();
-  } catch (e) {
-    if (e instanceof JournalError) return { error: e.message };
-    throw e;
+  } catch (error) {
+    return {
+      error:
+        error instanceof JournalError
+          ? error.message
+          : "Couldn’t save. Check your connection and try again. If the game was added to your journal, it remains there.",
+    };
   }
   refresh();
 }
 
-/** The signed-in user's Playthroughs of a game in their journal, oldest first. */
+/** A single request-scoped loading boundary for all personal game content. */
 export async function Playthroughs({
   gameId,
+  gameTitle,
   platforms,
 }: {
   gameId: number;
+  gameTitle: string;
   platforms: string[];
 }) {
   const userId = await signedInUserId();
-  if (!userId || !(await journal.entry(userId, gameId))) return null;
-  const playthroughs = await journal.playthroughs(userId, gameId);
+  const [entry, playthroughs] = userId
+    ? await Promise.all([
+        journal.entry(userId, gameId),
+        journal.playthroughs(userId, gameId),
+      ])
+    : [null, []];
 
-  const add: SavePlaythrough = async (values) => {
+  async function setStatus(
+    status: Status | null,
+    completionTag: CompletionTag | null,
+  ) {
     "use server";
     const owner = await ownerId();
     return saveOrReturnError(() =>
-      journal.addPlaythrough(owner, gameId, fromForm(values)),
+      status === null
+        ? journal.remove(owner, gameId)
+        : journal.set(owner, gameId, { status, completionTag }),
     );
-  };
-
-  async function update(id: number, values: FormValues) {
+  }
+  async function add(values: Record<string, string>) {
+    "use server";
+    const owner = await ownerId();
+    return saveOrReturnError(() =>
+      journal.recordPlaythrough(
+        owner,
+        gameId,
+        fromForm(values),
+        (values.status ?? "playing") as Status,
+      ),
+    );
+  }
+  async function update(id: number, values: Record<string, string>) {
     "use server";
     const owner = await ownerId();
     return saveOrReturnError(() =>
       journal.updatePlaythrough(owner, id, fromForm(values)),
     );
   }
-
   async function remove(id: number) {
     "use server";
     const owner = await ownerId();
-    await journal.removePlaythrough(owner, id);
-    refresh();
+    return saveOrReturnError(() => journal.removePlaythrough(owner, id));
   }
-
   return (
-    <section className="enter flex flex-col gap-3 rounded-lg border bg-background/60 p-4 backdrop-blur sm:max-w-md">
-      <h2 className="font-medium">Playthroughs</h2>
-      {playthroughs.length > 0 && (
-        <PlaythroughHistory
-          playthroughs={playthroughs}
-          platforms={platforms}
-          onUpdate={update}
-          onRemove={remove}
-        />
-      )}
-      {platforms.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          This game has no platforms listed yet, so playthroughs can't be
-          logged.
-        </p>
-      ) : (
-        <details className="details-expand" open={playthroughs.length === 0}>
-          <summary className="cursor-pointer text-sm">
-            Add a playthrough
-          </summary>
-          <div className="pt-3">
-            <PlaythroughForm
-              platforms={platforms}
-              submitLabel="Add playthrough"
-              onSave={add}
-            />
-          </div>
-        </details>
-      )}
-    </section>
+    <GameRecording
+      signedIn={!!userId}
+      entry={entry}
+      playthroughs={playthroughs}
+      gameTitle={gameTitle}
+      platforms={platforms}
+      onStatus={setStatus}
+      onAdd={add}
+      onUpdate={update}
+      onRemove={remove}
+    />
   );
 }

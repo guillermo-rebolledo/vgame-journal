@@ -1,132 +1,168 @@
-import { refresh } from "next/cache";
-import Link from "next/link";
-import { BurstButton } from "@/components/burst-button";
+"use client";
+
+import { BookMarked, LoaderCircle } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ownerId, signedInUserId } from "@/lib/auth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   COMPLETION_TAGS,
   type CompletionTag,
-  journal,
   STATUSES,
   type Status,
-} from "@/lib/journal";
+} from "@/lib/library";
 
-/** The signed-in user's Status and Completion tag for a game, editable in place. */
-export async function JournalStatus({ gameId }: { gameId: number }) {
-  const userId = await signedInUserId();
-  if (!userId)
-    return (
-      <p className="text-muted-foreground text-sm">
-        <Link
-          href="/sign-in"
-          className="text-foreground underline underline-offset-4"
-        >
-          Sign in
-        </Link>{" "}
-        to add this game to your journal.
-      </p>
-    );
-  const entry = await journal.entry(userId, gameId);
-
-  async function save(formData: FormData) {
-    "use server";
-    const owner = await ownerId();
-    // Buttons submit "status" or "played:<tag>".
-    const [status, completionTag = null] = String(formData.get("status")).split(
-      ":",
-    );
-    await journal.set(owner, gameId, {
-      status: status as Status,
-      completionTag: completionTag as CompletionTag | null,
-    });
-    refresh();
-  }
-
-  async function remove() {
-    "use server";
-    const owner = await ownerId();
-    await journal.remove(owner, gameId);
-    refresh();
-  }
-
-  const played = entry?.status === "played";
-  return (
-    <form
-      action={save}
-      className="flex flex-col gap-3 rounded-lg border bg-background/60 p-4 backdrop-blur sm:max-w-md"
-    >
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-medium">
-          {entry ? "In your journal" : "Add to your journal"}
-        </h2>
-        {entry && (
-          <Button type="submit" formAction={remove} variant="ghost" size="sm">
-            Remove
-          </Button>
-        )}
-      </div>
-      <Choices
-        label="Status"
-        options={STATUSES.map((s) => ({
-          label: s,
-          // Re-pressing Played keeps its tag.
-          value:
-            s === "played" && entry?.completionTag
-              ? `played:${entry.completionTag}`
-              : s,
-          pressed: entry?.status === s,
-        }))}
-      />
-      {played && (
-        <div className="enter">
-          <Choices
-            label="Completion tag"
-            options={COMPLETION_TAGS.map((t) => ({
-              label: t,
-              // Pressing the current tag again clears it.
-              value: entry.completionTag === t ? "played" : `played:${t}`,
-              pressed: entry.completionTag === t,
-              // Finishing a game is worth celebrating.
-              celebrate: t === "completed",
-            }))}
-          />
-        </div>
-      )}
-    </form>
-  );
-}
-
-function Choices({
-  label,
-  options,
+export type JournalSelection = {
+  status: Status;
+  completionTag: CompletionTag | null;
+} | null;
+export function JournalStatus({
+  entry,
+  disabled,
+  onSave,
 }: {
-  label: string;
-  options: {
-    label: string;
-    value: string;
-    pressed: boolean;
-    celebrate?: boolean;
-  }[];
+  entry: JournalSelection;
+  disabled: boolean;
+  onSave: (
+    status: Status | null,
+    tag: CompletionTag | null,
+  ) => Promise<{ error: string } | undefined>;
 }) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string>();
+  async function save(status: Status | null, tag: CompletionTag | null) {
+    if (pending || disabled) return;
+    setPending(true);
+    setError(undefined);
+    try {
+      setError((await onSave(status, tag))?.error);
+    } catch {
+      setError(
+        "Couldn’t update your journal. Open Journal status to try again.",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
   return (
-    <fieldset className="flex flex-wrap gap-2">
-      <legend className="sr-only">{label}</legend>
-      {options.map((o) => {
-        const Choice = o.celebrate ? BurstButton : Button;
-        return (
-          <Choice
-            key={o.label}
-            type="submit"
-            name="status"
-            value={o.value}
-            aria-pressed={o.pressed}
-            variant={o.pressed ? "default" : "outline"}
-            className="capitalize"
-          >
-            {o.label}
-          </Choice>
-        );
-      })}
-    </fieldset>
+    <div>
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    aria-label="Journal status"
+                    aria-description={
+                      entry
+                        ? `In your journal: ${entry.status}${entry.completionTag ? `, ${entry.completionTag}` : ""}`
+                        : "Not in your journal"
+                    }
+                    aria-busy={pending}
+                    disabled={disabled || pending}
+                    variant={entry ? "secondary" : "outline"}
+                    size="icon"
+                    className="size-11 rounded-full"
+                  >
+                    {pending ? (
+                      <LoaderCircle className="animate-spin" />
+                    ) : (
+                      <BookMarked fill={entry ? "currentColor" : "none"} />
+                    )}
+                  </Button>
+                }
+              />
+            }
+          />
+          <TooltipContent>Journal status</TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent className="w-60">
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Journal status</DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={entry?.status ?? ""}>
+              {STATUSES.map((status) => (
+                <DropdownMenuRadioItem
+                  key={status}
+                  value={status}
+                  className="min-h-10 capitalize"
+                  disabled={pending}
+                  onClick={() =>
+                    save(
+                      status,
+                      status === "played"
+                        ? (entry?.completionTag ?? null)
+                        : null,
+                    )
+                  }
+                >
+                  {status}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuGroup>
+          {entry?.status === "played" && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Completion tag</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={entry.completionTag ?? "none"}>
+                  {["none", ...COMPLETION_TAGS].map((tag) => (
+                    <DropdownMenuRadioItem
+                      key={tag}
+                      value={tag}
+                      className="min-h-10 capitalize"
+                      disabled={pending}
+                      onClick={() =>
+                        save(
+                          "played",
+                          tag === "none" ? null : (tag as CompletionTag),
+                        )
+                      }
+                    >
+                      {tag === "none" ? "No tag" : tag}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuGroup>
+            </>
+          )}
+          {entry && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  variant="destructive"
+                  className="min-h-10"
+                  onClick={() => save(null, null)}
+                >
+                  Remove from journal
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {pending && <output className="sr-only">Saving journal status…</output>}
+      {error && (
+        <p role="alert" className="mt-2 max-w-xs text-destructive text-sm">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

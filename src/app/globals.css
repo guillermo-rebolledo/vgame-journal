@@ -287,3 +287,19 @@
     animation: none !important;
   }
 }
+
+/* Personal overlays mount their full layout before entering. */
+.playthrough-sheet[data-side="bottom"] {
+  height: min(94dvh, 960px);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="sheet-content"],
+  [data-slot="sheet-overlay"],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="select-content"],
+  [data-slot="tooltip-content"] {
+    animation: none;
+    transition: none;
+    translate: none;
+  }
+}

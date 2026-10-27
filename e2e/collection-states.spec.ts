@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
 import { snap } from "./support/snap";
 
@@ -94,10 +95,7 @@ for (const viewport of [
         `search-missing-cover-${viewport.name}-${theme}`,
       );
       await result.click();
-      await page.getByRole("button", { name: /^wishlist$/i }).click();
-      await expect(
-        page.getByRole("button", { name: /^wishlist$/i }),
-      ).toHaveAttribute("aria-pressed", "true");
+      await chooseStatus(page, "wishlist");
 
       await visit("Library", false);
       const games = page.getByRole("list", { name: "Games" });

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
 
 test("sign up, share a profile without notes, export the journal, and delete the account", async ({
@@ -13,10 +14,7 @@ test("sign up, share a profile without notes, export the journal, and delete the
 
   await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
   await page.getByRole("link", { name: /Celeste/ }).click();
-  await page.getByRole("button", { name: /^wishlist$/i }).click();
-  await expect(
-    page.getByRole("button", { name: /^wishlist$/i }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await chooseStatus(page, "wishlist");
   await page.getByRole("link", { name: /^wishlist$/i }).click();
   await expect(
     page
@@ -24,18 +22,20 @@ test("sign up, share a profile without notes, export the journal, and delete the
       .getByRole("link", { name: /Celeste/ }),
   ).toBeVisible();
   await page.getByRole("link", { name: /Celeste/ }).click();
-  await page.getByRole("button", { name: /^played$/i }).click();
-  await page.getByRole("button", { name: /^completed$/i }).click();
-  await expect(
-    page.getByRole("button", { name: /^completed$/i }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await page.getByLabel("Started", { exact: true }).fill("2026-01-01");
-  await page.getByLabel("Finished", { exact: true }).fill("2026-01-10");
-  await page.getByLabel("Hours", { exact: true }).fill("12");
-  await page.getByLabel("Notes (private)", { exact: true }).fill(privateNote);
+  await chooseStatus(page, "played");
+  await chooseStatus(page, "completed");
   await page
     .getByRole("button", { name: "Add playthrough", exact: true })
     .click();
+  await page.getByLabel("Started", { exact: true }).fill("2026-01-01");
+  await page
+    .getByLabel("Finished (optional)", { exact: true })
+    .fill("2026-01-10");
+  await page.getByLabel("Hours (optional)", { exact: true }).fill("12");
+  await page
+    .getByLabel("Notes (private, optional)", { exact: true })
+    .fill(privateNote);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(
     page.getByRole("paragraph").filter({ hasText: privateNote }),
   ).toBeVisible();
@@ -44,10 +44,7 @@ test("sign up, share a profile without notes, export the journal, and delete the
   await page.goto("/");
   await page.getByRole("searchbox", { name: "Search games" }).fill("Silksong");
   await page.getByRole("link", { name: /Silksong/ }).click();
-  await page.getByRole("button", { name: /^wishlist$/i }).click();
-  await expect(
-    page.getByRole("button", { name: /^wishlist$/i }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await chooseStatus(page, "wishlist");
 
   const visitor = await browser.newContext();
   const publicPage = await visitor.newPage();
