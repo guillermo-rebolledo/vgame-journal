@@ -20,9 +20,65 @@ test("covers tilt toward the pointer and spring back", async ({ page }) => {
   await page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.2);
   await expect(cover).not.toHaveCSS("transform", "none");
   await expect(page.locator("[data-cover-glare]")).toHaveCSS("opacity", "1");
+  const texture = page.locator("[data-cover-glare] > span");
+  const background = await texture.evaluate(
+    (element) => getComputedStyle(element).backgroundImage,
+  );
+  const transform = await texture.evaluate(
+    (element) => getComputedStyle(element).transform,
+  );
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.8);
+  await expect
+    .poll(() =>
+      texture.evaluate((element) => getComputedStyle(element).transform),
+    )
+    .not.toBe(transform);
+  await expect(texture).toHaveCSS("background-image", background);
   await page.mouse.move(0, 0);
   await expect(cover).toHaveCSS("transform", "none");
   await expect(page.locator("[data-cover-glare]")).toHaveCSS("opacity", "0");
+});
+
+test("playthrough disclosures settle layout before fading and keep native controls", async ({
+  page,
+  request,
+}) => {
+  await signUp(page, request, `disclosure_${Date.now()}`);
+  await page.goto("/games/celeste");
+  await page.getByRole("button", { name: /^backlog$/i }).click();
+  const details = page
+    .locator("details")
+    .filter({ hasText: "Add a playthrough" });
+  const summary = details.locator("summary");
+  await expect(details).toHaveAttribute("open", "");
+  await summary.click();
+  await expect(
+    page.getByRole("button", { name: "Add playthrough", exact: true }),
+  ).toBeHidden();
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("button", { name: "Add playthrough", exact: true }),
+  ).toBeVisible();
+  const heights = await details.evaluate(async (element) => {
+    const samples: number[] = [];
+    const start = performance.now();
+    while (performance.now() - start < 250) {
+      await new Promise(requestAnimationFrame);
+      samples.push(element.getBoundingClientRect().height);
+    }
+    return samples;
+  });
+  expect(Math.max(...heights) - Math.min(...heights)).toBeLessThan(1);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await summary.click();
+  await summary.click();
+  await expect(details).toHaveAttribute("open", "");
+  expect(
+    await details.evaluate(
+      (element) => getComputedStyle(element, "::details-content").animationName,
+    ),
+  ).toBe("none");
 });
 
 test("new search covers stagger in without replaying on pointer movement", async ({

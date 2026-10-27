@@ -15,10 +15,10 @@ export function TiltCover({ children }: { children: ReactNode }) {
   const spring = { stiffness: 260, damping: 24 };
   const rotateX = useSpring(0, spring);
   const rotateY = useSpring(0, spring);
-  const glareX = useSpring(50, spring);
-  const glareY = useSpring(50, spring);
+  const glareX = useSpring(0, spring);
+  const glareY = useSpring(0, spring);
   const glare = useSpring(0, spring);
-  const background = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgb(255 255 255 / 0.4), transparent 70%)`;
+  const glareTransform = useMotionTemplate`translate(${glareX}%, ${glareY}%)`;
 
   function reset() {
     setPressed(false);
@@ -66,8 +66,9 @@ export function TiltCover({ children }: { children: ReactNode }) {
         );
         rotateX.set((0.5 - y) * 16);
         rotateY.set((x - 0.5) * 16);
-        glareX.set(x * 100);
-        glareY.set(y * 100);
+        // The texture is three times the cover size; move its center to the pointer.
+        glareX.set(((x - 0.5) * 100) / 3);
+        glareY.set(((y - 0.5) * 100) / 3);
         glare.set(1);
       }}
       onPointerLeave={reset}
@@ -78,9 +79,18 @@ export function TiltCover({ children }: { children: ReactNode }) {
       <motion.span
         data-cover-glare
         aria-hidden
-        className="cover-glare pointer-events-none absolute inset-0 rounded-[inherit]"
-        style={{ background, opacity: reduced ? 0 : glare }}
-      />
+        className="cover-glare pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+        style={{ opacity: reduced ? 0 : glare }}
+      >
+        <motion.span
+          className="absolute -inset-full"
+          style={{
+            background:
+              "radial-gradient(circle, rgb(255 255 255 / 0.4), transparent 23.333%)",
+            transform: glareTransform,
+          }}
+        />
+      </motion.span>
     </motion.span>
   );
 }
