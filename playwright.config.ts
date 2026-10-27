@@ -4,6 +4,8 @@ export default defineConfig({
   testDir: "./e2e",
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
+  // ubuntu-latest has 4 cores; Playwright would default to 2. Specs are mostly awaiting the server.
+  workers: process.env.CI ? 4 : undefined,
   use: { baseURL: "http://localhost:3100", trace: "on-first-retry" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [

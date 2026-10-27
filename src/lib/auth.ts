@@ -31,6 +31,9 @@ export function createAuth(
 ) {
   return betterAuth({
     database: drizzleAdapter(database, { provider: "pg", schema }),
+    // On by default in production. E2E specs sign up in parallel against one server, so they'd
+    // spend most of CI waiting out the 10s window; the app and preview deploys keep the limit.
+    rateLimit: { enabled: !process.env.E2E_TEST },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
