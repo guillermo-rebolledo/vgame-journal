@@ -3,6 +3,7 @@ import { cacheLife } from "next/cache";
 import { notFound } from "next/navigation";
 import { Suspense, ViewTransition } from "react";
 import { JournalStatus } from "@/components/journal-status";
+import { PlatformName, PlatformNames } from "@/components/platform";
 import { Playthroughs } from "@/components/playthroughs";
 import { catalog } from "@/lib/catalog";
 import { coverUrl } from "@/lib/game-source";
@@ -111,7 +112,7 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
             <section className="flex flex-col gap-2">
               <h2 className="font-medium">Platforms</h2>
               <p className="text-muted-foreground">
-                {game.platforms.join(", ")}
+                <PlatformNames platforms={game.platforms} />
               </p>
             </section>
           )}
@@ -128,7 +129,11 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
                     className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2"
                   >
                     <span>
-                      {d.platform ?? "All platforms"}
+                      {d.platform ? (
+                        <PlatformName platform={d.platform} />
+                      ) : (
+                        "All platforms"
+                      )}
                       <span className="text-muted-foreground">
                         {" "}
                         · {regionName(d.region)}
