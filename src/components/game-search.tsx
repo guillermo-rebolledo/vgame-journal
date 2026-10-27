@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { type CSSProperties, useEffect, useState, ViewTransition } from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 import { GameCover } from "@/components/game-cover";
+import { HomeCoverLink } from "@/components/home-cover-link";
 import { TiltCover } from "@/components/tilt-cover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,23 +95,20 @@ export function GameSearch() {
         <ul aria-label="Search results" className="flex flex-col gap-2">
           {results.map((game, index) => (
             <li key={game.id}>
-              <Link
+              <HomeCoverLink
+                gameId={game.id}
+                source="search"
                 href={`/games/${game.slug}`}
                 prefetch={true}
                 className="-mx-2 flex items-center gap-3 rounded-md p-2 hover:bg-muted focus-visible:bg-muted"
-              >
-                <div
-                  className="cover-entry"
-                  style={
-                    {
-                      "--entry-delay": `${Math.min(index, 8) * 35}ms`,
-                    } as CSSProperties
-                  }
-                >
-                  <ViewTransition
-                    name={`game-cover-${game.id}`}
-                    default="none"
-                    share="cover-morph"
+                cover={
+                  <div
+                    className="cover-entry"
+                    style={
+                      {
+                        "--entry-delay": `${Math.min(index, 8) * 35}ms`,
+                      } as CSSProperties
+                    }
                   >
                     <TiltCover>
                       <GameCover
@@ -120,8 +117,9 @@ export function GameSearch() {
                         className="w-[45px] rounded"
                       />
                     </TiltCover>
-                  </ViewTransition>
-                </div>
+                  </div>
+                }
+              >
                 <div className="min-w-0">
                   <p className="truncate font-medium">
                     {game.title}
@@ -136,7 +134,7 @@ export function GameSearch() {
                     {game.platforms.join(", ")}
                   </p>
                 </div>
-              </Link>
+              </HomeCoverLink>
             </li>
           ))}
         </ul>
