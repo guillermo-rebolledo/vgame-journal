@@ -93,6 +93,9 @@ test("search cover morphs into the hero with a route fade and upward slide", asy
   expect(
     await page.evaluate(() => window.motionAnimations.join("\n")),
   ).toContain("game-cover-1");
+  expect(
+    await page.evaluate(() => window.motionAnimations.join("\n")),
+  ).toContain("route-out");
 });
 
 test("touch presses scale covers without tilt or glare", async ({

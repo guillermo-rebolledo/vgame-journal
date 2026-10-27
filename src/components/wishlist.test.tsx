@@ -1,5 +1,12 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { DatePrecision } from "@/lib/game-source";
@@ -150,13 +157,15 @@ test("a released game moves to Backlog or Playing once, then offers its destinat
   ).toBe("/library?status=playing");
 
   onMove.mockResolvedValueOnce(new Date());
-  await user.click(within(notice).getByRole("button", { name: "Undo" }));
+  await user.click(await within(notice).findByRole("button", { name: "Undo" }));
   expect(onMove).toHaveBeenLastCalledWith(
     7,
     { status: "playing", updatedAt: at },
     "wishlist",
   );
-  expect(notice.textContent).toContain("Game 7 is back on your Wishlist.");
+  expect(
+    await within(notice).findByText("Game 7 is back on your Wishlist."),
+  ).toBeTruthy();
 });
 
 test("a failed move or undo explains itself in place and can be retried", async () => {
@@ -175,20 +184,30 @@ test("a failed move or undo explains itself in place and can be retried", async 
     "Couldn’t move Game 7 to Backlog.",
   );
   onMove.mockResolvedValueOnce(new Date());
+  await waitFor(() =>
+    expect(
+      (
+        within(row).getByRole("button", {
+          name: "Try again",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false),
+  );
   await user.click(within(row).getByRole("button", { name: "Try again" }));
   expect(onMove).toHaveBeenCalledTimes(2);
   expect(onMove).toHaveBeenLastCalledWith(7, { status: "wishlist" }, "backlog");
 
   const notice = screen.getByRole("status", { name: "Wishlist updates" });
-  await within(notice).findByRole("button", { name: "Undo" });
   onMove.mockRejectedValueOnce(new Error("offline"));
-  await user.click(within(notice).getByRole("button", { name: "Undo" }));
+  await user.click(await within(notice).findByRole("button", { name: "Undo" }));
   expect((await within(notice).findByRole("alert")).textContent).toContain(
     "Couldn’t put Game 7 back on your Wishlist.",
   );
   onMove.mockResolvedValueOnce(new Date());
-  await user.click(within(notice).getByRole("button", { name: "Try again" }));
-  await vi.waitFor(() =>
+  await user.click(
+    await within(notice).findByRole("button", { name: "Try again" }),
+  );
+  await waitFor(() =>
     expect(notice.textContent).toContain("Game 7 is back on your Wishlist."),
   );
 });
@@ -204,20 +223,33 @@ test("a change made elsewhere stops a move or undo instead of overwriting it", a
     screen.getByRole("button", { name: "Move Game 7 to backlog" }),
   );
   // The refresh drops the row, so the explanation sits in the notice above the list.
-  expect(
-    within(screen.getByRole("status", { name: "Wishlist updates" })).getByRole(
-      "alert",
-    ).textContent,
-  ).toContain("Game 7 isn’t on your Wishlist any more");
+  await waitFor(() =>
+    expect(
+      within(
+        screen.getByRole("status", { name: "Wishlist updates" }),
+      ).getByRole("alert").textContent,
+    ).toContain("Game 7 isn’t on your Wishlist any more"),
+  );
+  await waitFor(() =>
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Move Game 7 to backlog",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false),
+  );
 
   onMove.mockResolvedValueOnce(new Date()).mockResolvedValueOnce(null);
   await user.click(
     screen.getByRole("button", { name: "Move Game 7 to backlog" }),
   );
   const notice = screen.getByRole("status", { name: "Wishlist updates" });
-  await user.click(within(notice).getByRole("button", { name: "Undo" }));
-  expect(within(notice).getByRole("alert").textContent).toContain(
-    "Game 7 changed after the move, so it was left as is.",
+  await user.click(await within(notice).findByRole("button", { name: "Undo" }));
+  await waitFor(() =>
+    expect(within(notice).getByRole("alert").textContent).toContain(
+      "Game 7 changed after the move, so it was left as is.",
+    ),
   );
   expect(
     within(notice)
