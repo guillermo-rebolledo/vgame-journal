@@ -42,6 +42,7 @@ export function PlaythroughForm({
 }) {
   const id = useId();
   const [values, setValues] = useState<Values>({
+    submissionId: crypto.randomUUID(),
     platform: platforms[0] ?? "",
     status: "playing",
     ...initial,

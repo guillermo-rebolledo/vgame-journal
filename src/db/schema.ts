@@ -14,6 +14,8 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
+  uuid,
 } from "drizzle-orm/pg-core";
 import type { DatePrecision } from "@/lib/game-source";
 import type { CompletionTag, Status } from "@/lib/journal";
@@ -203,6 +205,7 @@ export const playthrough = pgTable(
     endedOn: date("ended_on"),
     hours: numeric("hours", { precision: 7, scale: 2, mode: "number" }),
     notes: text("notes").notNull().default(""),
+    submissionId: uuid("submission_id"),
   },
   (table) => [
     foreignKey({
@@ -210,6 +213,10 @@ export const playthrough = pgTable(
       foreignColumns: [journalEntry.userId, journalEntry.gameId],
     }).onDelete("cascade"),
     index("playthrough_userId_gameId_idx").on(table.userId, table.gameId),
+    uniqueIndex("playthrough_user_submission_idx").on(
+      table.userId,
+      table.submissionId,
+    ),
     check(
       "playthrough_ends_after_start",
       sql`${table.endedOn} is null or ${table.endedOn} >= ${table.startedOn}`,

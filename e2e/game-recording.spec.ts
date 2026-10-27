@@ -20,6 +20,9 @@ test("journal choices, tags, errors and removal preserve saved state", async ({
     "played",
   ])
     await chooseStatus(page, status);
+  await expect(
+    page.getByRole("button", { name: "Journal status", exact: true }),
+  ).toBeFocused();
   await page
     .getByRole("button", { name: "Journal status", exact: true })
     .click();
@@ -49,7 +52,9 @@ test("journal choices, tags, errors and removal preserve saved state", async ({
   await page
     .getByRole("menuitemradio", { name: "wishlist", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toContainText("Couldn’t");
+  await expect(
+    page.getByRole("region", { name: "Game journal" }).getByRole("alert"),
+  ).toContainText("Couldn’t");
   await page.unroute("**/games/celeste", fail);
   await chooseStatus(page, "wishlist");
   await page
@@ -100,6 +105,7 @@ test("drawer drafts, validation, retry, outside-journal status, editing and dele
     document.documentElement.classList.remove("dark");
   });
   await page.screenshot({
+    animations: "disabled",
     path: testInfo.outputPath("game-desktop.png"),
     fullPage: true,
   });
@@ -130,7 +136,10 @@ test("drawer drafts, validation, retry, outside-journal status, editing and dele
   await page.getByRole("option", { name: "backlog", exact: true }).click();
   const fail = (route: import("@playwright/test").Route) =>
     route.request().method() === "POST" ? route.abort() : route.continue();
-  await page.screenshot({ path: testInfo.outputPath("drawer-desktop.png") });
+  await page.screenshot({
+    animations: "disabled",
+    path: testInfo.outputPath("drawer-desktop.png"),
+  });
   await page.route("**/games/celeste", fail);
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText("Couldn’t save");
@@ -138,15 +147,26 @@ test("drawer drafts, validation, retry, outside-journal status, editing and dele
     "A private draft",
   );
   await page.unroute("**/games/celeste", fail);
-  await page.screenshot({ path: testInfo.outputPath("drawer-desktop.png") });
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Add playthrough", exact: true })
+    .click();
+  await page.screenshot({
+    animations: "disabled",
+    path: testInfo.outputPath("drawer-desktop.png"),
+  });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: testInfo.outputPath("drawer-mobile.png") });
+  await page.screenshot({
+    animations: "disabled",
+    path: testInfo.outputPath("drawer-mobile.png"),
+  });
   await page.emulateMedia({ colorScheme: "dark" });
   await page.evaluate(() => {
     localStorage.setItem("theme", "dark");
     document.documentElement.classList.add("dark");
   });
   await page.screenshot({
+    animations: "disabled",
     path: testInfo.outputPath("drawer-mobile-dark.png"),
   });
   await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -164,6 +184,9 @@ test("drawer drafts, validation, retry, outside-journal status, editing and dele
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("button", { name: "Delete playthrough" }).click();
   await expect(page.getByText("No playthroughs yet.")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Add playthrough", exact: true }),
+  ).toBeFocused();
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
   await testInfo.attach("production-performance-4x-cpu", {
     body: JSON.stringify(
@@ -213,6 +236,19 @@ test("delayed personal content reveals one compact action area without opening a
   request,
 }) => {
   const email = await signUp(page, request, `delayed_record_${Date.now()}`);
+  await page.goto("/games/celeste");
+  await request.post("http://127.0.0.1:3101/query", {
+    data: {
+      sql: `insert into journal_entry (user_id, game_id, status) select id, 1, 'played' from "user" where email = $1`,
+      params: [email],
+    },
+  });
+  await request.post("http://127.0.0.1:3101/query", {
+    data: {
+      sql: `insert into playthrough (user_id, game_id, platform, started_on, notes) select u.id, 1, 'PC', '2026-01-01', 'Delayed history ' || n from "user" u cross join generate_series(1, 5) n where email = $1`,
+      params: [email],
+    },
+  });
   await request.post("http://127.0.0.1:3101/collection-delay", {
     data: { email, milliseconds: 2000 },
   });
@@ -238,4 +274,48 @@ test("delayed personal content reveals one compact action area without opening a
   await request.post("http://127.0.0.1:3101/collection-delay", {
     data: { email, milliseconds: 0 },
   });
+});
+
+test("cancel never writes and the drawer stays within a keyboard-reduced visual viewport", async ({
+  page,
+  request,
+}) => {
+  await signUp(page, request, `keyboard_record_${Date.now()}`);
+  await page.goto("/games/celeste");
+  await page
+    .getByRole("button", { name: "Add playthrough", exact: true })
+    .click();
+  await page.getByLabel("Started", { exact: true }).fill("2026-01-01");
+  await page.keyboard.press("Shift+Tab");
+  expect(
+    await page
+      .getByRole("dialog")
+      .evaluate((element) => element.contains(document.activeElement)),
+  ).toBe(true);
+  await page.evaluate(() => {
+    if (!visualViewport) throw new Error("Visual viewport unavailable");
+    Object.defineProperty(visualViewport, "height", {
+      configurable: true,
+      value: 400,
+    });
+    visualViewport.dispatchEvent(new Event("resize"));
+  });
+  const save = await page
+    .getByRole("button", { name: "Save", exact: true })
+    .boundingBox();
+  expect((save?.y ?? 9999) + (save?.height ?? 0)).toBeLessThanOrEqual(400);
+  await page.evaluate(() => {
+    if (visualViewport) {
+      Reflect.deleteProperty(visualViewport, "height");
+      visualViewport.dispatchEvent(new Event("resize"));
+    }
+  });
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  const exported = await (await page.request.get("/api/account/export")).json();
+  expect(exported.entries).toHaveLength(0);
+  expect(exported.playthroughs).toHaveLength(0);
+  await page
+    .getByRole("button", { name: "Add playthrough", exact: true })
+    .click();
+  await expect(page.getByLabel("Started", { exact: true })).toHaveValue("");
 });

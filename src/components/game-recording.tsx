@@ -2,7 +2,7 @@
 
 import { BookMarked, Plus, X } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   type JournalSelection,
   JournalStatus,
@@ -61,9 +61,32 @@ export function GameRecording({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const drafts = useRef(new Map<string | number, Record<string, string>>());
+  const addTrigger = useRef<HTMLButtonElement | null>(null);
+  const sheet = useRef<HTMLDivElement | null>(null);
   const initiator = useRef<HTMLElement | null>(null);
   const busy = useRef(false);
   const key = editor === "add" ? "add" : editor?.id;
+  useEffect(() => {
+    if (!editor || !window.visualViewport) return;
+    const viewport = window.visualViewport;
+    function resize() {
+      sheet.current?.style.setProperty(
+        "--editor-height",
+        `${Math.min(viewport.height * 0.94, 960)}px`,
+      );
+      sheet.current?.style.setProperty(
+        "--editor-bottom",
+        `${Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)}px`,
+      );
+    }
+    resize();
+    viewport.addEventListener("resize", resize);
+    viewport.addEventListener("scroll", resize);
+    return () => {
+      viewport.removeEventListener("resize", resize);
+      viewport.removeEventListener("scroll", resize);
+    };
+  }, [editor]);
   function open(value: Playthrough | "add") {
     initiator.current = document.activeElement as HTMLElement;
     setError(undefined);
@@ -136,6 +159,7 @@ export function GameRecording({
             <TooltipTrigger
               render={
                 <Button
+                  ref={addTrigger}
                   aria-label="Add playthrough"
                   variant="outline"
                   disabled={pending}
@@ -157,15 +181,20 @@ export function GameRecording({
             </Link>{" "}
             to record games and playthroughs.
           </p>
-        ) : playthroughs.length ? (
-          <div className="flex flex-col gap-1">
-            <h2 className="font-medium">Playthroughs</h2>
-            <PlaythroughHistory playthroughs={playthroughs} onEdit={open} />
-          </div>
-        ) : (
+        ) : !playthroughs.length ? (
           <p className="text-muted-foreground text-sm">No playthroughs yet.</p>
-        )}
+        ) : null}
       </section>
+      {signedIn && playthroughs.length > 0 && (
+        <section
+          aria-label="Playthroughs"
+          className="order-1 flex flex-col gap-1"
+        >
+          <h2 className="font-medium">Playthroughs</h2>
+          <PlaythroughHistory playthroughs={playthroughs} onEdit={open} />
+        </section>
+      )}
+
       <Sheet
         open={editor !== null}
         onOpenChange={(value) => {
@@ -175,7 +204,12 @@ export function GameRecording({
         <SheetContent
           side="bottom"
           showCloseButton={false}
-          finalFocus={initiator}
+          ref={sheet}
+          finalFocus={() =>
+            initiator.current?.isConnected
+              ? initiator.current
+              : addTrigger.current
+          }
           className="playthrough-sheet mx-auto h-[94dvh] max-h-[960px] max-w-3xl gap-0 overflow-hidden rounded-t-3xl bg-background"
         >
           <SheetHeader className="shrink-0 border-b px-6 py-5">

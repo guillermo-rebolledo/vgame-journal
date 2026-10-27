@@ -70,6 +70,7 @@ export async function Playthroughs({
         gameId,
         fromForm(values),
         (values.status ?? "playing") as Status,
+        values.submissionId ?? "",
       ),
     );
   }

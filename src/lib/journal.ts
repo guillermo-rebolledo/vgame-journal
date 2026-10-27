@@ -462,15 +462,38 @@ export function createJournal(db: Db) {
       gameId: number,
       input: PlaythroughInput,
       status: Status,
+      submissionId: string,
     ) {
       const values = await playthroughValues(gameId, input);
       if (!STATUSES.includes(status))
         throw new JournalError(`Unknown status: ${status}`);
-      // shortcut: Neon HTTP writes are sequential; if logging fails after membership saves,
-      // the game remains in the journal. The form reports this and retains the draft.
-      if (!(await entry(userId, gameId)))
-        await this.set(userId, gameId, { status });
-      await db.insert(playthrough).values({ userId, gameId, ...values });
+      if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          submissionId,
+        )
+      )
+        throw new JournalError(
+          "Invalid submission. Close the editor and start again.",
+        );
+      const at = new Date();
+      // Concurrent recording must never overwrite membership created by another tab.
+      const created = await db
+        .insert(journalEntry)
+        .values({ userId, gameId, status, createdAt: at, updatedAt: at })
+        .onConflictDoNothing({
+          target: [journalEntry.userId, journalEntry.gameId],
+        })
+        .returning();
+      // shortcut: these Neon HTTP writes are sequential; a failure can leave membership saved.
+      // The form reports this honestly and keeps the same submission ID for safe retries.
+      if (created.length)
+        await recordStatusEvent(userId, gameId, status, null, at);
+      await db
+        .insert(playthrough)
+        .values({ userId, gameId, ...values, submissionId })
+        .onConflictDoNothing({
+          target: [playthrough.userId, playthrough.submissionId],
+        });
     },
 
     /** Replaces the details of one of the user's playthroughs. Others' are left alone. */

@@ -290,7 +290,8 @@
 
 /* Personal overlays mount their full layout before entering. */
 .playthrough-sheet[data-side="bottom"] {
-  height: min(94dvh, 960px);
+  height: var(--editor-height, min(94dvh, 960px));
+  bottom: var(--editor-bottom, 0px);
 }
 @media (prefers-reduced-motion: reduce) {
   [data-slot="sheet-content"],

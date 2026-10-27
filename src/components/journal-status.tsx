@@ -60,7 +60,11 @@ export function JournalStatus({
   }
   return (
     <div>
-      <DropdownMenu>
+      <DropdownMenu
+        onOpenChange={(open, event) => {
+          if (open && (disabled || pending)) event.cancel();
+        }}
+      >
         <Tooltip>
           <TooltipTrigger
             render={
@@ -74,7 +78,7 @@ export function JournalStatus({
                         : "Not in your journal"
                     }
                     aria-busy={pending}
-                    disabled={disabled || pending}
+                    aria-disabled={disabled || pending}
                     variant={entry ? "secondary" : "outline"}
                     size="icon"
                     className="size-11 rounded-full"

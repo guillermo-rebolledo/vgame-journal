@@ -11,6 +11,7 @@ test("large histories bound rows and open the selected playthrough on demand", a
   render(
     <PlaythroughHistory
       playthroughs={Array.from({ length: 1000 }, (_, i) => ({
+        submissionId: null,
         id: i + 1,
         gameId: 1,
         userId: "owner",
@@ -25,9 +26,7 @@ test("large histories bound rows and open the selected playthrough on demand", a
   );
   expect(screen.getAllByRole("listitem")).toHaveLength(48);
   expect(screen.queryByLabelText(/Hours/)).toBeNull();
-  await user.click(
-    screen.getAllByRole("button", { name: "Edit" })[0],
-  );
+  await user.click(screen.getAllByRole("button", { name: "Edit" })[0]);
   expect(onEdit).toHaveBeenCalledWith(
     expect.objectContaining({ id: 1, notes: "Session 1" }),
   );
