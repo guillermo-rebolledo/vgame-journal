@@ -91,7 +91,9 @@ test("drawer drafts, validation, retry, outside-journal status, editing and dele
     }
   });
   await page.goto("/games/celeste");
-  await expect(page.getByText("No playthroughs yet.")).toBeVisible();
+  await expect(
+    page.getByText("No playthroughs yet.").filter({ visible: true }),
+  ).toBeVisible();
   await expect(page.getByLabel("Started", { exact: true })).toHaveCount(0);
   for (const name of ["Journal status", "Add playthrough"]) {
     const box = await page
@@ -183,7 +185,9 @@ test("drawer drafts, validation, retry, outside-journal status, editing and dele
   await expect(page.getByText(/2 h/)).toBeVisible();
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("button", { name: "Delete playthrough" }).click();
-  await expect(page.getByText("No playthroughs yet.")).toBeVisible();
+  await expect(
+    page.getByText("No playthroughs yet.").filter({ visible: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Add playthrough", exact: true }),
   ).toBeFocused();

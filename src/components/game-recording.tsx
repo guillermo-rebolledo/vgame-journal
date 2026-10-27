@@ -14,12 +14,12 @@ import {
 import { PlaythroughHistory } from "@/components/playthrough-history";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import {
   Tooltip,
   TooltipContent,
@@ -62,7 +62,7 @@ export function GameRecording({
   const [error, setError] = useState<string>();
   const drafts = useRef(new Map<string | number, Record<string, string>>());
   const addTrigger = useRef<HTMLButtonElement | null>(null);
-  const sheet = useRef<HTMLDivElement | null>(null);
+  const drawer = useRef<HTMLDivElement | null>(null);
   const initiator = useRef<HTMLElement | null>(null);
   const busy = useRef(false);
   const key = editor === "add" ? "add" : editor?.id;
@@ -70,11 +70,11 @@ export function GameRecording({
     if (!editor || !window.visualViewport) return;
     const viewport = window.visualViewport;
     function resize() {
-      sheet.current?.style.setProperty(
+      drawer.current?.style.setProperty(
         "--editor-height",
         `${Math.min(viewport.height * 0.94, 960)}px`,
       );
-      sheet.current?.style.setProperty(
+      drawer.current?.style.setProperty(
         "--editor-bottom",
         `${Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)}px`,
       );
@@ -195,30 +195,33 @@ export function GameRecording({
         </section>
       )}
 
-      <Sheet
+      <Drawer
+        showSwipeHandle
         open={editor !== null}
-        onOpenChange={(value) => {
+        onOpenChange={(value, event) => {
+          if (!value && busy.current) {
+            event.cancel();
+            return;
+          }
           if (!value) close();
         }}
       >
-        <SheetContent
-          side="bottom"
-          showCloseButton={false}
-          ref={sheet}
+        <DrawerContent
+          ref={drawer}
           finalFocus={() =>
             initiator.current?.isConnected
               ? initiator.current
               : addTrigger.current
           }
-          className="playthrough-sheet mx-auto h-[94dvh] max-h-[960px] max-w-3xl gap-0 overflow-hidden rounded-t-3xl bg-background"
+          className="playthrough-drawer w-full overflow-hidden rounded-t-3xl bg-background"
         >
-          <SheetHeader className="shrink-0 border-b px-6 py-5">
+          <DrawerHeader className="shrink-0 border-b px-6 py-5">
             <div className="mx-auto flex w-full max-w-xl items-start justify-between gap-4">
               <div className="flex min-w-0 flex-col gap-1">
-                <SheetDescription>{gameTitle}</SheetDescription>
-                <SheetTitle>
+                <DrawerDescription>{gameTitle}</DrawerDescription>
+                <DrawerTitle>
                   {editor === "add" ? "Add playthrough" : "Edit playthrough"}
-                </SheetTitle>
+                </DrawerTitle>
               </div>
               <Button
                 aria-label="Close"
@@ -230,7 +233,7 @@ export function GameRecording({
                 <X />
               </Button>
             </div>
-          </SheetHeader>
+          </DrawerHeader>
           {editor !== null && key !== undefined && (
             <PlaythroughForm
               key={key}
@@ -287,8 +290,8 @@ export function GameRecording({
               </div>
             </div>
           )}
-        </SheetContent>
-      </Sheet>
+        </DrawerContent>
+      </Drawer>
     </TooltipProvider>
   );
 }

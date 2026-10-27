@@ -113,7 +113,11 @@ export function PlaythroughForm({
     );
   }
   return (
-    <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+    <form
+      data-base-ui-swipe-ignore
+      onSubmit={submit}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
         <FieldGroup className="mx-auto max-w-xl">
           {outsideJournal && (
