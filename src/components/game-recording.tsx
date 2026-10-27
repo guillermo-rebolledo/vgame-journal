@@ -76,11 +76,14 @@ export function GameRecording({
           .height ?? 56;
       const availableHeight =
         viewport.height - navbarHeight - 16 - (desktop ? 24 : 0);
-      drawer.current?.style.setProperty(
+      // On the document, not on `drawer`: the popup mounts in a portal, and its ref is still
+      // null on the first run, which used to leave the drawer on its CSS fallback height.
+      const root = document.documentElement.style;
+      root.setProperty(
         "--editor-height",
         `${Math.max(0, Math.min(availableHeight, desktop ? 720 : 960))}px`,
       );
-      drawer.current?.style.setProperty(
+      root.setProperty(
         "--editor-bottom",
         `${Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)}px`,
       );
@@ -91,6 +94,8 @@ export function GameRecording({
     return () => {
       viewport.removeEventListener("resize", resize);
       viewport.removeEventListener("scroll", resize);
+      document.documentElement.style.removeProperty("--editor-height");
+      document.documentElement.style.removeProperty("--editor-bottom");
     };
   }, [editor]);
   function open(value: Playthrough | "add") {

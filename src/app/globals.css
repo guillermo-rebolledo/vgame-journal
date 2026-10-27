@@ -289,9 +289,11 @@
 }
 
 /* Personal overlays mount their full layout before entering. */
+/* The editor only opens for a signed-in reader, whose phone header wraps the navigation onto a
+   second row: 100px of header plus 16px of breathing room. --editor-height measures it for real. */
 .playthrough-drawer[data-swipe-direction="down"] {
-  height: var(--editor-height, min(calc(100dvh - 4.5rem), 960px));
-  max-height: var(--editor-height, min(calc(100dvh - 4.5rem), 960px));
+  height: var(--editor-height, min(calc(100dvh - 7.25rem), 960px));
+  max-height: var(--editor-height, min(calc(100dvh - 7.25rem), 960px));
   border-radius: 2rem 2rem 0 0;
   bottom: var(--editor-bottom, 0px);
 }
