@@ -44,7 +44,7 @@ for (const phone of [false, true]) {
         : { width: 1440, height: 1000 },
       hasTouch: phone,
     });
-    test("drawer spans the screen and swipe dismissal retains the draft and focus", async ({
+    test("drawer leaves space below navigation and swipe dismissal retains the draft and focus", async ({
       page,
       request,
     }) => {
@@ -56,9 +56,33 @@ for (const phone of [false, true]) {
       });
       await add.click();
       const dialog = page.getByRole("dialog");
+      await page
+        .locator('[data-slot="drawer-swipe-handle"]')
+        .scrollIntoViewIfNeeded();
       const box = await dialog.boundingBox();
-      expect(box?.x).toBe(0);
-      expect(box?.width).toBe(page.viewportSize()?.width);
+      const navbar = await page
+        .getByRole("banner", { includeHidden: true })
+        .filter({ visible: true })
+        .boundingBox();
+      expect(box?.y).toBeGreaterThanOrEqual(
+        (navbar?.y ?? 0) + (navbar?.height ?? 0) + 12,
+      );
+      if (phone) {
+        expect(box?.x).toBe(0);
+        expect(box?.width).toBe(page.viewportSize()?.width);
+      } else {
+        expect(box?.width).toBeLessThanOrEqual(768);
+        expect(box?.height).toBeLessThanOrEqual(720);
+        expect(box?.x).toBeGreaterThan(0);
+      }
+      const save = page.getByRole("button", { name: "Save", exact: true });
+      const saveBefore = await save.boundingBox();
+      await page
+        .getByLabel("Notes (private, optional)")
+        .scrollIntoViewIfNeeded();
+      const afterScroll = await dialog.boundingBox();
+      expect(afterScroll).toEqual(box);
+      expect(await save.boundingBox()).toEqual(saveBefore);
       await page.getByLabel("Started", { exact: true }).fill("2026-01-01");
       await page.getByLabel("Notes (private, optional)").fill("My swipe draft");
       await swipeHandle(page, phone);

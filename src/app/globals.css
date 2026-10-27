@@ -290,9 +290,20 @@
 
 /* Personal overlays mount their full layout before entering. */
 .playthrough-drawer[data-swipe-direction="down"] {
-  height: var(--editor-height, min(94dvh, 960px));
-  max-height: var(--editor-height, min(94dvh, 960px));
+  height: var(--editor-height, min(calc(100dvh - 4.5rem), 960px));
+  max-height: var(--editor-height, min(calc(100dvh - 4.5rem), 960px));
+  border-radius: 2rem 2rem 0 0;
   bottom: var(--editor-bottom, 0px);
+}
+@media (min-width: 48rem) {
+  .playthrough-drawer[data-swipe-direction="down"] {
+    width: min(48rem, calc(100% - 3rem));
+    height: var(--editor-height, min(calc(100dvh - 6rem), 720px));
+    max-height: var(--editor-height, min(calc(100dvh - 6rem), 720px));
+    margin-inline: auto;
+    bottom: calc(var(--editor-bottom, 0px) + 1.5rem);
+    border-radius: 2rem;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   [data-slot="drawer-popup"],

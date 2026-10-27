@@ -15,12 +15,12 @@ The game page now has one coordinated personal-content boundary, two 44px circul
 
 [Recording](49/production-navigation-drawer.webm) · [Raw samples](49/production-profile.json)
 
-Captured Chromium against `next build` / `next start`, at 4x desktop CPU throttling, while two browser workers ran. The cold client navigation uses a server catalog cache shared with the test suite. Navigation and drawer samples are isolated from viewport changes and screenshots.
+Captured Chromium against `next build` / `next start`, at 4x desktop CPU throttling, in a single browser worker. The cold client navigation uses a server catalog cache shared with the test suite. Navigation and drawer samples are isolated from viewport changes and screenshots.
 
 | Phase | rAF gaps sampled | Gaps >25ms | Maximum gap | Long tasks | Layout shifts |
 | --- | ---: | ---: | ---: | --- | --- |
-| Cold client navigation | 21 | 6 | 33.3ms | none observed | 0.0080 (recent input) |
-| Drawer entrance | 27 | 7 | 100.0ms | 99ms | none observed |
+| Cold client navigation | 20 | 5 | 33.4ms | none observed | 0.0080 (recent input) |
+| Drawer entrance | 33 | 1 | 66.7ms | 77ms | none observed |
 
 Frame gaps are scheduling observations, not compositor dropped-frame counts. Long tasks and frame gaps under throttling do not establish their cause. No measured attribution to blur was obtained, so the existing blurred/drifting background was kept. The geometry test separately verifies that opening the sheet leaves the underlying page stationary and that delayed populated history leaves public scores in place.
 
@@ -38,12 +38,12 @@ Apply `0009_playthrough_submission.sql` with the existing migration workflow bef
 
 Journal membership, status-event and playthrough writes remain sequential on the existing Neon HTTP driver. A failure after membership saves can leave the game in the journal; the form explicitly reports that possibility and retains the draft. Existing status/tag values are never overwritten by the recording action. No all-or-nothing claim is made. The migration was subsequently applied and verified on the database configured by `.env.local`; other deployment databases still need it before the new code rolls out.
 
-## Swipe handle and desktop width follow-up
+## Swipe handle and fixed desktop panel
 
-The editor now uses the shadcn Base UI Drawer with `showSwipeHandle`, following the linked [swipe-handle example](https://ui.shadcn.com/docs/components/base/drawer#swipe-handle). The panel spans the desktop viewport; the form column stays centered. Inputs and the form scroll area do not initiate drawer swipes. Swiping preserves the draft and returns focus to the initiating action; dismissal is cancelled during persistence. No dependencies were added.
+The editor now uses the shadcn Base UI Drawer with `showSwipeHandle`, following the linked [swipe-handle example](https://ui.shadcn.com/docs/components/base/drawer#swipe-handle). The desktop panel is centered, capped at 768px wide and 720px tall, and inset 24px from the bottom. Its 32px corners and at least 16px of space below the navbar keep the underlying page visible. On phones it remains full width with rounded top corners and the same navbar gap. The form body scrolls inside the fixed panel while the header and Save/Cancel/Delete actions remain in place. Inputs and the form scroll area do not initiate drawer swipes. Swiping preserves the draft and returns focus to the initiating action; dismissal is cancelled during persistence. No dependencies were added.
 
 Three gesture scenarios pass: desktop mouse drag, phone touch swipe (both also exercised with reduced motion), and dismissal during a pending save. The production run passed 22 scenarios; all three gesture scenarios then passed in a focused rerun after correcting the synthetic swipe distance and waiting for the handle to settle. Add/edit/delete and profiling passed again while refreshing these screenshots. Lint, typecheck and all 159 unit tests pass.
 
 [Desktop swipe recording](49/production-swipe-desktop.webm) · [Phone touch swipe recording](49/production-swipe-mobile.webm)
 
-The production samples above and screenshots were refreshed for the full-width swipeable drawer. The existing real-device coverage limitation remains.
+The production samples above and screenshots were refreshed for the smaller, fixed desktop drawer. Eight recording and gesture scenarios pass, including stationary panel/action-button geometry during form scrolling and the keyboard-reduced viewport. The existing real-device coverage limitation remains.

@@ -2,7 +2,7 @@
   {
     "phase": "cold-navigation",
     "type": "frame-gap",
-    "value": 16.651999999999816
+    "value": 16.617999999999938
   },
   {
     "phase": "cold-navigation",
@@ -33,6 +33,61 @@
   {
     "phase": "cold-navigation",
     "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 33.299999999999955
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 33.399999999999864
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.600000000000136
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 33.40000000000009
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 33.40000000000009
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
     "value": 16.699999999999818
   },
   {
@@ -48,72 +103,7 @@
   {
     "phase": "cold-navigation",
     "type": "frame-gap",
-    "value": 33.299999999999955
-  },
-  {
-    "phase": "cold-navigation",
-    "type": "frame-gap",
-    "value": 16.700000000000045
-  },
-  {
-    "phase": "cold-navigation",
-    "type": "frame-gap",
-    "value": 33.299999999999955
-  },
-  {
-    "phase": "cold-navigation",
-    "type": "frame-gap",
-    "value": 16.700000000000045
-  },
-  {
-    "phase": "cold-navigation",
-    "type": "frame-gap",
     "value": 16.699999999999818
-  },
-  {
-    "phase": "cold-navigation",
-    "type": "frame-gap",
-    "value": 33.30000000000018
-  },
-  {
-    "phase": "cold-navigation",
-    "type": "frame-gap",
-    "value": 16.699999999999818
-  },
-  {
-    "phase": "cold-navigation",
-    "type": "frame-gap",
-    "value": 33.30000000000018
-  },
-  {
-    "phase": "cold-navigation",
-    "type": "frame-gap",
-    "value": 16.59999999999991
-  },
-  {
-    "phase": "cold-navigation",
-    "type": "frame-gap",
-    "value": 16.700000000000045
-  },
-  {
-    "phase": "cold-navigation",
-    "type": "frame-gap",
-    "value": 16.700000000000045
-  },
-  {
-    "phase": "cold-navigation",
-    "type": "frame-gap",
-    "value": 16.699999999999818
-  },
-  {
-    "phase": "cold-navigation",
-    "type": "frame-gap",
-    "value": 33.30000000000018
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.700000000000045
   },
   {
     "phase": "drawer",
@@ -124,81 +114,26 @@
     "phase": "drawer",
     "type": "frame-gap",
     "value": 16.59999999999991
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 66.70000000000005
   },
   {
     "phase": "drawer",
     "type": "longtask",
-    "value": 99
+    "value": 77
   },
   {
     "phase": "drawer",
     "type": "frame-gap",
-    "value": 100
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.700000000000045
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.700000000000045
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.59999999999991
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.700000000000045
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.700000000000045
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.59999999999991
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.700000000000045
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.700000000000045
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.59999999999991
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 33.40000000000009
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.59999999999991
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.700000000000045
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 33.399999999999864
+    "value": 16.699999999999818
   },
   {
     "phase": "drawer",
@@ -208,37 +143,7 @@
   {
     "phase": "drawer",
     "type": "frame-gap",
-    "value": 33.399999999999864
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.600000000000136
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.600000000000136
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 33.399999999999636
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.600000000000364
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 33.399999999999636
-  },
-  {
-    "phase": "drawer",
-    "type": "frame-gap",
-    "value": 16.700000000000273
+    "value": 16.700000000000045
   },
   {
     "phase": "drawer",
@@ -248,6 +153,126 @@
   {
     "phase": "drawer",
     "type": "frame-gap",
-    "value": 33.40000000000009
+    "value": 16.799999999999955
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.600000000000136
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.699999999999818
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.600000000000136
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.699999999999818
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.600000000000136
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.799999999999955
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.5
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.699999999999818
   }
 ]

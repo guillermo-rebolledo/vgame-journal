@@ -70,9 +70,15 @@ export function GameRecording({
     if (!editor || !window.visualViewport) return;
     const viewport = window.visualViewport;
     function resize() {
+      const desktop = window.matchMedia("(min-width: 48rem)").matches;
+      const navbarHeight =
+        document.querySelector("body > header")?.getBoundingClientRect()
+          .height ?? 56;
+      const availableHeight =
+        viewport.height - navbarHeight - 16 - (desktop ? 24 : 0);
       drawer.current?.style.setProperty(
         "--editor-height",
-        `${Math.min(viewport.height * 0.94, 960)}px`,
+        `${Math.max(0, Math.min(availableHeight, desktop ? 720 : 960))}px`,
       );
       drawer.current?.style.setProperty(
         "--editor-bottom",
