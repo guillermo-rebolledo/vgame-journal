@@ -137,8 +137,11 @@ export function countdown(release: ResolvedRelease, today: string) {
       m - 1 + n,
       Math.min(d, new Date(Date.UTC(y, m + n, 0)).getUTCDate()),
     );
-  let months = 0;
-  while (monthsLater(months + 1) <= to) months++;
+  let months =
+    (release.date.getUTCFullYear() - y) * 12 +
+    release.date.getUTCMonth() -
+    (m - 1);
+  if (monthsLater(months) > to) months--;
   const days = Math.round((to - monthsLater(months)) / DAY_MS);
 
   return [

@@ -154,6 +154,17 @@ describe("countdown", () => {
     );
   });
 
+  test.each([
+    ["2024-01-31", "2024-02-29", "1 month"],
+    ["2024-01-31", "2024-02-28", "4 weeks"],
+    ["2024-02-29", "2025-02-28", "12 months"],
+    ["2023-02-28", "2024-02-29", "12 months, 1 day"],
+    ["2026-12-31", "2027-01-30", "4 weeks, 2 days"],
+    ["2026-10-26", "2099-01-01", "866 months, 6 days"],
+  ])("from %s to %s keeps calendar months: %s", (today, release, expected) => {
+    expect(countdown(on(`${release}T00:00:00Z`), today)).toBe(expected);
+  });
+
   test("the release day is its UTC calendar day", () => {
     expect(countdown(on("2026-10-27T23:00:00Z"), "2026-10-26")).toBe("1 day");
   });

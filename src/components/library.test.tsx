@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import type { LibraryEntry } from "@/lib/library";
@@ -64,30 +70,36 @@ const titles = () =>
 test("filter and sort controls change the visible games", async () => {
   const user = userEvent.setup();
   render(<Library entries={entries} initialView="grid" />);
-  expect(titles()).toEqual(["Hollow Knight", "Celeste", "Elden Ring"]);
+  await waitFor(() =>
+    expect(titles()).toEqual(["Hollow Knight", "Celeste", "Elden Ring"]),
+  );
 
   await user.selectOptions(screen.getByLabelText("Status"), "Played");
-  expect(titles()).toEqual(["Hollow Knight", "Celeste"]);
+  await waitFor(() => expect(titles()).toEqual(["Hollow Knight", "Celeste"]));
 
   await user.selectOptions(screen.getByLabelText("Sort by"), "Title (A–Z)");
-  expect(titles()).toEqual(["Celeste", "Hollow Knight"]);
+  await waitFor(() => expect(titles()).toEqual(["Celeste", "Hollow Knight"]));
 
   await user.click(screen.getByText("More filters"));
   await user.selectOptions(screen.getByLabelText("Platform"), "PC");
-  expect(titles()).toEqual(["Celeste"]);
+  await waitFor(() => expect(titles()).toEqual(["Celeste"]));
 
   await user.selectOptions(screen.getByLabelText("Status"), "All statuses");
   await user.selectOptions(screen.getByLabelText("Year played"), "2025");
-  expect(titles()).toEqual(["Elden Ring"]);
+  await waitFor(() => expect(titles()).toEqual(["Elden Ring"]));
 
   await user.selectOptions(
     screen.getByLabelText("Platform"),
     "Nintendo Switch",
   );
-  expect(screen.queryByRole("list", { name: "Games" })).toBeNull();
+  await waitFor(() =>
+    expect(screen.queryByRole("list", { name: "Games" })).toBeNull(),
+  );
   expect(screen.getByText(/no games match/i)).toBeTruthy();
   await user.click(screen.getByRole("button", { name: /clear filters/i }));
-  expect(titles()).toEqual(["Celeste", "Elden Ring", "Hollow Knight"]);
+  await waitFor(() =>
+    expect(titles()).toEqual(["Celeste", "Elden Ring", "Hollow Knight"]),
+  );
 });
 
 test("a title search combines with filters, ignoring case and accents", async () => {
@@ -100,12 +112,12 @@ test("a title search combines with filters, ignoring case and accents", async ()
   );
 
   await user.type(screen.getByLabelText("Search your Library"), "POKEMON");
-  expect(titles()).toEqual(["Pokémon Emerald"]);
+  await waitFor(() => expect(titles()).toEqual(["Pokémon Emerald"]));
 
   await user.clear(screen.getByLabelText("Search your Library"));
   await user.type(screen.getByLabelText("Search your Library"), "l");
   await user.selectOptions(screen.getByLabelText("Status"), "Played");
-  expect(titles()).toEqual(["Hollow Knight", "Celeste"]);
+  await waitFor(() => expect(titles()).toEqual(["Hollow Knight", "Celeste"]));
   expect(screen.getByText("2 of 4 games")).toBeTruthy();
 });
 
@@ -118,7 +130,7 @@ test("search, filters and sort live in the URL, so reloads and Back restore them
   const user = userEvent.setup();
   render(<Library entries={entries} initialView="grid" />);
 
-  expect(titles()).toEqual(["Celeste", "Hollow Knight"]);
+  await waitFor(() => expect(titles()).toEqual(["Celeste", "Hollow Knight"]));
   expect(
     (screen.getByLabelText("Search your Library") as HTMLInputElement).value,
   ).toBe("l");
@@ -137,10 +149,12 @@ test("Clear filters is offered whenever a filter is on, and keeps sort and view"
   await user.click(screen.getByRole("button", { name: "List" }));
   await user.selectOptions(screen.getByLabelText("Sort by"), "Title (A–Z)");
   await user.selectOptions(screen.getByLabelText("Status"), "Played");
-  expect(screen.getByText("2 of 3 games")).toBeTruthy();
+  expect(await screen.findByText("2 of 3 games")).toBeTruthy();
 
   await user.click(screen.getByRole("button", { name: /clear filters/i }));
-  expect(titles()).toEqual(["Celeste", "Elden Ring", "Hollow Knight"]);
+  await waitFor(() =>
+    expect(titles()).toEqual(["Celeste", "Elden Ring", "Hollow Knight"]),
+  );
   expect(window.location.search).toBe("?sort=title");
   expect(
     screen.getByRole("button", { name: "List" }).getAttribute("aria-pressed"),
@@ -203,4 +217,34 @@ test("an empty journal says how to start", () => {
   render(<Library entries={[]} initialView="grid" />);
   expect(screen.getByText(/your library is empty/i)).toBeTruthy();
   expect(screen.queryByLabelText("Status")).toBeNull();
+});
+
+test("large libraries page in either view and search the entire collection", async () => {
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+    configurable: true,
+    value: vi.fn(),
+  });
+  const user = userEvent.setup();
+  render(
+    <Library
+      entries={Array.from({ length: 120 }, (_, i) =>
+        entry({
+          gameId: i + 1,
+          title: `Game ${String(i + 1).padStart(3, "0")}`,
+        }),
+      )}
+      initialView="grid"
+    />,
+  );
+  await waitFor(() => expect(titles()).toHaveLength(48));
+  await user.click(screen.getByRole("button", { name: "Next" }));
+  await waitFor(() => expect(titles()[0]).toBe("Game 049"));
+  await user.click(screen.getByRole("button", { name: "List" }));
+  await waitFor(() => expect(titles()).toHaveLength(48));
+  await waitFor(() => expect(titles()[0]).toBe("Game 049"));
+  await user.type(screen.getByRole("searchbox"), "120");
+  await waitFor(() => expect(titles()).toEqual(["Game 120"]));
+  expect(screen.getByText("1 of 120 games")).toBeTruthy();
+  await user.clear(screen.getByRole("searchbox"));
+  await waitFor(() => expect(titles()[0]).toBe("Game 001"));
 });
