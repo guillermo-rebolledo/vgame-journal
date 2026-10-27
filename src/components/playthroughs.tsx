@@ -80,7 +80,7 @@ export async function Playthroughs({
           logged.
         </p>
       ) : (
-        <details open={playthroughs.length === 0}>
+        <details className="details-expand" open={playthroughs.length === 0}>
           <summary className="cursor-pointer text-sm">
             Add a playthrough
           </summary>
