@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
 
 test.use({ video: "on" });
@@ -39,46 +40,43 @@ test("covers tilt toward the pointer and spring back", async ({ page }) => {
   await expect(page.locator("[data-cover-glare]")).toHaveCSS("opacity", "0");
 });
 
-test("playthrough disclosures settle layout before fading and keep native controls", async ({
+test("playthrough drawer keeps the page stationary and dismisses its select first", async ({
   page,
   request,
 }) => {
-  await signUp(page, request, `disclosure_${Date.now()}`);
+  await signUp(page, request, `drawer_${Date.now()}`);
   await page.goto("/games/celeste");
-  await page.getByRole("button", { name: /^backlog$/i }).click();
-  const details = page
-    .locator("details")
-    .filter({ hasText: "Add a playthrough" });
-  const summary = details.locator("summary");
-  await expect(details).toHaveAttribute("open", "");
-  await summary.click();
+  await expect(page.getByLabel("Started", { exact: true })).toHaveCount(0);
+  const cover = page
+    .getByRole("heading", {
+      name: "Celeste",
+      includeHidden: true,
+    })
+    .filter({ visible: true });
+  await expect(cover).toBeVisible();
+  const before = await cover.boundingBox();
+  await page
+    .getByRole("button", { name: "Add playthrough", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByLabel("Started", { exact: true })).toBeVisible();
+  expect((await cover.boundingBox())?.y).toBe(before?.y);
+  await page.getByRole("combobox", { name: "Platform", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Add playthrough", exact: true }),
-  ).toBeHidden();
-  await summary.focus();
-  await page.keyboard.press("Enter");
-  await expect(
-    page.getByRole("button", { name: "Add playthrough", exact: true }),
-  ).toBeVisible();
-  const heights = await details.evaluate(async (element) => {
-    const samples: number[] = [];
-    const start = performance.now();
-    while (performance.now() - start < 250) {
-      await new Promise(requestAnimationFrame);
-      samples.push(element.getBoundingClientRect().height);
-    }
-    return samples;
-  });
-  expect(Math.max(...heights) - Math.min(...heights)).toBeLessThan(1);
+  ).toBeFocused();
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await summary.click();
-  await summary.click();
-  await expect(details).toHaveAttribute("open", "");
-  expect(
-    await details.evaluate(
-      (element) => getComputedStyle(element, "::details-content").animationName,
-    ),
-  ).toBe("none");
+  await page
+    .getByRole("button", { name: "Add playthrough", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCSS("translate", "none");
+  await expect(
+    page.getByRole("combobox", { name: "Platform", exact: true }),
+  ).toBeVisible();
 });
 
 test("new search covers stagger in without replaying on pointer movement", async ({
@@ -164,10 +162,7 @@ for (const view of ["Grid", "List"] as const) {
     test.setTimeout(90_000);
     await signUp(page, request, `morph_${view.toLowerCase()}_${Date.now()}`);
     await page.goto("/games/celeste");
-    await page.getByRole("button", { name: /^backlog$/i }).click();
-    await expect(
-      page.getByRole("button", { name: /^backlog$/i }),
-    ).toHaveAttribute("aria-pressed", "true");
+    await chooseStatus(page, "backlog");
     await page.addInitScript(() => {
       const observed = window;
       observed.motionAnimations = [];
@@ -207,10 +202,7 @@ for (const source of ["search", "shelf"] as const) {
     test.setTimeout(90_000);
     await signUp(page, request, `overlap_${source}_${Date.now()}`);
     await page.goto("/games/celeste");
-    await page.getByRole("button", { name: /^backlog$/i }).click();
-    await expect(
-      page.getByRole("button", { name: /^backlog$/i }),
-    ).toHaveAttribute("aria-pressed", "true");
+    await chooseStatus(page, "backlog");
     await page.addInitScript(() => {
       const observed = window;
       observed.motionAnimations = [];
@@ -277,10 +269,7 @@ test("filtering the library never animates covers", async ({
   await signUp(page, request, `filter_motion_${Date.now()}`);
   for (const slug of ["celeste", "silksong"]) {
     await page.goto(`/games/${slug}`);
-    await page.getByRole("button", { name: /^backlog$/i }).click();
-    await expect(
-      page.getByRole("button", { name: /^backlog$/i }),
-    ).toHaveAttribute("aria-pressed", "true");
+    await chooseStatus(page, "backlog");
   }
   await page.addInitScript(() => {
     const observed = window;

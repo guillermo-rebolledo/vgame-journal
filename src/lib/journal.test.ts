@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Db } from "@/db";
@@ -972,4 +973,42 @@ test("public profiles include the journal and playthroughs without notes or acco
     /notes|Private thoughts|secret|email|userId/i,
   );
   expect(await journal.publicProfile("unknown")).toBeNull();
+});
+
+test("recording outside the journal validates before adding the chosen status and preserves existing tags", async () => {
+  const submissionId = randomUUID();
+  const input = { platform: "PlayStation 5", startedOn: "2026-01-01" };
+  await expect(
+    journal.recordPlaythrough(
+      "mario",
+      1,
+      { ...input, endedOn: "2025-01-01" },
+      "backlog",
+      submissionId,
+    ),
+  ).rejects.toThrow(JournalError);
+  expect(await journal.entry("mario", 1)).toBeNull();
+  await journal.recordPlaythrough("mario", 1, input, "backlog", submissionId);
+  await journal.recordPlaythrough("mario", 1, input, "backlog", submissionId);
+  expect(await journal.entry("mario", 1)).toMatchObject({ status: "backlog" });
+  expect(await journal.playthroughs("mario", 1)).toHaveLength(1);
+  await journal.recordPlaythrough(
+    "mario",
+    1,
+    { ...input, notes: "Corrected after a lost response" },
+    "backlog",
+    submissionId,
+  );
+  expect(await journal.playthroughs("mario", 1)).toEqual([
+    expect.objectContaining({ notes: "Corrected after a lost response" }),
+  ]);
+  await journal.set("mario", 1, {
+    status: "played",
+    completionTag: "completed",
+  });
+  await journal.recordPlaythrough("mario", 1, input, "playing", randomUUID());
+  expect(await journal.entry("mario", 1)).toMatchObject({
+    status: "played",
+    completionTag: "completed",
+  });
 });

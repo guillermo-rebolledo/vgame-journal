@@ -194,10 +194,11 @@ test("large collections bound rendered rows and retain navigation, search and ed
   const row = history.getByRole("listitem").first();
   await expect(row).toContainText("Private session 48");
   await row.getByText("Edit", { exact: true }).click();
-  await row.getByLabel("Hours").fill("2");
-  await row.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByLabel("Hours (optional)").fill("2");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(row).toContainText("2 h");
-  await row.getByRole("button", { name: "Delete playthrough" }).click();
+  await row.getByText("Edit", { exact: true }).click();
+  await page.getByRole("button", { name: "Delete playthrough" }).click();
   await expect(history).not.toContainText("Private session 48");
   await expect(history.getByRole("listitem")).toHaveCount(48);
 });

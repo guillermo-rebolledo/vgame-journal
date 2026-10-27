@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
 import { snap } from "./support/snap";
 
@@ -57,10 +58,7 @@ test("populated collections keep Find a game reachable with comfortable phone co
     await page.goto("/");
     await page.getByRole("searchbox", { name: "Search games" }).fill(title);
     await page.getByRole("link", { name: new RegExp(title) }).click();
-    await page.getByRole("button", { name: /^wishlist$/i }).click();
-    await expect(
-      page.getByRole("button", { name: /^wishlist$/i }),
-    ).toHaveAttribute("aria-pressed", "true");
+    await chooseStatus(page, "wishlist");
   }
 
   const nav = page.getByRole("navigation", { name: "Main" });

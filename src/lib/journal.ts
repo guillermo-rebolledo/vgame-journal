@@ -456,6 +456,53 @@ export function createJournal(db: Db) {
       await db.insert(playthrough).values({ userId, gameId, ...values });
     },
 
+    /** Validate before any write; existing membership and completion tags stay intact. */
+    async recordPlaythrough(
+      userId: string,
+      gameId: number,
+      input: PlaythroughInput,
+      status: Status,
+      submissionId: string,
+    ) {
+      const values = await playthroughValues(gameId, input);
+      if (!STATUSES.includes(status))
+        throw new JournalError(`Unknown status: ${status}`);
+      if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          submissionId,
+        )
+      )
+        throw new JournalError(
+          "Invalid submission. Close the editor and start again.",
+        );
+      const at = new Date();
+      // Concurrent recording must never overwrite membership created by another tab.
+      const created = await db
+        .insert(journalEntry)
+        .values({ userId, gameId, status, createdAt: at, updatedAt: at })
+        .onConflictDoNothing({
+          target: [journalEntry.userId, journalEntry.gameId],
+        })
+        .returning();
+      // shortcut: these Neon HTTP writes are sequential; a failure can leave membership saved.
+      // The form reports this honestly and keeps the same submission ID for safe retries.
+      if (created.length)
+        await recordStatusEvent(userId, gameId, status, null, at);
+      const saved = await db
+        .insert(playthrough)
+        .values({ userId, gameId, ...values, submissionId })
+        .onConflictDoUpdate({
+          target: [playthrough.userId, playthrough.submissionId],
+          set: values,
+          setWhere: eq(playthrough.gameId, gameId),
+        })
+        .returning({ id: playthrough.id });
+      if (!saved.length)
+        throw new JournalError(
+          "This submission belongs to another game. Cancel and start again.",
+        );
+    },
+
     /** Replaces the details of one of the user's playthroughs. Others' are left alone. */
     async updatePlaythrough(
       userId: string,

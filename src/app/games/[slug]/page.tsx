@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { cacheLife } from "next/cache";
 import { notFound } from "next/navigation";
 import { Suspense, ViewTransition } from "react";
-import { JournalStatus } from "@/components/journal-status";
 import { PlatformName, PlatformNames } from "@/components/platform";
 import { Playthroughs } from "@/components/playthroughs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { catalog } from "@/lib/catalog";
 import { coverUrl } from "@/lib/game-source";
 import { regionName, releaseLabel } from "@/lib/release-dates";
@@ -80,11 +80,25 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
             )}
           </header>
 
-          <Suspense fallback={<div className="h-28 sm:max-w-md" />}>
-            <JournalStatus gameId={game.id} />
-          </Suspense>
-          <Suspense fallback={<div className="h-28 sm:max-w-md" />}>
-            <Playthroughs gameId={game.id} platforms={game.platforms} />
+          <Suspense
+            fallback={
+              <output
+                aria-label="Loading journal"
+                className="flex min-h-24 flex-col gap-3"
+              >
+                <div className="flex gap-3">
+                  <Skeleton className="size-11 rounded-full" />
+                  <Skeleton className="size-11 rounded-full" />
+                </div>
+                <Skeleton className="h-5 w-48" />
+              </output>
+            }
+          >
+            <Playthroughs
+              gameId={game.id}
+              gameTitle={game.title}
+              platforms={game.platforms}
+            />
           </Suspense>
 
           <dl className="grid grid-cols-2 gap-4 sm:max-w-md">

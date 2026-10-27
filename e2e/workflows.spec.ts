@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
 import { snap } from "./support/snap";
 
@@ -17,10 +18,7 @@ async function wishlist(page: Page, title: string) {
     .getByRole("list", { name: "Search results" })
     .getByRole("link", { name: new RegExp(title.slice(0, 20)) })
     .click();
-  await page.getByRole("button", { name: /^wishlist$/i }).click();
-  await expect(
-    page.getByRole("button", { name: /^wishlist$/i }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await chooseStatus(page, "wishlist");
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -101,10 +99,7 @@ test("Library search, filters and sort survive game visits, Back and reload", as
 
   for (const title of ["Celeste", "Silksong", "Moss Cartographer"])
     await wishlist(page, title);
-  await page.getByRole("button", { name: /^backlog$/i }).click();
-  await expect(
-    page.getByRole("button", { name: /^backlog$/i }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await chooseStatus(page, "backlog");
 
   await page.goto("/");
   await expect(
@@ -234,10 +229,7 @@ test("Wishlist sections released, upcoming and unannounced games, and moves are 
   await expect(notice).toContainText("Moved Celeste to Playing.");
   const other = await page.context().newPage();
   await other.goto("/games/celeste");
-  await other.getByRole("button", { name: /^backlog$/i }).click();
-  await expect(
-    other.getByRole("button", { name: /^backlog$/i }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await chooseStatus(other, "backlog");
   await other.close();
   await notice.getByRole("button", { name: "Undo" }).click();
   await expect(notice.getByRole("alert")).toContainText(

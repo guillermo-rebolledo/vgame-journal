@@ -1,131 +1,225 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
-import { PlatformIcon } from "@/components/platform";
+import { useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { STATUSES } from "@/lib/library";
 
 type Values = Record<string, string>;
-
-/** Resolves to an error (with what was typed, to refill the form) or nothing. */
 export type SavePlaythrough = (
   values: Values,
 ) => Promise<{ error: string } | undefined>;
 
-const fieldClass = "flex flex-col gap-2";
-
-/** Add or edit form for a Playthrough. The platform picker lists the game's platforms. */
 export function PlaythroughForm({
   platforms,
   initial = {},
-  submitLabel,
+  outsideJournal = false,
   onSave,
+  onSuccess,
+  onCancel,
+  onDraft,
+  onPending,
+  disabled = false,
 }: {
+  disabled?: boolean;
   platforms: string[];
   initial?: Values;
-  submitLabel: string;
+  outsideJournal?: boolean;
   onSave: SavePlaythrough;
+  onSuccess: () => void;
+  onCancel: () => void;
+  onDraft: (values: Values) => void;
+  onPending: (pending: boolean) => void;
 }) {
   const id = useId();
-  const [selectedPlatform, setSelectedPlatform] = useState(
-    initial.platform ?? platforms[0] ?? "",
-  );
-  const [state, action, pending] = useActionState(
-    async (_: unknown, form: FormData) => {
-      const submitted = Object.fromEntries(form) as Values;
-      const result = await onSave(submitted);
-      setSelectedPlatform(
-        result ? submitted.platform : (initial.platform ?? platforms[0] ?? ""),
+  const [values, setValues] = useState<Values>({
+    submissionId: crypto.randomUUID(),
+    platform: platforms[0] ?? "",
+    status: "playing",
+    ...initial,
+  });
+  const [error, setError] = useState<string>();
+  const [savingPending, setPending] = useState(false);
+  const pending = savingPending || disabled;
+  const saving = useRef(false);
+  function change(name: string, value: string) {
+    const next = { ...values, [name]: value };
+    setValues(next);
+    onDraft(next);
+  }
+  async function submit(event: React.SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (saving.current) return;
+    saving.current = true;
+    setPending(true);
+    onPending(true);
+    setError(undefined);
+    try {
+      const result = await onSave(values);
+      if (result) setError(result.error);
+      else onSuccess();
+    } catch {
+      setError(
+        "Couldn’t save. Check your connection and try again. Your inputs are still here.",
       );
-      return result && { ...result, values: submitted, at: Date.now() };
-    },
-    undefined,
-  );
-  // Form actions reset inputs; refill what was typed after an error.
-  const values = state?.values ?? initial;
-
-  return (
-    <form action={action} className="flex flex-col gap-3">
-      <div className={fieldClass}>
-        <Label htmlFor={`${id}-platform`}>Platform</Label>
-        <div className="relative">
-          {selectedPlatform && (
-            <PlatformIcon
-              platform={selectedPlatform}
-              className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
-            />
-          )}
-          <select
-            // The form reset doesn't re-apply a select's defaultValue; remount it after every error.
-            key={state?.at}
-            id={`${id}-platform`}
-            name="platform"
-            onChange={(event) => setSelectedPlatform(event.target.value)}
-            required
-            defaultValue={values.platform ?? platforms[0]}
-            className="h-8 w-full rounded-lg border border-input bg-transparent pr-2 pl-8 text-base md:text-sm dark:bg-input/30"
+    } finally {
+      saving.current = false;
+      setPending(false);
+      onPending(false);
+    }
+  }
+  function picker(name: string, label: string, options: readonly string[]) {
+    return (
+      <Field>
+        <FieldLabel htmlFor={`${id}-${name}`}>{label}</FieldLabel>
+        <Select
+          name={name}
+          required={name === "platform"}
+          value={values[name] ?? ""}
+          onValueChange={(value) => change(name, value ?? "")}
+          disabled={pending}
+          items={options.map((value) => ({ value, label: value }))}
+        >
+          <SelectTrigger
+            id={`${id}-${name}`}
+            className="min-h-11 w-full capitalize"
           >
-            {platforms.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false}>
+            <SelectGroup>
+              {options.map((value) => (
+                <SelectItem
+                  key={value}
+                  value={value}
+                  className="min-h-10 capitalize"
+                >
+                  {value}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </Field>
+    );
+  }
+  return (
+    <form
+      data-base-ui-swipe-ignore
+      onSubmit={submit}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
+        <FieldGroup className="mx-auto max-w-xl">
+          {outsideJournal && (
+            <>
+              <p className="text-muted-foreground text-sm">
+                Save adds this game to your journal with the status you choose
+                below.
+              </p>
+              {picker("status", "Journal status", STATUSES)}
+            </>
+          )}
+          {platforms.length ? (
+            picker("platform", "Platform", platforms)
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              This game has no platforms listed yet, so playthroughs can’t be
+              logged.
+            </p>
+          )}
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor={`${id}-start`}>Started</FieldLabel>
+              <Input
+                id={`${id}-start`}
+                type="date"
+                required
+                value={values.startedOn ?? ""}
+                onChange={(e) => change("startedOn", e.target.value)}
+                className="h-11"
+                disabled={pending}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor={`${id}-end`}>Finished (optional)</FieldLabel>
+              <Input
+                id={`${id}-end`}
+                type="date"
+                value={values.endedOn ?? ""}
+                onChange={(e) => change("endedOn", e.target.value)}
+                className="h-11"
+                disabled={pending}
+              />
+            </Field>
+          </div>
+          <Field>
+            <FieldLabel htmlFor={`${id}-hours`}>Hours (optional)</FieldLabel>
+            <Input
+              id={`${id}-hours`}
+              type="number"
+              inputMode="decimal"
+              min={0}
+              max={99999}
+              step={0.01}
+              value={values.hours ?? ""}
+              onChange={(e) => change("hours", e.target.value)}
+              className="h-11 tabular-nums"
+              disabled={pending}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${id}-notes`}>
+              Notes (private, optional)
+            </FieldLabel>
+            <textarea
+              id={`${id}-notes`}
+              rows={4}
+              value={values.notes ?? ""}
+              onChange={(e) => change("notes", e.target.value)}
+              className="rounded-lg border border-input bg-background px-3 py-2 text-base"
+              disabled={pending}
+            />
+          </Field>
+          {error && (
+            <p role="alert" className="text-destructive text-sm">
+              {error}
+            </p>
+          )}
+        </FieldGroup>
+      </div>
+      <footer className="shrink-0 border-t bg-background px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex max-w-xl items-center justify-end gap-3">
+          <output className="mr-auto text-muted-foreground text-sm">
+            {pending ? "Saving…" : ""}
+          </output>
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-11"
+            onClick={onCancel}
+            disabled={pending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            className="h-11 px-6"
+            disabled={pending || !platforms.length}
+          >
+            Save
+          </Button>
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className={fieldClass}>
-          <Label htmlFor={`${id}-start`}>Started</Label>
-          <Input
-            id={`${id}-start`}
-            name="startedOn"
-            type="date"
-            required
-            defaultValue={values.startedOn}
-          />
-        </div>
-        <div className={fieldClass}>
-          <Label htmlFor={`${id}-end`}>Finished</Label>
-          <Input
-            id={`${id}-end`}
-            name="endedOn"
-            type="date"
-            defaultValue={values.endedOn}
-          />
-        </div>
-      </div>
-      <div className={fieldClass}>
-        <Label htmlFor={`${id}-hours`}>Hours</Label>
-        <Input
-          id={`${id}-hours`}
-          name="hours"
-          type="number"
-          inputMode="decimal"
-          min={0}
-          step={0.01}
-          defaultValue={values.hours}
-          className="tabular-nums"
-        />
-      </div>
-      <div className={fieldClass}>
-        <Label htmlFor={`${id}-notes`}>Notes (private)</Label>
-        <textarea
-          id={`${id}-notes`}
-          name="notes"
-          rows={3}
-          defaultValue={values.notes}
-          className="rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base md:text-sm dark:bg-input/30"
-        />
-      </div>
-      {state?.error && (
-        <p role="alert" className="text-destructive text-sm">
-          {state.error}
-        </p>
-      )}
-      <Button type="submit" disabled={pending} className="self-start">
-        {submitLabel}
-      </Button>
+      </footer>
     </form>
   );
 }
