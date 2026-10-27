@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
+import { PagedList } from "@/components/paged-list";
 import type { journal } from "@/lib/journal";
 
 type JournalStats = Awaited<ReturnType<typeof journal.stats>>;
@@ -52,34 +55,39 @@ function Bars({
   rows: { label: string; value: number }[];
   unit: string;
 }) {
-  const max = Math.max(1, ...rows.map((row) => row.value));
+  const max = rows.reduce((max, row) => Math.max(max, row.value), 1);
   return (
-    <ul className="space-y-4" aria-label={`${unit} by category`}>
-      {rows.map(({ label, value }) => (
-        <li key={label} className="space-y-2">
-          <div className="flex justify-between gap-4 text-sm">
-            <span className="min-w-0 break-words">{label}</span>
-            <span className="shrink-0 tabular-nums">
-              {number.format(value)} {unit}
-            </span>
-          </div>
-          <div
-            className="h-3 overflow-hidden rounded-sm bg-muted"
-            aria-hidden="true"
-          >
-            <div
-              className="h-full rounded-sm bg-chart-2"
-              style={{ width: `${(value / max) * 100}%` }}
-            />
-          </div>
-        </li>
-      ))}
-    </ul>
+    <PagedList items={rows} label={`${unit} by category`}>
+      {(visible) => (
+        <ul className="space-y-4" aria-label={`${unit} by category`}>
+          {visible.map(({ label, value }) => (
+            <li key={label} className="space-y-2">
+              <div className="flex justify-between gap-4 text-sm">
+                <span className="min-w-0 break-words">{label}</span>
+                <span className="shrink-0 tabular-nums">
+                  {number.format(value)} {unit}
+                </span>
+              </div>
+              <div
+                className="h-3 overflow-hidden rounded-sm bg-muted"
+                aria-hidden="true"
+              >
+                <div
+                  className="h-full rounded-sm bg-chart-2"
+                  style={{ width: `${(value / max) * 100}%` }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </PagedList>
   );
 }
 
 function BacklogChart({ points }: { points: JournalStats["backlogOverTime"] }) {
-  const max = Math.max(1, ...points.map((point) => point.games));
+  const [showData, setShowData] = useState(false);
+  const max = points.reduce((max, point) => Math.max(max, point.games), 1);
   const left = Math.max(32, String(max).length * 16 + 12);
   const first = Date.parse(points[0].day);
   const last = Date.parse(points[points.length - 1].day);
@@ -128,53 +136,66 @@ function BacklogChart({ points }: { points: JournalStats["backlogOverTime"] }) {
           strokeWidth="2.5"
           strokeLinejoin="round"
         />
-        {points.map((point) => (
-          <circle
-            key={point.day}
-            cx={x(point.day)}
-            cy={y(point.games)}
-            r="3"
-            fill="currentColor"
-          >
-            <title>
-              {point.day}: {point.games} games
-            </title>
-          </circle>
-        ))}
+        {/* The exact path includes every day; large histories use the table instead of a DOM marker per day. */}
+        {points.length <= 48 &&
+          points.map((point) => (
+            <circle
+              key={point.day}
+              cx={x(point.day)}
+              cy={y(point.games)}
+              r="3"
+              fill="currentColor"
+            >
+              <title>
+                {point.day}: {point.games} games
+              </title>
+            </circle>
+          ))}
       </svg>
       <div className="flex justify-between gap-4 text-muted-foreground text-xs tabular-nums">
         <span>{points[0].day}</span>
         {points.length > 1 && <span>{points[points.length - 1].day}</span>}
       </div>
-      <details className="text-sm">
+      <details
+        className="text-sm"
+        onToggle={(event) => {
+          if (event.currentTarget.open) setShowData(true);
+        }}
+      >
         <summary className="w-fit cursor-pointer rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring">
           View backlog data
         </summary>
-        <div className="mt-3 max-h-64 overflow-auto">
-          <table className="w-full text-left tabular-nums">
-            <caption className="sr-only">
-              Backlog at the end of each day with a status event (UTC)
-            </caption>
-            <thead>
-              <tr className="border-b">
-                <th scope="col" className="py-2 font-medium">
-                  Date (UTC)
-                </th>
-                <th scope="col" className="py-2 text-right font-medium">
-                  Games
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {points.map((point) => (
-                <tr key={point.day} className="border-b">
-                  <td className="py-2">{point.day}</td>
-                  <td className="py-2 text-right">{point.games}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {showData && (
+          <div className="mt-3">
+            <PagedList items={points} label="Backlog data">
+              {(visible) => (
+                <table className="w-full text-left tabular-nums">
+                  <caption className="sr-only">
+                    Backlog at the end of each day with a status event (UTC)
+                  </caption>
+                  <thead>
+                    <tr className="border-b">
+                      <th scope="col" className="py-2 font-medium">
+                        Date (UTC)
+                      </th>
+                      <th scope="col" className="py-2 text-right font-medium">
+                        Games
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map((point) => (
+                      <tr key={point.day} className="border-b">
+                        <td className="py-2">{point.day}</td>
+                        <td className="py-2 text-right">{point.games}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </PagedList>
+          </div>
+        )}
       </details>
     </div>
   );

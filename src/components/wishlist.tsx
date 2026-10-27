@@ -10,6 +10,7 @@ import {
 } from "react";
 import { GameCover } from "@/components/game-cover";
 import { Odometer } from "@/components/odometer";
+import { PagedList } from "@/components/paged-list";
 import { Button } from "@/components/ui/button";
 import type { Status, WishlistEntry } from "@/lib/journal";
 import { capitalize } from "@/lib/library";
@@ -81,6 +82,13 @@ export function Wishlist({
         ? "out"
         : "upcoming";
 
+  const grouped: Record<string, WishlistEntry[]> = {
+    out: [],
+    upcoming: [],
+    tba: [],
+  };
+  for (const entry of entries) grouped[section(entry)].push(entry);
+
   function undo(moved: Moved) {
     setNotice({ ...moved, state: "undoing" });
     startUndo(async () => {
@@ -131,7 +139,7 @@ export function Wishlist({
             {entries.length} {entries.length === 1 ? "game" : "games"}
           </p>
           {SECTIONS.map(([key, label]) => {
-            const games = entries.filter((e) => section(e) === key);
+            const games = grouped[key];
             if (!games.length) return null;
             return (
               <section key={key} aria-labelledby={`wishlist-${key}`}>
@@ -144,23 +152,27 @@ export function Wishlist({
                     {games.length}
                   </span>
                 </h2>
-                <ul className="flex flex-col divide-y divide-border/60">
-                  {games.map((e) => (
-                    <Row
-                      key={e.gameId}
-                      entry={e}
-                      day={day}
-                      onMove={onMove}
-                      onMoved={(moved) =>
-                        setNotice(
-                          moved
-                            ? { ...moved, state: "moved" }
-                            : { entry: e, state: "move-conflict" },
-                        )
-                      }
-                    />
-                  ))}
-                </ul>
+                <PagedList items={games} label={label}>
+                  {(visible) => (
+                    <ul className="flex flex-col divide-y divide-border/60">
+                      {visible.map((e) => (
+                        <Row
+                          key={e.gameId}
+                          entry={e}
+                          day={day}
+                          onMove={onMove}
+                          onMoved={(moved) =>
+                            setNotice(
+                              moved
+                                ? { ...moved, state: "moved" }
+                                : { entry: e, state: "move-conflict" },
+                            )
+                          }
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </PagedList>
               </section>
             );
           })}

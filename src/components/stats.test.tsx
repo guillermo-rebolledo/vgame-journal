@@ -37,3 +37,29 @@ test("zero values and a single backlog day render with exact accessible values",
   expect(screen.getByText("View backlog data")).toBeTruthy();
   expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
 });
+
+test("large backlog histories keep exact chart data without mounting hidden table rows", async () => {
+  const { default: userEvent } = await import("@testing-library/user-event");
+  const user = userEvent.setup();
+  const points = Array.from({ length: 1000 }, (_, i) => ({
+    day: new Date(Date.UTC(2020, 0, i + 1)).toISOString().slice(0, 10),
+    games: i % 100,
+  }));
+  const { container } = render(
+    <Stats
+      stats={{
+        finishedPerYear: [],
+        hoursByPlatform: [],
+        backlogOverTime: points,
+      }}
+    />,
+  );
+  expect(container.querySelectorAll("svg circle")).toHaveLength(0);
+  expect(
+    container.querySelector("svg path")?.getAttribute("d")?.match(/[HM]/g),
+  ).toHaveLength(1000);
+  expect(screen.queryByRole("table")).toBeNull();
+  await user.click(screen.getByText("View backlog data"));
+  expect(await screen.findByRole("table")).toBeTruthy();
+  expect(screen.getAllByRole("row")).toHaveLength(49);
+});

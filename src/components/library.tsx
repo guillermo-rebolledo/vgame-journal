@@ -3,8 +3,9 @@
 import { LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { GameCover } from "@/components/game-cover";
+import { PagedList } from "@/components/paged-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,9 +52,10 @@ export function Library({
 }) {
   const searchParams = useSearchParams();
   const [view, setView] = useState(initialView);
-  const [{ filters: chosen, sort }, setState] = useState(() =>
-    parseLibraryParams(searchParams),
-  );
+  const [state, setState] = useState(() => parseLibraryParams(searchParams));
+
+  const { filters: chosen, sort } = state;
+  const deferredState = useDeferredValue(state);
 
   if (entries.length === 0 && readOnly)
     return (
@@ -83,7 +85,12 @@ export function Library({
     platform: platforms.find((p) => p === chosen.platform),
     year: years.find((y) => y === chosen.year),
   };
-  const shown = queryLibrary(entries, filters, sort);
+  const resultFilters: LibraryFilters = {
+    ...deferredState.filters,
+    platform: platforms.find((p) => p === deferredState.filters.platform),
+    year: years.find((y) => y === deferredState.filters.year),
+  };
+  const shown = queryLibrary(entries, resultFilters, deferredState.sort);
   const filtered = Object.values(filters).some(Boolean);
 
   // replaceState keeps one history entry while browsing; Next's router follows it.
@@ -229,76 +236,88 @@ export function Library({
           <p className="font-medium">No games match these filters.</p>
           <ClearFilters variant="outline" onClick={() => setFilters({})} />
         </div>
-      ) : view === "grid" ? (
-        <ul
-          aria-label="Games"
-          className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
-        >
-          {shown.map((e) => (
-            <li key={e.gameId}>
-              <Link
-                href={`/games/${e.slug}`}
-                className="group flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <GameCover
-                  imageId={e.coverImageId}
-                  className="w-full rounded-lg shadow-lg"
-                />
-                <div className="min-w-0">
-                  <h2 className="line-clamp-2 font-medium text-sm leading-snug group-hover:underline group-hover:underline-offset-4">
-                    {e.title}
-                  </h2>
-                  <p className="text-muted-foreground text-xs">
-                    {statusLabel(e)}
-                  </p>
-                  {releaseAndPlatforms(e) && (
-                    <p className="line-clamp-2 text-muted-foreground text-xs tabular-nums">
-                      {releaseAndPlatforms(e)}
-                    </p>
-                  )}
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
       ) : (
-        <ul
-          aria-label="Games"
-          className="flex flex-col divide-y divide-border/60"
-        >
-          {shown.map((e) => (
-            <li key={e.gameId}>
-              <Link
-                href={`/games/${e.slug}`}
-                className="-mx-2 flex items-center gap-3 rounded-md p-2 outline-none hover:bg-muted focus-visible:bg-muted"
-              >
-                <GameCover
-                  imageId={e.coverImageId}
-                  size="cover_small"
-                  className="w-10 rounded"
-                />
-                <div className="min-w-0 flex-1">
-                  <h2 className="truncate font-medium">
-                    {e.title}
-                    {e.releasedAt && (
-                      <span className="ml-2 font-normal text-muted-foreground tabular-nums">
-                        {e.releasedAt.getUTCFullYear()}
-                      </span>
-                    )}
-                  </h2>
-                  {e.platforms.length > 0 && (
-                    <p className="truncate text-muted-foreground text-sm">
-                      {e.platforms.join(", ")}
-                    </p>
-                  )}
-                </div>
-                <span className="shrink-0 text-muted-foreground text-sm">
-                  {statusLabel(e)}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div aria-busy={state !== deferredState}>
+          <PagedList
+            key={libraryParams(resultFilters, deferredState.sort)}
+            items={shown}
+            label="Library games"
+          >
+            {(visible) =>
+              view === "grid" ? (
+                <ul
+                  aria-label="Games"
+                  className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+                >
+                  {visible.map((e) => (
+                    <li key={e.gameId}>
+                      <Link
+                        href={`/games/${e.slug}`}
+                        className="group flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                      >
+                        <GameCover
+                          imageId={e.coverImageId}
+                          className="w-full rounded-lg shadow-lg"
+                        />
+                        <div className="min-w-0">
+                          <h2 className="line-clamp-2 font-medium text-sm leading-snug group-hover:underline group-hover:underline-offset-4">
+                            {e.title}
+                          </h2>
+                          <p className="text-muted-foreground text-xs">
+                            {statusLabel(e)}
+                          </p>
+                          {releaseAndPlatforms(e) && (
+                            <p className="line-clamp-2 text-muted-foreground text-xs tabular-nums">
+                              {releaseAndPlatforms(e)}
+                            </p>
+                          )}
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <ul
+                  aria-label="Games"
+                  className="flex flex-col divide-y divide-border/60"
+                >
+                  {visible.map((e) => (
+                    <li key={e.gameId}>
+                      <Link
+                        href={`/games/${e.slug}`}
+                        className="-mx-2 flex items-center gap-3 rounded-md p-2 outline-none hover:bg-muted focus-visible:bg-muted"
+                      >
+                        <GameCover
+                          imageId={e.coverImageId}
+                          size="cover_small"
+                          className="w-10 rounded"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <h2 className="truncate font-medium">
+                            {e.title}
+                            {e.releasedAt && (
+                              <span className="ml-2 font-normal text-muted-foreground tabular-nums">
+                                {e.releasedAt.getUTCFullYear()}
+                              </span>
+                            )}
+                          </h2>
+                          {e.platforms.length > 0 && (
+                            <p className="truncate text-muted-foreground text-sm">
+                              {e.platforms.join(", ")}
+                            </p>
+                          )}
+                        </div>
+                        <span className="shrink-0 text-muted-foreground text-sm">
+                          {statusLabel(e)}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )
+            }
+          </PagedList>
+        </div>
       )}
     </div>
   );

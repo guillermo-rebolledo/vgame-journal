@@ -64,6 +64,17 @@ function isDay(day: string) {
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(day);
 }
 
+/** Index related rows once instead of scanning the full collection for every game. */
+function byGame<T extends { gameId: number }>(rows: T[]) {
+  const grouped = new Map<number, T[]>();
+  for (const row of rows) {
+    const group = grouped.get(row.gameId);
+    if (group) group.push(row);
+    else grouped.set(row.gameId, [row]);
+  }
+  return grouped;
+}
+
 /** Tests pass their own database. Every write is scoped to the given user's own entries. */
 export function createJournal(db: Db) {
   /** The user's rows for a game: their journal entry, or that entry's playthroughs. */
@@ -153,13 +164,11 @@ export function createJournal(db: Db) {
           games.map((g) => g.gameId),
         ),
       );
+    const datesByGame = byGame(dates);
     return games
       .map((g) => ({
         ...g,
-        release: resolveRelease(
-          dates.filter((d) => d.gameId === g.gameId),
-          userRegion,
-        ),
+        release: resolveRelease(datesByGame.get(g.gameId) ?? [], userRegion),
       }))
       .sort(compareWishlist);
   }
@@ -279,55 +288,57 @@ export function createJournal(db: Db) {
 
     /** Games count once per end-date year; only entries currently marked Played qualify. */
     async stats(userId: string) {
-      const finishedPerYear = await db
-        .select({
-          year: sql<number>`extract(year from ${playthrough.endedOn})`.mapWith(
-            Number,
-          ),
-          games: sql<number>`count(distinct ${playthrough.gameId})`.mapWith(
-            Number,
-          ),
-        })
-        .from(playthrough)
-        .innerJoin(
-          journalEntry,
-          and(
-            eq(journalEntry.userId, playthrough.userId),
-            eq(journalEntry.gameId, playthrough.gameId),
-          ),
-        )
-        .where(
-          and(
-            eq(playthrough.userId, userId),
-            eq(journalEntry.status, "played"),
-            sql`${playthrough.endedOn} is not null`,
-          ),
-        )
-        .groupBy(sql`extract(year from ${playthrough.endedOn})`)
-        .orderBy(sql`extract(year from ${playthrough.endedOn})`);
-      const hoursByPlatform = await db
-        .select({
-          platform: playthrough.platform,
-          hours: sql<number>`sum(${playthrough.hours})`.mapWith(Number),
-        })
-        .from(playthrough)
-        .where(
-          and(
-            eq(playthrough.userId, userId),
-            sql`${playthrough.hours} is not null`,
-          ),
-        )
-        .groupBy(playthrough.platform)
-        .orderBy(sql`sum(${playthrough.hours}) desc`, playthrough.platform);
-      const events = await db
-        .select({
-          gameId: statusEvent.gameId,
-          status: statusEvent.status,
-          at: statusEvent.at,
-        })
-        .from(statusEvent)
-        .where(eq(statusEvent.userId, userId))
-        .orderBy(statusEvent.at, statusEvent.id);
+      const [finishedPerYear, hoursByPlatform, events] = await Promise.all([
+        db
+          .select({
+            year: sql<number>`extract(year from ${playthrough.endedOn})`.mapWith(
+              Number,
+            ),
+            games: sql<number>`count(distinct ${playthrough.gameId})`.mapWith(
+              Number,
+            ),
+          })
+          .from(playthrough)
+          .innerJoin(
+            journalEntry,
+            and(
+              eq(journalEntry.userId, playthrough.userId),
+              eq(journalEntry.gameId, playthrough.gameId),
+            ),
+          )
+          .where(
+            and(
+              eq(playthrough.userId, userId),
+              eq(journalEntry.status, "played"),
+              sql`${playthrough.endedOn} is not null`,
+            ),
+          )
+          .groupBy(sql`extract(year from ${playthrough.endedOn})`)
+          .orderBy(sql`extract(year from ${playthrough.endedOn})`),
+        db
+          .select({
+            platform: playthrough.platform,
+            hours: sql<number>`sum(${playthrough.hours})`.mapWith(Number),
+          })
+          .from(playthrough)
+          .where(
+            and(
+              eq(playthrough.userId, userId),
+              sql`${playthrough.hours} is not null`,
+            ),
+          )
+          .groupBy(playthrough.platform)
+          .orderBy(sql`sum(${playthrough.hours}) desc`, playthrough.platform),
+        db
+          .select({
+            gameId: statusEvent.gameId,
+            status: statusEvent.status,
+            at: statusEvent.at,
+          })
+          .from(statusEvent)
+          .where(eq(statusEvent.userId, userId))
+          .orderBy(statusEvent.at, statusEvent.id),
+      ]);
       const backlog = new Set<number>();
       const days = new Map<string, number>();
       for (const event of events) {
@@ -503,8 +514,9 @@ export function createJournal(db: Db) {
           .where(eq(playthrough.userId, userId)),
       ]);
       const thisYear = new Date().getUTCFullYear();
+      const playthroughsByGame = byGame(playthroughs);
       const library = entries.map((entry) => {
-        const own = playthroughs.filter((p) => p.gameId === entry.gameId);
+        const own = playthroughsByGame.get(entry.gameId) ?? [];
         const years = own.flatMap((p) => {
           const from = Number(p.startedOn.slice(0, 4));
           const to = p.endedOn ? Number(p.endedOn.slice(0, 4)) : thisYear;
