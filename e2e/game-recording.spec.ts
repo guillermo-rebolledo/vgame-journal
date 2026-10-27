@@ -223,7 +223,9 @@ test("delayed personal content reveals one compact action area without opening a
   await expect(
     page.getByRole("status", { name: "Loading journal" }),
   ).toBeVisible();
-  const scores = page.getByText("Critic score", { exact: true });
+  const scores = page
+    .getByText("Critic score", { exact: true })
+    .filter({ visible: true });
   const before = await scores.boundingBox();
   await expect(
     page.getByRole("button", { name: "Add playthrough", exact: true }),

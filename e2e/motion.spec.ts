@@ -51,6 +51,7 @@ test("playthrough drawer keeps the page stationary and dismisses its select firs
     name: "Celeste cover",
     includeHidden: true,
   });
+  await expect(cover).toBeVisible();
   const before = await cover.boundingBox();
   await page
     .getByRole("button", { name: "Add playthrough", exact: true })

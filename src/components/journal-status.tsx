@@ -97,6 +97,7 @@ export function JournalStatus({
             <DropdownMenuRadioGroup value={entry?.status ?? ""}>
               {STATUSES.map((status) => (
                 <DropdownMenuRadioItem
+                  closeOnClick
                   key={status}
                   value={status}
                   className="min-h-10 capitalize"
@@ -123,6 +124,7 @@ export function JournalStatus({
                 <DropdownMenuRadioGroup value={entry.completionTag ?? "none"}>
                   {["none", ...COMPLETION_TAGS].map((tag) => (
                     <DropdownMenuRadioItem
+                      closeOnClick
                       key={tag}
                       value={tag}
                       className="min-h-10 capitalize"
