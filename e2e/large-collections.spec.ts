@@ -6,17 +6,18 @@ test("large collections bound rendered rows and retain navigation, search and ed
   request,
 }, testInfo) => {
   test.setTimeout(180_000);
-  const username = `large_${Date.now()}`;
+  const username = `large_${testInfo.workerIndex}_${Date.now()}`;
   const email = await signUp(page, request, username);
   for (const sql of [
     `insert into game (id, title, slug, genres, platforms, synced_at)
      select n, 'Collection game ' || n, 'collection-' || n, '{}', '{PC}', now()
-     from generate_series(10000, 10999) n`,
+     from generate_series(10000, 10999) n on conflict (id) do nothing`,
     `insert into journal_entry (user_id, game_id, status, updated_at)
      select u.id, n, 'wishlist', now() from "user" u
      cross join generate_series(10000, 10999) n where u.email = $1`,
     `insert into release_date (game_id, platform, region, date, precision)
-     select n, 'PC', 'worldwide', '2099-01-01', 'day' from generate_series(10000, 10999) n`,
+     select n, 'PC', 'worldwide', '2099-01-01', 'day' from generate_series(10000, 10999) n
+     where not exists (select 1 from release_date where game_id = n)`,
     `insert into status_event (user_id, game_id, status, at)
      select u.id, 10000, case when n % 2 = 0 then 'backlog' else 'wishlist' end,
      timestamp '2020-01-01' + n * interval '1 day' from "user" u
@@ -169,7 +170,10 @@ test("large collections bound rendered rows and retain navigation, search and ed
     page.getByRole("img", { name: /Backlog size over time/ }).locator("circle"),
   ).toHaveCount(0);
   await expect(page.getByRole("table")).toHaveCount(0);
-  await page.getByText("View backlog data", { exact: true }).click();
+  await page
+    .getByText("View backlog data", { exact: true })
+    .filter({ visible: true })
+    .click();
   await expect(page.getByRole("row")).toHaveCount(49);
   await page
     .getByRole("navigation", { name: "Backlog data pages" })
