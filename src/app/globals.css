@@ -209,6 +209,26 @@
   }
 }
 
+/* Inserted panels and notices animate only on insertion. */
+.enter {
+  transition:
+    opacity 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    translate 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@starting-style {
+  .enter {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter {
+    transition: opacity 150ms ease-out;
+  }
+}
+
 ::view-transition {
   pointer-events: none;
 }

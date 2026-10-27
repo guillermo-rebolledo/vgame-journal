@@ -258,7 +258,7 @@ function MoveNotice({
 }
 
 const Box = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+  <div className="enter flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
     {children}
   </div>
 );

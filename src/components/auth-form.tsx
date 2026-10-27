@@ -42,7 +42,7 @@ export function AuthForm({
     <section className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-16">
       <h1 className="font-semibold text-2xl tracking-tight">{title}</h1>
       {state?.message ? (
-        <output>{state.message}</output>
+        <output className="enter">{state.message}</output>
       ) : (
         <form action={action} className="flex flex-col gap-4">
           {fields.map((f) => (

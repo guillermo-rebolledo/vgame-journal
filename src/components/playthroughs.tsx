@@ -64,7 +64,7 @@ export async function Playthroughs({
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-background/60 p-4 backdrop-blur sm:max-w-md">
+    <section className="enter flex flex-col gap-3 rounded-lg border bg-background/60 p-4 backdrop-blur sm:max-w-md">
       <h2 className="font-medium">Playthroughs</h2>
       {playthroughs.length > 0 && (
         <PlaythroughHistory
