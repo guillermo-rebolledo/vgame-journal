@@ -300,10 +300,14 @@ test("cancel never writes and the drawer stays within a keyboard-reduced visual 
     });
     visualViewport.dispatchEvent(new Event("resize"));
   });
-  const save = await page
-    .getByRole("button", { name: "Save", exact: true })
-    .boundingBox();
-  expect((save?.y ?? 9999) + (save?.height ?? 0)).toBeLessThanOrEqual(400);
+  await expect
+    .poll(async () => {
+      const save = await page
+        .getByRole("button", { name: "Save", exact: true })
+        .boundingBox();
+      return (save?.y ?? 9999) + (save?.height ?? 0);
+    })
+    .toBeLessThanOrEqual(400);
   await page.evaluate(() => {
     if (visualViewport) {
       Reflect.deleteProperty(visualViewport, "height");

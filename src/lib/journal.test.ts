@@ -992,6 +992,16 @@ test("recording outside the journal validates before adding the chosen status an
   await journal.recordPlaythrough("mario", 1, input, "backlog", submissionId);
   expect(await journal.entry("mario", 1)).toMatchObject({ status: "backlog" });
   expect(await journal.playthroughs("mario", 1)).toHaveLength(1);
+  await journal.recordPlaythrough(
+    "mario",
+    1,
+    { ...input, notes: "Corrected after a lost response" },
+    "backlog",
+    submissionId,
+  );
+  expect(await journal.playthroughs("mario", 1)).toEqual([
+    expect.objectContaining({ notes: "Corrected after a lost response" }),
+  ]);
   await journal.set("mario", 1, {
     status: "played",
     completionTag: "completed",

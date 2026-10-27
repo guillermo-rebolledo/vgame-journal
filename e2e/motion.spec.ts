@@ -47,10 +47,12 @@ test("playthrough drawer keeps the page stationary and dismisses its select firs
   await signUp(page, request, `drawer_${Date.now()}`);
   await page.goto("/games/celeste");
   await expect(page.getByLabel("Started", { exact: true })).toHaveCount(0);
-  const cover = page.getByRole("heading", {
-    name: "Celeste",
-    includeHidden: true,
-  });
+  const cover = page
+    .getByRole("heading", {
+      name: "Celeste",
+      includeHidden: true,
+    })
+    .filter({ visible: true });
   await expect(cover).toBeVisible();
   const before = await cover.boundingBox();
   await page

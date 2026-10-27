@@ -83,6 +83,7 @@ export function PlaythroughForm({
         <FieldLabel htmlFor={`${id}-${name}`}>{label}</FieldLabel>
         <Select
           name={name}
+          required={name === "platform"}
           value={values[name] ?? ""}
           onValueChange={(value) => change(name, value ?? "")}
           disabled={pending}
@@ -90,7 +91,7 @@ export function PlaythroughForm({
         >
           <SelectTrigger
             id={`${id}-${name}`}
-            className="h-11 w-full capitalize"
+            className="min-h-11 w-full capitalize"
           >
             <SelectValue />
           </SelectTrigger>

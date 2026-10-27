@@ -488,12 +488,19 @@ export function createJournal(db: Db) {
       // The form reports this honestly and keeps the same submission ID for safe retries.
       if (created.length)
         await recordStatusEvent(userId, gameId, status, null, at);
-      await db
+      const saved = await db
         .insert(playthrough)
         .values({ userId, gameId, ...values, submissionId })
-        .onConflictDoNothing({
+        .onConflictDoUpdate({
           target: [playthrough.userId, playthrough.submissionId],
-        });
+          set: values,
+          setWhere: eq(playthrough.gameId, gameId),
+        })
+        .returning({ id: playthrough.id });
+      if (!saved.length)
+        throw new JournalError(
+          "This submission belongs to another game. Cancel and start again.",
+        );
     },
 
     /** Replaces the details of one of the user's playthroughs. Others' are left alone. */

@@ -1,0 +1,338 @@
+[
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.563999999999965
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "layout-shift",
+    "value": 0.0080185546875,
+    "recentInput": true
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 33.399999999999864
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.600000000000136
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 33.40000000000009
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.699999999999818
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 33.200000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.799999999999955
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 33.200000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.799999999999955
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 33.30000000000018
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.699999999999818
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.600000000000136
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 33.299999999999955
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.699999999999818
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.5
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.800000000000182
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.699999999999818
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.600000000000136
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.800000000000182
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "cold-navigation",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 83.29999999999995
+  },
+  {
+    "phase": "drawer",
+    "type": "longtask",
+    "value": 84
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000045
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.699999999999818
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000273
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000273
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.699999999999818
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000273
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.699999999999818
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.59999999999991
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.700000000000273
+  },
+  {
+    "phase": "drawer",
+    "type": "frame-gap",
+    "value": 16.699999999999818
+  }
+]
