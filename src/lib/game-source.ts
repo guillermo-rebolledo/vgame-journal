@@ -69,5 +69,5 @@ export type SourceReleaseDate = {
 /** Covers load straight from the IGDB image CDN, bypassing Next image optimization. */
 export const coverUrl = (
   imageId: string,
-  size: "cover_small" | "cover_big" = "cover_big",
+  size: "cover_small" | "cover_big" | "cover_big_2x" = "cover_big",
 ) => `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.jpg`;

@@ -1,3 +1,4 @@
+import { SITE_SLUG } from "@/config/site";
 import { signedInUserId } from "@/lib/auth";
 import { journal } from "@/lib/journal";
 
@@ -11,7 +12,7 @@ export async function GET() {
 
   return Response.json(await journal.exportData(userId), {
     headers: {
-      "Content-Disposition": 'attachment; filename="vgame-journal.json"',
+      "Content-Disposition": `attachment; filename="${SITE_SLUG}.json"`,
       "Cache-Control": "private, no-store",
     },
   });

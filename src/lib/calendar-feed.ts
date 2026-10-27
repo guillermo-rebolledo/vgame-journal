@@ -35,7 +35,7 @@ export function calendarFeed(
     const nextDay = new Date(release.date.getTime() + 86_400_000);
     return [
       "BEGIN:VEVENT",
-      `UID:game-${gameId}@vgame-journal`,
+      `UID:game-${gameId}@${SITE_NAME}`,
       `DTSTAMP:${stamp}`,
       `DTSTART;VALUE=DATE:${icsDay(release.date)}`,
       `DTEND;VALUE=DATE:${icsDay(nextDay)}`,

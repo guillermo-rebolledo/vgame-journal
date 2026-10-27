@@ -6,15 +6,31 @@ import {
   HomeCoverLink,
   HomeCoverTransitions,
 } from "@/components/home-cover-link";
+import { JsonLd } from "@/components/json-ld";
 import { buttonVariants } from "@/components/ui/button";
-import { SITE_DESCRIPTION, SITE_NAME } from "@/config/site";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import { signedInUserId } from "@/lib/auth";
 import { journal } from "@/lib/journal";
 import type { LibraryEntry } from "@/lib/library";
 
+/**
+ * The site itself, for search engines and AI crawlers.
+ * ponytail: no SearchAction — the search box is client-side, so there is no `?q=` URL to point one at.
+ * Add one once a query lives in the URL.
+ */
+const siteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE_NAME,
+  url: SITE_URL,
+  description: SITE_DESCRIPTION,
+  inLanguage: "en",
+};
+
 export default function Home() {
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-4 px-4 py-24">
+      <JsonLd data={siteSchema} />
       <h1 className="font-semibold text-4xl tracking-tight sm:text-6xl">
         {SITE_NAME}
       </h1>

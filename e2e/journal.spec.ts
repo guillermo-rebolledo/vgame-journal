@@ -147,7 +147,7 @@ test("sign up, share a profile without notes, export the journal, and delete the
   const downloading = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download JSON" }).click();
   const download = await downloading;
-  expect(download.suggestedFilename()).toBe("vgame-journal.json");
+  expect(download.suggestedFilename()).toBe("shelve-games.json");
   const exported = JSON.parse(
     await readFile((await download.path()) ?? "", "utf8"),
   );
