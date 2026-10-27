@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useActionState, useId, useState } from "react";
+import { PlatformIcon } from "@/components/platform";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,10 +28,16 @@ export function PlaythroughForm({
   onSave: SavePlaythrough;
 }) {
   const id = useId();
+  const [selectedPlatform, setSelectedPlatform] = useState(
+    initial.platform ?? platforms[0] ?? "",
+  );
   const [state, action, pending] = useActionState(
     async (_: unknown, form: FormData) => {
       const submitted = Object.fromEntries(form) as Values;
       const result = await onSave(submitted);
+      setSelectedPlatform(
+        result ? submitted.platform : (initial.platform ?? platforms[0] ?? ""),
+      );
       return result && { ...result, values: submitted, at: Date.now() };
     },
     undefined,
@@ -42,21 +49,30 @@ export function PlaythroughForm({
     <form action={action} className="flex flex-col gap-3">
       <div className={fieldClass}>
         <Label htmlFor={`${id}-platform`}>Platform</Label>
-        <select
-          // The form reset doesn't re-apply a select's defaultValue; remount it after every error.
-          key={state?.at}
-          id={`${id}-platform`}
-          name="platform"
-          required
-          defaultValue={values.platform ?? platforms[0]}
-          className="h-8 rounded-lg border border-input bg-transparent px-2 text-base md:text-sm dark:bg-input/30"
-        >
-          {platforms.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
+        <div className="relative">
+          {selectedPlatform && (
+            <PlatformIcon
+              platform={selectedPlatform}
+              className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+            />
+          )}
+          <select
+            // The form reset doesn't re-apply a select's defaultValue; remount it after every error.
+            key={state?.at}
+            id={`${id}-platform`}
+            name="platform"
+            onChange={(event) => setSelectedPlatform(event.target.value)}
+            required
+            defaultValue={values.platform ?? platforms[0]}
+            className="h-8 w-full rounded-lg border border-input bg-transparent pr-2 pl-8 text-base md:text-sm dark:bg-input/30"
+          >
+            {platforms.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className={fieldClass}>

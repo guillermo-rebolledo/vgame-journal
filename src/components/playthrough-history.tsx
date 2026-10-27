@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PagedList } from "@/components/paged-list";
+import { PlatformName } from "@/components/platform";
 import {
   PlaythroughForm,
   type SavePlaythrough,
@@ -70,7 +71,7 @@ function HistoryRow({
   return (
     <li className="flex flex-col gap-1 py-3">
       <p className="flex flex-wrap items-baseline justify-between gap-x-4">
-        <span>{playthrough.platform}</span>
+        <PlatformName platform={playthrough.platform} />
         <span className="text-muted-foreground text-sm tabular-nums">
           {day(playthrough.startedOn)} –{" "}
           {playthrough.endedOn ? day(playthrough.endedOn) : "ongoing"}

@@ -3,6 +3,7 @@
 import { type CSSProperties, useEffect, useState } from "react";
 import { GameCover } from "@/components/game-cover";
 import { HomeCoverLink } from "@/components/home-cover-link";
+import { PlatformNames } from "@/components/platform";
 import { TiltCover } from "@/components/tilt-cover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -130,8 +131,8 @@ export function GameSearch() {
                       </span>
                     )}
                   </p>
-                  <p className="truncate text-muted-foreground text-sm">
-                    {game.platforms.join(", ")}
+                  <p className="line-clamp-2 text-muted-foreground text-sm">
+                    <PlatformNames platforms={game.platforms} />
                   </p>
                 </div>
               </HomeCoverLink>

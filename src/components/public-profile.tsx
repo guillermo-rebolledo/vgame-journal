@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Library } from "@/components/library";
 import { PagedList } from "@/components/paged-list";
+import { PlatformName } from "@/components/platform";
 import { Stats } from "@/components/stats";
 import { Wishlist } from "@/components/wishlist";
 import type { journal } from "@/lib/journal";
@@ -83,7 +84,7 @@ export function PublicProfile({ profile }: { profile: Profile }) {
                               {game?.title}
                             </Link>
                             <p className="text-muted-foreground text-sm">
-                              {playthrough.platform}
+                              <PlatformName platform={playthrough.platform} />
                             </p>
                           </div>
                           <p className="text-muted-foreground text-sm tabular-nums">

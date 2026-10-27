@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { type ReactNode, useState } from "react";
 import { PagedList } from "@/components/paged-list";
+import { PlatformName } from "@/components/platform";
 import type { journal } from "@/lib/journal";
 
 type JournalStats = Awaited<ReturnType<typeof journal.stats>>;
@@ -52,7 +53,7 @@ function Bars({
   rows,
   unit,
 }: {
-  rows: { label: string; value: number }[];
+  rows: { label: string; value: number; display?: ReactNode }[];
   unit: string;
 }) {
   const max = rows.reduce((max, row) => Math.max(max, row.value), 1);
@@ -60,10 +61,10 @@ function Bars({
     <PagedList items={rows} label={`${unit} by category`}>
       {(visible) => (
         <ul className="space-y-4" aria-label={`${unit} by category`}>
-          {visible.map(({ label, value }) => (
+          {visible.map(({ label, value, display }) => (
             <li key={label} className="space-y-2">
               <div className="flex justify-between gap-4 text-sm">
-                <span className="min-w-0 break-words">{label}</span>
+                <span className="min-w-0 break-words">{display ?? label}</span>
                 <span className="shrink-0 tabular-nums">
                   {number.format(value)} {unit}
                 </span>
@@ -241,6 +242,7 @@ export function Stats({
             <Bars
               rows={stats.hoursByPlatform.map((row) => ({
                 label: row.platform,
+                display: <PlatformName platform={row.platform} />,
                 value: row.hours,
               }))}
               unit="hours"

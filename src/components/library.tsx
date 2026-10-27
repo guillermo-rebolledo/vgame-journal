@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useDeferredValue, useState, ViewTransition } from "react";
 import { GameCover } from "@/components/game-cover";
 import { PagedList } from "@/components/paged-list";
+import { PlatformIcon, PlatformNames } from "@/components/platform";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,10 +36,13 @@ const statusLabel = (e: LibraryEntry) =>
   (e.completionTag ? ` · ${capitalize(e.completionTag)}` : "");
 
 /** Release year and Playthrough platforms, to tell games apart in either view. */
-const releaseAndPlatforms = (e: LibraryEntry) =>
-  [e.releasedAt?.getUTCFullYear(), e.platforms.join(", ")]
-    .filter(Boolean)
-    .join(" · ");
+const releaseAndPlatforms = (e: LibraryEntry) => (
+  <>
+    {e.releasedAt?.getUTCFullYear()}
+    {e.releasedAt && e.platforms.length > 0 && " · "}
+    <PlatformNames platforms={e.platforms} />
+  </>
+);
 
 /** The user's Journal as a cover grid or compact list, searched, filtered and sorted in place; all but the view live in the URL. */
 export function Library({
@@ -277,7 +281,7 @@ export function Library({
                           <p className="text-muted-foreground text-xs">
                             {statusLabel(e)}
                           </p>
-                          {releaseAndPlatforms(e) && (
+                          {(e.releasedAt || e.platforms.length > 0) && (
                             <p className="line-clamp-2 text-muted-foreground text-xs tabular-nums">
                               {releaseAndPlatforms(e)}
                             </p>
@@ -323,8 +327,8 @@ export function Library({
                             )}
                           </h2>
                           {e.platforms.length > 0 && (
-                            <p className="truncate text-muted-foreground text-sm">
-                              {e.platforms.join(", ")}
+                            <p className="line-clamp-2 text-muted-foreground text-sm">
+                              <PlatformNames platforms={e.platforms} />
                             </p>
                           )}
                         </div>
@@ -379,18 +383,26 @@ function Select({
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full rounded-lg sm:w-auto sm:pointer-fine:h-8 border border-input bg-transparent px-2 text-base md:text-sm dark:bg-input/30"
-      >
-        {options.map(([v, l]) => (
-          <option key={v} value={v}>
-            {l}
-          </option>
-        ))}
-      </select>
+      <div className="relative">
+        {label === "Platform" && value && (
+          <PlatformIcon
+            platform={value}
+            className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+          />
+        )}
+        <select
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`h-11 w-full rounded-lg sm:w-auto sm:pointer-fine:h-8 border border-input bg-transparent px-2 text-base md:text-sm dark:bg-input/30 ${label === "Platform" && value ? "pl-8" : ""}`}
+        >
+          {options.map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }
