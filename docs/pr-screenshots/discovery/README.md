@@ -12,3 +12,6 @@ October 28, 2026; they are examples of provider data, not editorial endorsements
 
 Screenshots disable animations. Automated browser tests separately cover the
 signed-in placement, empty Journal, duplicate cover navigation, and failure states.
+- `journal-desktop-light.png` and `journal-mobile-light.png`: a synthetic test
+  account with Playing and Backlog entries, confirming personal shelves and
+  Library/Wishlist navigation appear before discovery.
