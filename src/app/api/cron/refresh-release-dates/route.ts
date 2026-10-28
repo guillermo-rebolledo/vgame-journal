@@ -14,10 +14,9 @@ export async function GET(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   if (!(await catalog.claimScheduledRefresh()))
     return Response.json({ skipped: true });
-  const [wishlist, discovery] = await Promise.allSettled([
-    catalog.refreshReleaseDates(),
-    catalog.refreshDiscovery(),
-  ]);
+  // Both jobs replace release dates; settle Wishlist writes before discovery starts.
+  const [wishlist] = await Promise.allSettled([catalog.refreshReleaseDates()]);
+  const [discovery] = await Promise.allSettled([catalog.refreshDiscovery()]);
   if (wishlist.status === "rejected")
     console.error("Wishlist release-date refresh failed");
   if (discovery.status === "rejected")

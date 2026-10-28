@@ -1,7 +1,7 @@
 /** The external game catalog (IGDB). The real implementation is `igdb.ts`; tests use `src/test/fake-game-source.ts`. */
 export interface GameSource {
   fetchDiscoveryPage(
-    offset: number,
+    cursor: DiscoveryCursor | null,
     signal: AbortSignal,
   ): Promise<DiscoveryPage>;
   search(query: string): Promise<SourceGame[]>;
@@ -10,9 +10,11 @@ export interface GameSource {
   fetchReleaseDates(ids: number[]): Promise<Map<number, SourceReleaseDate[]>>;
 }
 
+export type DiscoveryCursor = { gameId: number; visits: number };
+
 export type DiscoveryKey = "recent" | "popular";
 export type DiscoveryPage = {
-  /** Descending Visits order; the Catalog resolves ties across page boundaries. */
+  /** Visits descending, then game ID ascending; continue after the last rank. */
   ranks: { gameId: number; visits: number }[];
   games: SourceGame[];
   hasMore: boolean;
