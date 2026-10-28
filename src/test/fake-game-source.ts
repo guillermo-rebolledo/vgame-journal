@@ -1,9 +1,48 @@
 import type { GameSource, SourceGame } from "@/lib/game-source";
 
 /** In-memory GameSource: title-substring search, and logs of searches and release date fetches so tests can see what was asked. */
-export function createFakeGameSource(games: SourceGame[]) {
+export function createFakeGameSource(
+  games: (SourceGame & { visits?: number })[],
+) {
   const source = {
     searches: 0,
+    async fetchDiscoveryRanks(excludedIds: number[], signal: AbortSignal) {
+      signal.throwIfAborted();
+      const ranks = games
+        .filter((g) => !excludedIds.includes(g.id))
+        .map((g) => ({ gameId: g.id, visits: g.visits ?? 0 }))
+        .sort((a, b) => b.visits - a.visits);
+      return { ranks: ranks.slice(0, 500), hasMore: ranks.length >= 500 };
+    },
+    async fetchRecentCandidates(
+      afterId: number,
+      from: Date,
+      through: Date,
+      signal: AbortSignal,
+    ) {
+      signal.throwIfAborted();
+      const pool = games
+        .filter(
+          (g) =>
+            g.id > afterId &&
+            g.firstReleaseDate &&
+            g.firstReleaseDate >= from &&
+            g.firstReleaseDate <= through &&
+            ((g.userScoreCount ?? 0) >= 10 || (g.criticScoreCount ?? 0) >= 3),
+        )
+        .toSorted((a, b) => a.id - b.id);
+      return { games: pool.slice(0, 500), hasMore: pool.length >= 500 };
+    },
+    async fetchVisits(ids: number[], signal: AbortSignal) {
+      signal.throwIfAborted();
+      return games
+        .filter((g) => ids.includes(g.id))
+        .map((g) => ({ gameId: g.id, visits: g.visits ?? 0 }));
+    },
+    async fetchGames(ids: number[], signal: AbortSignal) {
+      signal.throwIfAborted();
+      return games.filter((g) => ids.includes(g.id));
+    },
     releaseDateFetches: [] as number[][],
     async search(query: string) {
       source.searches++;
@@ -33,7 +72,9 @@ export function createFakeGameSource(games: SourceGame[]) {
 
 let nextId = 1;
 
-export const sourceGame = (overrides: Partial<SourceGame> = {}): SourceGame => {
+export const sourceGame = (
+  overrides: Partial<SourceGame> & { visits?: number } = {},
+): SourceGame & { visits?: number } => {
   const id = overrides.id ?? nextId++;
   return {
     id,

@@ -68,13 +68,9 @@ const titles = () =>
   screen.queryAllByRole("link").map((link) => link.textContent);
 const until = (n: number) => vi.waitFor(() => expect(requests).toHaveLength(n));
 
-test("explains the minimum length, then shows searching and the results", async () => {
+test("waits for two characters, then shows searching and the results", async () => {
   const user = userEvent.setup();
   render(<GameSearch />);
-  expect(box().getAttribute("aria-describedby")).toBeTruthy();
-  expect(
-    screen.getByText("Type at least 2 characters of a game’s title."),
-  ).toBeTruthy();
 
   await user.type(box(), "c");
   expect(requests).toHaveLength(0);

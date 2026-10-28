@@ -7,6 +7,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   numeric,
   pgTable,
   primaryKey,
@@ -17,7 +18,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { DatePrecision } from "@/lib/game-source";
+import type { DatePrecision, DiscoveryKey } from "@/lib/game-source";
 import type { CompletionTag, Status } from "@/lib/journal";
 import type { Region } from "@/lib/release-dates";
 
@@ -227,3 +228,19 @@ export const playthrough = pgTable(
     ),
   ],
 );
+
+/** One atomic shared selection per discovery shelf. Only fallback validation metadata is retained. */
+export const discoverySnapshot = pgTable("discovery_snapshot", {
+  key: text("key").primaryKey().$type<DiscoveryKey>(),
+  gameIds: integer("game_ids").array().notNull(),
+  firstReleaseDates: jsonb("first_release_dates")
+    .$type<Record<string, number>>()
+    .notNull(),
+  refreshedAt: timestamp("refreshed_at").notNull(),
+});
+
+/** Distributed cron lease and retry cooldown; expired leases need no cleanup. */
+export const scheduledRefresh = pgTable("scheduled_refresh", {
+  key: text("key").primaryKey(),
+  nextAttemptAt: timestamp("next_attempt_at").notNull(),
+});

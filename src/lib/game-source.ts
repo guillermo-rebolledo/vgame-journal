@@ -1,10 +1,29 @@
 /** The external game catalog (IGDB). The real implementation is `igdb.ts`; tests use `src/test/fake-game-source.ts`. */
 export interface GameSource {
+  /** Next Visits page in descending score order, excluding all previously seen canonical IDs. */
+  fetchDiscoveryRanks(
+    excludedIds: number[],
+    signal: AbortSignal,
+  ): Promise<DiscoveryRankPage>;
+  /** Recent first releases with sufficient review counts; Catalog applies scores and eligibility. */
+  fetchRecentCandidates(
+    afterId: number,
+    from: Date,
+    through: Date,
+    signal: AbortSignal,
+  ): Promise<{ games: SourceGame[]; hasMore: boolean }>;
+  /** Visits only for the supplied candidate IDs; missing ranks remain missing. */
+  fetchVisits(ids: number[], signal: AbortSignal): Promise<DiscoveryRank[]>;
+  fetchGames(ids: number[], signal: AbortSignal): Promise<SourceGame[]>;
   search(query: string): Promise<SourceGame[]>;
   fetchGame(id: number): Promise<SourceGame | null>;
   fetchBySlug(slug: string): Promise<SourceGame | null>;
   fetchReleaseDates(ids: number[]): Promise<Map<number, SourceReleaseDate[]>>;
 }
+
+export type DiscoveryRank = { gameId: number; visits: number };
+export type DiscoveryRankPage = { ranks: DiscoveryRank[]; hasMore: boolean };
+export type DiscoveryKey = "recent" | "popular";
 
 /** IGDB game types; the index is IGDB's `game_types` id. */
 export const GAME_TYPES = [
@@ -52,6 +71,9 @@ export type SourceGame = {
   popularity: number;
   /** Fan games, unofficial ports and the like. */
   fanMade: boolean;
+  firstReleaseDate?: Date | null;
+  themes?: number[];
+  versionParent?: number | null;
 };
 
 export type DatePrecision = "day" | "month" | "quarter" | "year" | "tbd";

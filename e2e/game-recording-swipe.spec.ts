@@ -59,6 +59,16 @@ for (const phone of [false, true]) {
       await page
         .locator('[data-slot="drawer-swipe-handle"]')
         .scrollIntoViewIfNeeded();
+      // Measure the settled drawer, rather than a frame of its entrance transition.
+      await expect
+        .poll(() =>
+          dialog.evaluate((node) =>
+            Math.abs(
+              new DOMMatrixReadOnly(getComputedStyle(node).transform).m42,
+            ),
+          ),
+        )
+        .toBeLessThan(0.01);
       const box = await dialog.boundingBox();
       const navbar = await page
         .getByRole("banner", { includeHidden: true })

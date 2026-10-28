@@ -22,6 +22,20 @@ const synthetic = (
   });
 
 export const igdbGameSource = createFakeGameSource([
+  ...["One", "Two", "Three", "Four", "Five"].map((name, i) =>
+    sourceGame({
+      id: 201 + i,
+      title: `Discovery ${name}`,
+      slug: `discovery-${name.toLowerCase()}`,
+      visits: 10 - i,
+      userScore: 75,
+      userScoreCount: 10,
+      genres: i === 1 || i === 3 ? ["Indie"] : ["Adventure"],
+      coverImageId: "co3byy",
+      firstReleaseDate: new Date(todayUtc.getTime() - 86400000),
+      platforms: ["PC"],
+    }),
+  ),
   synthetic(
     101,
     "The Lantern Keeper's Extraordinarily Long Voyage Across the Shattered Archipelago: Definitive Edition",

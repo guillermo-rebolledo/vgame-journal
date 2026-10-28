@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
+import { DiscoveryBoundary } from "@/components/discovery-boundary";
 import { GameCover } from "@/components/game-cover";
 import { GameSearch } from "@/components/game-search";
 import {
@@ -10,6 +12,7 @@ import { JsonLd } from "@/components/json-ld";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import { signedInUserId } from "@/lib/auth";
+import { catalog } from "@/lib/catalog";
 import { journal } from "@/lib/journal";
 import { capitalize, type LibraryEntry } from "@/lib/library";
 
@@ -83,9 +86,13 @@ async function HomeContent() {
         >
           <YourJournal userId={userId} />
         </Suspense>
-      ) : (
-        <GettingStarted />
-      )}
+      ) : null}
+      <DiscoveryBoundary>
+        <Suspense fallback={null}>
+          <Discovery />
+        </Suspense>
+      </DiscoveryBoundary>
+      {!userId && <GettingStarted />}
     </HomeCoverTransitions>
   );
 }
@@ -198,7 +205,36 @@ async function YourJournal({ userId }: { userId: string }) {
   );
 }
 
-function Shelf({ title, games }: { title: string; games: LibraryEntry[] }) {
+async function Discovery() {
+  await connection();
+  try {
+    const shelves = await catalog.discovery();
+    return shelves.map((shelf) => (
+      <Shelf
+        key={shelf.key}
+        title={
+          shelf.key === "recent" ? "Recently released" : "Popular right now"
+        }
+        games={shelf.games.map((g) => ({ ...g, gameId: g.id }))}
+        refreshedAt={shelf.refreshedAt}
+      />
+    ));
+  } catch {
+    console.error("Home discovery unavailable");
+    return null;
+  }
+}
+
+function Shelf({
+  title,
+  games,
+  refreshedAt,
+}: {
+  title: string;
+  games: (Pick<LibraryEntry, "gameId" | "title" | "slug" | "coverImageId"> &
+    Partial<Pick<LibraryEntry, "status">>)[];
+  refreshedAt?: Date;
+}) {
   const id = `home-${title.toLowerCase().replace(/ /g, "-")}`;
   return (
     <section aria-labelledby={id} className="flex flex-col gap-3">
@@ -223,13 +259,28 @@ function Shelf({ title, games }: { title: string; games: LibraryEntry[] }) {
               <span className="line-clamp-2 font-medium text-sm leading-snug group-hover:underline group-hover:underline-offset-4">
                 {e.title}
               </span>
-              <span className="text-muted-foreground text-sm">
-                {capitalize(e.status)}
-              </span>
+              {e.status && (
+                <span className="text-muted-foreground text-sm">
+                  {capitalize(e.status)}
+                </span>
+              )}
             </HomeCoverLink>
           </li>
         ))}
       </ul>
+      {refreshedAt && (
+        <p className="text-muted-foreground text-xs">
+          Updated{" "}
+          <time dateTime={refreshedAt.toISOString()}>
+            {refreshedAt.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+              timeZone: "UTC",
+            })}
+          </time>
+        </p>
+      )}
     </section>
   );
 }

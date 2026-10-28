@@ -58,10 +58,16 @@ const limit = createLimiter(4, 8);
 
 let token: { value: string; expiresAt: number } | undefined;
 
-async function accessToken() {
+const requestSignal = (signal?: AbortSignal) =>
+  signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
+    : AbortSignal.timeout(10000);
+
+async function accessToken(signal?: AbortSignal) {
   if (token && token.expiresAt > Date.now()) return token.value;
   const res = await fetch("https://id.twitch.tv/oauth2/token", {
     method: "POST",
+    signal: requestSignal(signal),
     body: new URLSearchParams({
       client_id: process.env.TWITCH_CLIENT_ID ?? "",
       client_secret: process.env.TWITCH_CLIENT_SECRET ?? "",
@@ -78,13 +84,18 @@ async function accessToken() {
 }
 
 /** POSTs an Apicalypse query to an IGDB endpoint. */
-async function igdb<T>(endpoint: string, body: string): Promise<T[]> {
+async function igdb<T>(
+  endpoint: string,
+  body: string,
+  signal?: AbortSignal,
+): Promise<T[]> {
   const res = await limit(async () =>
     fetch(`https://api.igdb.com/v4/${endpoint}`, {
       method: "POST",
+      signal: requestSignal(signal),
       headers: {
         "Client-ID": process.env.TWITCH_CLIENT_ID ?? "",
-        Authorization: `Bearer ${await accessToken()}`,
+        Authorization: `Bearer ${await accessToken(signal)}`,
       },
       body,
     }),
@@ -143,6 +154,9 @@ type IgdbGame = {
   total_rating_count?: number;
   hypes?: number;
   keywords?: number[];
+  first_release_date?: number;
+  themes?: number[];
+  version_parent?: number;
 };
 
 const RELEASE_DATE_FIELDS = [
@@ -170,6 +184,9 @@ const GAME_FIELDS = [
   "total_rating_count",
   "hypes",
   "keywords",
+  "first_release_date",
+  "themes",
+  "version_parent",
   ...RELEASE_DATE_FIELDS.map((f) => `release_dates.${f}`),
 ].join(",");
 
@@ -205,6 +222,12 @@ const toGame = (g: IgdbGame): SourceGame => ({
   userScore: g.rating ?? null,
   userScoreCount: g.rating_count ?? null,
   popularity: (g.total_rating_count ?? 0) + (g.hypes ?? 0),
+  firstReleaseDate:
+    g.first_release_date === undefined
+      ? null
+      : new Date(g.first_release_date * 1000),
+  themes: g.themes ?? [],
+  versionParent: g.version_parent ?? null,
   fanMade: g.keywords?.some((k) => FAN_KEYWORD_IDS.includes(k)) ?? false,
 });
 
@@ -213,6 +236,75 @@ const toGame = (g: IgdbGame): SourceGame => ({
  * so DLC and fan games don't use up the results the Catalog ranks.
  */
 export const igdbGameSource: GameSource = {
+  async fetchDiscoveryRanks(excludedIds, signal) {
+    signal.throwIfAborted();
+    // IGDB supports ID exclusions, but rejects value filters and multi-field sorting.
+    const excluded = [...new Set(excludedIds)].map(Math.trunc);
+    const page = await igdb<{ game_id: number; value: number }>(
+      "popularity_primitives",
+      `fields game_id,value; where popularity_type = 1${excluded.length ? ` & game_id != (${excluded.join(",")})` : ""}; sort value desc; limit 500;`,
+      signal,
+    );
+    signal.throwIfAborted();
+    return {
+      ranks: page.map((r) => ({ gameId: r.game_id, visits: r.value })),
+      hasMore: page.length === 500,
+    };
+  },
+  async fetchRecentCandidates(afterId, from, through, signal) {
+    signal.throwIfAborted();
+    const page = await igdb<IgdbGame>(
+      "games",
+      `fields ${GAME_FIELDS}; where id > ${Math.trunc(afterId)} & first_release_date >= ${Math.ceil(from.getTime() / 1000)} & first_release_date <= ${Math.floor(through.getTime() / 1000)} & (rating_count >= 10 | aggregated_rating_count >= 3); sort id asc; limit 500;`,
+      signal,
+    );
+    signal.throwIfAborted();
+    return { games: page.map(toGame), hasMore: page.length === 500 };
+  },
+  async fetchVisits(ids, signal) {
+    const ranks = [];
+    const unique = [...new Set(ids)].map(Math.trunc);
+    for (let start = 0; start < unique.length; start += 500) {
+      const batch = unique.slice(start, start + 500);
+      // One Visits primitive per game; cursor through IDs if the batch fills a page.
+      for (let afterId = 0; ; ) {
+        signal.throwIfAborted();
+        const page = await igdb<{ game_id: number; value: number }>(
+          "popularity_primitives",
+          `fields game_id,value; where popularity_type = 1 & game_id = (${batch.join(",")}) & game_id > ${afterId}; sort game_id asc; limit 500;`,
+          signal,
+        );
+        signal.throwIfAborted();
+        ranks.push(
+          ...page.map((r) => ({ gameId: r.game_id, visits: r.value })),
+        );
+        if (page.length < 500) break;
+        const nextId = Math.max(...page.map((r) => r.game_id));
+        if (nextId <= afterId)
+          throw new Error("Visits source returned a non-progressing page");
+        afterId = nextId;
+      }
+    }
+    return ranks;
+  },
+  async fetchGames(ids, signal) {
+    const games: SourceGame[] = [];
+    const unique = [...new Set(ids)];
+    for (let start = 0; start < unique.length; start += 500) {
+      signal.throwIfAborted();
+      const page = await igdb<IgdbGame>(
+        "games",
+        `fields ${GAME_FIELDS}; where id = (${unique
+          .slice(start, start + 500)
+          .map(Math.trunc)
+          .join(",")}); limit 500;`,
+        signal,
+      );
+      signal.throwIfAborted();
+      games.push(...page.map(toGame));
+    }
+    return games;
+  },
   async search(query) {
     const q = query.replace(/["\\]/g, "");
     const games = await igdb<IgdbGame>(
