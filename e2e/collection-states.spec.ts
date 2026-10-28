@@ -87,7 +87,9 @@ for (const viewport of [
       const result = page
         .getByRole("list", { name: "Search results" })
         .getByRole("link");
-      await expect(result).toHaveAccessibleName("Moss Cartographer PC");
+      await expect(result).toHaveAccessibleName(
+        "Moss Cartographer Release year TBA PC",
+      );
       await expect(result.locator('[aria-hidden="true"] svg')).toHaveCount(1);
       await snap(
         page,
