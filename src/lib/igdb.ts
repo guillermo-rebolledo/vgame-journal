@@ -1,5 +1,6 @@
 import {
   type DatePrecision,
+  type DiscoveryRank,
   GAME_TYPES,
   type GameSource,
   type SourceGame,
@@ -236,48 +237,42 @@ const toGame = (g: IgdbGame): SourceGame => ({
  * so DLC and fan games don't use up the results the Catalog ranks.
  */
 export const igdbGameSource: GameSource = {
-  async fetchDiscoveryPage(cursor, signal) {
-    signal.throwIfAborted();
-    // Visits is primitive 1 (IGDB PopScore); unrelated to search's cumulative ratings/hype.
-    type Rank = { game_id: number; value: number };
-    // IGDB documents single-field sorting: drain each value's ties before moving lower.
-    // https://api-docs.igdb.com/#sorting
-    const decimal = (value: number) => {
-      const literal = value.toLocaleString("en-US", {
-        useGrouping: false,
-        maximumSignificantDigits: 21,
-      });
-      return literal.includes(".") ? literal : `${literal}.0`;
-    };
-    const group = (value: number, afterId: number) =>
-      igdb<Rank>(
+  async fetchDiscoveryRanks(signal) {
+    const ranks: DiscoveryRank[] = [];
+    // IGDB rejects value filters and multi-field sorting. Scan stable IDs, then rank locally.
+    for (let afterId = 0; ; ) {
+      signal.throwIfAborted();
+      const page = await igdb<{ game_id: number; value: number }>(
         "popularity_primitives",
-        `fields game_id,value; where popularity_type = 1 & value = ${decimal(value)} & game_id > ${afterId}; sort game_id asc; limit 100;`,
+        `fields game_id,value; where popularity_type = 1 & game_id > ${afterId}; sort game_id asc; limit 500;`,
         signal,
       );
-    let ranks = cursor ? await group(cursor.visits, cursor.gameId) : [];
-    if (!ranks.length) {
-      const [next] = await igdb<Rank>(
-        "popularity_primitives",
-        `fields value; where popularity_type = 1 & value > 0.0${cursor ? ` & value < ${decimal(cursor.visits)}` : ""}; sort value desc; limit 1;`,
-        signal,
-      );
-      if (next) ranks = await group(next.value, 0);
+      signal.throwIfAborted();
+      ranks.push(...page.map((r) => ({ gameId: r.game_id, visits: r.value })));
+      if (page.length < 500) return ranks;
+      const nextId = page.at(-1)?.game_id;
+      if (!nextId || nextId <= afterId)
+        throw new Error("Discovery source returned a non-progressing page");
+      afterId = nextId;
     }
-    const ids = [...new Set(ranks.map((r) => r.game_id))];
-    const games = ids.length
-      ? await igdb<IgdbGame>(
-          "games",
-          `fields ${GAME_FIELDS}; where id = (${ids.join(",")}); limit 100;`,
-          signal,
-        )
-      : [];
-    return {
-      ranks: ranks.map((r) => ({ gameId: r.game_id, visits: r.value ?? 0 })),
-      games: games.map(toGame),
-      // Even a short tie group may be followed by a lower Visits value.
-      hasMore: ranks.length > 0,
-    };
+  },
+  async fetchGames(ids, signal) {
+    const games: SourceGame[] = [];
+    const unique = [...new Set(ids)];
+    for (let start = 0; start < unique.length; start += 500) {
+      signal.throwIfAborted();
+      const page = await igdb<IgdbGame>(
+        "games",
+        `fields ${GAME_FIELDS}; where id = (${unique
+          .slice(start, start + 500)
+          .map(Math.trunc)
+          .join(",")}); limit 500;`,
+        signal,
+      );
+      signal.throwIfAborted();
+      games.push(...page.map(toGame));
+    }
+    return games;
   },
   async search(query) {
     const q = query.replace(/["\\]/g, "");

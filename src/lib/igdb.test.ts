@@ -132,20 +132,63 @@ test("starts at most 4 requests a second and keeps at most 8 open", async () => 
   expect(started).toBe(10);
 });
 
-test("discovery retrieves Visits pages and batched metadata, preserving first release and content tags", async () => {
-  const requests: { url: string; body: string }[] = [];
+test("Visits traversal uses supported game-ID cursors across pages without value filters", async () => {
+  const rows = [
+    ...Array.from({ length: 501 }, (_, i) => ({ game_id: i + 1, value: 10 })),
+    { game_id: 900, value: 50 },
+    { game_id: 901, value: 0 },
+  ];
+  const cursors: number[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("twitch"))
         return Response.json({ access_token: "t", expires_in: 3600 });
-      requests.push({ url, body: String(init?.body) });
+      const body = String(init?.body);
+      // These operations are rejected by the live API, even for decimal literals.
+      if (
+        /value\s*[<>=]/.test(body) ||
+        /sort [^;]*,/.test(body) ||
+        (body.match(/sort /g)?.length ?? 0) > 1
+      )
+        return new Response("Invalid filter operation", { status: 400 });
+      const after = Number(body.match(/game_id > (\d+)/)?.[1]);
+      if (
+        !Number.isFinite(after) ||
+        !body.includes("sort game_id asc") ||
+        !body.includes("limit 500")
+      )
+        return new Response("Unsupported traversal", { status: 400 });
+      cursors.push(after);
+      return Response.json(rows.filter((r) => r.game_id > after).slice(0, 500));
+    }),
+  );
+  const ranks = await igdbGameSource.fetchDiscoveryRanks(
+    new AbortController().signal,
+  );
+  expect(ranks).toHaveLength(503);
+  expect(ranks[0]).toEqual({ gameId: 1, visits: 10 });
+  expect(ranks.at(-2)).toEqual({ gameId: 900, visits: 50 });
+  expect(cursors).toEqual([0, 500]);
+});
+
+test("discovery batches metadata within provider limits and preserves eligibility fields and missing records", async () => {
+  const sizes: number[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      const body = String(init?.body);
+      const ids =
+        body
+          .match(/where id = \(([^)]+)\)/)?.[1]
+          .split(",")
+          .map(Number) ?? [];
+      sizes.push(ids.length);
       return Response.json(
-        url.endsWith("popularity_primitives")
-          ? Array.from({ length: 100 }, (_, i) => ({
-              game_id: i + 1,
-              value: 100,
-            }))
+        ids.includes(501)
+          ? []
           : [
               {
                 id: 1,
@@ -159,65 +202,46 @@ test("discovery retrieves Visits pages and batched metadata, preserving first re
       );
     }),
   );
-  const page = await igdbGameSource.fetchDiscoveryPage(
-    null,
-    new AbortController().signal,
-  );
-  expect(page.hasMore).toBe(true);
-  expect(page.ranks[0]).toEqual({ gameId: 1, visits: 100 });
-  expect(page.games[0]).toMatchObject({
-    firstReleaseDate: new Date(1790000000000),
-    themes: [42],
-    versionParent: 2,
-  });
-  expect(requests).toHaveLength(3);
-  expect(requests[0].body).toContain("popularity_type = 1");
-  expect(requests[0].body).toContain("sort value desc");
-  expect(requests[1].body).toContain("sort game_id asc");
-});
-
-test("discovery returns missing metadata in batches and detects exhaustion", async () => {
-  const endpoints: string[] = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.includes("twitch"))
-        return Response.json({ access_token: "t", expires_in: 3600 });
-      endpoints.push(url.split("/").at(-1) ?? "");
-      const body = String(init?.body);
-      if (url.endsWith("games")) return Response.json([]);
-      if (body.includes("game_id > 0;"))
-        return Response.json([
-          { game_id: 7, value: 2 },
-          { game_id: 8, value: 2 },
-        ]);
-      if (body.includes("value <") || body.includes("game_id > 8;"))
-        return Response.json([]);
-      return Response.json([{ value: 2 }]);
-    }),
-  );
   const signal = new AbortController().signal;
-  expect(await igdbGameSource.fetchDiscoveryPage(null, signal)).toEqual({
-    ranks: [
-      { gameId: 7, visits: 2 },
-      { gameId: 8, visits: 2 },
-    ],
-    games: [],
-    hasMore: true,
-  });
-  expect(
-    await igdbGameSource.fetchDiscoveryPage({ gameId: 8, visits: 2 }, signal),
-  ).toEqual({ ranks: [], games: [], hasMore: false });
-  expect(endpoints).toEqual([
-    "popularity_primitives",
-    "popularity_primitives",
-    "games",
-    "popularity_primitives",
-    "popularity_primitives",
+  expect(await igdbGameSource.fetchGames([], signal)).toEqual([]);
+  const games = await igdbGameSource.fetchGames(
+    Array.from({ length: 501 }, (_, i) => i + 1),
+    signal,
+  );
+  expect(sizes).toEqual([500, 1]);
+  expect(games).toEqual([
+    expect.objectContaining({
+      id: 1,
+      firstReleaseDate: new Date(1790000000000),
+      themes: [42],
+      versionParent: 2,
+    }),
   ]);
 });
 
-test("discovery propagates provider errors and cancellation instead of returning successful partial results", async () => {
+test("a failed later rank page rejects the scan rather than returning partial ranks", async () => {
+  let pages = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      if (++pages === 1)
+        return Response.json(
+          Array.from({ length: 500 }, (_, i) => ({
+            game_id: i + 1,
+            value: 10,
+          })),
+        );
+      return new Response("Unavailable", { status: 503 });
+    }),
+  );
+  await expect(
+    igdbGameSource.fetchDiscoveryRanks(new AbortController().signal),
+  ).rejects.toThrow("503");
+});
+
+test("discovery propagates metadata errors and cancellation", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) =>
@@ -227,83 +251,14 @@ test("discovery propagates provider errors and cancellation instead of returning
     ),
   );
   await expect(
-    igdbGameSource.fetchDiscoveryPage(null, new AbortController().signal),
+    igdbGameSource.fetchGames([1], new AbortController().signal),
   ).rejects.toThrow("503");
   const controller = new AbortController();
   controller.abort(new DOMException("Timed out", "TimeoutError"));
   await expect(
-    igdbGameSource.fetchDiscoveryPage(null, controller.signal),
+    igdbGameSource.fetchDiscoveryRanks(controller.signal),
   ).rejects.toThrow("Timed out");
-});
-
-test("Visits pagination traverses whole tie groups by game ID using decimal value filters", async () => {
-  const rows = [
-    { game_id: 500, value: 20 },
-    ...Array.from({ length: 205 }, (_, i) => ({ game_id: 205 - i, value: 10 })),
-    { game_id: 600, value: 0.5 },
-  ];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.includes("twitch"))
-        return Response.json({ access_token: "t", expires_in: 3600 });
-      const body = String(init?.body);
-      if (url.endsWith("games")) {
-        const ids =
-          body
-            .match(/where id = \(([^)]+)\)/)?.[1]
-            .split(",")
-            .map(Number) ?? [];
-        return Response.json(
-          ids.map((id) => ({ id, name: `Game ${id}`, slug: `game-${id}` })),
-        );
-      }
-      // Model IGDB's Decimal type check and documented single-field sorting.
-      if (
-        /value\s*[<>=]+\s*\d+(?=\s*[;&])/.test(body) ||
-        /sort [^;]*,/.test(body)
-      ) {
-        return new Response("Unsupported query", { status: 400 });
-      }
-      let filtered = [...rows];
-      for (const match of body.matchAll(
-        /(value|game_id)\s*([<>=])\s*([\d.]+)/g,
-      )) {
-        const field = match[1] as "value" | "game_id";
-        const value = Number(match[3]);
-        filtered = filtered.filter((row) =>
-          match[2] === "="
-            ? row[field] === value
-            : match[2] === ">"
-              ? row[field] > value
-              : row[field] < value,
-        );
-      }
-      if (body.includes("sort game_id asc"))
-        filtered.sort((a, b) => a.game_id - b.game_id);
-      else filtered.sort((a, b) => b.value - a.value);
-      const offset = Number(body.match(/offset (\d+)/)?.[1] ?? 0);
-      const limit = Number(body.match(/limit (\d+)/)?.[1] ?? 10);
-      return Response.json(filtered.slice(offset, offset + limit));
-    }),
-  );
-  const ranks: { gameId: number; visits: number }[] = [];
-  let cursor: { gameId: number; visits: number } | null = null;
-  for (let pageNumber = 0; pageNumber < 10; pageNumber++) {
-    const page = await igdbGameSource.fetchDiscoveryPage(
-      cursor,
-      new AbortController().signal,
-    );
-    ranks.push(...page.ranks);
-    expect(page.games.map((game) => game.id)).toEqual(
-      page.ranks.map((rank) => rank.gameId),
-    );
-    if (!page.hasMore) break;
-    cursor = page.ranks.at(-1) ?? null;
-  }
-  expect(ranks.map((rank) => rank.gameId)).toEqual([
-    500,
-    ...Array.from({ length: 205 }, (_, i) => i + 1),
-    600,
-  ]);
+  await expect(
+    igdbGameSource.fetchGames([1], controller.signal),
+  ).rejects.toThrow("Timed out");
 });

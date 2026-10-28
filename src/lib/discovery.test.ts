@@ -140,11 +140,11 @@ test("independent failures and interruptions preserve IDs and successful timesta
   await catalog.refreshDiscovery();
   const before = await catalog.discovery();
   vi.setSystemTime(new Date("2026-10-29"));
-  const fetchPage = source.fetchDiscoveryPage;
+  const fetchRanks = source.fetchDiscoveryRanks;
   let attempts = 0;
-  source.fetchDiscoveryPage = async (...args) => {
+  source.fetchDiscoveryRanks = async (...args) => {
     if (++attempts === 1) throw new Error("Provider unavailable");
-    return fetchPage(...args);
+    return fetchRanks(...args);
   };
   expect(await catalog.refreshDiscovery()).toEqual({
     recent: "failed",
@@ -154,14 +154,14 @@ test("independent failures and interruptions preserve IDs and successful timesta
   expect(after[0]).toEqual(before[0]);
   expect(after[1].refreshedAt.toISOString()).toBe("2026-10-29T00:00:00.000Z");
   const controller = new AbortController();
-  source.fetchDiscoveryPage = async (...args) => {
-    const page = await fetchPage(...args);
+  source.fetchDiscoveryRanks = async (...args) => {
+    const ranks = await fetchRanks(...args);
     controller.abort(new DOMException("Timed out", "TimeoutError"));
-    return { ...page, hasMore: true };
+    return ranks;
   };
   await catalog.refreshDiscovery(controller.signal);
   expect(await catalog.discovery()).toEqual(after);
-  source.fetchDiscoveryPage = fetchPage;
+  source.fetchDiscoveryRanks = fetchRanks;
   games.splice(0);
   expect(await catalog.refreshDiscovery()).toEqual({ recent: 0, popular: 0 });
   expect(await catalog.discovery()).toEqual([]);
@@ -224,20 +224,18 @@ test("successful replacements and short results publish independently of unavail
       firstReleaseDate: new Date("2026-10-01"),
     }),
   );
-  const fetch = source.fetchDiscoveryPage;
+  const fetch = source.fetchGames;
   let call = 0;
-  source.fetchDiscoveryPage = async (...args) => {
+  source.fetchGames = async (...args) => {
     if (++call === 2) throw new DOMException("Timed out", "TimeoutError");
-    const page = await fetch(...args);
-    return {
-      ...page,
-      ranks: [
-        { gameId: 999, visits: 100 },
-        ...page.ranks,
-        { gameId: 3, visits: Number.NaN },
-      ],
-    };
+    return fetch(...args);
   };
+  const fetchRanks = source.fetchDiscoveryRanks;
+  source.fetchDiscoveryRanks = async (...args) => [
+    { gameId: 999, visits: 100 },
+    ...(await fetchRanks(...args)),
+    { gameId: 3, visits: Number.NaN },
+  ];
   expect(await catalog.refreshDiscovery()).toEqual({
     recent: 1,
     popular: "failed",
@@ -246,7 +244,7 @@ test("successful replacements and short results publish independently of unavail
   expect(shelves[0].games.map((g) => g.id)).toEqual([3]);
   expect(shelves[0].refreshedAt.toISOString()).toBe("2026-10-29T00:00:00.000Z");
   expect(shelves[1]).toEqual(oldPopular);
-  source.fetchDiscoveryPage = async () => {
+  source.fetchDiscoveryRanks = async () => {
     throw new Error("Home must never fetch live discovery");
   };
   source.fetchBySlug = async () => {
@@ -256,21 +254,18 @@ test("successful replacements and short results publish independently of unavail
   expect(await catalog.findBySlug("game-3")).toMatchObject({ id: 3 });
 });
 
-test("a hung or interrupted second page cannot publish an incomplete replacement", async () => {
+test("a hung or interrupted metadata batch cannot publish an incomplete replacement", async () => {
   const games = [sourceGame({ id: 1, coverImageId: "cover", visits: 10 })];
   const source = createFakeGameSource(games);
   const catalog = createCatalog(await createTestDb(), source);
   await catalog.refreshDiscovery();
   const before = await catalog.discovery();
   const controller = new AbortController();
-  source.fetchDiscoveryPage = async (cursor) => {
-    if (cursor === null)
-      return {
-        ranks: [{ gameId: 2, visits: 50 }],
-        games: [sourceGame({ id: 2, coverImageId: "cover" })],
-        hasMore: true,
-      };
-    // Simulate a provider that ignores the cancellation signal.
+  source.fetchDiscoveryRanks = async () =>
+    Array.from({ length: 101 }, (_, i) => ({ gameId: i + 2, visits: 50 }));
+  source.fetchGames = async (ids) => {
+    if (ids[0] === 2) return [sourceGame({ id: 2, coverImageId: "cover" })];
+    // Simulate a provider that ignores the cancellation signal after partial candidates.
     controller.abort(new DOMException("Timed out", "TimeoutError"));
     return new Promise(() => {});
   };
@@ -313,4 +308,28 @@ test("discovery with omitted dates preserves known Catalog release dates", async
   expect((await catalog.findBySlug("game-1"))?.releaseDates).toEqual([
     expect.objectContaining({ ...known, date: new Date("2027-02-20") }),
   ]);
+});
+
+test("refresh scans ranks once, orders late high Visits and ties locally, and only fetches candidate metadata", async () => {
+  const games = Array.from({ length: 205 }, (_, i) =>
+    sourceGame({
+      id: i + 1,
+      visits: i >= 200 ? 100 : 1,
+      coverImageId: "cover",
+      firstReleaseDate: new Date(),
+    }),
+  );
+  const source = createFakeGameSource(games);
+  const ranks = vi.spyOn(source, "fetchDiscoveryRanks");
+  const metadata = vi.spyOn(source, "fetchGames");
+  const catalog = createCatalog(await createTestDb(), source);
+  expect(await catalog.refreshDiscovery()).toEqual({ recent: 4, popular: 4 });
+  expect(
+    (await catalog.discovery()).map((s) => s.games.map((g) => g.id)),
+  ).toEqual([
+    [201, 202, 203, 204],
+    [201, 202, 203, 204],
+  ]);
+  expect(ranks).toHaveBeenCalledTimes(1);
+  expect(metadata.mock.calls.flatMap(([ids]) => ids)).not.toContain(200);
 });

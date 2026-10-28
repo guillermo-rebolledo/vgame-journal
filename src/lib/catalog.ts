@@ -9,8 +9,8 @@ import {
   searchCache,
 } from "@/db/schema";
 import {
-  type DiscoveryCursor,
   type DiscoveryKey,
+  type DiscoveryRank,
   type GameSource,
   type SourceGame,
   type SourceReleaseDate,
@@ -128,28 +128,46 @@ export function createCatalog(db: Db, source: GameSource) {
     date >= now.getTime() - 90 * 86400000 &&
     date <= now.getTime();
 
-  async function refreshShelf(key: DiscoveryKey, signal: AbortSignal) {
+  // Bound even a source that ignores cancellation; never publish after its deadline.
+  async function beforeDeadline<T>(
+    signal: AbortSignal,
+    work: () => Promise<T>,
+  ) {
+    signal.throwIfAborted();
+    const result = await new Promise<T>((resolve, reject) => {
+      const abort = () => reject(signal.reason);
+      signal.addEventListener("abort", abort, { once: true });
+      work()
+        .then(resolve, reject)
+        .finally(() => signal.removeEventListener("abort", abort));
+    });
+    signal.throwIfAborted();
+    return result;
+  }
+
+  async function refreshShelf(
+    key: DiscoveryKey,
+    signal: AbortSignal,
+    getRanks: (signal: AbortSignal) => Promise<DiscoveryRank[]>,
+  ) {
     const now = new Date();
-    const selected = new Map<number, { game: SourceGame; visits: number }>();
-    for (let cursor: DiscoveryCursor | null = null; ; ) {
-      signal.throwIfAborted();
-      // A source that ignores cancellation still cannot publish after the deadline.
-      const page = await new Promise<
-        Awaited<ReturnType<GameSource["fetchDiscoveryPage"]>>
-      >((resolve, reject) => {
-        const abort = () => reject(signal.reason);
-        signal.addEventListener("abort", abort, { once: true });
-        source
-          .fetchDiscoveryPage(cursor, signal)
-          .then(resolve, reject)
-          .finally(() => signal.removeEventListener("abort", abort));
-      });
-      signal.throwIfAborted();
-      for (const rank of page.ranks) {
-        const g = page.games.find((g) => g.id === rank.gameId);
+    const ranks = await getRanks(signal);
+    const games: SourceGame[] = [];
+    for (
+      let start = 0;
+      start < ranks.length && games.length < 4;
+      start += 100
+    ) {
+      const candidates = ranks.slice(start, start + 100);
+      const metadata = await beforeDeadline(signal, () =>
+        source.fetchGames(
+          candidates.map((r) => r.gameId),
+          signal,
+        ),
+      );
+      for (const rank of candidates) {
+        const g = metadata.find((g) => g.id === rank.gameId);
         if (
-          !Number.isFinite(rank.visits) ||
-          rank.visits <= 0 ||
           !g ||
           !STANDALONE_TYPES.has(g.type) ||
           g.fanMade ||
@@ -161,45 +179,28 @@ export function createCatalog(db: Db, source: GameSource) {
           (key === "recent" && !recent(g.firstReleaseDate?.getTime(), now))
         )
           continue;
-        if (
-          !selected.has(g.id) ||
-          rank.visits > (selected.get(g.id)?.visits ?? 0)
-        )
-          selected.set(g.id, { game: g, visits: rank.visits });
+        games.push(g);
+        if (games.length === 4) break;
       }
-      const ranked = [...selected.values()].sort(
-        (a, b) => b.visits - a.visits || a.game.id - b.game.id,
-      );
-      // Read past a tied boundary before deciding which four canonical IDs win.
-      const tail = page.ranks.at(-1)?.visits;
-      if (
-        !page.hasMore ||
-        (ranked.length >= 4 && tail !== undefined && tail < ranked[3].visits)
-      ) {
-        const games = ranked.slice(0, 4).map((r) => r.game);
-        await save(games);
-        signal.throwIfAborted();
-        const values = {
-          key,
-          gameIds: games.map((g) => g.id),
-          refreshedAt: new Date(),
-          firstReleaseDates:
-            key === "recent"
-              ? (Object.fromEntries(
-                  games.map((g) => [g.id, g.firstReleaseDate?.getTime()]),
-                ) as Record<string, number>)
-              : {},
-        };
-        await db
-          .insert(discoverySnapshot)
-          .values(values)
-          .onConflictDoUpdate({ target: discoverySnapshot.key, set: values });
-        return games.length;
-      }
-      if (page.ranks.length === 0)
-        throw new Error("Discovery source returned a non-progressing page");
-      cursor = page.ranks.at(-1) ?? null;
     }
+    await save(games);
+    signal.throwIfAborted();
+    const values = {
+      key,
+      gameIds: games.map((g) => g.id),
+      refreshedAt: new Date(),
+      firstReleaseDates:
+        key === "recent"
+          ? (Object.fromEntries(
+              games.map((g) => [g.id, g.firstReleaseDate?.getTime()]),
+            ) as Record<string, number>)
+          : {},
+    };
+    await db
+      .insert(discoverySnapshot)
+      .values(values)
+      .onConflictDoUpdate({ target: discoverySnapshot.key, set: values });
+    return games.length;
   }
 
   return {
@@ -225,12 +226,33 @@ export function createCatalog(db: Db, source: GameSource) {
     },
     /** Each selection succeeds independently; failures retain its last successful snapshot. */
     async refreshDiscovery(signal?: AbortSignal) {
+      // Reuse only a complete successful scan; one shelf's source failure can be retried by the other.
+      let ranks: DiscoveryRank[] | undefined;
+      const getRanks = async (signal: AbortSignal) => {
+        if (!ranks) {
+          const all = await beforeDeadline(signal, () =>
+            source.fetchDiscoveryRanks(signal),
+          );
+          const unique = new Map<number, DiscoveryRank>();
+          for (const rank of all) {
+            if (!Number.isFinite(rank.visits) || rank.visits <= 0) continue;
+            if (rank.visits > (unique.get(rank.gameId)?.visits ?? 0))
+              unique.set(rank.gameId, rank);
+          }
+          ranks = [...unique.values()].sort(
+            (a, b) => b.visits - a.visits || a.gameId - b.gameId,
+          );
+        }
+        signal.throwIfAborted();
+        return ranks;
+      };
       const results: Partial<Record<DiscoveryKey, number | "failed">> = {};
       for (const key of ["recent", "popular"] as const) {
         try {
           results[key] = await refreshShelf(
             key,
             signal ?? AbortSignal.timeout(45000),
+            getRanks,
           );
         } catch {
           console.error(`Discovery refresh failed: ${key}`);
