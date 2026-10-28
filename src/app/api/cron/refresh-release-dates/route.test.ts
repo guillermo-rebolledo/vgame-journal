@@ -67,3 +67,23 @@ test("overlapping or immediate repeat invocations skip both refreshes", async ()
   expect(refreshReleaseDates).not.toHaveBeenCalled();
   expect(refreshDiscovery).not.toHaveBeenCalled();
 });
+
+test("discovery waits for Wishlist writes to settle before starting", async () => {
+  vi.stubEnv("CRON_SECRET", "s3cret");
+  let finish!: (value: number) => void;
+  refreshReleaseDates.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const response = call("Bearer s3cret");
+  await vi.waitFor(() => expect(refreshReleaseDates).toHaveBeenCalled());
+  const startedEarly = refreshDiscovery.mock.calls.length > 0;
+  finish(7);
+  expect(await (await response).json()).toEqual({
+    checked: 7,
+    discovery: { recent: 4, popular: 4 },
+  });
+  expect(startedEarly).toBe(false);
+});

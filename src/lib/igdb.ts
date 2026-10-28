@@ -58,13 +58,16 @@ const limit = createLimiter(4, 8);
 
 let token: { value: string; expiresAt: number } | undefined;
 
+const requestSignal = (signal?: AbortSignal) =>
+  signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
+    : AbortSignal.timeout(10000);
+
 async function accessToken(signal?: AbortSignal) {
   if (token && token.expiresAt > Date.now()) return token.value;
   const res = await fetch("https://id.twitch.tv/oauth2/token", {
     method: "POST",
-    signal: signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
-      : AbortSignal.timeout(10000),
+    signal: requestSignal(signal),
     body: new URLSearchParams({
       client_id: process.env.TWITCH_CLIENT_ID ?? "",
       client_secret: process.env.TWITCH_CLIENT_SECRET ?? "",
@@ -89,9 +92,7 @@ async function igdb<T>(
   const res = await limit(async () =>
     fetch(`https://api.igdb.com/v4/${endpoint}`, {
       method: "POST",
-      signal: signal
-        ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
-        : AbortSignal.timeout(10000),
+      signal: requestSignal(signal),
       headers: {
         "Client-ID": process.env.TWITCH_CLIENT_ID ?? "",
         Authorization: `Bearer ${await accessToken(signal)}`,
@@ -235,14 +236,34 @@ const toGame = (g: IgdbGame): SourceGame => ({
  * so DLC and fan games don't use up the results the Catalog ranks.
  */
 export const igdbGameSource: GameSource = {
-  async fetchDiscoveryPage(offset, signal) {
+  async fetchDiscoveryPage(cursor, signal) {
     signal.throwIfAborted();
     // Visits is primitive 1 (IGDB PopScore); unrelated to search's cumulative ratings/hype.
-    const ranks = await igdb<{ game_id: number; value?: number }>(
-      "popularity_primitives",
-      `fields game_id,value; where popularity_type = 1 & value > 0; sort value desc; limit 100; offset ${Math.trunc(offset)};`,
-      signal,
-    );
+    type Rank = { game_id: number; value: number };
+    // IGDB documents single-field sorting: drain each value's ties before moving lower.
+    // https://api-docs.igdb.com/#sorting
+    const decimal = (value: number) => {
+      const literal = value.toLocaleString("en-US", {
+        useGrouping: false,
+        maximumSignificantDigits: 21,
+      });
+      return literal.includes(".") ? literal : `${literal}.0`;
+    };
+    const group = (value: number, afterId: number) =>
+      igdb<Rank>(
+        "popularity_primitives",
+        `fields game_id,value; where popularity_type = 1 & value = ${decimal(value)} & game_id > ${afterId}; sort game_id asc; limit 100;`,
+        signal,
+      );
+    let ranks = cursor ? await group(cursor.visits, cursor.gameId) : [];
+    if (!ranks.length) {
+      const [next] = await igdb<Rank>(
+        "popularity_primitives",
+        `fields value; where popularity_type = 1 & value > 0.0${cursor ? ` & value < ${decimal(cursor.visits)}` : ""}; sort value desc; limit 1;`,
+        signal,
+      );
+      if (next) ranks = await group(next.value, 0);
+    }
     const ids = [...new Set(ranks.map((r) => r.game_id))];
     const games = ids.length
       ? await igdb<IgdbGame>(
@@ -254,7 +275,8 @@ export const igdbGameSource: GameSource = {
     return {
       ranks: ranks.map((r) => ({ gameId: r.game_id, visits: r.value ?? 0 })),
       games: games.map(toGame),
-      hasMore: ranks.length === 100,
+      // Even a short tie group may be followed by a lower Visits value.
+      hasMore: ranks.length > 0,
     };
   },
   async search(query) {

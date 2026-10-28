@@ -9,6 +9,7 @@ import {
   searchCache,
 } from "@/db/schema";
 import {
+  type DiscoveryCursor,
   type DiscoveryKey,
   type GameSource,
   type SourceGame,
@@ -19,6 +20,7 @@ import { igdbGameSource } from "@/lib/igdb";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_RESULTS = 20;
+const EROTIC_THEME_ID = 42;
 /** Games per release date fetch; the GameSource pages past its own per-request limits. */
 const REFRESH_BATCH = 50;
 
@@ -45,7 +47,7 @@ export function createCatalog(db: Db, source: GameSource) {
     if (dates.length) await db.insert(releaseDate).values(dates);
   }
 
-  /** Saves (or refreshes) games and replaces their release dates. */
+  /** Saves games and replaces supplied release dates; empty provider results retain known dates. */
   async function save(games: SourceGame[]) {
     if (games.length === 0) return;
     const syncedAt = new Date();
@@ -76,7 +78,11 @@ export function createCatalog(db: Db, source: GameSource) {
         ),
       });
     await replaceReleaseDates(
-      new Map(games.map((g) => [g.id, g.releaseDates])),
+      new Map(
+        games
+          .filter((g) => g.releaseDates.length)
+          .map((g) => [g.id, g.releaseDates]),
+      ),
     );
   }
 
@@ -125,7 +131,7 @@ export function createCatalog(db: Db, source: GameSource) {
   async function refreshShelf(key: DiscoveryKey, signal: AbortSignal) {
     const now = new Date();
     const selected = new Map<number, { game: SourceGame; visits: number }>();
-    for (let offset = 0; ; ) {
+    for (let cursor: DiscoveryCursor | null = null; ; ) {
       signal.throwIfAborted();
       // A source that ignores cancellation still cannot publish after the deadline.
       const page = await new Promise<
@@ -134,7 +140,7 @@ export function createCatalog(db: Db, source: GameSource) {
         const abort = () => reject(signal.reason);
         signal.addEventListener("abort", abort, { once: true });
         source
-          .fetchDiscoveryPage(offset, signal)
+          .fetchDiscoveryPage(cursor, signal)
           .then(resolve, reject)
           .finally(() => signal.removeEventListener("abort", abort));
       });
@@ -148,7 +154,7 @@ export function createCatalog(db: Db, source: GameSource) {
           !STANDALONE_TYPES.has(g.type) ||
           g.fanMade ||
           g.versionParent ||
-          g.themes?.includes(42) ||
+          g.themes?.includes(EROTIC_THEME_ID) ||
           !g.title?.trim() ||
           !/^[a-z0-9-]+$/.test(g.slug ?? "") ||
           !g.coverImageId?.trim() ||
@@ -192,7 +198,7 @@ export function createCatalog(db: Db, source: GameSource) {
       }
       if (page.ranks.length === 0)
         throw new Error("Discovery source returned a non-progressing page");
-      offset += page.ranks.length;
+      cursor = page.ranks.at(-1) ?? null;
     }
   }
 

@@ -1,4 +1,8 @@
-import type { GameSource, SourceGame } from "@/lib/game-source";
+import type {
+  DiscoveryCursor,
+  GameSource,
+  SourceGame,
+} from "@/lib/game-source";
 
 /** In-memory GameSource: title-substring search, and logs of searches and release date fetches so tests can see what was asked. */
 export function createFakeGameSource(
@@ -6,16 +10,25 @@ export function createFakeGameSource(
 ) {
   const source = {
     searches: 0,
-    async fetchDiscoveryPage(offset: number, signal: AbortSignal) {
+    async fetchDiscoveryPage(
+      cursor: DiscoveryCursor | null,
+      signal: AbortSignal,
+    ) {
       signal.throwIfAborted();
       const ranked = games.toSorted(
-        (a, b) => (b.visits ?? 0) - (a.visits ?? 0),
+        (a, b) => (b.visits ?? 0) - (a.visits ?? 0) || a.id - b.id,
       );
-      const page = ranked.slice(offset, offset + 100);
+      const remaining = ranked.filter(
+        (g) =>
+          !cursor ||
+          (g.visits ?? 0) < cursor.visits ||
+          ((g.visits ?? 0) === cursor.visits && g.id > cursor.gameId),
+      );
+      const page = remaining.slice(0, 100);
       return {
         ranks: page.map((g) => ({ gameId: g.id, visits: g.visits ?? 0 })),
         games: page,
-        hasMore: offset + 100 < ranked.length,
+        hasMore: remaining.length > 100,
       };
     },
     releaseDateFetches: [] as number[][],

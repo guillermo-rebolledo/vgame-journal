@@ -263,8 +263,8 @@ test("a hung or interrupted second page cannot publish an incomplete replacement
   await catalog.refreshDiscovery();
   const before = await catalog.discovery();
   const controller = new AbortController();
-  source.fetchDiscoveryPage = async (offset) => {
-    if (offset === 0)
+  source.fetchDiscoveryPage = async (cursor) => {
+    if (cursor === null)
       return {
         ranks: [{ gameId: 2, visits: 50 }],
         games: [sourceGame({ id: 2, coverImageId: "cover" })],
@@ -279,4 +279,38 @@ test("a hung or interrupted second page cannot publish an incomplete replacement
     popular: "failed",
   });
   expect(await catalog.discovery()).toEqual(before);
+});
+
+test("discovery with omitted dates preserves known Catalog release dates", async () => {
+  const known = {
+    date: new Date("2027-01-15"),
+    platform: "PC",
+    region: "worldwide",
+    precision: "day" as const,
+    status: null,
+  };
+  const games = [
+    sourceGame({
+      id: 1,
+      coverImageId: "cover",
+      visits: 10,
+      firstReleaseDate: new Date(),
+      releaseDates: [known],
+    }),
+  ];
+  const catalog = createCatalog(
+    await createTestDb(),
+    createFakeGameSource(games),
+  );
+  await catalog.findBySlug("game-1");
+  games[0].releaseDates = [];
+  await catalog.refreshDiscovery();
+  expect((await catalog.findBySlug("game-1"))?.releaseDates).toEqual([
+    expect.objectContaining(known),
+  ]);
+  games[0].releaseDates = [{ ...known, date: new Date("2027-02-20") }];
+  await catalog.refreshDiscovery();
+  expect((await catalog.findBySlug("game-1"))?.releaseDates).toEqual([
+    expect.objectContaining({ ...known, date: new Date("2027-02-20") }),
+  ]);
 });
