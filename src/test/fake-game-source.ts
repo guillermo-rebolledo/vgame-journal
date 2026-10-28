@@ -14,6 +14,31 @@ export function createFakeGameSource(
         .sort((a, b) => b.visits - a.visits);
       return { ranks: ranks.slice(0, 500), hasMore: ranks.length >= 500 };
     },
+    async fetchRecentCandidates(
+      afterId: number,
+      from: Date,
+      through: Date,
+      signal: AbortSignal,
+    ) {
+      signal.throwIfAborted();
+      const pool = games
+        .filter(
+          (g) =>
+            g.id > afterId &&
+            g.firstReleaseDate &&
+            g.firstReleaseDate >= from &&
+            g.firstReleaseDate <= through &&
+            ((g.userScoreCount ?? 0) >= 10 || (g.criticScoreCount ?? 0) >= 3),
+        )
+        .toSorted((a, b) => a.id - b.id);
+      return { games: pool.slice(0, 500), hasMore: pool.length >= 500 };
+    },
+    async fetchVisits(ids: number[], signal: AbortSignal) {
+      signal.throwIfAborted();
+      return games
+        .filter((g) => ids.includes(g.id))
+        .map((g) => ({ gameId: g.id, visits: g.visits ?? 0 }));
+    },
     async fetchGames(ids: number[], signal: AbortSignal) {
       signal.throwIfAborted();
       return games.filter((g) => ids.includes(g.id));

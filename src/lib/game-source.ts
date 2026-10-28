@@ -5,6 +5,15 @@ export interface GameSource {
     excludedIds: number[],
     signal: AbortSignal,
   ): Promise<DiscoveryRankPage>;
+  /** Recent first releases with sufficient review counts; Catalog applies scores and eligibility. */
+  fetchRecentCandidates(
+    afterId: number,
+    from: Date,
+    through: Date,
+    signal: AbortSignal,
+  ): Promise<{ games: SourceGame[]; hasMore: boolean }>;
+  /** Visits only for the supplied candidate IDs; missing ranks remain missing. */
+  fetchVisits(ids: number[], signal: AbortSignal): Promise<DiscoveryRank[]>;
   fetchGames(ids: number[], signal: AbortSignal): Promise<SourceGame[]>;
   search(query: string): Promise<SourceGame[]>;
   fetchGame(id: number): Promise<SourceGame | null>;

@@ -251,6 +251,42 @@ export const igdbGameSource: GameSource = {
       hasMore: page.length === 500,
     };
   },
+  async fetchRecentCandidates(afterId, from, through, signal) {
+    signal.throwIfAborted();
+    const page = await igdb<IgdbGame>(
+      "games",
+      `fields ${GAME_FIELDS}; where id > ${Math.trunc(afterId)} & first_release_date >= ${Math.ceil(from.getTime() / 1000)} & first_release_date <= ${Math.floor(through.getTime() / 1000)} & (rating_count >= 10 | aggregated_rating_count >= 3); sort id asc; limit 500;`,
+      signal,
+    );
+    signal.throwIfAborted();
+    return { games: page.map(toGame), hasMore: page.length === 500 };
+  },
+  async fetchVisits(ids, signal) {
+    const ranks = [];
+    const unique = [...new Set(ids)].map(Math.trunc);
+    for (let start = 0; start < unique.length; start += 500) {
+      const batch = unique.slice(start, start + 500);
+      // One Visits primitive per game; cursor through IDs if the batch fills a page.
+      for (let afterId = 0; ; ) {
+        signal.throwIfAborted();
+        const page = await igdb<{ game_id: number; value: number }>(
+          "popularity_primitives",
+          `fields game_id,value; where popularity_type = 1 & game_id = (${batch.join(",")}) & game_id > ${afterId}; sort game_id asc; limit 500;`,
+          signal,
+        );
+        signal.throwIfAborted();
+        ranks.push(
+          ...page.map((r) => ({ gameId: r.game_id, visits: r.value })),
+        );
+        if (page.length < 500) break;
+        const nextId = Math.max(...page.map((r) => r.game_id));
+        if (nextId <= afterId)
+          throw new Error("Visits source returned a non-progressing page");
+        afterId = nextId;
+      }
+    }
+    return ranks;
+  },
   async fetchGames(ids, signal) {
     const games: SourceGame[] = [];
     const unique = [...new Set(ids)];

@@ -34,6 +34,31 @@ export type SearchResult = {
   platforms: string[];
 };
 
+/** A complete review arm must qualify; missing or malformed evidence never does. */
+const hasRecentQuality = (g: {
+  userScore: number | null;
+  userScoreCount: number | null;
+  criticScore: number | null;
+  criticScoreCount: number | null;
+}) => {
+  const qualifies = (
+    score: number | null,
+    count: number | null,
+    minimum: number,
+  ) =>
+    score !== null &&
+    Number.isFinite(score) &&
+    score >= 75 &&
+    score <= 100 &&
+    count !== null &&
+    Number.isSafeInteger(count) &&
+    count >= minimum;
+  return (
+    qualifies(g.userScore, g.userScoreCount, 10) ||
+    qualifies(g.criticScore, g.criticScoreCount, 3)
+  );
+};
+
 /** Tests pass their own database and a fake GameSource. */
 export function createCatalog(db: Db, source: GameSource) {
   /** Replaces the stored release dates of each game in the map. */
@@ -88,10 +113,17 @@ export function createCatalog(db: Db, source: GameSource) {
   }
 
   /** Catalog games in the given order. */
-  async function load(ids: number[]): Promise<SearchResult[]> {
+  async function load(
+    ids: number[],
+    requireQuality = false,
+  ): Promise<SearchResult[]> {
     if (ids.length === 0) return [];
     const rows = await db
       .select({
+        userScore: game.userScore,
+        userScoreCount: game.userScoreCount,
+        criticScore: game.criticScore,
+        criticScoreCount: game.criticScoreCount,
         id: game.id,
         title: game.title,
         slug: game.slug,
@@ -105,7 +137,18 @@ export function createCatalog(db: Db, source: GameSource) {
       .leftJoin(releaseDate, eq(releaseDate.gameId, game.id))
       .where(inArray(game.id, ids))
       .groupBy(game.id);
-    return ids.flatMap((id) => rows.find((r) => r.id === id) ?? []);
+    const eligible = rows
+      .filter((r) => !requireQuality || hasRecentQuality(r))
+      .map(
+        ({
+          userScore,
+          userScoreCount,
+          criticScore,
+          criticScoreCount,
+          ...result
+        }) => result,
+      );
+    return ids.flatMap((id) => eligible.find((r) => r.id === id) ?? []);
   }
 
   /** The game with its release dates, earliest first (undated last). */
@@ -146,12 +189,73 @@ export function createCatalog(db: Db, source: GameSource) {
     return result;
   }
 
+  const homepageEligible = (g: SourceGame) =>
+    STANDALONE_TYPES.has(g.type) &&
+    !g.fanMade &&
+    !g.versionParent &&
+    !g.themes?.includes(EROTIC_THEME_ID) &&
+    Boolean(g.title?.trim()) &&
+    /^[a-z0-9-]+$/.test(g.slug ?? "") &&
+    Boolean(g.coverImageId?.trim());
+
+  async function refreshRecent(signal: AbortSignal) {
+    const now = new Date();
+    const from = new Date(now.getTime() - 90 * 86400000);
+    const candidates = new Map<number, SourceGame>();
+    for (let afterId = 0; ; ) {
+      const page = await beforeDeadline(signal, () =>
+        source.fetchRecentCandidates(afterId, from, now, signal),
+      );
+      for (const g of page.games) {
+        if (
+          homepageEligible(g) &&
+          hasRecentQuality(g) &&
+          recent(g.firstReleaseDate?.getTime(), now)
+        )
+          candidates.set(g.id, g);
+      }
+      if (!page.hasMore) break;
+      const nextId = Math.max(...page.games.map((g) => g.id));
+      if (!Number.isSafeInteger(nextId) || nextId <= afterId)
+        throw new Error("Recent source returned a non-progressing page");
+      afterId = nextId;
+    }
+    const visits = await beforeDeadline(signal, () =>
+      source.fetchVisits([...candidates.keys()], signal),
+    );
+    const ranks = new Map<number, DiscoveryRank>();
+    for (const rank of visits) {
+      if (
+        !candidates.has(rank.gameId) ||
+        !Number.isFinite(rank.visits) ||
+        rank.visits <= 0
+      )
+        continue;
+      if (rank.visits > (ranks.get(rank.gameId)?.visits ?? 0))
+        ranks.set(rank.gameId, rank);
+    }
+    const compare = (a: DiscoveryRank, b: DiscoveryRank) =>
+      b.visits - a.visits || a.gameId - b.gameId;
+    const ordered = [...ranks.values()].sort(compare);
+    const selected = ordered
+      .filter((r) => candidates.get(r.gameId)?.genres.includes("Indie"))
+      .slice(0, 2);
+    for (const rank of ordered) {
+      if (selected.length === 4) break;
+      if (!selected.some((r) => r.gameId === rank.gameId)) selected.push(rank);
+    }
+    return publishShelf(
+      "recent",
+      selected.sort(compare).map((r) => candidates.get(r.gameId) as SourceGame),
+      signal,
+    );
+  }
+
   async function refreshShelf(
     key: DiscoveryKey,
     signal: AbortSignal,
     getPage: (index: number, signal: AbortSignal) => Promise<DiscoveryRankPage>,
   ) {
-    const now = new Date();
     const selected: { rank: DiscoveryRank; game: SourceGame }[] = [];
     for (let index = 0; ; index++) {
       const page = await getPage(index, signal);
@@ -174,18 +278,7 @@ export function createCatalog(db: Db, source: GameSource) {
         );
         for (const rank of candidates) {
           const g = metadata.find((g) => g.id === rank.gameId);
-          if (
-            !g ||
-            !STANDALONE_TYPES.has(g.type) ||
-            g.fanMade ||
-            g.versionParent ||
-            g.themes?.includes(EROTIC_THEME_ID) ||
-            !g.title?.trim() ||
-            !/^[a-z0-9-]+$/.test(g.slug ?? "") ||
-            !g.coverImageId?.trim() ||
-            (key === "recent" && !recent(g.firstReleaseDate?.getTime(), now))
-          )
-            continue;
+          if (!g || !homepageEligible(g)) continue;
           selected.push({ rank, game: g });
         }
         selected.sort(
@@ -203,7 +296,18 @@ export function createCatalog(db: Db, source: GameSource) {
       )
         break;
     }
-    const games = selected.map((s) => s.game);
+    return publishShelf(
+      key,
+      selected.map((s) => s.game),
+      signal,
+    );
+  }
+
+  async function publishShelf(
+    key: DiscoveryKey,
+    games: SourceGame[],
+    signal: AbortSignal,
+  ) {
     await save(games);
     signal.throwIfAborted();
     const values = {
@@ -237,7 +341,7 @@ export function createCatalog(db: Db, source: GameSource) {
           (id) =>
             key !== "recent" || recent(snapshot.firstReleaseDates[id], now),
         );
-        const games = (await load(ids)).filter(
+        const games = (await load(ids, key === "recent")).filter(
           (g) => g.coverImageId && g.title && g.slug,
         );
         if (games.length)
@@ -247,7 +351,7 @@ export function createCatalog(db: Db, source: GameSource) {
     },
     /** Each selection succeeds independently; failures retain its last successful snapshot. */
     async refreshDiscovery(signal?: AbortSignal) {
-      // Successful prefixes survive a later page failure and are shared by both shelves.
+      // Cache ranked pages during the popular shelf traversal.
       const pages: DiscoveryRankPage[] = [];
       const seen = new Set<number>();
       const getPage = async (index: number, signal: AbortSignal) => {
@@ -273,11 +377,13 @@ export function createCatalog(db: Db, source: GameSource) {
       const results: Partial<Record<DiscoveryKey, number | "failed">> = {};
       for (const key of ["recent", "popular"] as const) {
         try {
-          results[key] = await refreshShelf(
-            key,
-            signal ?? AbortSignal.timeout(45000),
-            getPage,
-          );
+          const deadline = signal
+            ? AbortSignal.any([signal, AbortSignal.timeout(45000)])
+            : AbortSignal.timeout(45000);
+          results[key] =
+            key === "recent"
+              ? await refreshRecent(deadline)
+              : await refreshShelf(key, deadline, getPage);
         } catch {
           console.error(`Discovery refresh failed: ${key}`);
           results[key] = "failed";
