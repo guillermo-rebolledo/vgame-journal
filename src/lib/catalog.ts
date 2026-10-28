@@ -11,6 +11,7 @@ import {
 import {
   type DiscoveryKey,
   type DiscoveryRank,
+  type DiscoveryRankPage,
   type GameSource,
   type SourceGame,
   type SourceReleaseDate,
@@ -148,41 +149,61 @@ export function createCatalog(db: Db, source: GameSource) {
   async function refreshShelf(
     key: DiscoveryKey,
     signal: AbortSignal,
-    getRanks: (signal: AbortSignal) => Promise<DiscoveryRank[]>,
+    getPage: (index: number, signal: AbortSignal) => Promise<DiscoveryRankPage>,
   ) {
     const now = new Date();
-    const ranks = await getRanks(signal);
-    const games: SourceGame[] = [];
-    for (
-      let start = 0;
-      start < ranks.length && games.length < 4;
-      start += 100
-    ) {
-      const candidates = ranks.slice(start, start + 100);
-      const metadata = await beforeDeadline(signal, () =>
-        source.fetchGames(
-          candidates.map((r) => r.gameId),
-          signal,
-        ),
-      );
-      for (const rank of candidates) {
-        const g = metadata.find((g) => g.id === rank.gameId);
+    const selected: { rank: DiscoveryRank; game: SourceGame }[] = [];
+    for (let index = 0; ; index++) {
+      const page = await getPage(index, signal);
+      const tail = page.ranks.at(-1)?.visits;
+      const ranks = page.ranks
+        .filter((r) => Number.isFinite(r.visits) && r.visits > 0)
+        .toSorted((a, b) => b.visits - a.visits || a.gameId - b.gameId);
+      for (let start = 0; start < ranks.length; start += 100) {
         if (
-          !g ||
-          !STANDALONE_TYPES.has(g.type) ||
-          g.fanMade ||
-          g.versionParent ||
-          g.themes?.includes(EROTIC_THEME_ID) ||
-          !g.title?.trim() ||
-          !/^[a-z0-9-]+$/.test(g.slug ?? "") ||
-          !g.coverImageId?.trim() ||
-          (key === "recent" && !recent(g.firstReleaseDate?.getTime(), now))
+          selected.length === 4 &&
+          ranks[start].visits < selected[3].rank.visits
         )
-          continue;
-        games.push(g);
-        if (games.length === 4) break;
+          break;
+        const candidates = ranks.slice(start, start + 100);
+        const metadata = await beforeDeadline(signal, () =>
+          source.fetchGames(
+            candidates.map((r) => r.gameId),
+            signal,
+          ),
+        );
+        for (const rank of candidates) {
+          const g = metadata.find((g) => g.id === rank.gameId);
+          if (
+            !g ||
+            !STANDALONE_TYPES.has(g.type) ||
+            g.fanMade ||
+            g.versionParent ||
+            g.themes?.includes(EROTIC_THEME_ID) ||
+            !g.title?.trim() ||
+            !/^[a-z0-9-]+$/.test(g.slug ?? "") ||
+            !g.coverImageId?.trim() ||
+            (key === "recent" && !recent(g.firstReleaseDate?.getTime(), now))
+          )
+            continue;
+          selected.push({ rank, game: g });
+        }
+        selected.sort(
+          (a, b) => b.rank.visits - a.rank.visits || a.game.id - b.game.id,
+        );
+        selected.splice(4);
       }
+      // A full boundary tie must be drained before canonical-ID ordering is final.
+      if (
+        !page.hasMore ||
+        (selected.length === 4 &&
+          tail !== undefined &&
+          Number.isFinite(tail) &&
+          tail < selected[3].rank.visits)
+      )
+        break;
     }
+    const games = selected.map((s) => s.game);
     await save(games);
     signal.throwIfAborted();
     const values = {
@@ -226,25 +247,28 @@ export function createCatalog(db: Db, source: GameSource) {
     },
     /** Each selection succeeds independently; failures retain its last successful snapshot. */
     async refreshDiscovery(signal?: AbortSignal) {
-      // Reuse only a complete successful scan; one shelf's source failure can be retried by the other.
-      let ranks: DiscoveryRank[] | undefined;
-      const getRanks = async (signal: AbortSignal) => {
-        if (!ranks) {
-          const all = await beforeDeadline(signal, () =>
-            source.fetchDiscoveryRanks(signal),
+      // Successful prefixes survive a later page failure and are shared by both shelves.
+      const pages: DiscoveryRankPage[] = [];
+      const seen = new Set<number>();
+      const getPage = async (index: number, signal: AbortSignal) => {
+        signal.throwIfAborted();
+        if (!pages[index]) {
+          const page = await beforeDeadline(signal, () =>
+            source.fetchDiscoveryRanks([...seen], signal),
           );
           const unique = new Map<number, DiscoveryRank>();
-          for (const rank of all) {
-            if (!Number.isFinite(rank.visits) || rank.visits <= 0) continue;
-            if (rank.visits > (unique.get(rank.gameId)?.visits ?? 0))
+          for (const rank of page.ranks) {
+            if (seen.has(rank.gameId)) continue;
+            const previous = unique.get(rank.gameId);
+            if (!previous || rank.visits > previous.visits)
               unique.set(rank.gameId, rank);
           }
-          ranks = [...unique.values()].sort(
-            (a, b) => b.visits - a.visits || a.gameId - b.gameId,
-          );
+          if (page.hasMore && unique.size === 0)
+            throw new Error("Discovery source returned a non-progressing page");
+          for (const id of unique.keys()) seen.add(id);
+          pages.push({ ranks: [...unique.values()], hasMore: page.hasMore });
         }
-        signal.throwIfAborted();
-        return ranks;
+        return pages[index];
       };
       const results: Partial<Record<DiscoveryKey, number | "failed">> = {};
       for (const key of ["recent", "popular"] as const) {
@@ -252,7 +276,7 @@ export function createCatalog(db: Db, source: GameSource) {
           results[key] = await refreshShelf(
             key,
             signal ?? AbortSignal.timeout(45000),
-            getRanks,
+            getPage,
           );
         } catch {
           console.error(`Discovery refresh failed: ${key}`);

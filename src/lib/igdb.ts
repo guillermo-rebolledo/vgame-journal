@@ -1,6 +1,5 @@
 import {
   type DatePrecision,
-  type DiscoveryRank,
   GAME_TYPES,
   type GameSource,
   type SourceGame,
@@ -237,24 +236,20 @@ const toGame = (g: IgdbGame): SourceGame => ({
  * so DLC and fan games don't use up the results the Catalog ranks.
  */
 export const igdbGameSource: GameSource = {
-  async fetchDiscoveryRanks(signal) {
-    const ranks: DiscoveryRank[] = [];
-    // IGDB rejects value filters and multi-field sorting. Scan stable IDs, then rank locally.
-    for (let afterId = 0; ; ) {
-      signal.throwIfAborted();
-      const page = await igdb<{ game_id: number; value: number }>(
-        "popularity_primitives",
-        `fields game_id,value; where popularity_type = 1 & game_id > ${afterId}; sort game_id asc; limit 500;`,
-        signal,
-      );
-      signal.throwIfAborted();
-      ranks.push(...page.map((r) => ({ gameId: r.game_id, visits: r.value })));
-      if (page.length < 500) return ranks;
-      const nextId = page.at(-1)?.game_id;
-      if (!nextId || nextId <= afterId)
-        throw new Error("Discovery source returned a non-progressing page");
-      afterId = nextId;
-    }
+  async fetchDiscoveryRanks(excludedIds, signal) {
+    signal.throwIfAborted();
+    // IGDB supports ID exclusions, but rejects value filters and multi-field sorting.
+    const excluded = [...new Set(excludedIds)].map(Math.trunc);
+    const page = await igdb<{ game_id: number; value: number }>(
+      "popularity_primitives",
+      `fields game_id,value; where popularity_type = 1${excluded.length ? ` & game_id != (${excluded.join(",")})` : ""}; sort value desc; limit 500;`,
+      signal,
+    );
+    signal.throwIfAborted();
+    return {
+      ranks: page.map((r) => ({ gameId: r.game_id, visits: r.value })),
+      hasMore: page.length === 500,
+    };
   },
   async fetchGames(ids, signal) {
     const games: SourceGame[] = [];

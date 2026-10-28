@@ -6,9 +6,13 @@ export function createFakeGameSource(
 ) {
   const source = {
     searches: 0,
-    async fetchDiscoveryRanks(signal: AbortSignal) {
+    async fetchDiscoveryRanks(excludedIds: number[], signal: AbortSignal) {
       signal.throwIfAborted();
-      return games.map((g) => ({ gameId: g.id, visits: g.visits ?? 0 }));
+      const ranks = games
+        .filter((g) => !excludedIds.includes(g.id))
+        .map((g) => ({ gameId: g.id, visits: g.visits ?? 0 }))
+        .sort((a, b) => b.visits - a.visits);
+      return { ranks: ranks.slice(0, 500), hasMore: ranks.length >= 500 };
     },
     async fetchGames(ids: number[], signal: AbortSignal) {
       signal.throwIfAborted();

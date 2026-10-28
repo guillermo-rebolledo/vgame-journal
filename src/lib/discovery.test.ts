@@ -231,11 +231,17 @@ test("successful replacements and short results publish independently of unavail
     return fetch(...args);
   };
   const fetchRanks = source.fetchDiscoveryRanks;
-  source.fetchDiscoveryRanks = async (...args) => [
-    { gameId: 999, visits: 100 },
-    ...(await fetchRanks(...args)),
-    { gameId: 3, visits: Number.NaN },
-  ];
+  source.fetchDiscoveryRanks = async (...args) => {
+    const page = await fetchRanks(...args);
+    return {
+      ...page,
+      ranks: [
+        { gameId: 999, visits: 100 },
+        ...page.ranks,
+        { gameId: 3, visits: Number.NaN },
+      ],
+    };
+  };
   expect(await catalog.refreshDiscovery()).toEqual({
     recent: 1,
     popular: "failed",
@@ -261,8 +267,13 @@ test("a hung or interrupted metadata batch cannot publish an incomplete replacem
   await catalog.refreshDiscovery();
   const before = await catalog.discovery();
   const controller = new AbortController();
-  source.fetchDiscoveryRanks = async () =>
-    Array.from({ length: 101 }, (_, i) => ({ gameId: i + 2, visits: 50 }));
+  source.fetchDiscoveryRanks = async () => ({
+    ranks: Array.from({ length: 101 }, (_, i) => ({
+      gameId: i + 2,
+      visits: 50,
+    })),
+    hasMore: false,
+  });
   source.fetchGames = async (ids) => {
     if (ids[0] === 2) return [sourceGame({ id: 2, coverImageId: "cover" })];
     // Simulate a provider that ignores the cancellation signal after partial candidates.
@@ -310,11 +321,11 @@ test("discovery with omitted dates preserves known Catalog release dates", async
   ]);
 });
 
-test("refresh scans ranks once, orders late high Visits and ties locally, and only fetches candidate metadata", async () => {
-  const games = Array.from({ length: 205 }, (_, i) =>
+test("refresh stops within the first ranked page when both shelves are complete, even with more ranks available", async () => {
+  const games = Array.from({ length: 1005 }, (_, i) =>
     sourceGame({
       id: i + 1,
-      visits: i >= 200 ? 100 : 1,
+      visits: i >= 1000 ? 100 : 1,
       coverImageId: "cover",
       firstReleaseDate: new Date(),
     }),
@@ -327,9 +338,98 @@ test("refresh scans ranks once, orders late high Visits and ties locally, and on
   expect(
     (await catalog.discovery()).map((s) => s.games.map((g) => g.id)),
   ).toEqual([
-    [201, 202, 203, 204],
-    [201, 202, 203, 204],
+    [1001, 1002, 1003, 1004],
+    [1001, 1002, 1003, 1004],
   ]);
   expect(ranks).toHaveBeenCalledTimes(1);
   expect(metadata.mock.calls.flatMap(([ids]) => ids)).not.toContain(200);
+});
+
+test("exclusion traversal recovers reordered boundary ties and shares completed prefixes across shelves", async () => {
+  const games = Array.from({ length: 10 }, (_, i) =>
+    sourceGame({
+      id: i + 1,
+      visits: i === 9 ? 1 : 10,
+      coverImageId: "cover",
+      firstReleaseDate: new Date(),
+    }),
+  );
+  const source = createFakeGameSource(games);
+  let pages = 0;
+  source.fetchDiscoveryRanks = async (excludedIds, signal) => {
+    signal.throwIfAborted();
+    if (++pages > 3) throw new Error("Unnecessary full scan or shelf refetch");
+    // An offset into the reordered ties would skip 1 and 2 on the last page.
+    const order =
+      pages === 1
+        ? [9, 8, 7, 6, 5, 4, 3, 2, 1, 10]
+        : [6, 5, 4, 3, 9, 8, 7, 1, 2, 10];
+    const remaining = order.filter((id) => !excludedIds.includes(id));
+    return {
+      ranks: remaining
+        .slice(0, 4)
+        .map((gameId) => ({ gameId, visits: gameId === 10 ? 1 : 10 })),
+      hasMore: remaining.length >= 4,
+    };
+  };
+  const catalog = createCatalog(await createTestDb(), source);
+  expect(await catalog.refreshDiscovery()).toEqual({ recent: 4, popular: 4 });
+  expect(
+    (await catalog.discovery()).map((s) => s.games.map((g) => g.id)),
+  ).toEqual([
+    [1, 2, 3, 4],
+    [1, 2, 3, 4],
+  ]);
+  expect(pages).toBe(3);
+});
+
+test("a failed deeper page keeps recent stale while popular publishes the reusable complete prefix", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-28"));
+  const source = createFakeGameSource([
+    sourceGame({
+      id: 1,
+      visits: 10,
+      coverImageId: "cover",
+      firstReleaseDate: new Date("2026-10-01"),
+    }),
+  ]);
+  const catalog = createCatalog(await createTestDb(), source);
+  await catalog.refreshDiscovery();
+  const oldRecent = (await catalog.discovery())[0];
+  vi.setSystemTime(new Date("2026-10-29"));
+  const candidates = [11, 12, 13, 14, 15].map((id) =>
+    sourceGame({
+      id,
+      coverImageId: id === 15 ? null : "cover",
+      firstReleaseDate: id < 14 ? new Date("2026-10-01") : null,
+    }),
+  );
+  let calls = 0;
+  source.fetchDiscoveryRanks = async (excludedIds) => {
+    calls++;
+    if (excludedIds.length)
+      throw new Error("Provider unavailable on continuation");
+    return {
+      hasMore: true,
+      ranks: [
+        { gameId: 11, visits: 10 },
+        { gameId: 12, visits: 9 },
+        { gameId: 13, visits: 8 },
+        { gameId: 14, visits: 7 },
+        { gameId: 15, visits: 6 },
+      ],
+    };
+  };
+  source.fetchGames = async (ids) =>
+    candidates.filter((g) => ids.includes(g.id));
+  expect(await catalog.refreshDiscovery()).toEqual({
+    recent: "failed",
+    popular: 4,
+  });
+  const shelves = await catalog.discovery();
+  expect(shelves[0]).toEqual(oldRecent);
+  expect(shelves[1].games.map((g) => g.id)).toEqual([11, 12, 13, 14]);
+  expect(shelves[1].refreshedAt.toISOString()).toBe("2026-10-29T00:00:00.000Z");
+  expect(calls).toBe(2);
 });

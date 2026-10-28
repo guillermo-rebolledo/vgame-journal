@@ -1,7 +1,10 @@
 /** The external game catalog (IGDB). The real implementation is `igdb.ts`; tests use `src/test/fake-game-source.ts`. */
 export interface GameSource {
-  /** Complete Visits ranks; consumers filter and order locally. */
-  fetchDiscoveryRanks(signal: AbortSignal): Promise<DiscoveryRank[]>;
+  /** Next Visits page in descending score order, excluding all previously seen canonical IDs. */
+  fetchDiscoveryRanks(
+    excludedIds: number[],
+    signal: AbortSignal,
+  ): Promise<DiscoveryRankPage>;
   fetchGames(ids: number[], signal: AbortSignal): Promise<SourceGame[]>;
   search(query: string): Promise<SourceGame[]>;
   fetchGame(id: number): Promise<SourceGame | null>;
@@ -10,6 +13,7 @@ export interface GameSource {
 }
 
 export type DiscoveryRank = { gameId: number; visits: number };
+export type DiscoveryRankPage = { ranks: DiscoveryRank[]; hasMore: boolean };
 export type DiscoveryKey = "recent" | "popular";
 
 /** IGDB game types; the index is IGDB's `game_types` id. */
