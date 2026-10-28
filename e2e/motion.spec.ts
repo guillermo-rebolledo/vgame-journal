@@ -16,6 +16,7 @@ test("covers tilt toward the pointer and spring back", async ({ page }) => {
   await page.getByRole("searchbox").fill("Celeste");
   const cover = page.locator("[data-tilt-cover]");
   await expect(cover).toBeVisible();
+  await cover.scrollIntoViewIfNeeded();
   const box = await cover.boundingBox();
   if (!box) throw new Error("Cover has no bounds");
   await page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.2);
@@ -227,7 +228,7 @@ for (const source of ["search", "shelf"] as const) {
     await expect(search).toBeVisible();
     const shelf = page
       .getByRole("region", { name: "Recently added" })
-      .getByRole("link", { name: "Celeste", exact: true });
+      .getByRole("link", { name: "Celeste Backlog", exact: true });
     await expect(shelf).toBeVisible();
     const link = source === "search" ? search : shelf;
     const cover = link.locator("img");
@@ -309,6 +310,7 @@ test("touch presses scale covers without tilt or glare", async ({
   await page.getByRole("searchbox").fill("Celeste");
   const cover = page.locator("[data-tilt-cover]");
   await expect(cover).toBeVisible();
+  await cover.scrollIntoViewIfNeeded();
   const box = await cover.boundingBox();
   if (!box) throw new Error("Cover has no bounds");
   const cdp = await context.newCDPSession(page);
@@ -395,6 +397,7 @@ test("touch on a desktop with a fine primary pointer still presses the cover", a
   await page.getByRole("searchbox").fill("Celeste");
   const cover = page.locator("[data-tilt-cover]");
   await expect(cover).toBeVisible();
+  await cover.scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(
     true,
   );

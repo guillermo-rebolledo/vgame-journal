@@ -5,6 +5,22 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { SearchResult } from "@/lib/catalog";
 import { GameSearch } from "./game-search";
 
+vi.mock("next/navigation", async () => {
+  const { useSyncExternalStore } = await import("react");
+  return {
+    useSearchParams: () =>
+      new URLSearchParams(
+        useSyncExternalStore(
+          (notify) => {
+            window.addEventListener("popstate", notify);
+            return () => window.removeEventListener("popstate", notify);
+          },
+          () => window.location.search,
+        ),
+      ),
+  };
+});
+
 const game = (id: number, title: string): SearchResult => ({
   id,
   title,
@@ -17,6 +33,13 @@ const game = (id: number, title: string): SearchResult => ({
 /** Each fetch waits until the test answers it, in any order; aborts are ignored like a slow network would. */
 let requests: { q: string; answer: (body: unknown, ok?: boolean) => void }[];
 beforeEach(() => {
+  window.history.replaceState(null, "", "/");
+  // Next's native-history integration notifies useSearchParams subscribers.
+  const replace = window.history.replaceState.bind(window.history);
+  vi.spyOn(window.history, "replaceState").mockImplementation((...args) => {
+    replace(...args);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
   requests = [];
   vi.stubGlobal(
     "fetch",
@@ -36,6 +59,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 const box = () => screen.getByRole("searchbox", { name: "Search games" });
@@ -59,7 +83,7 @@ test("explains the minimum length, then shows searching and the results", async 
   await until(1);
   await act(async () => requests[0].answer([game(1, "Celeste")]));
   expect(status()).toBe("1 game found.");
-  expect(titles()).toEqual(["Celeste 2018PC"]);
+  expect(titles()).toEqual(["Celeste2018PC"]);
 });
 
 test("old results make way while a new search loads, and late answers can't replace newer ones", async () => {
@@ -76,7 +100,7 @@ test("old results make way while a new search loads, and late answers can't repl
   await until(3);
   await act(async () => requests[2].answer([game(1, "Celeste")]));
   await act(async () => requests[1].answer([game(9, "Stale")]));
-  expect(titles()).toEqual(["Celeste 2018PC"]);
+  expect(titles()).toEqual(["Celeste2018PC"]);
 });
 
 test("no results suggests what to try", async () => {
@@ -105,5 +129,78 @@ test("a failed search keeps the query and can be retried", async () => {
   expect((box() as HTMLInputElement).value).toBe("celeste");
   await act(async () => requests[1].answer([game(1, "Celeste")]));
   expect(screen.queryByRole("alert")).toBeNull();
-  expect(titles()).toEqual(["Celeste 2018PC"]);
+  expect(titles()).toEqual(["Celeste2018PC"]);
+});
+
+test("broad searches show six matches first and let the user expand and collapse", async () => {
+  const user = userEvent.setup();
+  render(<GameSearch />);
+  await user.type(box(), "game");
+  await until(1);
+  await act(async () =>
+    requests[0].answer(
+      Array.from({ length: 8 }, (_, i) => game(i + 1, `Game ${i + 1}`)),
+    ),
+  );
+  expect(titles()).toHaveLength(6);
+  await user.click(screen.getByRole("button", { name: "Show all 8 matches" }));
+  expect(titles()).toHaveLength(8);
+  await user.click(screen.getByRole("button", { name: "Show fewer matches" }));
+  expect(titles()).toHaveLength(6);
+});
+
+test("narrows the returned matches by release year and platform and can clear filters", async () => {
+  const user = userEvent.setup();
+  render(<GameSearch />);
+  await user.type(box(), "game");
+  await until(1);
+  await act(async () =>
+    requests[0].answer([
+      game(1, "Game original"),
+      { ...game(2, "Game remake"), year: 2024 },
+      { ...game(3, "Game console"), year: 2024, platforms: ["Switch"] },
+    ]),
+  );
+  await user.selectOptions(screen.getByLabelText("Release year"), "2024");
+  expect(titles()).toHaveLength(2);
+  await user.selectOptions(screen.getByLabelText("Platform"), "Switch");
+  expect(titles()).toHaveLength(1);
+  expect(titles()[0]).toContain("Game console");
+  await user.selectOptions(screen.getByLabelText("Release year"), "2018");
+  expect(status()).toContain("No matches with these filters");
+  await user.click(screen.getByRole("button", { name: "Clear filters" }));
+  expect(titles()).toHaveLength(3);
+  expect(requests).toHaveLength(1);
+});
+
+test("restores a shared search including filters and expansion after remount", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/?q=game&year=2024&platform=Switch&all=1",
+  );
+  const user = userEvent.setup();
+  const view = render(<GameSearch />);
+  expect((box() as HTMLInputElement).value).toBe("game");
+  await until(1);
+  const games = Array.from({ length: 8 }, (_, i) => ({
+    ...game(i + 1, `Game ${i + 1}`),
+    year: 2024,
+    platforms: ["Switch"],
+  }));
+  await act(async () => requests[0].answer(games));
+  expect(titles()).toHaveLength(8);
+  expect((screen.getByLabelText("Platform") as HTMLSelectElement).value).toBe(
+    "Switch",
+  );
+  await user.click(screen.getByRole("button", { name: "Show fewer matches" }));
+  expect(new URLSearchParams(window.location.search).has("all")).toBe(false);
+  view.unmount();
+  render(<GameSearch />);
+  await until(2);
+  await act(async () => requests[1].answer(games));
+  expect(titles()).toHaveLength(6);
+  await user.clear(box());
+  expect(window.location.search).toBe("");
+  expect(titles()).toHaveLength(0);
 });
