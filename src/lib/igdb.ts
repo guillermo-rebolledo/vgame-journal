@@ -58,10 +58,13 @@ const limit = createLimiter(4, 8);
 
 let token: { value: string; expiresAt: number } | undefined;
 
-async function accessToken() {
+async function accessToken(signal?: AbortSignal) {
   if (token && token.expiresAt > Date.now()) return token.value;
   const res = await fetch("https://id.twitch.tv/oauth2/token", {
     method: "POST",
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
+      : AbortSignal.timeout(10000),
     body: new URLSearchParams({
       client_id: process.env.TWITCH_CLIENT_ID ?? "",
       client_secret: process.env.TWITCH_CLIENT_SECRET ?? "",
@@ -78,13 +81,20 @@ async function accessToken() {
 }
 
 /** POSTs an Apicalypse query to an IGDB endpoint. */
-async function igdb<T>(endpoint: string, body: string): Promise<T[]> {
+async function igdb<T>(
+  endpoint: string,
+  body: string,
+  signal?: AbortSignal,
+): Promise<T[]> {
   const res = await limit(async () =>
     fetch(`https://api.igdb.com/v4/${endpoint}`, {
       method: "POST",
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
+        : AbortSignal.timeout(10000),
       headers: {
         "Client-ID": process.env.TWITCH_CLIENT_ID ?? "",
-        Authorization: `Bearer ${await accessToken()}`,
+        Authorization: `Bearer ${await accessToken(signal)}`,
       },
       body,
     }),
@@ -143,6 +153,9 @@ type IgdbGame = {
   total_rating_count?: number;
   hypes?: number;
   keywords?: number[];
+  first_release_date?: number;
+  themes?: number[];
+  version_parent?: number;
 };
 
 const RELEASE_DATE_FIELDS = [
@@ -170,6 +183,9 @@ const GAME_FIELDS = [
   "total_rating_count",
   "hypes",
   "keywords",
+  "first_release_date",
+  "themes",
+  "version_parent",
   ...RELEASE_DATE_FIELDS.map((f) => `release_dates.${f}`),
 ].join(",");
 
@@ -205,6 +221,12 @@ const toGame = (g: IgdbGame): SourceGame => ({
   userScore: g.rating ?? null,
   userScoreCount: g.rating_count ?? null,
   popularity: (g.total_rating_count ?? 0) + (g.hypes ?? 0),
+  firstReleaseDate:
+    g.first_release_date === undefined
+      ? null
+      : new Date(g.first_release_date * 1000),
+  themes: g.themes ?? [],
+  versionParent: g.version_parent ?? null,
   fanMade: g.keywords?.some((k) => FAN_KEYWORD_IDS.includes(k)) ?? false,
 });
 
@@ -213,6 +235,28 @@ const toGame = (g: IgdbGame): SourceGame => ({
  * so DLC and fan games don't use up the results the Catalog ranks.
  */
 export const igdbGameSource: GameSource = {
+  async fetchDiscoveryPage(offset, signal) {
+    signal.throwIfAborted();
+    // Visits is primitive 1 (IGDB PopScore); unrelated to search's cumulative ratings/hype.
+    const ranks = await igdb<{ game_id: number; value?: number }>(
+      "popularity_primitives",
+      `fields game_id,value; where popularity_type = 1 & value > 0; sort value desc; limit 100; offset ${Math.trunc(offset)};`,
+      signal,
+    );
+    const ids = [...new Set(ranks.map((r) => r.game_id))];
+    const games = ids.length
+      ? await igdb<IgdbGame>(
+          "games",
+          `fields ${GAME_FIELDS}; where id = (${ids.join(",")}); limit 100;`,
+          signal,
+        )
+      : [];
+    return {
+      ranks: ranks.map((r) => ({ gameId: r.game_id, visits: r.value ?? 0 })),
+      games: games.map(toGame),
+      hasMore: ranks.length === 100,
+    };
+  },
   async search(query) {
     const q = query.replace(/["\\]/g, "");
     const games = await igdb<IgdbGame>(

@@ -1,10 +1,22 @@
 /** The external game catalog (IGDB). The real implementation is `igdb.ts`; tests use `src/test/fake-game-source.ts`. */
 export interface GameSource {
+  fetchDiscoveryPage(
+    offset: number,
+    signal: AbortSignal,
+  ): Promise<DiscoveryPage>;
   search(query: string): Promise<SourceGame[]>;
   fetchGame(id: number): Promise<SourceGame | null>;
   fetchBySlug(slug: string): Promise<SourceGame | null>;
   fetchReleaseDates(ids: number[]): Promise<Map<number, SourceReleaseDate[]>>;
 }
+
+export type DiscoveryKey = "recent" | "popular";
+export type DiscoveryPage = {
+  /** Descending Visits order; the Catalog resolves ties across page boundaries. */
+  ranks: { gameId: number; visits: number }[];
+  games: SourceGame[];
+  hasMore: boolean;
+};
 
 /** IGDB game types; the index is IGDB's `game_types` id. */
 export const GAME_TYPES = [
@@ -52,6 +64,9 @@ export type SourceGame = {
   popularity: number;
   /** Fan games, unofficial ports and the like. */
   fanMade: boolean;
+  firstReleaseDate?: Date | null;
+  themes?: number[];
+  versionParent?: number | null;
 };
 
 export type DatePrecision = "day" | "month" | "quarter" | "year" | "tbd";

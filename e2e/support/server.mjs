@@ -7,6 +7,8 @@ const database = new PGlite();
 await migrate(drizzle(database), { migrationsFolder: "./drizzle" });
 const mailbox = [];
 const collectionDelays = new Map();
+const discoveryState = { fail: false, hold: false };
+const discoveryWaiters = [];
 const server = createServer(async (request, response) => {
   try {
     let body = "";
@@ -14,6 +16,12 @@ const server = createServer(async (request, response) => {
     response.setHeader("Content-Type", "application/json");
     if (request.url === "/query" && request.method === "POST") {
       const { sql, params } = JSON.parse(body);
+      if (sql.includes('from "discovery_snapshot"')) {
+        if (discoveryState.fail)
+          throw new Error("Synthetic discovery read failure");
+        if (discoveryState.hold)
+          await new Promise((resolve) => discoveryWaiters.push(resolve));
+      }
       const delay = collectionDelays.get(params?.[0]);
       if (delay && sql.includes('from "journal_entry"'))
         await new Promise((resolve) => setTimeout(resolve, delay));
@@ -37,6 +45,14 @@ const server = createServer(async (request, response) => {
       );
       if (!rows.length) throw new Error("Unknown test user");
       collectionDelays.set(rows[0].id, milliseconds);
+      response.end("{}");
+    } else if (
+      request.url === "/discovery-state" &&
+      request.method === "POST"
+    ) {
+      Object.assign(discoveryState, JSON.parse(body));
+      if (!discoveryState.hold)
+        for (const resolve of discoveryWaiters.splice(0)) resolve();
       response.end("{}");
     } else if (request.url === "/emails" && request.method === "POST") {
       mailbox.push(JSON.parse(body));

@@ -1,9 +1,23 @@
 import type { GameSource, SourceGame } from "@/lib/game-source";
 
 /** In-memory GameSource: title-substring search, and logs of searches and release date fetches so tests can see what was asked. */
-export function createFakeGameSource(games: SourceGame[]) {
+export function createFakeGameSource(
+  games: (SourceGame & { visits?: number })[],
+) {
   const source = {
     searches: 0,
+    async fetchDiscoveryPage(offset: number, signal: AbortSignal) {
+      signal.throwIfAborted();
+      const ranked = games.toSorted(
+        (a, b) => (b.visits ?? 0) - (a.visits ?? 0),
+      );
+      const page = ranked.slice(offset, offset + 100);
+      return {
+        ranks: page.map((g) => ({ gameId: g.id, visits: g.visits ?? 0 })),
+        games: page,
+        hasMore: offset + 100 < ranked.length,
+      };
+    },
     releaseDateFetches: [] as number[][],
     async search(query: string) {
       source.searches++;
@@ -33,7 +47,9 @@ export function createFakeGameSource(games: SourceGame[]) {
 
 let nextId = 1;
 
-export const sourceGame = (overrides: Partial<SourceGame> = {}): SourceGame => {
+export const sourceGame = (
+  overrides: Partial<SourceGame> & { visits?: number } = {},
+): SourceGame & { visits?: number } => {
   const id = overrides.id ?? nextId++;
   return {
     id,

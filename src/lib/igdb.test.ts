@@ -131,3 +131,93 @@ test("starts at most 4 requests a second and keeps at most 8 open", async () => 
   await vi.advanceTimersByTimeAsync(1000);
   expect(started).toBe(10);
 });
+
+test("discovery retrieves Visits pages and batched metadata, preserving first release and content tags", async () => {
+  const requests: { url: string; body: string }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      requests.push({ url, body: String(init?.body) });
+      return Response.json(
+        url.endsWith("popularity_primitives")
+          ? Array.from({ length: 100 }, (_, i) => ({
+              game_id: i + 1,
+              value: 100 - i,
+            }))
+          : [
+              {
+                id: 1,
+                name: "Game",
+                slug: "game",
+                first_release_date: 1790000000,
+                themes: [42],
+                version_parent: 2,
+              },
+            ],
+      );
+    }),
+  );
+  const page = await igdbGameSource.fetchDiscoveryPage(
+    100,
+    new AbortController().signal,
+  );
+  expect(page.hasMore).toBe(true);
+  expect(page.ranks[0]).toEqual({ gameId: 1, visits: 100 });
+  expect(page.games[0]).toMatchObject({
+    firstReleaseDate: new Date(1790000000000),
+    themes: [42],
+    versionParent: 2,
+  });
+  expect(requests).toHaveLength(2);
+  expect(requests[0].body).toContain("popularity_type = 1");
+  expect(requests[0].body).toContain("offset 100");
+});
+
+test("discovery returns exhausted and missing metadata results without individual game requests", async () => {
+  const endpoints: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      endpoints.push(url.split("/").at(-1) ?? "");
+      return Response.json(
+        url.endsWith("popularity_primitives")
+          ? [{ game_id: 7, value: 2 }, { game_id: 8 }]
+          : [],
+      );
+    }),
+  );
+  expect(
+    await igdbGameSource.fetchDiscoveryPage(0, new AbortController().signal),
+  ).toEqual({
+    ranks: [
+      { gameId: 7, visits: 2 },
+      { gameId: 8, visits: 0 },
+    ],
+    games: [],
+    hasMore: false,
+  });
+  expect(endpoints).toEqual(["popularity_primitives", "games"]);
+});
+
+test("discovery propagates provider errors and cancellation instead of returning successful partial results", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      url.includes("twitch")
+        ? Response.json({ access_token: "t", expires_in: 3600 })
+        : new Response("Unavailable", { status: 503 }),
+    ),
+  );
+  await expect(
+    igdbGameSource.fetchDiscoveryPage(0, new AbortController().signal),
+  ).rejects.toThrow("503");
+  const controller = new AbortController();
+  controller.abort(new DOMException("Timed out", "TimeoutError"));
+  await expect(
+    igdbGameSource.fetchDiscoveryPage(0, controller.signal),
+  ).rejects.toThrow("Timed out");
+});

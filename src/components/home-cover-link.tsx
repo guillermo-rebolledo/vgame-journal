@@ -6,6 +6,7 @@ import {
   createContext,
   type ReactNode,
   useContext,
+  useId,
   useState,
   ViewTransition,
 } from "react";
@@ -34,7 +35,8 @@ export function HomeCoverLink({
   cover: ReactNode;
 }) {
   const selection = useContext(Selection);
-  const id = `${source}-${gameId}`;
+  const instance = useId();
+  const id = `${source}-${gameId}-${instance}`;
   return (
     <Link
       {...props}

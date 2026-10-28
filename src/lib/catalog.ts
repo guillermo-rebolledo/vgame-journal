@@ -1,7 +1,15 @@
 import { and, desc, eq, getTableColumns, gt, inArray, sql } from "drizzle-orm";
 import { type Db, db } from "@/db";
-import { game, journalEntry, releaseDate, searchCache } from "@/db/schema";
 import {
+  discoverySnapshot,
+  game,
+  journalEntry,
+  releaseDate,
+  scheduledRefresh,
+  searchCache,
+} from "@/db/schema";
+import {
+  type DiscoveryKey,
   type GameSource,
   type SourceGame,
   type SourceReleaseDate,
@@ -42,7 +50,16 @@ export function createCatalog(db: Db, source: GameSource) {
     if (games.length === 0) return;
     const syncedAt = new Date();
     const rows = games.map(
-      ({ type, releaseDates, popularity, fanMade, ...g }) => ({
+      ({
+        type,
+        releaseDates,
+        popularity,
+        fanMade,
+        firstReleaseDate,
+        themes,
+        versionParent,
+        ...g
+      }) => ({
         ...g,
         syncedAt,
       }),
@@ -100,7 +117,137 @@ export function createCatalog(db: Db, source: GameSource) {
     return { ...found, releaseDates };
   }
 
+  const recent = (date: number | undefined, now: Date) =>
+    date !== undefined &&
+    date >= now.getTime() - 90 * 86400000 &&
+    date <= now.getTime();
+
+  async function refreshShelf(key: DiscoveryKey, signal: AbortSignal) {
+    const now = new Date();
+    const selected = new Map<number, { game: SourceGame; visits: number }>();
+    for (let offset = 0; ; ) {
+      signal.throwIfAborted();
+      // A source that ignores cancellation still cannot publish after the deadline.
+      const page = await new Promise<
+        Awaited<ReturnType<GameSource["fetchDiscoveryPage"]>>
+      >((resolve, reject) => {
+        const abort = () => reject(signal.reason);
+        signal.addEventListener("abort", abort, { once: true });
+        source
+          .fetchDiscoveryPage(offset, signal)
+          .then(resolve, reject)
+          .finally(() => signal.removeEventListener("abort", abort));
+      });
+      signal.throwIfAborted();
+      for (const rank of page.ranks) {
+        const g = page.games.find((g) => g.id === rank.gameId);
+        if (
+          !Number.isFinite(rank.visits) ||
+          rank.visits <= 0 ||
+          !g ||
+          !STANDALONE_TYPES.has(g.type) ||
+          g.fanMade ||
+          g.versionParent ||
+          g.themes?.includes(42) ||
+          !g.title?.trim() ||
+          !/^[a-z0-9-]+$/.test(g.slug ?? "") ||
+          !g.coverImageId?.trim() ||
+          (key === "recent" && !recent(g.firstReleaseDate?.getTime(), now))
+        )
+          continue;
+        if (
+          !selected.has(g.id) ||
+          rank.visits > (selected.get(g.id)?.visits ?? 0)
+        )
+          selected.set(g.id, { game: g, visits: rank.visits });
+      }
+      const ranked = [...selected.values()].sort(
+        (a, b) => b.visits - a.visits || a.game.id - b.game.id,
+      );
+      // Read past a tied boundary before deciding which four canonical IDs win.
+      const tail = page.ranks.at(-1)?.visits;
+      if (
+        !page.hasMore ||
+        (ranked.length >= 4 && tail !== undefined && tail < ranked[3].visits)
+      ) {
+        const games = ranked.slice(0, 4).map((r) => r.game);
+        await save(games);
+        signal.throwIfAborted();
+        const values = {
+          key,
+          gameIds: games.map((g) => g.id),
+          refreshedAt: new Date(),
+          firstReleaseDates:
+            key === "recent"
+              ? (Object.fromEntries(
+                  games.map((g) => [g.id, g.firstReleaseDate?.getTime()]),
+                ) as Record<string, number>)
+              : {},
+        };
+        await db
+          .insert(discoverySnapshot)
+          .values(values)
+          .onConflictDoUpdate({ target: discoverySnapshot.key, set: values });
+        return games.length;
+      }
+      if (page.ranks.length === 0)
+        throw new Error("Discovery source returned a non-progressing page");
+      offset += page.ranks.length;
+    }
+  }
+
   return {
+    /** Shared durable selections only: Home never calls the external provider. */
+    async discovery() {
+      const snapshots = await db.select().from(discoverySnapshot);
+      const now = new Date();
+      const shelves = [];
+      for (const key of ["recent", "popular"] as const) {
+        const snapshot = snapshots.find((s) => s.key === key);
+        if (!snapshot) continue;
+        const ids = snapshot.gameIds.filter(
+          (id) =>
+            key !== "recent" || recent(snapshot.firstReleaseDates[id], now),
+        );
+        const games = (await load(ids)).filter(
+          (g) => g.coverImageId && g.title && g.slug,
+        );
+        if (games.length)
+          shelves.push({ key, games, refreshedAt: snapshot.refreshedAt });
+      }
+      return shelves;
+    },
+    /** Each selection succeeds independently; failures retain its last successful snapshot. */
+    async refreshDiscovery(signal?: AbortSignal) {
+      const results: Partial<Record<DiscoveryKey, number | "failed">> = {};
+      for (const key of ["recent", "popular"] as const) {
+        try {
+          results[key] = await refreshShelf(
+            key,
+            signal ?? AbortSignal.timeout(45000),
+          );
+        } catch {
+          console.error(`Discovery refresh failed: ${key}`);
+          results[key] = "failed";
+        }
+      }
+      return results;
+    },
+    /** Cross-instance lease, also suppressing immediate cron retries after a failure. */
+    async claimScheduledRefresh() {
+      const now = new Date();
+      const nextAttemptAt = new Date(now.getTime() + 5 * 60000);
+      const claimed = await db
+        .insert(scheduledRefresh)
+        .values({ key: "daily", nextAttemptAt })
+        .onConflictDoUpdate({
+          target: scheduledRefresh.key,
+          set: { nextAttemptAt },
+          setWhere: sql`${scheduledRefresh.nextAttemptAt} <= ${now.toISOString()}`,
+        })
+        .returning();
+      return claimed.length > 0;
+    },
     /** Slugs of every Catalog game, most recently synced first, for the sitemap. Google allows 50,000 URLs per sitemap. */
     async indexedGames(limit = 10_000) {
       return db
