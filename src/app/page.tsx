@@ -29,7 +29,7 @@ const siteSchema = {
 
 export default function Home() {
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-4 px-4 py-24">
+    <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-24">
       <JsonLd data={siteSchema} />
       <h1 className="font-semibold text-4xl tracking-tight sm:text-6xl">
         {SITE_NAME}
