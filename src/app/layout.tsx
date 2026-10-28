@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageTransition } from "@/components/page-transition";
@@ -58,8 +59,24 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <header className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 px-4 py-1.5">
             <Link
               href="/"
-              className="inline-flex min-h-11 items-center whitespace-nowrap rounded-md font-semibold tracking-tight outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-md font-semibold tracking-tight outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
+              <Image
+                src="/logo.png"
+                alt=""
+                width={192}
+                height={132}
+                loading="eager"
+                className="hidden h-7 w-auto dark:block"
+              />
+              <Image
+                src="/logo-light.png"
+                alt=""
+                width={192}
+                height={132}
+                loading="eager"
+                className="h-7 w-auto dark:hidden"
+              />
               {SITE_NAME}
             </Link>
             <Suspense fallback={<ThemeToggle />}>
