@@ -39,7 +39,9 @@ test("Home guides new users, and search survives slow, stale and failed requests
   await expect(
     page.getByRole("link", { name: "Sign up to start a Journal" }),
   ).toHaveAttribute("href", "/sign-up");
-  await expect(page.getByText(/at least 2 characters/)).toBeVisible();
+  await expect(
+    page.getByRole("searchbox", { name: "Search games" }),
+  ).toBeVisible();
   await snap(page, testInfo, "home-signed-out", true);
 
   // The first query answers slowly and late; the newer one must win.
