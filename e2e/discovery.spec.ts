@@ -14,7 +14,7 @@ test.beforeAll(async ({ request }) => {
   });
 });
 
-test("guests see attributed discovery after search, with keyboard links and responsive grids", async ({
+test("guests see discovery after search, with dates below tiles, keyboard links and responsive grids", async ({
   page,
 }) => {
   await page.goto("/");
@@ -28,14 +28,21 @@ test("guests see attributed discovery after search, with keyboard links and resp
   });
   await expect(recent.getByRole("link")).toHaveCount(4);
   await expect(popular.getByRole("link")).toHaveCount(4);
-  await expect(
-    recent.getByText(
-      "Popular releases from the last 90 days · Based on IGDB page visits.",
-    ),
-  ).toBeVisible();
-  await expect(
-    popular.getByText("Based on IGDB page visits.", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText(/Type at least 2 characters/)).toHaveCount(0);
+  await expect(page.getByText(/Based on IGDB page visits/)).toHaveCount(0);
+  for (const shelf of [recent, popular]) {
+    await expect(shelf.locator("time")).toBeVisible();
+    expect(
+      await shelf.locator("ul").evaluate((tiles) => {
+        const date = tiles.parentElement?.querySelector("time");
+        return (
+          date &&
+          tiles.getBoundingClientRect().bottom <=
+            date.getBoundingClientRect().top
+        );
+      }),
+    ).toBe(true);
+  }
   await expect(recent.locator("time")).toHaveAttribute("datetime", /T/);
   expect(
     await page

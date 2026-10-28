@@ -87,7 +87,6 @@ export function GameSearch() {
         <Input
           type="search"
           aria-label="Search games"
-          aria-describedby="game-search-hint"
           placeholder="Search games…"
           value={query}
           onChange={(e) => {
@@ -100,9 +99,6 @@ export function GameSearch() {
           }}
           className="h-11"
         />
-        <p id="game-search-hint" className="text-muted-foreground text-sm">
-          Type at least {MIN_QUERY} characters of a game’s title.
-        </p>
       </div>
       <output
         aria-live="polite"
