@@ -228,7 +228,7 @@ export function GameRecording({
         >
           <DrawerHeader className="shrink-0 border-b px-6 py-5">
             <div className="mx-auto flex w-full max-w-xl items-start justify-between gap-4">
-              <div className="flex min-w-0 flex-col gap-1">
+              <div className="flex min-w-0 flex-col gap-1 text-left">
                 <DrawerDescription>{gameTitle}</DrawerDescription>
                 <DrawerTitle>
                   {editor === "add" ? "Add playthrough" : "Edit playthrough"}

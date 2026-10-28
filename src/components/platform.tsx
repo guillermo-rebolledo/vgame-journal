@@ -66,7 +66,7 @@ export function PlatformName({ platform }: { platform: string }) {
   return (
     <span className="inline-flex max-w-full items-center gap-1.5 align-baseline">
       <PlatformIcon platform={platform} />
-      <span className="min-w-0 break-words">{platform}</span>
+      <span className="min-w-0 self-baseline break-words">{platform}</span>
     </span>
   );
 }
