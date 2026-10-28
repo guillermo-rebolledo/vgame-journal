@@ -216,11 +216,6 @@ async function Discovery() {
           shelf.key === "recent" ? "Recently released" : "Popular right now"
         }
         games={shelf.games.map((g) => ({ ...g, gameId: g.id }))}
-        description={
-          shelf.key === "recent"
-            ? "Popular releases from the last 90 days · Based on IGDB page visits."
-            : "Based on IGDB page visits."
-        }
         refreshedAt={shelf.refreshedAt}
       />
     ));
@@ -233,13 +228,11 @@ async function Discovery() {
 function Shelf({
   title,
   games,
-  description,
   refreshedAt,
 }: {
   title: string;
   games: (Pick<LibraryEntry, "gameId" | "title" | "slug" | "coverImageId"> &
     Partial<Pick<LibraryEntry, "status">>)[];
-  description?: string;
   refreshedAt?: Date;
 }) {
   const id = `home-${title.toLowerCase().replace(/ /g, "-")}`;
@@ -248,22 +241,6 @@ function Shelf({
       <h2 id={id} className="font-semibold text-xl">
         {title}
       </h2>
-      {description && (
-        <p className="text-muted-foreground text-sm">{description}</p>
-      )}
-      {refreshedAt && (
-        <p className="text-muted-foreground text-xs">
-          Updated{" "}
-          <time dateTime={refreshedAt.toISOString()}>
-            {refreshedAt.toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-              timeZone: "UTC",
-            })}
-          </time>
-        </p>
-      )}
       <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {games.map((e) => (
           <li key={e.gameId}>
@@ -291,6 +268,19 @@ function Shelf({
           </li>
         ))}
       </ul>
+      {refreshedAt && (
+        <p className="text-muted-foreground text-xs">
+          Updated{" "}
+          <time dateTime={refreshedAt.toISOString()}>
+            {refreshedAt.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+              timeZone: "UTC",
+            })}
+          </time>
+        </p>
+      )}
     </section>
   );
 }
