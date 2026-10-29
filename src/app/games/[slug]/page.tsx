@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense, ViewTransition } from "react";
+import { DiscoveryBoundary } from "@/components/discovery-boundary";
 import { JsonLd } from "@/components/json-ld";
 import { PlatformName, PlatformNames } from "@/components/platform";
 import { Playthroughs } from "@/components/playthroughs";
@@ -9,6 +10,7 @@ import { SITE_NAME, SITE_URL } from "@/config/site";
 import { coverUrl } from "@/lib/game-source";
 import { regionName, releaseLabel } from "@/lib/release-dates";
 import { findGame } from "./game";
+import { GameTagShelves } from "./tag-shelves";
 
 /** Search engines show about 160 characters; a summary cut mid-word reads worse than one cut at a space. */
 function clamp(text: string, max = 160) {
@@ -179,6 +181,11 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
           </section>
         </div>
       </div>
+      <DiscoveryBoundary>
+        <Suspense fallback={null}>
+          <GameTagShelves game={game} />
+        </Suspense>
+      </DiscoveryBoundary>
     </article>
   );
 }

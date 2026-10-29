@@ -6,6 +6,13 @@ export function createFakeGameSource(
 ) {
   const source = {
     searches: 0,
+    async fetchTagGames(slug: string, limit: number, signal: AbortSignal) {
+      signal.throwIfAborted();
+      return games
+        .filter((g) => g.tags.includes(slug))
+        .toSorted((a, b) => b.popularity - a.popularity || a.id - b.id)
+        .slice(0, limit);
+    },
     async fetchDiscoveryRanks(excludedIds: number[], signal: AbortSignal) {
       signal.throwIfAborted();
       const ranks = games
@@ -84,6 +91,7 @@ export const sourceGame = (
     summary: null,
     coverImageId: null,
     genres: [],
+    tags: [],
     platforms: [],
     releaseDates: [],
     criticScore: null,

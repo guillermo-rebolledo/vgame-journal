@@ -403,3 +403,100 @@ test("recent pool and Visits lookup propagate HTTP failures and cancellation", a
     "Timed out",
   );
 });
+
+test("game tags map IDs in vocabulary order and merge roguelike variants without exposing unknown or Erotic tags", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      Response.json(
+        url.includes("twitch")
+          ? { access_token: "t", expires_in: 3600 }
+          : [
+              {
+                id: 113112,
+                name: "Hades",
+                slug: "hades--1",
+                genres: [
+                  { id: 12, name: "Role-playing (RPG)" },
+                  { id: 25, name: "Hack and slash/Beat 'em up" },
+                ],
+                themes: [42, 17],
+                player_perspectives: [3],
+                keywords: [17292, 416, 2228, 35, 999999],
+              },
+            ],
+      ),
+    ),
+  );
+  const game = await igdbGameSource.fetchGame(113112);
+  expect(game?.tags).toEqual([
+    "roguelike",
+    "dungeon-crawler",
+    "greek-mythology",
+    "rpg",
+    "hack-and-slash",
+    "fantasy",
+    "isometric",
+  ]);
+  expect(game?.genres).toEqual([
+    "Role-playing (RPG)",
+    "Hack and slash/Beat 'em up",
+  ]);
+});
+
+test("tag games query merged keywords and source eligibility, ranked by rating count with ID ties", async () => {
+  const bodies: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      bodies.push(String(init.body));
+      return Response.json([
+        {
+          id: 3,
+          name: "Third",
+          slug: "third",
+          total_rating_count: 20,
+          hypes: 1000,
+        },
+        { id: 2, name: "Second", slug: "second", total_rating_count: 20 },
+        { id: 1, name: "First", slug: "first", total_rating_count: 30 },
+      ]);
+    }),
+  );
+  const games = await igdbGameSource.fetchTagGames(
+    "roguelike",
+    24,
+    AbortSignal.timeout(1000),
+  );
+  expect(games.map((g) => g.id)).toEqual([1, 2, 3]);
+  expect(games.map((g) => g.popularity)).toEqual([30, 20, 20]);
+  expect(bodies[0]).toContain("keywords = (416,17292)");
+  for (const filter of [
+    "game_type = (0,4,8)",
+    "version_parent = null",
+    "keywords != (2004,24124,27216,25522)",
+    "themes != (42)",
+    "cover != null",
+    "sort total_rating_count desc",
+  ])
+    expect(bodies[0]).toContain(filter);
+  for (const [slug, field] of [
+    ["rpg", "genres = (12)"],
+    ["fantasy", "themes = (17)"],
+    ["isometric", "player_perspectives = (3)"],
+  ]) {
+    await igdbGameSource.fetchTagGames(slug, 24, AbortSignal.timeout(1000));
+    expect(bodies.at(-1)).toContain(field);
+  }
+  const count = bodies.length;
+  expect(
+    await igdbGameSource.fetchTagGames(
+      'unknown";',
+      24,
+      AbortSignal.timeout(1000),
+    ),
+  ).toEqual([]);
+  expect(bodies).toHaveLength(count);
+});

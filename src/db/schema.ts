@@ -119,6 +119,7 @@ export const game = pgTable(
     summary: text("summary"),
     coverImageId: text("cover_image_id"),
     genres: text("genres").array().notNull(),
+    tags: text("tags").array(),
     platforms: text("platforms").array().notNull(),
     criticScore: real("critic_score"),
     criticScoreCount: integer("critic_score_count"),

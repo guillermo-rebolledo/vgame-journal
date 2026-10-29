@@ -14,6 +14,11 @@ export interface GameSource {
   ): Promise<{ games: SourceGame[]; hasMore: boolean }>;
   /** Visits only for the supplied candidate IDs; missing ranks remain missing. */
   fetchVisits(ids: number[], signal: AbortSignal): Promise<DiscoveryRank[]>;
+  fetchTagGames(
+    slug: string,
+    limit: number,
+    signal: AbortSignal,
+  ): Promise<SourceGame[]>;
   fetchGames(ids: number[], signal: AbortSignal): Promise<SourceGame[]>;
   search(query: string): Promise<SourceGame[]>;
   fetchGame(id: number): Promise<SourceGame | null>;
@@ -61,6 +66,7 @@ export type SourceGame = {
   summary: string | null;
   coverImageId: string | null;
   genres: string[];
+  tags: string[];
   platforms: string[];
   releaseDates: SourceReleaseDate[];
   criticScore: number | null;

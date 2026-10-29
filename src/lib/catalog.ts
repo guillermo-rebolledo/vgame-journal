@@ -17,6 +17,7 @@ import {
   type SourceReleaseDate,
   STANDALONE_TYPES,
 } from "@/lib/game-source";
+import { GAME_TAGS, type TagShelf } from "@/lib/game-tags";
 import { igdbGameSource } from "@/lib/igdb";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -328,7 +329,44 @@ export function createCatalog(db: Db, source: GameSource) {
     return games.length;
   }
 
+  async function tagGames(slug: string) {
+    return source.fetchTagGames(slug, 24, AbortSignal.timeout(10000));
+  }
+
   return {
+    tagGames,
+    /** Shelves stay transient; only visiting a recommended game adds it to Catalog. */
+    async tagShelves(
+      gameId: number,
+      tags: string[] | null,
+      fetchTag: (slug: string) => Promise<SourceGame[]> = tagGames,
+    ): Promise<TagShelf[]> {
+      const explorable = GAME_TAGS.filter(
+        (tag) => !tag.broad && tags?.includes(tag.slug),
+      ).slice(0, 8);
+      // ponytail: use IGDB /multiquery if eight rate-limited cold tag lookups become noticeable.
+      return (
+        await Promise.all(
+          explorable.map(async (tag) => {
+            const candidates = await fetchTag(tag.slug);
+            const unique = new Map<number, SourceGame>();
+            for (const g of candidates.toSorted(
+              (a, b) => b.popularity - a.popularity || a.id - b.id,
+            )) {
+              if (g.id !== gameId && homepageEligible(g) && !unique.has(g.id))
+                unique.set(g.id, g);
+            }
+            const games = [...unique.values()].slice(0, 6).map((g) => ({
+              id: g.id,
+              title: g.title,
+              slug: g.slug,
+              coverImageId: g.coverImageId as string,
+            }));
+            return { tag, games };
+          }),
+        )
+      ).filter((shelf) => shelf.games.length > 0);
+    },
     /** Shared durable selections only: Home never calls the external provider. */
     async discovery() {
       const snapshots = await db.select().from(discoverySnapshot);
@@ -417,7 +455,19 @@ export function createCatalog(db: Db, source: GameSource) {
     /** A Catalog game by slug; one nobody has searched yet (a shared link) is fetched from the GameSource and kept. */
     async findBySlug(slug: string) {
       const local = await loadBySlug(slug);
-      if (local) return local;
+      if (local) {
+        if (local.tags !== null) return local;
+        try {
+          const refreshed = await source.fetchGame(local.id);
+          if (refreshed) {
+            await save([refreshed]);
+            return (await loadBySlug(refreshed.slug)) ?? local;
+          }
+        } catch {
+          // An optional tag refresh must never hide an existing Catalog game.
+        }
+        return local;
+      }
       const fetched = await source.fetchBySlug(slug);
       if (!fetched || !STANDALONE_TYPES.has(fetched.type) || fetched.fanMade)
         return null;
