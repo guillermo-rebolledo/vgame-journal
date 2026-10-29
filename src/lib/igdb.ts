@@ -1,4 +1,5 @@
 import {
+  compareTagGames,
   type DatePrecision,
   GAME_TYPES,
   type GameSource,
@@ -6,6 +7,8 @@ import {
   type SourceReleaseDate,
   STANDALONE_TYPES,
 } from "@/lib/game-source";
+import { GAME_TAGS } from "@/lib/game-tags";
+import { IGDB_TAGS } from "@/lib/igdb-tags";
 
 // Server-only: the Twitch secret never reaches the browser, and no client calls IGDB.
 
@@ -142,7 +145,8 @@ type IgdbGame = {
   slug: string;
   summary?: string;
   cover?: { image_id: string };
-  genres?: { name: string }[];
+  genres?: { id: number; name: string }[];
+  player_perspectives?: number[];
   platforms?: { name: string }[];
   remasters?: { platforms?: { name: string }[] }[];
   ports?: { platforms?: { name: string }[] }[];
@@ -173,7 +177,9 @@ const GAME_FIELDS = [
   "slug",
   "summary",
   "cover.image_id",
+  "genres.id",
   "genres.name",
+  "player_perspectives",
   "platforms.name",
   "remasters.platforms.name",
   "ports.platforms.name",
@@ -208,6 +214,14 @@ const toGame = (g: IgdbGame): SourceGame => ({
   summary: g.summary ?? null,
   coverImageId: g.cover?.image_id ?? null,
   genres: g.genres?.map((x) => x.name) ?? [],
+  tags: GAME_TAGS.filter((tag) => {
+    const mapping = IGDB_TAGS[tag.slug];
+    const ids =
+      mapping.field === "genres"
+        ? g.genres?.map((genre) => genre.id)
+        : g[mapping.field];
+    return ids?.some((id) => mapping.ids.includes(id));
+  }).map((tag) => tag.slug),
   // A remaster or port is logged as the base game on its platform (e.g. The Last of Us on PS5).
   platforms: [
     ...new Set(
@@ -236,6 +250,22 @@ const toGame = (g: IgdbGame): SourceGame => ({
  * so DLC and fan games don't use up the results the Catalog ranks.
  */
 export const igdbGameSource: GameSource = {
+  async fetchTagGames(slug, count, signal) {
+    signal.throwIfAborted();
+    const known = GAME_TAGS.find((tag) => tag.slug === slug);
+    const tag = known && IGDB_TAGS[known.slug];
+    if (!tag) return [];
+    const games = await igdb<IgdbGame>(
+      "games",
+      `fields ${GAME_FIELDS}; where ${tag.field} = (${tag.ids}) & game_type = (${STANDALONE_TYPE_IDS}) & version_parent = null & keywords != (${FAN_KEYWORD_IDS}) & themes != (42) & cover != null; sort total_rating_count desc; limit ${Math.max(1, Math.min(500, Math.trunc(count)))};`,
+      signal,
+    );
+    signal.throwIfAborted();
+    // IGDB rejects multi-field sorting; tag popularity counts ratings, excluding hypes.
+    return games
+      .map((g) => ({ ...toGame(g), popularity: g.total_rating_count ?? 0 }))
+      .sort(compareTagGames);
+  },
   async fetchDiscoveryRanks(excludedIds, signal) {
     signal.throwIfAborted();
     // IGDB supports ID exclusions, but rejects value filters and multi-field sorting.

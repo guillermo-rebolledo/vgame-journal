@@ -1,4 +1,8 @@
-import type { GameSource, SourceGame } from "@/lib/game-source";
+import {
+  compareTagGames,
+  type GameSource,
+  type SourceGame,
+} from "@/lib/game-source";
 
 /** In-memory GameSource: title-substring search, and logs of searches and release date fetches so tests can see what was asked. */
 export function createFakeGameSource(
@@ -6,6 +10,13 @@ export function createFakeGameSource(
 ) {
   const source = {
     searches: 0,
+    async fetchTagGames(slug: string, limit: number, signal: AbortSignal) {
+      signal.throwIfAborted();
+      return games
+        .filter((g) => g.tags.includes(slug))
+        .toSorted(compareTagGames)
+        .slice(0, limit);
+    },
     async fetchDiscoveryRanks(excludedIds: number[], signal: AbortSignal) {
       signal.throwIfAborted();
       const ranks = games
@@ -84,6 +95,7 @@ export const sourceGame = (
     summary: null,
     coverImageId: null,
     genres: [],
+    tags: [],
     platforms: [],
     releaseDates: [],
     criticScore: null,

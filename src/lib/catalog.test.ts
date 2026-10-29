@@ -371,3 +371,146 @@ test("the sitemap gets every catalog game, most recently synced first", async ()
   ]);
   expect(await catalog.indexedGames(1)).toHaveLength(1);
 });
+
+test("tags survive saving and finding a game by slug", async () => {
+  const source = createFakeGameSource([
+    sourceGame({
+      title: "Hades",
+      slug: "hades--1",
+      tags: ["roguelike", "rpg"],
+    }),
+  ]);
+  const catalog = createCatalog(await createTestDb(), source);
+  await catalog.search("hades");
+  expect((await catalog.findBySlug("hades--1"))?.tags).toEqual([
+    "roguelike",
+    "rpg",
+  ]);
+});
+
+test("older games refresh unknown tags once, retaining local data on source failure", async () => {
+  const db = await createTestDb();
+  await db.insert(game).values({
+    id: 901,
+    title: "Old Hades",
+    slug: "hades--1",
+    genres: [],
+    platforms: [],
+    syncedAt: new Date(),
+  });
+  const source = createFakeGameSource([
+    sourceGame({
+      id: 901,
+      title: "Hades",
+      slug: "hades--1",
+      tags: ["roguelike"],
+    }),
+  ]);
+  const fetchGame = vi
+    .spyOn(source, "fetchGame")
+    .mockRejectedValueOnce(new Error("Offline"));
+  const catalog = createCatalog(db, source);
+  expect(await catalog.findBySlug("hades--1")).toMatchObject({
+    title: "Old Hades",
+    tags: null,
+  });
+  expect(await catalog.findBySlug("hades--1")).toMatchObject({
+    title: "Hades",
+    tags: ["roguelike"],
+  });
+  await catalog.findBySlug("hades--1");
+  expect(fetchGame).toHaveBeenCalledTimes(2);
+});
+
+test("tag shelves exclude the current game, dedupe and keep six most-rated eligible games without saving them", async () => {
+  const db = await createTestDb();
+  const games = Array.from({ length: 9 }, (_, i) =>
+    sourceGame({
+      id: i + 1,
+      tags: ["roguelike"],
+      popularity: 100 - i,
+      coverImageId: "cover",
+    }),
+  );
+  const source = createFakeGameSource([
+    ...games,
+    games[1],
+    sourceGame({
+      id: 100,
+      tags: ["roguelike"],
+      popularity: 200,
+      type: "port",
+      coverImageId: "cover",
+    }),
+    ...[
+      { type: "dlc_addon" as const },
+      { fanMade: true },
+      { versionParent: 2 },
+      { themes: [42] },
+      { coverImageId: null },
+      { title: " " },
+      { slug: "bad/slug" },
+    ].map((overrides, i) =>
+      sourceGame({
+        id: 110 + i,
+        tags: ["roguelike"],
+        popularity: 200,
+        coverImageId: "cover",
+        ...overrides,
+      }),
+    ),
+  ]);
+  const catalog = createCatalog(db, source);
+  const shelves = await catalog.tagShelves(1, [
+    "adventure",
+    "indie",
+    "action",
+    "rpg",
+    "roguelike",
+    "unknown",
+  ]);
+  expect(shelves.map((s) => s.tag.slug)).toEqual(["roguelike"]);
+  expect(shelves[0].games.map((g) => g.id)).toEqual([2, 3, 4, 5, 6, 7]);
+  expect(await db.select().from(game)).toEqual([]);
+});
+
+test("tag shelves use vocabulary order, cap at eight and resolve popularity ties by ID", async () => {
+  const tags = [
+    "fantasy",
+    "rpg",
+    "greek-mythology",
+    "dungeon-crawler",
+    "soulslike",
+    "roguelike",
+    "metroidvania",
+    "deck-building",
+    "bullet-hell",
+    "survival-horror",
+  ];
+  const source = createFakeGameSource([
+    sourceGame({ id: 30, tags, coverImageId: "cover", popularity: 5 }),
+    sourceGame({ id: 20, tags, coverImageId: "cover", popularity: 5 }),
+  ]);
+  const catalog = createCatalog(await createTestDb(), source);
+  const shelves = await catalog.tagShelves(1, tags);
+  expect(shelves.map((s) => s.tag.slug)).toEqual([
+    "roguelike",
+    "metroidvania",
+    "soulslike",
+    "dungeon-crawler",
+    "greek-mythology",
+    "deck-building",
+    "survival-horror",
+    "bullet-hell",
+  ]);
+  expect(shelves[0].games.map((g) => g.id)).toEqual([20, 30]);
+  expect(await catalog.tagShelves(1, null)).toEqual([]);
+  expect(await catalog.tagShelves(1, [])).toEqual([]);
+});
+
+test("a tag source failure propagates to the section's local error boundary", async () => {
+  const source = createFakeGameSource([]);
+  vi.spyOn(source, "fetchTagGames").mockRejectedValue(new Error("Offline"));
+  const catalog = createCatalog(await createTestDb(), source);
+  await expect(catalog.tagShelves(1, ["roguelike"])).rejects.toThrow("Offline");
+});
