@@ -7,7 +7,7 @@ export type Tag = {
 };
 
 /** Closed vocabulary, ordered from distinctive styles to perspective. */
-export const GAME_TAGS: readonly Tag[] = [
+export const GAME_TAGS = [
   {
     slug: "roguelike",
     label: "Roguelike",
@@ -396,7 +396,9 @@ export const GAME_TAGS: readonly Tag[] = [
     label: "Virtual Reality",
     kind: "perspective",
   },
-];
+] as const satisfies readonly Tag[];
+
+export type TagSlug = (typeof GAME_TAGS)[number]["slug"];
 
 export type TagShelf = {
   tag: Tag;

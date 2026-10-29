@@ -500,3 +500,24 @@ test("tag games query merged keywords and source eligibility, ranked by rating c
   ).toEqual([]);
   expect(bodies).toHaveLength(count);
 });
+
+test("tag shelves propagate provider failures and cancellation", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      url.includes("twitch")
+        ? Response.json({ access_token: "t", expires_in: 3600 })
+        : new Response("Unavailable", { status: 503 }),
+    ),
+  );
+  await expect(
+    igdbGameSource.fetchTagGames("roguelike", 24, new AbortController().signal),
+  ).rejects.toThrow("503");
+  await expect(
+    igdbGameSource.fetchTagGames(
+      "roguelike",
+      24,
+      AbortSignal.abort(new Error("Cancelled")),
+    ),
+  ).rejects.toThrow("Cancelled");
+});

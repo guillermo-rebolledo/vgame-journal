@@ -1,4 +1,5 @@
 import {
+  compareTagGames,
   type DatePrecision,
   GAME_TYPES,
   type GameSource,
@@ -251,7 +252,8 @@ const toGame = (g: IgdbGame): SourceGame => ({
 export const igdbGameSource: GameSource = {
   async fetchTagGames(slug, count, signal) {
     signal.throwIfAborted();
-    const tag = Object.hasOwn(IGDB_TAGS, slug) ? IGDB_TAGS[slug] : undefined;
+    const known = GAME_TAGS.find((tag) => tag.slug === slug);
+    const tag = known && IGDB_TAGS[known.slug];
     if (!tag) return [];
     const games = await igdb<IgdbGame>(
       "games",
@@ -262,7 +264,7 @@ export const igdbGameSource: GameSource = {
     // IGDB rejects multi-field sorting; tag popularity counts ratings, excluding hypes.
     return games
       .map((g) => ({ ...toGame(g), popularity: g.total_rating_count ?? 0 }))
-      .sort((a, b) => b.popularity - a.popularity || a.id - b.id);
+      .sort(compareTagGames);
   },
   async fetchDiscoveryRanks(excludedIds, signal) {
     signal.throwIfAborted();

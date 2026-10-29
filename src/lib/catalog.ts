@@ -9,6 +9,7 @@ import {
   searchCache,
 } from "@/db/schema";
 import {
+  compareTagGames,
   type DiscoveryKey,
   type DiscoveryRank,
   type DiscoveryRankPage,
@@ -17,7 +18,7 @@ import {
   type SourceReleaseDate,
   STANDALONE_TYPES,
 } from "@/lib/game-source";
-import { GAME_TAGS, type TagShelf } from "@/lib/game-tags";
+import { GAME_TAGS, type Tag, type TagShelf } from "@/lib/game-tags";
 import { igdbGameSource } from "@/lib/igdb";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -342,7 +343,7 @@ export function createCatalog(db: Db, source: GameSource) {
       fetchTag: (slug: string) => Promise<SourceGame[]> = tagGames,
     ): Promise<TagShelf[]> {
       const explorable = GAME_TAGS.filter(
-        (tag) => !tag.broad && tags?.includes(tag.slug),
+        (tag: Tag) => !tag.broad && tags?.includes(tag.slug),
       ).slice(0, 8);
       // ponytail: use IGDB /multiquery if eight rate-limited cold tag lookups become noticeable.
       return (
@@ -350,9 +351,7 @@ export function createCatalog(db: Db, source: GameSource) {
           explorable.map(async (tag) => {
             const candidates = await fetchTag(tag.slug);
             const unique = new Map<number, SourceGame>();
-            for (const g of candidates.toSorted(
-              (a, b) => b.popularity - a.popularity || a.id - b.id,
-            )) {
+            for (const g of candidates.toSorted(compareTagGames)) {
               if (g.id !== gameId && homepageEligible(g) && !unique.has(g.id))
                 unique.set(g.id, g);
             }

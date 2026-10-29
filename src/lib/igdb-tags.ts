@@ -1,11 +1,7 @@
+import type { TagSlug } from "@/lib/game-tags";
+
 /** IGDB IDs verified against the live vocabulary endpoints on 2026-10-28. */
-export const IGDB_TAGS: Record<
-  string,
-  {
-    field: "keywords" | "genres" | "themes" | "player_perspectives";
-    ids: number[];
-  }
-> = {
+export const IGDB_TAGS = {
   roguelike: { field: "keywords", ids: [416, 17292] },
   metroidvania: { field: "keywords", ids: [477] },
   soulslike: { field: "keywords", ids: [17326] },
@@ -83,4 +79,10 @@ export const IGDB_TAGS: Record<
   text: { field: "player_perspectives", ids: [5] },
   auditory: { field: "player_perspectives", ids: [6] },
   "virtual-reality": { field: "player_perspectives", ids: [7] },
-};
+} satisfies Record<
+  TagSlug,
+  {
+    field: "keywords" | "genres" | "themes" | "player_perspectives";
+    ids: number[];
+  }
+>;

@@ -99,3 +99,9 @@ export const coverUrl = (
   imageId: string,
   size: "cover_small" | "cover_big" | "cover_big_2x" = "cover_big",
 ) => `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.jpg`;
+
+/** Most rated tag games first, with stable canonical-ID ties. */
+export const compareTagGames = (
+  a: Pick<SourceGame, "id" | "popularity">,
+  b: Pick<SourceGame, "id" | "popularity">,
+) => b.popularity - a.popularity || a.id - b.id;
