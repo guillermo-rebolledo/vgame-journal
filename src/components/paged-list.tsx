@@ -53,7 +53,7 @@ export function PagedList<T>({
             {offset + 1}–{Math.min(offset + PAGE_SIZE, items.length)} of{" "}
             {items.length}
           </output>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               className="min-h-11"

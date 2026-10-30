@@ -11,7 +11,7 @@ export async function UserMenu() {
   const session = await currentSession();
   if (!session)
     return (
-      <div className="flex items-center gap-1">
+      <div className="flex max-w-full flex-wrap items-center gap-1">
         <Link
           href="/sign-in"
           className="inline-flex min-h-11 items-center rounded-md px-2 text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -26,10 +26,10 @@ export async function UserMenu() {
   return (
     <>
       <MainNav className="order-last -ml-2 w-full sm:order-none sm:mr-auto sm:ml-0 sm:w-auto" />
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex max-w-full flex-wrap items-center gap-1">
         <Link
           href={username ? `/u/${username}` : "/onboarding"}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-md text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 lg:px-2"
+          className="inline-flex min-h-11 min-w-11 max-w-full items-center justify-center gap-2 rounded-md text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 lg:px-2"
         >
           {image ? (
             // biome-ignore lint/performance/noImgElement: Google avatars; Next image optimization is off app-wide.
@@ -42,7 +42,9 @@ export async function UserMenu() {
           ) : (
             <UserIcon aria-hidden className="size-4 lg:hidden" />
           )}
-          <span className="sr-only lg:not-sr-only">{username ?? name}</span>
+          <span className="sr-only lg:not-sr-only lg:min-w-0 lg:[overflow-wrap:anywhere]">
+            {username ?? name}
+          </span>
         </Link>
         <Button
           variant="ghost"

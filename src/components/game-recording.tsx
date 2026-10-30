@@ -73,22 +73,32 @@ export function GameRecording({
           .height ?? 56;
       const availableHeight =
         viewport.height - navbarHeight - 16 - (desktop ? 24 : 0);
+      // A tall navigation header may sit behind the modal; never let it consume the editor.
+      const editorHeight = Math.max(
+        0,
+        Math.min(
+          Math.max(availableHeight, viewport.height * 0.6),
+          viewport.height - 16,
+          desktop ? 720 : 960,
+        ),
+      );
       // On the document, not on `drawer`: the popup mounts in a portal, and its ref is still
       // null on the first run, which used to leave the drawer on its CSS fallback height.
       const root = document.documentElement.style;
-      root.setProperty(
-        "--editor-height",
-        `${Math.max(0, Math.min(availableHeight, desktop ? 720 : 960))}px`,
-      );
+      root.setProperty("--editor-height", `${editorHeight}px`);
       root.setProperty(
         "--editor-bottom",
         `${Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)}px`,
       );
     }
+    const header = document.querySelector("body > header");
+    const observer = new ResizeObserver(resize);
+    if (header) observer.observe(header);
     resize();
     viewport.addEventListener("resize", resize);
     viewport.addEventListener("scroll", resize);
     return () => {
+      observer.disconnect();
       viewport.removeEventListener("resize", resize);
       viewport.removeEventListener("scroll", resize);
       document.documentElement.style.removeProperty("--editor-height");
@@ -225,10 +235,12 @@ export function GameRecording({
           }
           className="playthrough-drawer w-full overflow-hidden rounded-t-3xl bg-background"
         >
-          <DrawerHeader className="shrink-0 border-b px-6 py-5">
-            <div className="mx-auto flex w-full max-w-xl items-start justify-between gap-4">
-              <div className="flex min-w-0 flex-col gap-1 text-left">
-                <DrawerDescription>{gameTitle}</DrawerDescription>
+          <DrawerHeader className="shrink-0 border-b px-[min(1.5rem,5vw)] py-5">
+            <div className="mx-auto flex w-full max-w-xl items-start justify-between gap-2">
+              <div className="flex min-w-0 flex-col gap-1 text-left [overflow-wrap:anywhere]">
+                <DrawerDescription className="line-clamp-2">
+                  {gameTitle}
+                </DrawerDescription>
                 <DrawerTitle>
                   {editor === "add" ? "Add playthrough" : "Edit playthrough"}
                 </DrawerTitle>

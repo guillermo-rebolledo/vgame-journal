@@ -17,7 +17,7 @@ export function PublicProfile({ profile }: { profile: Profile }) {
   const [tab, setTab] = useState<(typeof tabs)[number]>("Library");
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         {profile.image ? (
           // biome-ignore lint/performance/noImgElement: Google avatar is served directly, without Next image optimization.
           <img
@@ -37,13 +37,13 @@ export function PublicProfile({ profile }: { profile: Profile }) {
           </div>
         )}
         <div className="min-w-0 space-y-1">
-          <h1 className="break-words font-semibold text-3xl tracking-tight">
+          <h1 className="font-semibold [overflow-wrap:anywhere] text-3xl tracking-tight">
             {profile.username}
           </h1>
           <p className="text-muted-foreground text-sm">Public gaming journal</p>
         </div>
       </div>
-      <fieldset className="flex gap-1 border-b">
+      <fieldset className="flex flex-wrap gap-1 border-b">
         <legend className="sr-only">Profile views</legend>
         {tabs.map((label) => (
           <button

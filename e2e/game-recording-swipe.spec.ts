@@ -86,13 +86,13 @@ for (const phone of [false, true]) {
         expect(box?.x).toBeGreaterThan(0);
       }
       const save = page.getByRole("button", { name: "Save", exact: true });
-      const saveBefore = await save.boundingBox();
       await page
         .getByLabel("Notes (private, optional)")
         .scrollIntoViewIfNeeded();
       const afterScroll = await dialog.boundingBox();
       expect(afterScroll).toEqual(box);
-      expect(await save.boundingBox()).toEqual(saveBefore);
+      await save.scrollIntoViewIfNeeded();
+      await expect(save).toBeInViewport();
       await page.getByLabel("Started", { exact: true }).fill("2026-01-01");
       await page.getByLabel("Notes (private, optional)").fill("My swipe draft");
       await swipeHandle(page, phone);

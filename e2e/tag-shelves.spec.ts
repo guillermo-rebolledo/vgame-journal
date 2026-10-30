@@ -16,7 +16,12 @@ test("tag shelves switch instantly, support keyboard navigation and open recomme
   await expect(section.getByRole("link").first()).toHaveText("Dead Cells");
   const requests: string[] = [];
   page.on("request", (request) => {
-    if (request.resourceType() === "fetch") requests.push(request.url());
+    // Header Link prefetches run independently of the local shelf selection.
+    const headerPrefetch =
+      request.headers()["next-router-prefetch"] &&
+      ["/", "/sign-in"].includes(new URL(request.url()).pathname);
+    if (request.resourceType() === "fetch" && !headerPrefetch)
+      requests.push(request.url());
   });
   await section
     .getByRole("button", { name: "Dungeon crawler", exact: true })

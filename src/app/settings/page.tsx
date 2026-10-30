@@ -163,12 +163,12 @@ async function CalendarFeedSetting() {
           private: anyone with it can see your Wishlist.
         </p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Input
           readOnly
           value={url}
           aria-label="Calendar feed URL"
-          className="font-mono text-xs md:text-xs"
+          className="min-w-0 flex-1 basis-48 font-mono text-xs md:text-xs"
         />
         <CopyButton text={url} />
       </div>

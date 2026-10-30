@@ -37,7 +37,7 @@ export function PlaythroughHistory({
                 </span>
               </p>
               {playthrough.notes && (
-                <p className="whitespace-pre-line text-pretty text-sm">
+                <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">
                   {playthrough.notes}
                 </p>
               )}

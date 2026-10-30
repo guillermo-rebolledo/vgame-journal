@@ -70,7 +70,7 @@ export function Library({
 
   if (entries.length === 0)
     return (
-      <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-8">
+      <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-4 sm:p-8">
         <p className="font-medium">Your library is empty.</p>
         <p className="text-muted-foreground text-sm">
           Search for a game you’ve played, are playing or want to play, and add
@@ -119,8 +119,8 @@ export function Library({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end">
-          <div className="col-span-2 flex min-w-0 flex-col gap-1.5 sm:w-64">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3 sm:flex sm:flex-wrap sm:items-end">
+          <div className="col-span-full flex min-w-0 flex-col gap-1.5 sm:w-64">
             <Label htmlFor="library-search">Search your Library</Label>
             <Input
               id="library-search"
@@ -167,7 +167,7 @@ export function Library({
                 </span>
               )}
             </summary>
-            <div className="mt-2 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end">
+            <div className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3 sm:flex sm:flex-wrap sm:items-end">
               {platforms.length > 0 && (
                 <Select
                   label="Platform"
@@ -202,7 +202,7 @@ export function Library({
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-3">
           <p className="text-muted-foreground text-sm" aria-live="polite">
             {filtered
@@ -213,7 +213,7 @@ export function Library({
             <ClearFilters onClick={() => setFilters({})} />
           )}
         </div>
-        <fieldset className="flex gap-1">
+        <fieldset className="flex flex-wrap gap-1">
           <legend className="sr-only">View</legend>
           {(
             [
@@ -236,7 +236,7 @@ export function Library({
       </div>
 
       {shown.length === 0 ? (
-        <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-8">
+        <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-4 sm:p-8">
           <p className="font-medium">No games match these filters.</p>
           <ClearFilters variant="outline" onClick={() => setFilters({})} />
         </div>
@@ -301,7 +301,7 @@ export function Library({
                       <Link
                         href={`/games/${e.slug}`}
                         transitionTypes={["open-game"]}
-                        className="-mx-2 flex items-center gap-3 rounded-md p-2 outline-none hover:bg-muted focus-visible:bg-muted"
+                        className="-mx-2 flex flex-wrap items-center gap-3 sm:flex-nowrap rounded-md p-2 outline-none hover:bg-muted focus-visible:bg-muted"
                       >
                         <ViewTransition
                           name={`game-cover-${e.gameId}`}
@@ -317,7 +317,7 @@ export function Library({
                             className="w-10 rounded"
                           />
                         </ViewTransition>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 basis-40 sm:basis-auto">
                           <h2 className="truncate font-medium">
                             {e.title}
                             {e.releasedAt && (

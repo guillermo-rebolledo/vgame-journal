@@ -124,7 +124,7 @@ export function Wishlist({
       )}
 
       {entries.length === 0 ? (
-        <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-8">
+        <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-4 sm:p-8">
           <p className="font-medium">Your wishlist is empty.</p>
           <p className="text-muted-foreground text-sm">
             Find an upcoming game and set its status to Wishlist to count down
@@ -146,7 +146,7 @@ export function Wishlist({
               <section key={key} aria-labelledby={`wishlist-${key}`}>
                 <h2
                   id={`wishlist-${key}`}
-                  className="flex items-baseline gap-2 font-semibold text-lg"
+                  className="flex flex-wrap items-baseline gap-2 font-semibold text-lg"
                 >
                   {label}{" "}
                   <span className="font-normal text-muted-foreground text-sm tabular-nums">
@@ -333,7 +333,7 @@ function Row({
       </Link>
 
       {left === OUT_NOW && onMove && (
-        <div className="flex flex-wrap items-center gap-2 pl-18 sm:pl-0">
+        <div className="flex flex-wrap items-center gap-2 min-[400px]:pl-18 sm:pl-0">
           <span className="text-muted-foreground text-sm">
             {pending && target
               ? `Moving ${entry.title} to ${capitalize(target)}…`
@@ -357,7 +357,7 @@ function Row({
       {failed && target && (
         <div
           role="alert"
-          className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 pl-18 text-destructive text-sm"
+          className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 text-destructive text-sm"
         >
           <p>
             Couldn’t move {entry.title} to {capitalize(target)}. Check your
