@@ -4,6 +4,7 @@ import { type ReactNode, useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PASSWORD_GUIDANCE, PASSWORD_POLICY } from "@/lib/password-policy";
 
 type Field = {
   name: string;
@@ -33,7 +34,13 @@ export function AuthForm({
   const [state, action, pending] = useActionState(
     async (_: unknown, form: FormData) => {
       const values = Object.fromEntries(form) as Record<string, string>;
-      return { ...(await onSubmit(values)), values };
+      const result = await onSubmit(values);
+      const retainedValues = Object.fromEntries(
+        fields
+          .filter((field) => field.type !== "password")
+          .map((field) => [field.name, values[field.name]]),
+      );
+      return { ...result, values: retainedValues };
     },
     undefined,
   );
@@ -53,12 +60,26 @@ export function AuthForm({
                 name={f.name}
                 type={f.type ?? "text"}
                 autoComplete={f.autoComplete}
+                {...(f.autoComplete === "new-password" ? PASSWORD_POLICY : {})}
+                aria-describedby={
+                  f.autoComplete === "new-password"
+                    ? `${f.name}-guidance`
+                    : undefined
+                }
                 // Form actions reset inputs; refill everything but passwords after an error.
                 defaultValue={
                   f.type === "password" ? undefined : state?.values[f.name]
                 }
                 required
               />
+              {f.autoComplete === "new-password" && (
+                <p
+                  id={`${f.name}-guidance`}
+                  className="text-muted-foreground text-sm"
+                >
+                  {PASSWORD_GUIDANCE}
+                </p>
+              )}
             </div>
           ))}
           {state?.error && (

@@ -1,4 +1,10 @@
-import { expect, test } from "@playwright/test";
+import {
+  type APIRequestContext,
+  expect,
+  type Page,
+  test,
+} from "@playwright/test";
+import { signUp } from "./support/sign-up";
 
 test("signed-out visitors see Sign in and can't reach onboarding", async ({
   page,
@@ -332,5 +338,317 @@ test("R10 username selection and both session gates reject unsafe continuations"
     await expect(page).toHaveURL(
       expected === "/" ? "/sign-in" : "/sign-in?returnTo=%2Fgames%2Fceleste",
     );
+  }
+});
+
+// F11 / R11: known unusable links must not ask for a replacement password.
+test("missing and known-invalid reset links immediately offer a new link", async ({
+  page,
+}) => {
+  for (const path of [
+    "/reset-password",
+    "/reset-password?token=&error=INVALID_TOKEN",
+    "/reset-password?token=unusable&error=INVALID_TOKEN",
+  ]) {
+    await page.goto(path);
+    await expect(page.getByRole("main").getByRole("alert")).toContainText(
+      "invalid or expired",
+    );
+    await expect(page.getByLabel("New password", { exact: true })).toHaveCount(
+      0,
+    );
+    await page.getByRole("link", { name: "Request a new reset link" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Reset your password" }),
+    ).toBeVisible();
+    await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+  }
+});
+
+// A token-shaped string is not proof of a usable reset link.
+test("submission-time invalid reset tokens offer recovery without a success notice", async ({
+  page,
+}) => {
+  await page.goto("/reset-password?token=unknown-token");
+  await page.getByLabel("New password", { exact: true }).fill("replacement123");
+  await page
+    .getByRole("button", { name: "Reset password", exact: true })
+    .click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "invalid or expired",
+  );
+  await expect(page).toHaveURL(/\/reset-password\?/);
+  await expect(
+    page.getByText("Password updated. Sign in with your new password."),
+  ).toHaveCount(0);
+  await page.getByRole("link", { name: "Request a new reset link" }).click();
+  await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+});
+
+// F15 / R15: browser hints and service rejection must describe the same bounds.
+test("new-account passwords explain length errors and retain nonsecret fields", async ({
+  page,
+  request,
+}) => {
+  const email = `password_policy_${Date.now()}@example.com`;
+  await page.goto("/sign-up");
+  await page.getByLabel("Name", { exact: true }).fill("Retained Player");
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  const password = page.getByLabel("Password", { exact: true });
+  await expect(password).toHaveAccessibleDescription("Use 8–128 characters.");
+  await expect(password).toHaveAttribute("minlength", "8");
+  await expect(password).toHaveAttribute("maxlength", "128");
+  // Bypass only browser constraints to exercise the authoritative service.
+  await password.evaluate((input) => {
+    input.removeAttribute("minlength");
+    input.removeAttribute("maxlength");
+  });
+  for (const [value, message] of [
+    ["x".repeat(7), "Password must be at least 8 characters."],
+    ["x".repeat(129), "Password must be no more than 128 characters."],
+  ]) {
+    await password.fill(value);
+    await page.getByRole("button", { name: "Sign up", exact: true }).click();
+    await expect(page.getByRole("main").getByRole("alert")).toHaveText(message);
+    await expect(page.getByLabel("Name", { exact: true })).toHaveValue(
+      "Retained Player",
+    );
+    await expect(page.getByLabel("Email", { exact: true })).toHaveValue(email);
+    await expect(password).toHaveValue("");
+  }
+  const mailbox = await (
+    await request.get("http://127.0.0.1:3101/mailbox")
+  ).json();
+  expect(mailbox.filter((mail: { to: string }) => mail.to === email)).toEqual(
+    [],
+  );
+  await password.fill("abcdefgh");
+  await page.getByRole("button", { name: "Sign up", exact: true }).click();
+  await expect(
+    page.getByText(`Check ${email} for a link to verify your email.`),
+  ).toBeVisible();
+  await page.goto("/sign-up");
+  await page.getByLabel("Name", { exact: true }).fill("Maximum length");
+  await page.getByLabel("Email", { exact: true }).fill(`max_${email}`);
+  await page.getByLabel("Password", { exact: true }).fill("x".repeat(128));
+  await page.getByRole("button", { name: "Sign up", exact: true }).click();
+  await expect(
+    page.getByText(`Check max_${email} for a link to verify your email.`),
+  ).toBeVisible();
+});
+
+async function requestResetLink(
+  page: Page,
+  request: APIRequestContext,
+  email: string,
+) {
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page
+    .getByRole("button", { name: "Send reset link", exact: true })
+    .click();
+  await expect(
+    page.getByText(`If ${email} has an account, a reset link is on its way.`),
+  ).toBeVisible();
+  const mailbox = await (
+    await request.get("http://127.0.0.1:3101/mailbox")
+  ).json();
+  const mail = mailbox.findLast(
+    (mail: { to: string; subject: string }) =>
+      mail.to === email && mail.subject.startsWith("Reset "),
+  );
+  const link = mail.text.match(/https?:\S+/)?.[0];
+  expect(link).toBeTruthy();
+  return link as string;
+}
+
+// F11 / F15 / F17: real captured email, service expiry and replacement login.
+test("expired resets preserve the old password and a replacement reset acknowledges success before login", async ({
+  page,
+  request,
+}) => {
+  const email = await signUp(page, request, `reset_${Date.now()}`);
+  const replacement = "n".repeat(128);
+  await page.context().clearCookies();
+  await page.goto("/sign-in");
+  await expect(
+    page.getByText("Password updated. Sign in with your new password."),
+  ).toHaveCount(0);
+  await page.goto("/forgot-password?returnTo=%2Fgames%2Fceleste");
+  await page.goto(await requestResetLink(page, request, email));
+  const expiredToken = new URL(page.url()).searchParams.get("token");
+  expect(expiredToken).toBeTruthy();
+  const expired = await request.post("http://127.0.0.1:3101/query", {
+    data: {
+      sql: "update verification set expires_at = $1 where identifier = $2 returning id",
+      params: ["2000-01-01T00:00:00.000Z", `reset-password:${expiredToken}`],
+    },
+  });
+  expect(expired.ok()).toBe(true);
+  expect((await expired.json()).rows).toHaveLength(1);
+  await page.getByLabel("New password", { exact: true }).fill(replacement);
+  await page
+    .getByRole("button", { name: "Reset password", exact: true })
+    .click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "invalid or expired",
+  );
+  const signIn = (password: string) =>
+    request.post("/api/auth/sign-in/email", {
+      data: { email, password },
+      headers: { origin: "http://localhost:3100" },
+    });
+  expect((await signIn("password123")).ok()).toBe(true);
+  expect((await signIn(replacement)).status()).toBe(401);
+  await page.getByRole("link", { name: "Request a new reset link" }).click();
+  await expect(page).toHaveURL("/forgot-password?returnTo=%2Fgames%2Fceleste");
+  await page.goto(await requestResetLink(page, request, email));
+  const validResetURL = page.url();
+  const password = page.getByLabel("New password", { exact: true });
+  await expect(password).toHaveAccessibleDescription("Use 8–128 characters.");
+  await expect(password).toHaveAttribute("minlength", "8");
+  await expect(password).toHaveAttribute("maxlength", "128");
+  await password.evaluate((input) => {
+    input.removeAttribute("minlength");
+    input.removeAttribute("maxlength");
+  });
+  for (const [value, message] of [
+    ["x".repeat(7), "Password must be at least 8 characters."],
+    ["x".repeat(129), "Password must be no more than 128 characters."],
+  ]) {
+    await password.fill(value);
+    await page
+      .getByRole("button", { name: "Reset password", exact: true })
+      .click();
+    await expect(page.getByRole("main").getByRole("alert")).toHaveText(message);
+    await expect(password).toHaveValue("");
+    expect((await signIn("password123")).ok()).toBe(true);
+  }
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let received!: () => void;
+  const responseReceived = new Promise<void>((resolve) => {
+    received = resolve;
+  });
+  await page.route("**/api/auth/reset-password", async (route) => {
+    const response = await route.fetch();
+    received();
+    await held;
+    await route.fulfill({ response });
+  });
+  await password.fill(replacement);
+  await page
+    .getByRole("button", { name: "Reset password", exact: true })
+    .click();
+  try {
+    await responseReceived;
+    await expect(
+      page.getByRole("button", { name: "Reset password", exact: true }),
+    ).toBeDisabled();
+    await expect(page).toHaveURL(/\/reset-password\?/);
+    await expect(
+      page.getByText("Password updated. Sign in with your new password."),
+    ).toHaveCount(0);
+  } finally {
+    release();
+  }
+  await expect(page).toHaveURL(
+    "/sign-in?returnTo=%2Fgames%2Fceleste&passwordReset=success",
+  );
+  await expect(page.getByRole("status")).toHaveText(
+    "Password updated. Sign in with your new password.",
+  );
+  const browserState = await page.evaluate(() =>
+    JSON.stringify({
+      local: { ...localStorage },
+      session: { ...sessionStorage },
+      history: history.state,
+    }),
+  );
+  expect(browserState.includes(replacement)).toBe(false);
+  expect(
+    browserState.includes(
+      new URL(validResetURL).searchParams.get("token") ?? "missing-token",
+    ),
+  ).toBe(false);
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(replacement);
+  await page
+    .getByRole("button", { name: "Sign in with email", exact: true })
+    .click();
+  await expect(page).toHaveURL("/games/celeste");
+  expect((await signIn("password123")).status()).toBe(401);
+  await page.context().clearCookies();
+  await page.goto(validResetURL);
+  await page.getByLabel("New password", { exact: true }).fill("abcdefgh");
+  await page
+    .getByRole("button", { name: "Reset password", exact: true })
+    .click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "invalid or expired",
+  );
+  expect((await signIn(replacement)).ok()).toBe(true);
+  await page.getByRole("link", { name: "Request a new reset link" }).click();
+  await page.goto(await requestResetLink(page, request, email));
+  await page.getByLabel("New password", { exact: true }).fill("abcdefgh");
+  await page
+    .getByRole("button", { name: "Reset password", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toHaveText(
+    "Password updated. Sign in with your new password.",
+  );
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill("abcdefgh");
+  await page
+    .getByRole("button", { name: "Sign in with email", exact: true })
+    .click();
+  await expect(page).toHaveURL("/games/celeste");
+  expect((await signIn(replacement)).status()).toBe(401);
+});
+
+// Preserve the existing auth layout while adding guidance and recovery feedback.
+test("password recovery pages reflow with enlarged text and both themes", async ({
+  page,
+}) => {
+  for (const theme of ["light", "dark"]) {
+    for (const path of [
+      "/sign-in?returnTo=%2Fgames%2Fceleste&passwordReset=success",
+      "/sign-up",
+      "/forgot-password",
+      "/reset-password?token=unverified",
+      "/reset-password",
+    ]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      if (!(await page.locator("html").getAttribute("class"))?.includes(theme))
+        await page.getByRole("button", { name: "Toggle theme" }).click();
+      for (const [width, fontSize] of [
+        [320, 16],
+        [320, 32],
+        [390, 16],
+        [1440, 16],
+        [2560, 16],
+      ]) {
+        await page.setViewportSize({ width, height: 740 });
+        await page.evaluate((size) => {
+          document.documentElement.style.fontSize = `${size}px`;
+        }, fontSize);
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth),
+        ).toBeLessThanOrEqual(width);
+        const action = page.getByRole("main").getByRole("button").first();
+        if (await action.count()) {
+          await action.scrollIntoViewIfNeeded();
+          await expect(action).toBeVisible();
+        } else {
+          const recovery = page.getByRole("link", {
+            name: "Request a new reset link",
+          });
+          await recovery.scrollIntoViewIfNeeded();
+          await expect(recovery).toBeVisible();
+        }
+      }
+    }
   }
 });

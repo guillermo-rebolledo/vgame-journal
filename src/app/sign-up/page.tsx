@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { authClient } from "@/lib/auth-client";
 import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
+import { passwordErrorMessage } from "@/lib/password-policy";
 
 export default function SignUpPage() {
   const returnTo = safeReturnTo(useSearchParams().get("returnTo"));
@@ -29,7 +30,7 @@ export default function SignUpPage() {
           password,
           callbackURL: returnTo,
         });
-        if (error) return { error: error.message };
+        if (error) return { error: passwordErrorMessage(error) };
         return { message: `Check ${email} for a link to verify your email.` };
       }}
     >

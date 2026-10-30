@@ -8,6 +8,7 @@ import { Resend } from "resend";
 import { SITE_NAME } from "@/config/site";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import { PASSWORD_POLICY } from "@/lib/password-policy";
 
 export type Email = { to: string; subject: string; text: string };
 
@@ -36,6 +37,8 @@ export function createAuth(
     rateLimit: { enabled: !process.env.E2E_TEST },
     emailAndPassword: {
       enabled: true,
+      minPasswordLength: PASSWORD_POLICY.minLength,
+      maxPasswordLength: PASSWORD_POLICY.maxLength,
       requireEmailVerification: true,
       sendResetPassword: ({ user, url }) =>
         sendEmail({

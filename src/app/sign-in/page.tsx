@@ -9,7 +9,8 @@ import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
 
 export default function SignInPage() {
   const router = useRouter();
-  const returnTo = safeReturnTo(useSearchParams().get("returnTo"));
+  const searchParams = useSearchParams();
+  const returnTo = safeReturnTo(searchParams.get("returnTo"));
 
   return (
     <AuthForm
@@ -39,6 +40,11 @@ export default function SignInPage() {
         router.refresh();
       }}
     >
+      {searchParams.get("passwordReset") === "success" && (
+        <output aria-live="polite">
+          Password updated. Sign in with your new password.
+        </output>
+      )}
       <Button
         variant="outline"
         onClick={() =>
@@ -58,7 +64,10 @@ export default function SignInPage() {
         >
           Create an account
         </Link>
-        <Link href="/forgot-password" className="underline underline-offset-4">
+        <Link
+          href={authPageHref("/forgot-password", returnTo)}
+          className="underline underline-offset-4"
+        >
           Forgot password?
         </Link>
       </p>

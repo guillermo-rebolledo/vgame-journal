@@ -30,7 +30,12 @@ export function safeReturnTo(value: string | null | undefined): string {
 
 /** Keep ordinary auth URLs bare for direct visits and the existing signup flow. */
 export function authPageHref(
-  path: "/sign-in" | "/sign-up" | "/onboarding",
+  path:
+    | "/sign-in"
+    | "/sign-up"
+    | "/onboarding"
+    | "/forgot-password"
+    | "/reset-password",
   returnTo: string | null | undefined,
 ): string {
   const destination = safeReturnTo(returnTo);
