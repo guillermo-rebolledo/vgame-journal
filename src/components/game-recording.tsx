@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   type JournalSelection,
   JournalStatus,
+  type SaveJournalStatus,
 } from "@/components/journal-status";
 import {
   PlaythroughForm,
@@ -27,7 +28,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { playthrough } from "@/db/schema";
-import type { CompletionTag, Status } from "@/lib/library";
 
 type Playthrough = typeof playthrough.$inferSelect;
 export function GameRecording({
@@ -46,10 +46,7 @@ export function GameRecording({
   playthroughs: Playthrough[];
   gameTitle: string;
   platforms: string[];
-  onStatus: (
-    status: Status | null,
-    tag: CompletionTag | null,
-  ) => ReturnType<SavePlaythrough>;
+  onStatus: SaveJournalStatus;
   onAdd: SavePlaythrough;
   onUpdate: (
     id: number,
@@ -137,12 +134,14 @@ export function GameRecording({
           {signedIn ? (
             <JournalStatus
               entry={entry}
+              gameTitle={gameTitle}
+              playthroughCount={playthroughs.length}
               disabled={pending}
-              onSave={async (status, tag) => {
+              onSave={async (status, tag, acknowledged) => {
                 busy.current = true;
                 setPending(true);
                 try {
-                  return await onStatus(status, tag);
+                  return await onStatus(status, tag, acknowledged);
                 } finally {
                   busy.current = false;
                   setPending(false);

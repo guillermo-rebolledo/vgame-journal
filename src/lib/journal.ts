@@ -48,6 +48,11 @@ export type WishlistEntry = {
 /** A broken Journal rule. Its message is safe to show the user. */
 export class JournalError extends Error {}
 
+export type JournalRemovalConfirmation = {
+  confirmationRequired: true;
+  playthroughCount: number;
+};
+
 /** What a user fills in for a Playthrough. Dates are `YYYY-MM-DD`. */
 export type PlaythroughInput = {
   platform: string;
@@ -422,13 +427,36 @@ export function createJournal(db: Db) {
     },
 
     /** Takes the game out of the user's journal. */
-    async remove(userId: string, gameId: number) {
+    async remove(
+      userId: string,
+      gameId: number,
+      acknowledged: unknown = false,
+    ): Promise<JournalRemovalConfirmation | undefined> {
       const removed = await db
         .delete(journalEntry)
-        .where(owned(userId, gameId))
+        .where(
+          and(
+            owned(userId, gameId),
+            // Guard in the delete itself: stale clients cannot bypass confirmation.
+            acknowledged === true
+              ? undefined
+              : sql`not exists (select 1 from ${playthrough} where ${playthrough.userId} = ${userId} and ${playthrough.gameId} = ${gameId})`,
+          ),
+        )
         .returning();
       if (removed.length)
         await recordStatusEvent(userId, gameId, null, null, new Date());
+      else {
+        const [current] = await db
+          .select({ count: sql<number>`count(*)`.mapWith(Number) })
+          .from(playthrough)
+          .where(owned(userId, gameId, playthrough));
+        if (current.count > 0)
+          return {
+            confirmationRequired: true,
+            playthroughCount: current.count,
+          };
+      }
     },
 
     /** The user's status changes, oldest first. A null status is a removal. */

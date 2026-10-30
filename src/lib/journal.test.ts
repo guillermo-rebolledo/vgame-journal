@@ -257,6 +257,43 @@ test("a removed game leaves the journal", async () => {
   expect(await journal.entry("mario", 1)).toBeNull();
 });
 
+test("removing saved Playthroughs requires explicit acknowledgement at the owner boundary", async () => {
+  for (const owner of ["mario", "luigi"]) {
+    await journal.set(owner, 1, {
+      status: "played",
+      completionTag: "completed",
+    });
+    await journal.addPlaythrough(owner, 1, {
+      platform: "PlayStation 5",
+      startedOn: "2026-01-02",
+      notes: `${owner}'s private note`,
+    });
+  }
+  const before = await journal.exportData("mario");
+  const otherOwner = await journal.exportData("luigi");
+  for (const acknowledgement of [undefined, false, "true", 1]) {
+    await expect(journal.remove("mario", 1, acknowledgement)).resolves.toEqual({
+      confirmationRequired: true,
+      playthroughCount: 1,
+    });
+    expect(await journal.exportData("mario")).toEqual(before);
+  }
+
+  await journal.remove("mario", 1, true);
+  expect(await journal.entry("mario", 1)).toBeNull();
+  expect(await journal.playthroughs("mario", 1)).toEqual([]);
+  expect(await journal.statusEvents("mario")).toEqual([
+    ...before.statusHistory.map(({ gameId, status, completionTag, at }) => ({
+      gameId,
+      status,
+      completionTag,
+      at,
+    })),
+    { gameId: 1, status: null, completionTag: null, at: expect.any(Date) },
+  ]);
+  expect(await journal.exportData("luigi")).toEqual(otherOwner);
+});
+
 test("every status change is recorded with its time, including add and remove", async () => {
   vi.setSystemTime(new Date("2026-01-01T10:00:00Z"));
   await journal.set("mario", 1, { status: "backlog" });
@@ -405,7 +442,7 @@ test("a playthrough needs the game in the journal, and leaves with it", async ()
 
   await journal.set("mario", 1, { status: "playing" });
   await journal.addPlaythrough("mario", 1, run);
-  await journal.remove("mario", 1);
+  await journal.remove("mario", 1, true);
   await journal.set("mario", 1, { status: "playing" });
 
   expect(await journal.playthroughs("mario", 1)).toEqual([]);
