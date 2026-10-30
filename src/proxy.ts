@@ -1,6 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
 import { journal } from "@/lib/journal";
 
 /** Signed-in users can't use the app until they've chosen a username. */
@@ -11,12 +12,25 @@ export async function proxy(request: NextRequest) {
     ? await auth.api.getSession({ headers: request.headers })
     : null;
 
-  if (onboarding && !session) return redirectTo("/sign-in", request);
-  if (onboarding && session?.user.username) return redirectTo("/", request);
+  const returnTo = safeReturnTo(request.nextUrl.searchParams.get("returnTo"));
+  if (onboarding && !session)
+    return redirectTo(authPageHref("/sign-in", returnTo), request);
+  if (onboarding && session?.user.username)
+    return redirectTo(returnTo, request);
   if (!onboarding && session && !session.user.username)
     return request.nextUrl.pathname.startsWith("/api/")
       ? Response.json({ error: "Choose a username first." }, { status: 403 })
-      : redirectTo("/onboarding", request);
+      : redirectTo(
+          authPageHref(
+            "/onboarding",
+            /^\/(?:sign-in|sign-up|forgot-password|reset-password)(?:\/|$)/.test(
+              request.nextUrl.pathname,
+            )
+              ? returnTo
+              : `${request.nextUrl.pathname}${request.nextUrl.search}`,
+          ),
+          request,
+        );
   const segment = request.nextUrl.pathname.match(/^\/u\/([^/]+)\/?$/)?.[1];
   if (segment) {
     let username: string;

@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { authClient } from "@/lib/auth-client";
+import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
 
 export default function SignUpPage() {
+  const returnTo = safeReturnTo(useSearchParams().get("returnTo"));
   return (
     <AuthForm
       title="Create an account"
@@ -24,7 +27,7 @@ export default function SignUpPage() {
           name,
           email,
           password,
-          callbackURL: "/",
+          callbackURL: returnTo,
         });
         if (error) return { error: error.message };
         return { message: `Check ${email} for a link to verify your email.` };
@@ -32,7 +35,10 @@ export default function SignUpPage() {
     >
       <p className="text-muted-foreground text-sm">
         Already have an account?{" "}
-        <Link href="/sign-in" className="underline underline-offset-4">
+        <Link
+          href={authPageHref("/sign-in", returnTo)}
+          className="underline underline-offset-4"
+        >
           Sign in
         </Link>
       </p>

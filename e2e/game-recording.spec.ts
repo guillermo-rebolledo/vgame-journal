@@ -217,7 +217,7 @@ test("signed-out actions lead to sign in and no-platform games explain the limit
   await page
     .getByRole("link", { name: "Add playthrough", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/sign-in$/);
+  await expect(page).toHaveURL("/sign-in?returnTo=%2Fgames%2Fceleste");
   await signUp(page, request, `platformless_${Date.now()}`);
   await request.post("http://127.0.0.1:3101/query", {
     data: {

@@ -2,6 +2,7 @@
 
 import { BookMarked, Plus, X } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   type JournalSelection,
@@ -28,6 +29,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { playthrough } from "@/db/schema";
+import { authPageHref } from "@/lib/auth-continuation";
 
 type Playthrough = typeof playthrough.$inferSelect;
 export function GameRecording({
@@ -54,6 +56,7 @@ export function GameRecording({
   ) => ReturnType<SavePlaythrough>;
   onRemove: (id: number) => ReturnType<SavePlaythrough>;
 }) {
+  const signInHref = authPageHref("/sign-in", usePathname());
   const [editor, setEditor] = useState<Playthrough | "add" | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
@@ -163,7 +166,7 @@ export function GameRecording({
               <TooltipTrigger
                 render={
                   <Button
-                    render={<Link href="/sign-in" />}
+                    render={<Link href={signInHref} />}
                     aria-label="Journal status"
                     variant="outline"
                     className="size-11 rounded-full"
@@ -184,7 +187,7 @@ export function GameRecording({
                   variant="outline"
                   disabled={pending}
                   className="size-11 rounded-full"
-                  render={signedIn ? undefined : <Link href="/sign-in" />}
+                  render={signedIn ? undefined : <Link href={signInHref} />}
                   onClick={signedIn ? () => open("add") : undefined}
                 />
               }
@@ -196,7 +199,7 @@ export function GameRecording({
         </div>
         {!signedIn ? (
           <p className="text-muted-foreground text-sm">
-            <Link href="/sign-in" className="underline underline-offset-4">
+            <Link href={signInHref} className="underline underline-offset-4">
               Sign in
             </Link>{" "}
             to record games and playthroughs.
