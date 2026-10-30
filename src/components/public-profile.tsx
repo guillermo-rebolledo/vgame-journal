@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { FallbackImage } from "@/components/fallback-image";
 import { Library } from "@/components/library";
 import { PagedList } from "@/components/paged-list";
 import { PlatformName } from "@/components/platform";
@@ -18,24 +19,22 @@ export function PublicProfile({ profile }: { profile: Profile }) {
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center gap-4">
-        {profile.image ? (
-          // biome-ignore lint/performance/noImgElement: Google avatar is served directly, without Next image optimization.
-          <img
-            src={profile.image}
-            alt=""
-            referrerPolicy="no-referrer"
-            className="size-16 rounded-full object-cover"
-            width={64}
-            height={64}
-          />
-        ) : (
-          <div
-            aria-hidden
-            className="flex size-16 shrink-0 items-center justify-center rounded-full bg-muted font-semibold text-2xl uppercase"
-          >
-            {profile.username?.slice(0, 1)}
-          </div>
-        )}
+        <FallbackImage
+          src={profile.image}
+          alt=""
+          referrerPolicy="no-referrer"
+          className="size-16 shrink-0 rounded-full object-cover"
+          width={64}
+          height={64}
+          fallback={
+            <div
+              aria-hidden
+              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-muted font-semibold text-2xl uppercase"
+            >
+              {profile.username?.slice(0, 1)}
+            </div>
+          }
+        />
         <div className="min-w-0 space-y-1">
           <h1 className="font-semibold [overflow-wrap:anywhere] text-3xl tracking-tight">
             {profile.username}

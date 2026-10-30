@@ -1,5 +1,6 @@
 import { SettingsIcon, UserIcon } from "lucide-react";
 import Link from "next/link";
+import { FallbackImage } from "@/components/fallback-image";
 import { MainNav } from "@/components/main-nav";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -31,17 +32,15 @@ export async function UserMenu() {
           href={username ? `/u/${username}` : "/onboarding"}
           className="inline-flex min-h-11 min-w-11 max-w-full items-center justify-center gap-2 rounded-md text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 lg:px-2"
         >
-          {image ? (
-            // biome-ignore lint/performance/noImgElement: Google avatars; Next image optimization is off app-wide.
-            <img
-              src={image}
-              alt=""
-              className="size-7 rounded-full"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <UserIcon aria-hidden className="size-4 lg:hidden" />
-          )}
+          <FallbackImage
+            src={image}
+            alt=""
+            className="size-7 shrink-0 rounded-full object-cover"
+            width={28}
+            height={28}
+            referrerPolicy="no-referrer"
+            fallback={<UserIcon aria-hidden className="size-4 lg:hidden" />}
+          />
           <span className="sr-only lg:not-sr-only lg:min-w-0 lg:[overflow-wrap:anywhere]">
             {username ?? name}
           </span>

@@ -451,3 +451,140 @@ test("sign up, share a profile without notes, export the journal, and delete the
   await expect(page).toHaveURL(/\/sign-in$/);
   await staleSession.close();
 });
+
+for (const theme of ["dark", "light"]) {
+  test(`R09: phone ${theme} owner and guest avatars fall back and recover`, async ({
+    page,
+    request,
+    browser,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(
+      (theme) => localStorage.setItem("theme", theme),
+      theme,
+    );
+    const username = `media_${Date.now()}`;
+    const email = await signUp(page, request, username);
+    const visitor = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    });
+    try {
+      await visitor.addInitScript(
+        (theme) => localStorage.setItem("theme", theme),
+        theme,
+      );
+      const guest = await visitor.newPage();
+      const failedSource = "https://avatars.example.test/failed.svg";
+      const validSource = "https://avatars.example.test/recovered.svg";
+      let failedRequests = 0;
+      for (const surface of [page, guest]) {
+        await surface.route("https://avatars.example.test/**", (route) => {
+          if (route.request().url() === failedSource) {
+            failedRequests++;
+            return route.abort();
+          }
+          return route.fulfill({
+            contentType: "image/svg+xml",
+            body: '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="teal"/></svg>',
+          });
+        });
+      }
+      const account = page
+        .locator("header")
+        .getByRole("link", { name: username, exact: true });
+      const initials = (surface: typeof page) =>
+        surface.getByRole("main").getByText("m", { exact: true });
+      const expectProfile = async (surface: typeof page, valid: boolean) => {
+        await expect(surface.locator("html")).toHaveClass(new RegExp(theme));
+        await expect(
+          surface.getByRole("heading", { level: 1, name: username }),
+        ).toBeVisible();
+        const avatar = valid
+          ? surface.getByRole("main").locator(`img[src="${validSource}"]`)
+          : initials(surface);
+        await expect(avatar).toBeVisible();
+        const box = await avatar.boundingBox();
+        expect(box?.width).toBe(64);
+        expect(box?.height).toBe(64);
+        await expect(
+          surface.getByRole("main").locator(`img[src="${failedSource}"]`),
+        ).toHaveCount(0);
+      };
+      await account.click();
+      await guest.goto(`/u/${username}`);
+      await expectProfile(page, false);
+      await expectProfile(guest, false);
+      await expect(account.locator("svg")).toBeVisible();
+      await expect(account).toHaveAccessibleName(username);
+      expect((await account.boundingBox())?.width).toBeGreaterThanOrEqual(44);
+
+      const setAvatar = async (image: string) => {
+        const response = await request.post("http://127.0.0.1:3101/query", {
+          data: {
+            sql: 'update "user" set image = $1, name = $2 where email = $3',
+            params: [image, "PRIVATE_MEDIA_ACCOUNT_NAME", email],
+          },
+        });
+        expect(response.ok()).toBeTruthy();
+      };
+      await setAvatar(failedSource);
+      await page.reload();
+      await guest.reload();
+      await expectProfile(page, false);
+      await expectProfile(guest, false);
+      expect(failedRequests).toBeGreaterThanOrEqual(2);
+      await expect(account.locator("img")).toHaveCount(0);
+      await expect(account.locator("svg")).toBeVisible();
+      await expect(account).toHaveAccessibleName(username);
+      expect(await guest.content()).not.toContain(email);
+      expect(await guest.content()).not.toContain("PRIVATE_MEDIA_ACCOUNT_NAME");
+      await expect(
+        guest.getByRole("link", { name: "Sign in", exact: true }),
+      ).toBeVisible();
+
+      // A recording action refreshes the server header without remounting the page.
+      await page.goto("/games/celeste");
+      await expect(account.locator("svg")).toBeVisible();
+      await setAvatar(validSource);
+      await chooseStatus(page, "backlog");
+      const headerImage = account.locator(`img[src="${validSource}"]`);
+      await expect(headerImage).toBeVisible();
+      await expect
+        .poll(() =>
+          headerImage.evaluate(
+            (image: HTMLImageElement) =>
+              image.complete && image.naturalWidth > 0,
+          ),
+        )
+        .toBe(true);
+      await expect(account).toHaveAccessibleName(username);
+      const headerBox = await headerImage.boundingBox();
+      expect(headerBox?.width).toBe(28);
+      expect(headerBox?.height).toBe(28);
+      await account.click();
+      await guest.reload();
+      await expectProfile(page, true);
+      await expectProfile(guest, true);
+      for (const surface of [page, guest]) {
+        const image = surface
+          .getByRole("main")
+          .locator(`img[src="${validSource}"]`);
+        await expect
+          .poll(() =>
+            image.evaluate(
+              (image: HTMLImageElement) =>
+                image.complete && image.naturalWidth > 0,
+            ),
+          )
+          .toBe(true);
+        expect(
+          await surface.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        ).toBe(true);
+      }
+    } finally {
+      await visitor.close();
+    }
+  });
+}

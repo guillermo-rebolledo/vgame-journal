@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense, ViewTransition } from "react";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
+import { FallbackImage } from "@/components/fallback-image";
+import { GameCover } from "@/components/game-cover";
 import { JsonLd } from "@/components/json-ld";
 import { PlatformName, PlatformNames } from "@/components/platform";
 import { Playthroughs } from "@/components/playthroughs";
@@ -57,8 +59,7 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
           aria-hidden
           className="-z-10 pointer-events-none absolute inset-0 overflow-hidden"
         >
-          {/* biome-ignore lint/performance/noImgElement: IGDB CDN serves sized covers; no Next image optimization. */}
-          <img
+          <FallbackImage
             src={cover}
             alt=""
             className="size-full scale-150 object-cover opacity-50 blur-3xl motion-safe:animate-drift dark:opacity-45"
@@ -68,24 +69,16 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
       )}
 
       <div className="mx-auto grid w-full max-w-5xl gap-8 px-4 py-8 sm:grid-cols-[minmax(0,15rem)_1fr] sm:py-12 md:grid-cols-[minmax(0,17rem)_1fr]">
-        {cover ? (
-          <ViewTransition
-            name={`game-cover-${game.id}`}
-            default="none"
-            share="cover-morph"
-          >
-            {/* biome-ignore lint/performance/noImgElement: IGDB CDN serves sized covers; no Next image optimization. */}
-            <img
-              src={cover}
-              alt={`${game.title} cover`}
-              width={264}
-              height={374}
-              className="mx-auto aspect-[264/374] w-48 rounded-lg object-cover shadow-2xl sm:w-full"
-            />
-          </ViewTransition>
-        ) : (
-          <div className="mx-auto aspect-[264/374] w-48 rounded-lg bg-muted sm:w-full" />
-        )}
+        <ViewTransition
+          name={`game-cover-${game.id}`}
+          default="none"
+          share="cover-morph"
+        >
+          <GameCover
+            imageId={game.coverImageId}
+            className="mx-auto w-48 self-start rounded-lg shadow-2xl sm:w-full"
+          />
+        </ViewTransition>
 
         <div className="flex min-w-0 flex-col gap-6">
           <header className="flex flex-col gap-2">
