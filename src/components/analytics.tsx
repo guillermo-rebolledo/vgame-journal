@@ -5,7 +5,6 @@ import {
   type BeforeSendEvent,
   Analytics as VercelAnalytics,
 } from "@vercel/analytics/next";
-import { usePathname } from "next/navigation";
 import { type ReactNode, useEffect } from "react";
 import type { CompletionTag, Status } from "@/lib/library";
 
@@ -41,10 +40,9 @@ export function googleCallbackURL(returnTo: string, newUser: boolean) {
 }
 
 export function Analytics() {
-  const pathname = usePathname();
   // A Google sign-in only succeeds off-page, so count it when the user lands back with the marker, then drop it.
-  // New users land on onboarding first, with the marker inside its returnTo.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-check on every client navigation.
+  // Google returns are full page loads, so checking on mount is enough; new users land on onboarding first,
+  // with the marker inside its returnTo. No usePathname: it would need a Suspense boundary in the root layout.
   useEffect(() => {
     const url = new URL(window.location.href);
     const returnTo = url.searchParams.get("returnTo");
@@ -70,7 +68,7 @@ export function Analytics() {
       "",
       `${url.pathname}${url.search}${url.hash}`,
     );
-  }, [pathname]);
+  }, []);
   return <VercelAnalytics beforeSend={redactAnalyticsEvent} />;
 }
 

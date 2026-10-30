@@ -239,7 +239,9 @@ test("R10 email, signup and Google callback construction validate destinations i
       expected === "/" ? "/sign-in" : "/sign-in?returnTo=%2Fgames%2Fceleste";
     expect(socialBody).toMatchObject({
       provider: "google",
-      callbackURL: expected,
+      // The auth marker lets Analytics count the Google sign-in or sign-up on return.
+      callbackURL: `${expected}?auth=google`,
+      newUserCallbackURL: `${expected}?auth=google-new`,
       errorCallbackURL: errorDestination,
     });
     // Replay the provider's error landing; the auth-handler test covers state/cookies.
@@ -251,7 +253,9 @@ test("R10 email, signup and Google callback construction validate destinations i
     await page.getByRole("button", { name: "Continue with Google" }).click();
     expect((await retry).postDataJSON()).toMatchObject({
       provider: "google",
-      callbackURL: expected,
+      // The auth marker lets Analytics count the Google sign-in or sign-up on return.
+      callbackURL: `${expected}?auth=google`,
+      newUserCallbackURL: `${expected}?auth=google-new`,
       errorCallbackURL: errorDestination,
     });
     await page

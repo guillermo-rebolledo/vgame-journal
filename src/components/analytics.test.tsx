@@ -13,9 +13,6 @@ import {
 
 vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
 vi.mock("@vercel/analytics/next", () => ({ Analytics: () => null }));
-vi.mock("next/navigation", () => ({
-  usePathname: () => window.location.pathname,
-}));
 
 afterEach(() => {
   cleanup();
