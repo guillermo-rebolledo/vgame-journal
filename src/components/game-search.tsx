@@ -1,7 +1,8 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { type CSSProperties, useEffect, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import {
   positionBucket,
   resultsBucket,
@@ -9,7 +10,7 @@ import {
 } from "@/components/analytics";
 import { GameCover } from "@/components/game-cover";
 import { HomeCoverLink } from "@/components/home-cover-link";
-import { PlatformNames } from "@/components/platform";
+import { PlatformName } from "@/components/platform";
 import { TiltCover } from "@/components/tilt-cover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,13 @@ const INITIAL_RESULTS = 6;
 /** What came back for one query and attempt; null results mean the search failed. */
 type Answer = { q: string; attempt: number; results: SearchResult[] | null };
 
-export function GameSearch() {
+export function GameSearch({
+  example,
+  invitation,
+}: {
+  example?: ReactNode;
+  invitation?: ReactNode;
+}) {
   const searchParams = useSearchParams();
   const query = searchParams.get("q") ?? "";
   const year = searchParams.get("year") ?? "";
@@ -127,10 +134,14 @@ export function GameSearch() {
             : !current
               ? "Searching…"
               : results?.length === 0
-                ? `No games match “${q}”. Check the spelling, or try fewer or different words from the title.`
+                ? `We couldn’t find a match for “${q}”. Check the spelling or try different words from the title.`
                 : matches?.length === 0
-                  ? "No matches with these filters. Clear filters or try another year or platform."
-                  : `${matches?.length} ${matches?.length === 1 ? "game" : "games"} found.`}
+                  ? "None of these top matches fit your filters. Clear filters or search for a more specific title."
+                  : results?.length === 1
+                    ? `1 match for “${q}”.`
+                    : year || platform
+                      ? `${matches?.length} of the top ${results?.length} matches ${matches?.length === 1 ? "fits" : "fit"} your filters.`
+                      : `Top ${results?.length} matches for “${q}”.`}
       </output>
       {failed && (
         <div
@@ -150,53 +161,27 @@ export function GameSearch() {
       {results &&
         results.length > 0 &&
         (results.length > 1 || year || platform) && (
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex min-w-0 flex-1 flex-col gap-1.5 text-sm">
-              <label htmlFor="game-search-year">Release year</label>
-              <select
-                id="game-search-year"
-                value={year}
-                onChange={(e) =>
-                  updateSearch({ year: e.target.value, all: "" })
-                }
-                className="h-11 rounded-lg border border-input bg-background px-2 text-base focus-visible:outline-ring"
-              >
-                <option value="">All years</option>
-                {year && !years.some((value) => String(value) === year) && (
-                  <option value={year}>{year} (no matches)</option>
-                )}
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col gap-1.5 text-sm">
-              <label htmlFor="game-search-platform">Platform</label>
-              <select
-                id="game-search-platform"
-                value={platform}
-                onChange={(e) =>
-                  updateSearch({ platform: e.target.value, all: "" })
-                }
-                className="h-11 rounded-lg border border-input bg-background px-2 text-base focus-visible:outline-ring"
-              >
-                <option value="">All platforms</option>
-                {platform && !platforms.includes(platform) && (
-                  <option value={platform}>{platform} (no matches)</option>
-                )}
-                {platforms.map((platform) => (
-                  <option key={platform} value={platform}>
-                    {platform}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
+            <SearchFilter
+              id="game-search-year"
+              label="Release year"
+              value={year}
+              emptyLabel="All years"
+              options={years.map(String)}
+              onChange={(year) => updateSearch({ year, all: "" })}
+            />
+            <SearchFilter
+              id="game-search-platform"
+              label="Platform"
+              value={platform}
+              emptyLabel="All platforms"
+              options={platforms}
+              onChange={(platform) => updateSearch({ platform, all: "" })}
+            />
             {(year || platform) && (
               <Button
                 variant="ghost"
-                className="h-11"
+                className="min-h-11 justify-self-start sm:col-span-2"
                 onClick={() =>
                   updateSearch({ year: "", platform: "", all: "" })
                 }
@@ -204,9 +189,12 @@ export function GameSearch() {
                 Clear filters
               </Button>
             )}
-            <p className="w-full text-muted-foreground text-xs">
-              Filters narrow the returned matches. Refine the title to search
-              further.
+            <p
+              id="game-search-filter-help"
+              className="text-muted-foreground text-xs sm:col-span-2"
+            >
+              Filters narrow these top matches only. Use a more specific title
+              to find other games.
             </p>
           </div>
         )}
@@ -256,9 +244,10 @@ export function GameSearch() {
                     <p className="mt-1 text-muted-foreground text-sm tabular-nums">
                       {game.year ?? "Release year TBA"}
                     </p>
-                    <p className="line-clamp-2 text-muted-foreground text-sm">
-                      <PlatformNames platforms={game.platforms} />
-                    </p>
+                    <SearchPlatforms
+                      platforms={game.platforms}
+                      selected={platform}
+                    />
                   </div>
                 </HomeCoverLink>
               </li>
@@ -276,9 +265,90 @@ export function GameSearch() {
         >
           {expanded
             ? "Show fewer matches"
-            : `Show all ${matches.length} matches`}
+            : `Show ${matches.length - INITIAL_RESULTS} more ${matches.length - INITIAL_RESULTS === 1 ? "match" : "matches"}`}
         </Button>
       )}
+      {(example || invitation) && (
+        <div className="mt-2 flex flex-col gap-6 border-t pt-6">
+          {q.length === 0 && example}
+          {invitation}
+        </div>
+      )}
     </div>
+  );
+}
+
+function SearchFilter({
+  id,
+  label,
+  value,
+  emptyLabel,
+  options,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  emptyLabel: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const unavailable = value && !options.includes(value);
+  const selectedLabel = value
+    ? `${value}${unavailable ? " (no matches)" : ""}`
+    : emptyLabel;
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5 text-sm">
+      <label htmlFor={id}>{label}</label>
+      <div className="relative rounded-lg border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none flex min-h-11 items-center gap-2 px-2 py-2 text-base"
+        >
+          <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+            {selectedLabel}
+          </span>
+          <ChevronDown className="size-4 shrink-0" />
+        </div>
+        {/* Keep the native picker while allowing its visible value to wrap. */}
+        <select
+          id={id}
+          value={value}
+          aria-describedby="game-search-filter-help"
+          onChange={(e) => onChange(e.target.value)}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        >
+          <option value="">{emptyLabel}</option>
+          {unavailable && <option value={value}>{selectedLabel}</option>}
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+function SearchPlatforms({
+  platforms,
+  selected,
+}: {
+  platforms: string[];
+  selected: string;
+}) {
+  const primary = platforms.includes(selected) ? selected : platforms[0];
+  if (!primary) return null;
+  const remaining = platforms.length - 1;
+  return (
+    <p className="flex flex-wrap items-baseline gap-x-2 text-muted-foreground text-sm [overflow-wrap:anywhere]">
+      <PlatformName platform={primary} compact />
+      {remaining > 0 && (
+        <span>
+          +{remaining} {remaining === 1 ? "platform" : "platforms"}
+        </span>
+      )}
+    </p>
   );
 }
