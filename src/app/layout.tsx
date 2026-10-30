@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
+import { Analytics } from "@/components/analytics";
 import { PageTransition } from "@/components/page-transition";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -101,6 +102,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             .
           </footer>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
