@@ -3,6 +3,244 @@ import { expect, test } from "@playwright/test";
 import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
 
+test("F05/F16: Release region save stays local on transport failure and retries the retained choice", async ({
+  page,
+  request,
+}) => {
+  await signUp(page, request, `region_${Date.now()}`);
+  await page.goto("/settings");
+  const japan = page.getByRole("radio", {
+    name: "Japan Japanese release dates",
+  });
+  await expect(
+    page.getByRole("radio", { name: /Earliest worldwide/ }),
+  ).toBeChecked();
+  await japan.check();
+
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let submissions = 0;
+  await page.route("**/settings", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    submissions++;
+    await route.fetch();
+    await held;
+    await route.abort();
+  });
+  try {
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("status")).toHaveText("Saving…");
+    await expect(page.getByRole("button", { name: "Saving…" })).toBeDisabled();
+    for (const radio of await page.getByRole("radio").all())
+      await expect(radio).toBeDisabled();
+    await page.keyboard.press("Enter");
+    expect(submissions).toBe(1);
+  } finally {
+    release();
+  }
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Could not save your release region",
+  );
+  await expect(japan).toBeChecked();
+  await expect(japan).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Copy", exact: true }),
+  ).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Download JSON" }),
+  ).toBeEnabled();
+  await expect(page.getByLabel("Type DELETE to confirm")).toBeEnabled();
+  await expect(page.getByRole("status")).not.toHaveText("Saved");
+  await page.unroute("**/settings");
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Saved");
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await page.getByRole("radio", { name: /Europe European/ }).check();
+  await expect(page.getByRole("status")).toBeEmpty();
+  await page.reload();
+  await expect(japan).toBeChecked();
+});
+
+test("F05/F16: invalid region and expired-session action failures stay in Settings", async ({
+  page,
+  request,
+}) => {
+  await signUp(page, request, `region_action_${Date.now()}`);
+  await page.goto("/settings");
+  const japan = page.getByRole("radio", {
+    name: "Japan Japanese release dates",
+  });
+  await japan.check();
+  // Form fields are untrusted; the server must reject an unknown region.
+  await japan.evaluate((input: HTMLInputElement) => {
+    input.value = "mars";
+  });
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Could not save your release region",
+  );
+  await expect(japan).toBeChecked();
+  await expect(page.getByRole("status")).not.toHaveText("Saved");
+  await japan.evaluate((input: HTMLInputElement) => {
+    input.value = "japan";
+  });
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Saved");
+  await page.reload();
+  await expect(japan).toBeChecked();
+
+  const signedOut = await page.request.post("/api/auth/sign-out", {
+    data: {},
+    headers: { origin: "http://localhost:3100" },
+  });
+  expect(signedOut.ok()).toBe(true);
+  await page.getByRole("radio", { name: /Europe European/ }).check();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Could not save your release region",
+  );
+  await expect(
+    page.getByRole("radio", { name: /Europe European/ }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Retry", exact: true }),
+  ).toBeEnabled();
+  await expect(page.getByRole("status")).not.toHaveText("Saved");
+  await expect(
+    page.getByRole("heading", { name: "Calendar feed" }),
+  ).toBeVisible();
+});
+
+test("F06: Calendar feed copy acknowledges success and recovers from denied or unavailable clipboard access", async ({
+  page,
+  request,
+  context,
+}) => {
+  await signUp(page, request, `clipboard_${Date.now()}`);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/settings");
+  const feed = page.getByRole("textbox", { name: "Calendar feed URL" });
+  const url = await feed.inputValue();
+  let pageErrors = 0;
+  page.on("pageerror", () => {
+    pageErrors++;
+  });
+  const copy = page.getByRole("button", { name: "Copy", exact: true });
+  await copy.click();
+  await expect(
+    page.getByRole("button", { name: "Copied", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      async (url) => (await navigator.clipboard.readText()) === url,
+      url,
+    ),
+  ).toBe(true);
+  await expect(copy).toBeVisible();
+
+  for (const failure of [
+    "denied",
+    "rejected",
+    "unavailable",
+    "no-selection",
+  ] as const) {
+    await page.evaluate((failure) => {
+      if (failure === "unavailable") {
+        Object.defineProperty(navigator, "clipboard", {
+          configurable: true,
+          value: undefined,
+        });
+      } else {
+        Object.defineProperty(navigator, "clipboard", {
+          configurable: true,
+          value: {
+            writeText: async () => {
+              if (failure === "denied")
+                throw new DOMException("Permission denied", "NotAllowedError");
+              throw new Error("Clipboard unavailable");
+            },
+          },
+        });
+      }
+      if (failure === "no-selection") {
+        HTMLInputElement.prototype.select = () => {
+          throw new Error("Selection unavailable");
+        };
+      }
+    }, failure);
+    await copy.click();
+    const error = page.getByRole("main").getByRole("alert");
+    await expect(error).toContainText("copy it manually");
+    expect((await error.textContent())?.includes(url)).toBe(false);
+    expect((await feed.inputValue()) === url).toBe(true);
+    await expect(feed).toHaveAttribute("readonly", "");
+    await expect(feed).toBeFocused();
+    if (failure === "no-selection") await feed.press("ControlOrMeta+a");
+    expect(
+      await feed.evaluate(
+        (input: HTMLInputElement) =>
+          input.selectionStart === 0 &&
+          input.selectionEnd === input.value.length,
+      ),
+    ).toBe(true);
+    await expect(
+      page.getByRole("button", { name: "Copied", exact: true }),
+    ).toHaveCount(0);
+  }
+  await page.evaluate(() => {
+    Reflect.deleteProperty(navigator, "clipboard");
+  });
+  await copy.click();
+  await expect(
+    page.getByRole("button", { name: "Copied", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  expect(pageErrors).toBe(0);
+
+  await page.setViewportSize({ width: 320, height: 740 });
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((theme) => {
+      document.documentElement.style.fontSize = "32px";
+      document.documentElement.classList.toggle("dark", theme === "dark");
+    }, theme);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    for (const control of [
+      feed,
+      copy,
+      page.getByRole("button", { name: "Regenerate URL", exact: true }),
+      page.getByRole("button", { name: "Download JSON" }),
+    ]) {
+      await control.scrollIntoViewIfNeeded();
+      const bounds = await control.boundingBox();
+      expect(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 320).toBe(
+        true,
+      );
+    }
+  }
+  await page.reload();
+  expect((await feed.inputValue()) === url).toBe(true);
+  const subscribe = page.getByRole("button", {
+    name: "Subscribe",
+    exact: true,
+  });
+  expect(
+    (await subscribe.getAttribute("href")) ===
+      url.replace(/^https?:/, "webcal:"),
+  ).toBe(true);
+  await page
+    .getByRole("button", { name: "Regenerate URL", exact: true })
+    .click();
+  await expect.poll(async () => (await feed.inputValue()) !== url).toBe(true);
+  expect((await page.request.get(url)).status()).toBe(404);
+  expect((await page.request.get(await feed.inputValue())).status()).toBe(200);
+});
+
 test("sign up, share a profile without notes, export the journal, and delete the account", async ({
   page,
   request,

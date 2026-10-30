@@ -5,20 +5,14 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { DeleteAccountForm } from "@/components/delete-account-form";
+import { RegionForm } from "@/components/region-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { auth, ownerId, signedInUserId } from "@/lib/auth";
 import { JournalError, journal } from "@/lib/journal";
-import { REGIONS, type Region } from "@/lib/release-dates";
+import type { Region } from "@/lib/release-dates";
 
 export const metadata: Metadata = { title: "Settings" };
-
-const REGION_LABELS: Record<Region, [label: string, hint: string]> = {
-  earliest: ["Earliest worldwide", "The first release anywhere"],
-  north_america: ["North America", "US and Canada release dates"],
-  europe: ["Europe", "European release dates"],
-  japan: ["Japan", "Japanese release dates"],
-};
 
 export default function SettingsPage() {
   return (
@@ -95,47 +89,19 @@ async function RegionSetting() {
 
   async function save(formData: FormData) {
     "use server";
-    await journal.setRegion(await ownerId(), formData.get("region") as Region);
+    try {
+      await journal.setRegion(
+        await ownerId(),
+        formData.get("region") as Region,
+      );
+    } catch {
+      return { error: "Could not save your release region. Please try again." };
+    }
     refresh();
+    return { saved: true as const };
   }
 
-  return (
-    <form action={save} className="flex flex-col gap-4">
-      <fieldset className="flex flex-col gap-3">
-        <legend className="mb-1 flex flex-col gap-1">
-          <span className="font-medium">Release region</span>
-          <span className="text-muted-foreground text-sm">
-            Wishlist Countdowns follow release dates in this region. Games
-            without a date there use the earliest one anywhere.
-          </span>
-        </legend>
-        {REGIONS.map((region) => {
-          const [label, hint] = REGION_LABELS[region];
-          return (
-            <label
-              key={region}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 has-checked:border-primary has-checked:bg-muted/50"
-            >
-              <input
-                type="radio"
-                name="region"
-                value={region}
-                defaultChecked={region === current}
-                className="size-4 accent-primary"
-              />
-              <span className="flex flex-col">
-                <span className="font-medium text-sm">{label}</span>
-                <span className="text-muted-foreground text-sm">{hint}</span>
-              </span>
-            </label>
-          );
-        })}
-      </fieldset>
-      <Button type="submit" className="self-start">
-        Save
-      </Button>
-    </form>
-  );
+  return <RegionForm current={current} onSave={save} />;
 }
 
 async function CalendarFeedSetting() {
@@ -165,12 +131,13 @@ async function CalendarFeedSetting() {
       </div>
       <div className="flex flex-wrap gap-2">
         <Input
+          id="calendar-feed-url"
           readOnly
           value={url}
           aria-label="Calendar feed URL"
           className="min-w-0 flex-1 basis-48 font-mono text-xs md:text-xs"
         />
-        <CopyButton text={url} />
+        <CopyButton text={url} inputId="calendar-feed-url" />
       </div>
       <div className="flex flex-wrap gap-2">
         <Button
