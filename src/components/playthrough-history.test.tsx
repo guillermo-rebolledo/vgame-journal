@@ -4,6 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { PlaythroughHistory } from "./playthrough-history";
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 afterEach(cleanup);
 test("large histories bound rows and open the selected playthrough on demand", async () => {
   const user = userEvent.setup();

@@ -116,9 +116,9 @@ export function PlaythroughForm({
     <form
       data-base-ui-swipe-ignore
       onSubmit={submit}
-      className="flex min-h-0 flex-1 flex-col"
+      className="flex shrink-0 flex-col"
     >
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
+      <div className="px-[min(1.5rem,5vw)] py-4">
         <FieldGroup className="mx-auto max-w-xl">
           {outsideJournal && (
             <>
@@ -137,7 +137,7 @@ export function PlaythroughForm({
               logged.
             </p>
           )}
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor={`${id}-start`}>Started</FieldLabel>
               <Input
@@ -146,7 +146,7 @@ export function PlaythroughForm({
                 required
                 value={values.startedOn ?? ""}
                 onChange={(e) => change("startedOn", e.target.value)}
-                className="h-11"
+                className="h-11 px-1 sm:px-2.5"
                 disabled={pending}
               />
             </Field>
@@ -157,7 +157,7 @@ export function PlaythroughForm({
                 type="date"
                 value={values.endedOn ?? ""}
                 onChange={(e) => change("endedOn", e.target.value)}
-                className="h-11"
+                className="h-11 px-1 sm:px-2.5"
                 disabled={pending}
               />
             </Field>
@@ -197,8 +197,8 @@ export function PlaythroughForm({
           )}
         </FieldGroup>
       </div>
-      <footer className="shrink-0 border-t bg-background px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="mx-auto flex max-w-xl items-center justify-end gap-3">
+      <footer className="shrink-0 border-t bg-background px-[min(1.5rem,5vw)] pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex max-w-xl flex-wrap items-center justify-end gap-3">
           <output className="mr-auto text-muted-foreground text-sm">
             {pending ? "Saving…" : ""}
           </output>

@@ -11,7 +11,7 @@ import {
 } from "react";
 import { GameCover } from "@/components/game-cover";
 import { Odometer } from "@/components/odometer";
-import { PagedList } from "@/components/paged-list";
+import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { Button } from "@/components/ui/button";
 import type { Status, WishlistEntry } from "@/lib/journal";
 import { capitalize } from "@/lib/library";
@@ -67,13 +67,6 @@ export function Wishlist({
     if (notice?.state === "moved") noticeRef.current?.focus();
   }, [notice]);
 
-  if (entries.length === 0 && !onMove)
-    return (
-      <p className="py-8 text-muted-foreground">
-        No games on this wishlist yet.
-      </p>
-    );
-
   // Until the browser reports its time zone, sections follow the UTC day; Countdowns wait for the local one.
   const sectionDay = day ?? localDay(new Date(), "UTC");
   const section = (e: WishlistEntry) =>
@@ -89,6 +82,28 @@ export function Wishlist({
     tba: [],
   };
   for (const entry of entries) grouped[section(entry)].push(entry);
+
+  const pagination = {
+    out: useUrlPagination(
+      "outPage",
+      day === null ? undefined : grouped.out.length,
+    ),
+    upcoming: useUrlPagination(
+      "upcomingPage",
+      day === null ? undefined : grouped.upcoming.length,
+    ),
+    tba: useUrlPagination(
+      "tbaPage",
+      day === null ? undefined : grouped.tba.length,
+    ),
+  };
+
+  if (entries.length === 0 && !onMove)
+    return (
+      <p className="py-8 text-muted-foreground">
+        No games on this wishlist yet.
+      </p>
+    );
 
   function undo(moved: Moved) {
     setNotice({ ...moved, state: "undoing" });
@@ -124,7 +139,7 @@ export function Wishlist({
       )}
 
       {entries.length === 0 ? (
-        <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-8">
+        <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-4 sm:p-8">
           <p className="font-medium">Your wishlist is empty.</p>
           <p className="text-muted-foreground text-sm">
             Find an upcoming game and set its status to Wishlist to count down
@@ -146,14 +161,18 @@ export function Wishlist({
               <section key={key} aria-labelledby={`wishlist-${key}`}>
                 <h2
                   id={`wishlist-${key}`}
-                  className="flex items-baseline gap-2 font-semibold text-lg"
+                  className="flex flex-wrap items-baseline gap-2 font-semibold text-lg"
                 >
                   {label}{" "}
                   <span className="font-normal text-muted-foreground text-sm tabular-nums">
                     {games.length}
                   </span>
                 </h2>
-                <PagedList items={games} label={label}>
+                <PagedList
+                  pagination={pagination[key]}
+                  items={games}
+                  label={label}
+                >
                   {(visible) => (
                     <ul className="flex flex-col divide-y divide-border/60">
                       {visible.map((e) => (
@@ -333,7 +352,7 @@ function Row({
       </Link>
 
       {left === OUT_NOW && onMove && (
-        <div className="flex flex-wrap items-center gap-2 pl-18 sm:pl-0">
+        <div className="flex flex-wrap items-center gap-2 min-[400px]:pl-18 sm:pl-0">
           <span className="text-muted-foreground text-sm">
             {pending && target
               ? `Moving ${entry.title} to ${capitalize(target)}…`
@@ -357,7 +376,7 @@ function Row({
       {failed && target && (
         <div
           role="alert"
-          className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 pl-18 text-destructive text-sm"
+          className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 text-destructive text-sm"
         >
           <p>
             Couldn’t move {entry.title} to {capitalize(target)}. Check your

@@ -3,6 +3,244 @@ import { expect, test } from "@playwright/test";
 import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
 
+test("F05/F16: Release region save stays local on transport failure and retries the retained choice", async ({
+  page,
+  request,
+}) => {
+  await signUp(page, request, `region_${Date.now()}`);
+  await page.goto("/settings");
+  const japan = page.getByRole("radio", {
+    name: "Japan Japanese release dates",
+  });
+  await expect(
+    page.getByRole("radio", { name: /Earliest worldwide/ }),
+  ).toBeChecked();
+  await japan.check();
+
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let submissions = 0;
+  await page.route("**/settings", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    submissions++;
+    await route.fetch();
+    await held;
+    await route.abort();
+  });
+  try {
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("status")).toHaveText("Saving…");
+    await expect(page.getByRole("button", { name: "Saving…" })).toBeDisabled();
+    for (const radio of await page.getByRole("radio").all())
+      await expect(radio).toBeDisabled();
+    await page.keyboard.press("Enter");
+    expect(submissions).toBe(1);
+  } finally {
+    release();
+  }
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Could not save your release region",
+  );
+  await expect(japan).toBeChecked();
+  await expect(japan).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Copy", exact: true }),
+  ).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Download JSON" }),
+  ).toBeEnabled();
+  await expect(page.getByLabel("Type DELETE to confirm")).toBeEnabled();
+  await expect(page.getByRole("status")).not.toHaveText("Saved");
+  await page.unroute("**/settings");
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Saved");
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await page.getByRole("radio", { name: /Europe European/ }).check();
+  await expect(page.getByRole("status")).toBeEmpty();
+  await page.reload();
+  await expect(japan).toBeChecked();
+});
+
+test("F05/F16: invalid region and expired-session action failures stay in Settings", async ({
+  page,
+  request,
+}) => {
+  await signUp(page, request, `region_action_${Date.now()}`);
+  await page.goto("/settings");
+  const japan = page.getByRole("radio", {
+    name: "Japan Japanese release dates",
+  });
+  await japan.check();
+  // Form fields are untrusted; the server must reject an unknown region.
+  await japan.evaluate((input: HTMLInputElement) => {
+    input.value = "mars";
+  });
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Could not save your release region",
+  );
+  await expect(japan).toBeChecked();
+  await expect(page.getByRole("status")).not.toHaveText("Saved");
+  await japan.evaluate((input: HTMLInputElement) => {
+    input.value = "japan";
+  });
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Saved");
+  await page.reload();
+  await expect(japan).toBeChecked();
+
+  const signedOut = await page.request.post("/api/auth/sign-out", {
+    data: {},
+    headers: { origin: "http://localhost:3100" },
+  });
+  expect(signedOut.ok()).toBe(true);
+  await page.getByRole("radio", { name: /Europe European/ }).check();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Could not save your release region",
+  );
+  await expect(
+    page.getByRole("radio", { name: /Europe European/ }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Retry", exact: true }),
+  ).toBeEnabled();
+  await expect(page.getByRole("status")).not.toHaveText("Saved");
+  await expect(
+    page.getByRole("heading", { name: "Calendar feed" }),
+  ).toBeVisible();
+});
+
+test("F06: Calendar feed copy acknowledges success and recovers from denied or unavailable clipboard access", async ({
+  page,
+  request,
+  context,
+}) => {
+  await signUp(page, request, `clipboard_${Date.now()}`);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/settings");
+  const feed = page.getByRole("textbox", { name: "Calendar feed URL" });
+  const url = await feed.inputValue();
+  let pageErrors = 0;
+  page.on("pageerror", () => {
+    pageErrors++;
+  });
+  const copy = page.getByRole("button", { name: "Copy", exact: true });
+  await copy.click();
+  await expect(
+    page.getByRole("button", { name: "Copied", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      async (url) => (await navigator.clipboard.readText()) === url,
+      url,
+    ),
+  ).toBe(true);
+  await expect(copy).toBeVisible();
+
+  for (const failure of [
+    "denied",
+    "rejected",
+    "unavailable",
+    "no-selection",
+  ] as const) {
+    await page.evaluate((failure) => {
+      if (failure === "unavailable") {
+        Object.defineProperty(navigator, "clipboard", {
+          configurable: true,
+          value: undefined,
+        });
+      } else {
+        Object.defineProperty(navigator, "clipboard", {
+          configurable: true,
+          value: {
+            writeText: async () => {
+              if (failure === "denied")
+                throw new DOMException("Permission denied", "NotAllowedError");
+              throw new Error("Clipboard unavailable");
+            },
+          },
+        });
+      }
+      if (failure === "no-selection") {
+        HTMLInputElement.prototype.select = () => {
+          throw new Error("Selection unavailable");
+        };
+      }
+    }, failure);
+    await copy.click();
+    const error = page.getByRole("main").getByRole("alert");
+    await expect(error).toContainText("copy it manually");
+    expect((await error.textContent())?.includes(url)).toBe(false);
+    expect((await feed.inputValue()) === url).toBe(true);
+    await expect(feed).toHaveAttribute("readonly", "");
+    await expect(feed).toBeFocused();
+    if (failure === "no-selection") await feed.press("ControlOrMeta+a");
+    expect(
+      await feed.evaluate(
+        (input: HTMLInputElement) =>
+          input.selectionStart === 0 &&
+          input.selectionEnd === input.value.length,
+      ),
+    ).toBe(true);
+    await expect(
+      page.getByRole("button", { name: "Copied", exact: true }),
+    ).toHaveCount(0);
+  }
+  await page.evaluate(() => {
+    Reflect.deleteProperty(navigator, "clipboard");
+  });
+  await copy.click();
+  await expect(
+    page.getByRole("button", { name: "Copied", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  expect(pageErrors).toBe(0);
+
+  await page.setViewportSize({ width: 320, height: 740 });
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((theme) => {
+      document.documentElement.style.fontSize = "32px";
+      document.documentElement.classList.toggle("dark", theme === "dark");
+    }, theme);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    for (const control of [
+      feed,
+      copy,
+      page.getByRole("button", { name: "Regenerate URL", exact: true }),
+      page.getByRole("button", { name: "Download JSON" }),
+    ]) {
+      await control.scrollIntoViewIfNeeded();
+      const bounds = await control.boundingBox();
+      expect(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 320).toBe(
+        true,
+      );
+    }
+  }
+  await page.reload();
+  expect((await feed.inputValue()) === url).toBe(true);
+  const subscribe = page.getByRole("button", {
+    name: "Subscribe",
+    exact: true,
+  });
+  expect(
+    (await subscribe.getAttribute("href")) ===
+      url.replace(/^https?:/, "webcal:"),
+  ).toBe(true);
+  await page
+    .getByRole("button", { name: "Regenerate URL", exact: true })
+    .click();
+  await expect.poll(async () => (await feed.inputValue()) !== url).toBe(true);
+  expect((await page.request.get(url)).status()).toBe(404);
+  expect((await page.request.get(await feed.inputValue())).status()).toBe(200);
+});
+
 test("sign up, share a profile without notes, export the journal, and delete the account", async ({
   page,
   request,
@@ -89,7 +327,14 @@ test("sign up, share a profile without notes, export the journal, and delete the
     contentType: "image/png",
   });
 
+  // F13: views are shareable and history keeps inactive filters/pages.
+  await publicPage.goto(`/u/${username}?view=unknown&outPage=2&marker=keep`);
+  await expect(
+    publicPage.getByRole("button", { name: "Library", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
   await publicPage.getByRole("button", { name: /^wishlist$/i }).click();
+  await expect(publicPage).toHaveURL(/view=wishlist/);
+  expect(new URL(publicPage.url()).searchParams.get("marker")).toBe("keep");
   await expect(
     publicPage.getByRole("heading", { name: "Silksong", exact: true }),
   ).toBeVisible();
@@ -101,8 +346,38 @@ test("sign up, share a profile without notes, export the journal, and delete the
     publicPage.getByRole("main").getByText("12 hours", { exact: true }),
   ).toBeVisible();
   await expect(
-    publicPage.getByRole("main").getByText("1 games", { exact: true }),
+    publicPage.getByRole("main").getByText("1 game", { exact: true }),
   ).toBeVisible();
+  await expect(publicPage).toHaveURL(/view=stats/);
+  await publicPage.goBack();
+  await expect(
+    publicPage.getByRole("button", { name: "Wishlist", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await publicPage.goForward();
+  await expect(
+    publicPage.getByRole("button", { name: "Stats", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await publicPage.reload();
+  await expect(publicPage.getByText("12 hours", { exact: true })).toBeVisible();
+  for (const view of ["library", "wishlist", "stats"]) {
+    const fresh = await browser.newContext();
+    try {
+      const copied = await fresh.newPage();
+      await copied.goto(`/u/${username}?view=${view}&marker=keep`);
+      await expect(
+        copied.getByRole("button", {
+          name: new RegExp(`^${view}$`, "i"),
+          exact: true,
+        }),
+      ).toHaveAttribute("aria-pressed", "true");
+      await expect(
+        copied.getByRole("link", { name: "Sign in", exact: true }),
+      ).toBeVisible();
+      await expect(copied.getByText(privateNote)).toHaveCount(0);
+    } finally {
+      await fresh.close();
+    }
+  }
   const statsScreenshot = testInfo.outputPath("public-stats.png");
   await publicPage.screenshot({ path: statsScreenshot, fullPage: true });
   await testInfo.attach("Public stats", {
@@ -213,3 +488,140 @@ test("sign up, share a profile without notes, export the journal, and delete the
   await expect(page).toHaveURL(/\/sign-in$/);
   await staleSession.close();
 });
+
+for (const theme of ["dark", "light"]) {
+  test(`R09: phone ${theme} owner and guest avatars fall back and recover`, async ({
+    page,
+    request,
+    browser,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(
+      (theme) => localStorage.setItem("theme", theme),
+      theme,
+    );
+    const username = `media_${Date.now()}`;
+    const email = await signUp(page, request, username);
+    const visitor = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    });
+    try {
+      await visitor.addInitScript(
+        (theme) => localStorage.setItem("theme", theme),
+        theme,
+      );
+      const guest = await visitor.newPage();
+      const failedSource = "https://avatars.example.test/failed.svg";
+      const validSource = "https://avatars.example.test/recovered.svg";
+      let failedRequests = 0;
+      for (const surface of [page, guest]) {
+        await surface.route("https://avatars.example.test/**", (route) => {
+          if (route.request().url() === failedSource) {
+            failedRequests++;
+            return route.abort();
+          }
+          return route.fulfill({
+            contentType: "image/svg+xml",
+            body: '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="teal"/></svg>',
+          });
+        });
+      }
+      const account = page
+        .locator("header")
+        .getByRole("link", { name: username, exact: true });
+      const initials = (surface: typeof page) =>
+        surface.getByRole("main").getByText("m", { exact: true });
+      const expectProfile = async (surface: typeof page, valid: boolean) => {
+        await expect(surface.locator("html")).toHaveClass(new RegExp(theme));
+        await expect(
+          surface.getByRole("heading", { level: 1, name: username }),
+        ).toBeVisible();
+        const avatar = valid
+          ? surface.getByRole("main").locator(`img[src="${validSource}"]`)
+          : initials(surface);
+        await expect(avatar).toBeVisible();
+        const box = await avatar.boundingBox();
+        expect(box?.width).toBe(64);
+        expect(box?.height).toBe(64);
+        await expect(
+          surface.getByRole("main").locator(`img[src="${failedSource}"]`),
+        ).toHaveCount(0);
+      };
+      await account.click();
+      await guest.goto(`/u/${username}`);
+      await expectProfile(page, false);
+      await expectProfile(guest, false);
+      await expect(account.locator("svg")).toBeVisible();
+      await expect(account).toHaveAccessibleName(username);
+      expect((await account.boundingBox())?.width).toBeGreaterThanOrEqual(44);
+
+      const setAvatar = async (image: string) => {
+        const response = await request.post("http://127.0.0.1:3101/query", {
+          data: {
+            sql: 'update "user" set image = $1, name = $2 where email = $3',
+            params: [image, "PRIVATE_MEDIA_ACCOUNT_NAME", email],
+          },
+        });
+        expect(response.ok()).toBeTruthy();
+      };
+      await setAvatar(failedSource);
+      await page.reload();
+      await guest.reload();
+      await expectProfile(page, false);
+      await expectProfile(guest, false);
+      expect(failedRequests).toBeGreaterThanOrEqual(2);
+      await expect(account.locator("img")).toHaveCount(0);
+      await expect(account.locator("svg")).toBeVisible();
+      await expect(account).toHaveAccessibleName(username);
+      expect(await guest.content()).not.toContain(email);
+      expect(await guest.content()).not.toContain("PRIVATE_MEDIA_ACCOUNT_NAME");
+      await expect(
+        guest.getByRole("link", { name: "Sign in", exact: true }),
+      ).toBeVisible();
+
+      // A recording action refreshes the server header without remounting the page.
+      await page.goto("/games/celeste");
+      await expect(account.locator("svg")).toBeVisible();
+      await setAvatar(validSource);
+      await chooseStatus(page, "backlog");
+      const headerImage = account.locator(`img[src="${validSource}"]`);
+      await expect(headerImage).toBeVisible();
+      await expect
+        .poll(() =>
+          headerImage.evaluate(
+            (image: HTMLImageElement) =>
+              image.complete && image.naturalWidth > 0,
+          ),
+        )
+        .toBe(true);
+      await expect(account).toHaveAccessibleName(username);
+      const headerBox = await headerImage.boundingBox();
+      expect(headerBox?.width).toBe(28);
+      expect(headerBox?.height).toBe(28);
+      await account.click();
+      await guest.reload();
+      await expectProfile(page, true);
+      await expectProfile(guest, true);
+      for (const surface of [page, guest]) {
+        const image = surface
+          .getByRole("main")
+          .locator(`img[src="${validSource}"]`);
+        await expect
+          .poll(() =>
+            image.evaluate(
+              (image: HTMLImageElement) =>
+                image.complete && image.naturalWidth > 0,
+            ),
+          )
+          .toBe(true);
+        expect(
+          await surface.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        ).toBe(true);
+      }
+    } finally {
+      await visitor.close();
+    }
+  });
+}

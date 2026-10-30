@@ -104,15 +104,17 @@ export function GameSearch() {
         aria-live="polite"
         className="text-muted-foreground text-sm empty:hidden"
       >
-        {idle || failed
-          ? ""
-          : !current
-            ? "Searching…"
-            : results?.length === 0
-              ? `No games match “${q}”. Check the spelling, or try fewer or different words from the title.`
-              : matches?.length === 0
-                ? "No matches with these filters. Clear filters or try another year or platform."
-                : `${matches?.length} ${matches?.length === 1 ? "game" : "games"} found.`}
+        {q.length === 1
+          ? "Enter at least 2 characters"
+          : idle || failed
+            ? ""
+            : !current
+              ? "Searching…"
+              : results?.length === 0
+                ? `No games match “${q}”. Check the spelling, or try fewer or different words from the title.`
+                : matches?.length === 0
+                  ? "No matches with these filters. Clear filters or try another year or platform."
+                  : `${matches?.length} ${matches?.length === 1 ? "game" : "games"} found.`}
       </output>
       {failed && (
         <div

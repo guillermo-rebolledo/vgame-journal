@@ -2,10 +2,12 @@
 
 import { BookMarked, Plus, X } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   type JournalSelection,
   JournalStatus,
+  type SaveJournalStatus,
 } from "@/components/journal-status";
 import {
   PlaythroughForm,
@@ -27,7 +29,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { playthrough } from "@/db/schema";
-import type { CompletionTag, Status } from "@/lib/library";
+import { authPageHref } from "@/lib/auth-continuation";
 
 type Playthrough = typeof playthrough.$inferSelect;
 export function GameRecording({
@@ -46,10 +48,7 @@ export function GameRecording({
   playthroughs: Playthrough[];
   gameTitle: string;
   platforms: string[];
-  onStatus: (
-    status: Status | null,
-    tag: CompletionTag | null,
-  ) => ReturnType<SavePlaythrough>;
+  onStatus: SaveJournalStatus;
   onAdd: SavePlaythrough;
   onUpdate: (
     id: number,
@@ -57,6 +56,7 @@ export function GameRecording({
   ) => ReturnType<SavePlaythrough>;
   onRemove: (id: number) => ReturnType<SavePlaythrough>;
 }) {
+  const signInHref = authPageHref("/sign-in", usePathname());
   const [editor, setEditor] = useState<Playthrough | "add" | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
@@ -76,22 +76,32 @@ export function GameRecording({
           .height ?? 56;
       const availableHeight =
         viewport.height - navbarHeight - 16 - (desktop ? 24 : 0);
+      // A tall navigation header may sit behind the modal; never let it consume the editor.
+      const editorHeight = Math.max(
+        0,
+        Math.min(
+          Math.max(availableHeight, viewport.height * 0.6),
+          viewport.height - 16,
+          desktop ? 720 : 960,
+        ),
+      );
       // On the document, not on `drawer`: the popup mounts in a portal, and its ref is still
       // null on the first run, which used to leave the drawer on its CSS fallback height.
       const root = document.documentElement.style;
-      root.setProperty(
-        "--editor-height",
-        `${Math.max(0, Math.min(availableHeight, desktop ? 720 : 960))}px`,
-      );
+      root.setProperty("--editor-height", `${editorHeight}px`);
       root.setProperty(
         "--editor-bottom",
         `${Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)}px`,
       );
     }
+    const header = document.querySelector("body > header");
+    const observer = new ResizeObserver(resize);
+    if (header) observer.observe(header);
     resize();
     viewport.addEventListener("resize", resize);
     viewport.addEventListener("scroll", resize);
     return () => {
+      observer.disconnect();
       viewport.removeEventListener("resize", resize);
       viewport.removeEventListener("scroll", resize);
       document.documentElement.style.removeProperty("--editor-height");
@@ -137,12 +147,14 @@ export function GameRecording({
           {signedIn ? (
             <JournalStatus
               entry={entry}
+              gameTitle={gameTitle}
+              playthroughCount={playthroughs.length}
               disabled={pending}
-              onSave={async (status, tag) => {
+              onSave={async (status, tag, acknowledged) => {
                 busy.current = true;
                 setPending(true);
                 try {
-                  return await onStatus(status, tag);
+                  return await onStatus(status, tag, acknowledged);
                 } finally {
                   busy.current = false;
                   setPending(false);
@@ -154,7 +166,7 @@ export function GameRecording({
               <TooltipTrigger
                 render={
                   <Button
-                    render={<Link href="/sign-in" />}
+                    render={<Link href={signInHref} />}
                     aria-label="Journal status"
                     variant="outline"
                     className="size-11 rounded-full"
@@ -175,7 +187,7 @@ export function GameRecording({
                   variant="outline"
                   disabled={pending}
                   className="size-11 rounded-full"
-                  render={signedIn ? undefined : <Link href="/sign-in" />}
+                  render={signedIn ? undefined : <Link href={signInHref} />}
                   onClick={signedIn ? () => open("add") : undefined}
                 />
               }
@@ -187,7 +199,7 @@ export function GameRecording({
         </div>
         {!signedIn ? (
           <p className="text-muted-foreground text-sm">
-            <Link href="/sign-in" className="underline underline-offset-4">
+            <Link href={signInHref} className="underline underline-offset-4">
               Sign in
             </Link>{" "}
             to record games and playthroughs.
@@ -196,14 +208,8 @@ export function GameRecording({
           <p className="text-muted-foreground text-sm">No playthroughs yet.</p>
         ) : null}
       </section>
-      {signedIn && playthroughs.length > 0 && (
-        <section
-          aria-label="Playthroughs"
-          className="order-1 flex flex-col gap-1"
-        >
-          <h2 className="font-medium">Playthroughs</h2>
-          <PlaythroughHistory playthroughs={playthroughs} onEdit={open} />
-        </section>
+      {signedIn && (
+        <PlaythroughHistory playthroughs={playthroughs} onEdit={open} />
       )}
 
       <Drawer
@@ -226,10 +232,12 @@ export function GameRecording({
           }
           className="playthrough-drawer w-full overflow-hidden rounded-t-3xl bg-background"
         >
-          <DrawerHeader className="shrink-0 border-b px-6 py-5">
-            <div className="mx-auto flex w-full max-w-xl items-start justify-between gap-4">
-              <div className="flex min-w-0 flex-col gap-1 text-left">
-                <DrawerDescription>{gameTitle}</DrawerDescription>
+          <DrawerHeader className="shrink-0 border-b px-[min(1.5rem,5vw)] py-5">
+            <div className="mx-auto flex w-full max-w-xl items-start justify-between gap-2">
+              <div className="flex min-w-0 flex-col gap-1 text-left [overflow-wrap:anywhere]">
+                <DrawerDescription className="line-clamp-2">
+                  {gameTitle}
+                </DrawerDescription>
                 <DrawerTitle>
                   {editor === "add" ? "Add playthrough" : "Edit playthrough"}
                 </DrawerTitle>

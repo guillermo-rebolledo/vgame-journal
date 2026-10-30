@@ -59,8 +59,8 @@ async function HomeContent() {
         <h1
           className={
             userId
-              ? "font-semibold text-3xl tracking-tight"
-              : "font-semibold text-4xl tracking-tight sm:text-5xl"
+              ? "font-semibold text-3xl tracking-tight [overflow-wrap:anywhere]"
+              : "font-semibold text-4xl tracking-tight [overflow-wrap:anywhere] sm:text-5xl"
           }
         >
           {userId ? "Your Journal" : "Your games, remembered."}
@@ -104,7 +104,7 @@ function JournalExample() {
       className="flex flex-col gap-4 rounded-xl border p-4 sm:p-5"
     >
       <div className="grid gap-5 sm:grid-cols-2">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <GameCover imageId="co3byy" className="w-16 rounded-md" />
           <div>
             <p className="font-medium">Celeste</p>

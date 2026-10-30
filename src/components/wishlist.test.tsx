@@ -14,6 +14,10 @@ import type { WishlistEntry } from "@/lib/journal";
 import { resolveRelease } from "@/lib/release-dates";
 import { Wishlist } from "./wishlist";
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
   vi.setSystemTime(new Date("2026-10-26T12:00:00"));

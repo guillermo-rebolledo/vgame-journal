@@ -7,7 +7,7 @@ export function Odometer({ text }: { text: string }) {
   return (
     <span className="tabular-nums">
       <span className="sr-only">{text}</span>
-      <span aria-hidden className="inline-flex whitespace-pre">
+      <span aria-hidden className="whitespace-pre-wrap">
         {parts.flatMap((part, i) => {
           if (i % 2 === 0) return part && <span key={part}>{part}</span>;
           // Keyed by unit and place ("day-1"), so "2 days" → "1 day" rolls the same digit down.

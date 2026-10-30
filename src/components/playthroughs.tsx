@@ -52,14 +52,24 @@ export async function Playthroughs({
   async function setStatus(
     status: Status | null,
     completionTag: CompletionTag | null,
+    acknowledged = false,
   ) {
     "use server";
     const owner = await ownerId();
-    return saveOrReturnError(() =>
-      status === null
-        ? journal.remove(owner, gameId)
-        : journal.set(owner, gameId, { status, completionTag }),
-    );
+    if (status !== null)
+      return saveOrReturnError(() =>
+        journal.set(owner, gameId, { status, completionTag }),
+      );
+    try {
+      const result = await journal.remove(owner, gameId, acknowledged);
+      if (result) return result;
+    } catch {
+      return {
+        error:
+          "Couldn’t remove this game. Check your connection and try again.",
+      };
+    }
+    refresh();
   }
   async function add(values: Record<string, string>) {
     "use server";

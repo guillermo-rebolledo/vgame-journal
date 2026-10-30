@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
+import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
 
 export default function SignInPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = safeReturnTo(searchParams.get("returnTo"));
 
   return (
     <AuthForm
@@ -26,30 +29,45 @@ export default function SignInPage() {
         const { error } = await authClient.signIn.email({
           email,
           password,
-          callbackURL: "/",
+          callbackURL: returnTo,
         });
         if (error?.code === "EMAIL_NOT_VERIFIED")
           return {
             error: "Verify your email first. We've sent you a new link.",
           };
         if (error) return { error: error.message };
-        router.push("/");
+        router.push(returnTo);
         router.refresh();
       }}
     >
+      {searchParams.get("passwordReset") === "success" && (
+        <output aria-live="polite">
+          Password updated. Sign in with your new password.
+        </output>
+      )}
       <Button
         variant="outline"
         onClick={() =>
-          authClient.signIn.social({ provider: "google", callbackURL: "/" })
+          authClient.signIn.social({
+            provider: "google",
+            callbackURL: returnTo,
+            errorCallbackURL: authPageHref("/sign-in", returnTo),
+          })
         }
       >
         Continue with Google
       </Button>
       <p className="flex justify-between text-muted-foreground text-sm">
-        <Link href="/sign-up" className="underline underline-offset-4">
+        <Link
+          href={authPageHref("/sign-up", returnTo)}
+          className="underline underline-offset-4"
+        >
           Create an account
         </Link>
-        <Link href="/forgot-password" className="underline underline-offset-4">
+        <Link
+          href={authPageHref("/forgot-password", returnTo)}
+          className="underline underline-offset-4"
+        >
           Forgot password?
         </Link>
       </p>

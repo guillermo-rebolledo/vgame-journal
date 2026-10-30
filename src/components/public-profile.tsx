@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { FallbackImage } from "@/components/fallback-image";
 import { Library } from "@/components/library";
-import { PagedList } from "@/components/paged-list";
+import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformName } from "@/components/platform";
 import { Stats } from "@/components/stats";
 import { Wishlist } from "@/components/wishlist";
@@ -14,43 +15,60 @@ const tabs = ["Library", "Wishlist", "Stats"] as const;
 
 export function PublicProfile({ profile }: { profile: Profile }) {
   const games = new Map(profile.library.map((game) => [game.gameId, game]));
-  const [tab, setTab] = useState<(typeof tabs)[number]>("Library");
+  const params = useSearchParams();
+  const tab =
+    tabs.find((label) => label.toLowerCase() === params.get("view")) ??
+    "Library";
+
+  const playthroughPagination = useUrlPagination(
+    "publicPlaythroughPage",
+    tab === "Library" ? profile.playthroughs.length : undefined,
+  );
+
+  function chooseView(label: (typeof tabs)[number]) {
+    if (label === tab) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", label.toLowerCase());
+    window.history.pushState(
+      null,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-4">
-        {profile.image ? (
-          // biome-ignore lint/performance/noImgElement: Google avatar is served directly, without Next image optimization.
-          <img
-            src={profile.image}
-            alt=""
-            referrerPolicy="no-referrer"
-            className="size-16 rounded-full object-cover"
-            width={64}
-            height={64}
-          />
-        ) : (
-          <div
-            aria-hidden
-            className="flex size-16 shrink-0 items-center justify-center rounded-full bg-muted font-semibold text-2xl uppercase"
-          >
-            {profile.username?.slice(0, 1)}
-          </div>
-        )}
+      <div className="flex flex-wrap items-center gap-4">
+        <FallbackImage
+          src={profile.image}
+          alt=""
+          referrerPolicy="no-referrer"
+          className="size-16 shrink-0 rounded-full object-cover"
+          width={64}
+          height={64}
+          fallback={
+            <div
+              aria-hidden
+              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-muted font-semibold text-2xl uppercase"
+            >
+              {profile.username?.slice(0, 1)}
+            </div>
+          }
+        />
         <div className="min-w-0 space-y-1">
-          <h1 className="break-words font-semibold text-3xl tracking-tight">
+          <h1 className="font-semibold [overflow-wrap:anywhere] text-3xl tracking-tight">
             {profile.username}
           </h1>
           <p className="text-muted-foreground text-sm">Public gaming journal</p>
         </div>
       </div>
-      <fieldset className="flex gap-1 border-b">
+      <fieldset className="flex flex-wrap gap-1 border-b">
         <legend className="sr-only">Profile views</legend>
         {tabs.map((label) => (
           <button
             key={label}
             type="button"
             aria-pressed={tab === label}
-            onClick={() => setTab(label)}
+            onClick={() => chooseView(label)}
             className={`border-b-2 px-4 py-3 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring ${tab === label ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
           >
             {label}
@@ -64,6 +82,7 @@ export function PublicProfile({ profile }: { profile: Profile }) {
             <section className="space-y-4 border-t pt-6">
               <h2 className="font-semibold text-xl">Playthroughs</h2>
               <PagedList
+                pagination={playthroughPagination}
                 items={profile.playthroughs}
                 label="Public playthroughs"
               >

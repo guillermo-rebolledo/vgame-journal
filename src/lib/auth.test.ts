@@ -1,4 +1,4 @@
-import { beforeEach, expect, test } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { createTestDb } from "@/test/db";
 import { createAuth, type Email } from "./auth";
 
@@ -84,4 +84,67 @@ test.each([
 ])("rejects username %j", async (username, error) => {
   const headers = await signUpVerified("a@example.com");
   expect(await usernameError(headers, username)).toMatch(error);
+});
+
+test.each([
+  "/sign-in?returnTo=%2Fgames%2Fceleste",
+  "/sign-in",
+])("Google consent cancellation returns to %s and permits retry", async (errorCallbackURL) => {
+  vi.stubEnv("E2E_TEST", "1");
+  vi.stubEnv("GOOGLE_CLIENT_ID", "local-test-client");
+  vi.stubEnv("GOOGLE_CLIENT_SECRET", "local-test-secret");
+  try {
+    const socialAuth = createAuth(await createTestDb(), async () => {});
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const start = await socialAuth.handler(
+        new Request("http://localhost:3000/api/auth/sign-in/social", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: "http://localhost:3000",
+          },
+          body: JSON.stringify({
+            provider: "google",
+            callbackURL: "/games/celeste",
+            errorCallbackURL,
+          }),
+        }),
+      );
+      expect(start.status).toBe(200);
+      const { url } = await start.json();
+      const state = new URL(url).searchParams.get("state");
+      expect(state).toBeTruthy();
+      const cancelled = await socialAuth.handler(
+        new Request(
+          `http://localhost:3000/api/auth/callback/google?${new URLSearchParams(
+            {
+              state: state ?? "",
+              error: "access_denied",
+            },
+          )}`,
+          {
+            headers: {
+              cookie: start.headers
+                .getSetCookie()
+                .map((cookie) => cookie.split(";", 1)[0])
+                .join("; "),
+            },
+          },
+        ),
+      );
+      expect(cancelled.status).toBe(302);
+      const destination = new URL(
+        cancelled.headers.get("location") ?? "",
+        "http://localhost:3000",
+      );
+      expect(destination.origin).toBe("http://localhost:3000");
+      expect(destination.pathname).toBe("/sign-in");
+      expect(destination.searchParams.get("returnTo")).toBe(
+        errorCallbackURL === "/sign-in" ? null : "/games/celeste",
+      );
+      expect(destination.searchParams.get("error")).toBe("access_denied");
+    }
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });

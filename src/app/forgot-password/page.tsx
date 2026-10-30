@@ -1,9 +1,12 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { authClient } from "@/lib/auth-client";
+import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
 
 export default function ForgotPasswordPage() {
+  const returnTo = safeReturnTo(useSearchParams().get("returnTo"));
   return (
     <AuthForm
       title="Reset your password"
@@ -14,7 +17,7 @@ export default function ForgotPasswordPage() {
       onSubmit={async ({ email }) => {
         const { error } = await authClient.requestPasswordReset({
           email,
-          redirectTo: "/reset-password",
+          redirectTo: authPageHref("/reset-password", returnTo),
         });
         if (error) return { error: error.message };
         return {
