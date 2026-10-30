@@ -3,6 +3,7 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { BookMarked, LoaderCircle } from "lucide-react";
 import { startTransition, useRef, useState } from "react";
+import { trackEvent } from "@/components/analytics";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -77,8 +78,18 @@ export function JournalStatus({
         else if (result) setError(result.error);
         else {
           setConfirmationCount(null);
-          if (status === null)
+          if (status === null) {
             setNotice(`${gameTitle} removed from your journal.`);
+            trackEvent("journal_entry_removed", {
+              had_playthroughs: playthroughCount > 0,
+            });
+          } else if (status !== entry?.status)
+            trackEvent("journal_status_set", {
+              status,
+              change: entry ? "changed" : "added",
+            });
+          else if (tag && tag !== entry.completionTag)
+            trackEvent("completion_tag_set", { tag });
         }
       } catch {
         setError(

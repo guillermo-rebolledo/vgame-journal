@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { trackEvent } from "@/components/analytics";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +13,11 @@ export function DeleteAccountForm({
 }) {
   const [confirmation, setConfirmation] = useState("");
   const [state, action, pending] = useActionState(
-    (_: unknown, form: FormData) => onDelete(form),
+    (_: unknown, form: FormData) => {
+      // The session ends with the account, so count the confirmed request up front.
+      trackEvent("account_deleted");
+      return onDelete(form);
+    },
     undefined,
   );
 

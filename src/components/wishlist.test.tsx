@@ -8,12 +8,14 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { track } from "@vercel/analytics";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { DatePrecision } from "@/lib/game-source";
 import type { WishlistEntry } from "@/lib/journal";
 import { resolveRelease } from "@/lib/release-dates";
 import { Wishlist } from "./wishlist";
 
+vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -25,6 +27,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.mocked(track).mockClear();
   vi.useRealTimers();
 });
 
@@ -267,4 +270,63 @@ test("long titles wrap instead of being cut off", () => {
   const title = screen.getByRole("heading", { name: "Game 1" });
   expect(title.className).not.toContain("truncate");
   expect(title.className).toContain("break-words");
+});
+
+test("records a successful move by destination; failures, conflicts and undos record nothing", async () => {
+  realTimers();
+  const user = userEvent.setup();
+  const onMove = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("offline"))
+    .mockResolvedValueOnce(new Date());
+  render(
+    <Wishlist
+      entries={[
+        entry(7, "2026-10-01T00:00:00Z"),
+        entry(8, "2026-10-02T00:00:00Z"),
+      ]}
+      onMove={onMove}
+    />,
+  );
+
+  await user.click(
+    screen.getByRole("button", { name: "Move Game 7 to backlog" }),
+  );
+  await screen.findByRole("alert");
+  expect(track).not.toHaveBeenCalled();
+
+  await user.click(
+    screen.getByRole("button", { name: "Move Game 8 to playing" }),
+  );
+  await waitFor(() =>
+    expect(track).toHaveBeenCalledExactlyOnceWith("wishlist_moved", {
+      to: "playing",
+    }),
+  );
+
+  onMove.mockResolvedValueOnce(new Date());
+  const notice = screen.getByRole("status", { name: "Wishlist updates" });
+  await user.click(await within(notice).findByRole("button", { name: "Undo" }));
+  await within(notice).findByText("Game 8 is back on your Wishlist.");
+  expect(track).toHaveBeenCalledTimes(1);
+});
+
+test("a move that lost to a change elsewhere records nothing", async () => {
+  realTimers();
+  const user = userEvent.setup();
+  render(
+    <Wishlist
+      entries={[entry(7, "2026-10-01T00:00:00Z")]}
+      onMove={vi.fn().mockResolvedValueOnce(null)}
+    />,
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Move Game 7 to backlog" }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole("status", { name: "Wishlist updates" }).textContent,
+    ).not.toBe(""),
+  );
+  expect(track).not.toHaveBeenCalled();
 });

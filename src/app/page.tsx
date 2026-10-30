@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import type { ProductEvent } from "@/components/analytics";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
 import { GameCover } from "@/components/game-cover";
 import { GameSearch } from "@/components/game-search";
@@ -217,6 +218,10 @@ async function Discovery() {
         }
         games={shelf.games.map((g) => ({ ...g, gameId: g.id }))}
         refreshedAt={shelf.refreshedAt}
+        event={[
+          "home_shelf_opened",
+          { shelf: shelf.key === "recent" ? "recent_releases" : "popular" },
+        ]}
       />
     ));
   } catch {
@@ -229,11 +234,13 @@ function Shelf({
   title,
   games,
   refreshedAt,
+  event,
 }: {
   title: string;
   games: (Pick<LibraryEntry, "gameId" | "title" | "slug" | "coverImageId"> &
     Partial<Pick<LibraryEntry, "status">>)[];
   refreshedAt?: Date;
+  event?: ProductEvent;
 }) {
   const id = `home-${title.toLowerCase().replace(/ /g, "-")}`;
   return (
@@ -247,6 +254,7 @@ function Shelf({
             <HomeCoverLink
               gameId={e.gameId}
               source="shelf"
+              event={event}
               href={`/games/${e.slug}`}
               className="group flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               cover={

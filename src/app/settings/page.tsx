@@ -3,6 +3,7 @@ import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { TrackClicks } from "@/components/analytics";
 import { CopyButton } from "@/components/copy-button";
 import { DeleteAccountForm } from "@/components/delete-account-form";
 import { RegionForm } from "@/components/region-form";
@@ -66,16 +67,18 @@ async function AccountDataSetting() {
             playthroughs with private notes as JSON. Keep this file private.
           </p>
         </div>
-        <Button
-          variant="outline"
-          className="self-start"
-          nativeButton={false}
-          render={
-            <a href="/api/account/export" download>
-              Download JSON
-            </a>
-          }
-        />
+        <TrackClicks event={["account_data_exported"]}>
+          <Button
+            variant="outline"
+            className="self-start"
+            nativeButton={false}
+            render={
+              <a href="/api/account/export" download>
+                Download JSON
+              </a>
+            }
+          />
+        </TrackClicks>
       </section>
       <DeleteAccountForm onDelete={deleteAccount} />
     </>
@@ -137,17 +140,21 @@ async function CalendarFeedSetting() {
           aria-label="Calendar feed URL"
           className="min-w-0 flex-1 basis-48 font-mono text-xs md:text-xs"
         />
-        <CopyButton text={url} inputId="calendar-feed-url" />
+        <CopyButton text={url} inputId="calendar-feed-url" target="calendar" />
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<a href={`webcal://${path}`}>Subscribe</a>}
-        />
-        <Button type="submit" variant="ghost">
-          Regenerate URL
-        </Button>
+        <TrackClicks event={["calendar_feed_subscribed"]}>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<a href={`webcal://${path}`}>Subscribe</a>}
+          />
+        </TrackClicks>
+        <TrackClicks event={["calendar_feed_regenerated"]}>
+          <Button type="submit" variant="ghost">
+            Regenerate URL
+          </Button>
+        </TrackClicks>
       </div>
       <p className="text-muted-foreground text-xs">
         Regenerating stops the old URL working. Subscribe again with the new

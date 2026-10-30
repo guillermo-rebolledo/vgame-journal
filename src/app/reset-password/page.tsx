@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { trackEvent } from "@/components/analytics";
 import { AuthForm } from "@/components/auth-form";
 import { authClient } from "@/lib/auth-client";
 import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
@@ -52,6 +53,7 @@ export default function ResetPasswordPage() {
         if (error?.code === "INVALID_TOKEN")
           return { error: "This reset link is invalid or expired." };
         if (error) return { error: passwordErrorMessage(error) };
+        trackEvent("password_reset_completed");
         const destination = new URL(
           authPageHref("/sign-in", returnTo),
           location.origin,

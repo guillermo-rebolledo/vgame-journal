@@ -11,6 +11,7 @@ import {
   ViewTransition,
 } from "react";
 import { flushSync } from "react-dom";
+import { type ProductEvent, trackEvent } from "@/components/analytics";
 
 const Selection = createContext<{
   active: string | null;
@@ -27,12 +28,15 @@ export function HomeCoverLink({
   gameId,
   source,
   cover,
+  event,
   children,
   ...props
 }: ComponentProps<typeof Link> & {
   gameId: number;
   source: "search" | "shelf";
   cover: ReactNode;
+  /** Recorded when the link is opened. */
+  event?: ProductEvent;
 }) {
   const selection = useContext(Selection);
   const instance = useId();
@@ -40,6 +44,10 @@ export function HomeCoverLink({
   return (
     <Link
       {...props}
+      onClick={(e) => {
+        if (event) trackEvent(...event);
+        props.onClick?.(e);
+      }}
       // Set the source before Next snapshots the outgoing page, including keyboard navigation.
       onNavigate={() => flushSync(() => selection?.select(id))}
     >

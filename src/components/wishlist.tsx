@@ -9,6 +9,7 @@ import {
   useTransition,
   ViewTransition,
 } from "react";
+import { trackEvent } from "@/components/analytics";
 import { GameCover } from "@/components/game-cover";
 import { Odometer } from "@/components/odometer";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
@@ -307,6 +308,7 @@ function Row({
     startTransition(async () => {
       try {
         const at = await onMove?.(entry.gameId, { status: "wishlist" }, to);
+        if (at) trackEvent("wishlist_moved", { to });
         onMoved(at ? { entry, to, at } : null);
       } catch {
         setFailed(true);

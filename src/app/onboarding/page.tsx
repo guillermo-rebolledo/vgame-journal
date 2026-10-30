@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { trackEvent } from "@/components/analytics";
 import { AuthForm } from "@/components/auth-form";
 import { authClient } from "@/lib/auth-client";
 import { safeReturnTo } from "@/lib/auth-continuation";
@@ -19,6 +20,7 @@ export default function OnboardingPage() {
       onSubmit={async ({ username }) => {
         const { error } = await authClient.updateUser({ username });
         if (error) return { error: error.message };
+        trackEvent("onboarding_completed");
         router.push(returnTo);
         router.refresh();
       }}
