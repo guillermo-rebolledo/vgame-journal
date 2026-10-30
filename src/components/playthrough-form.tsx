@@ -35,7 +35,7 @@ export function PlaythroughForm({
   initial?: Values;
   outsideJournal?: boolean;
   onSave: SavePlaythrough;
-  onSuccess: () => void;
+  onSuccess: (values: Values) => void;
   onCancel: () => void;
   onDraft: (values: Values) => void;
   onPending: (pending: boolean) => void;
@@ -66,7 +66,7 @@ export function PlaythroughForm({
     try {
       const result = await onSave(values);
       if (result) setError(result.error);
-      else onSuccess();
+      else onSuccess(values);
     } catch {
       setError(
         "Couldn’t save. Check your connection and try again. Your inputs are still here.",

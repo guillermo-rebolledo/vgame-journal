@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { googleCallbackURL, trackEvent } from "@/components/analytics";
 import { AuthForm } from "@/components/auth-form";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
@@ -36,6 +37,7 @@ export default function SignInPage() {
             error: "Verify your email first. We've sent you a new link.",
           };
         if (error) return { error: error.message };
+        trackEvent("sign_in_completed", { method: "email" });
         router.push(returnTo);
         router.refresh();
       }}
@@ -50,7 +52,8 @@ export default function SignInPage() {
         onClick={() =>
           authClient.signIn.social({
             provider: "google",
-            callbackURL: returnTo,
+            callbackURL: googleCallbackURL(returnTo, false),
+            newUserCallbackURL: googleCallbackURL(returnTo, true),
             errorCallbackURL: authPageHref("/sign-in", returnTo),
           })
         }

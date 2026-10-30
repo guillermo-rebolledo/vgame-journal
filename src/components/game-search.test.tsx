@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { track } from "@vercel/analytics";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { SearchResult } from "@/lib/catalog";
 import { GameSearch } from "./game-search";
@@ -20,6 +21,8 @@ vi.mock("next/navigation", async () => {
       ),
   };
 });
+
+vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
 
 const game = (id: number, title: string): SearchResult => ({
   id,
@@ -58,6 +61,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.mocked(track).mockClear();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -199,4 +203,67 @@ test("restores a shared search including filters and expansion after remount", a
   await user.clear(box());
   expect(window.location.search).toBe("");
   expect(titles()).toHaveLength(0);
+});
+
+test("records one search per settled query, bucketed, without the query text", async () => {
+  const user = userEvent.setup();
+  render(<GameSearch />);
+
+  await user.type(box(), "secret quest");
+  await until(1);
+  expect(track).not.toHaveBeenCalled();
+  await act(async () =>
+    requests[0].answer([
+      game(1, "Game"),
+      { ...game(2, "Game remake"), year: 2024 },
+    ]),
+  );
+
+  expect(track).toHaveBeenCalledExactlyOnceWith("game_searched", {
+    results: "1-9",
+    filtered: false,
+  });
+  expect(JSON.stringify(vi.mocked(track).mock.calls)).not.toMatch(/secret/);
+
+  await user.selectOptions(screen.getByLabelText("Release year"), "2024");
+  expect(track).toHaveBeenLastCalledWith("game_searched", {
+    results: "1-9",
+    filtered: true,
+  });
+  expect(track).toHaveBeenCalledTimes(2);
+});
+
+test("an empty or failed search records accordingly", async () => {
+  const user = userEvent.setup();
+  render(<GameSearch />);
+
+  await user.type(box(), "zz");
+  await until(1);
+  await act(async () => requests[0].answer(null, false));
+  expect(track).not.toHaveBeenCalled();
+
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  await until(2);
+  await act(async () => requests[1].answer([]));
+  expect(track).toHaveBeenCalledExactlyOnceWith("game_searched", {
+    results: "0",
+    filtered: false,
+  });
+});
+
+test("opening a result records its position, not the game", async () => {
+  const user = userEvent.setup();
+  render(<GameSearch />);
+  await user.type(box(), "game");
+  await until(1);
+  await act(async () =>
+    requests[0].answer(
+      Array.from({ length: 5 }, (_, i) => game(i + 1, `Game ${i + 1}`)),
+    ),
+  );
+
+  await user.click(screen.getByRole("link", { name: /Game 4/ }));
+  expect(track).toHaveBeenLastCalledWith("search_result_opened", {
+    position: "4-10",
+  });
 });

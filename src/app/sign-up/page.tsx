@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { trackEvent } from "@/components/analytics";
 import { AuthForm } from "@/components/auth-form";
 import { authClient } from "@/lib/auth-client";
 import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
@@ -31,6 +32,7 @@ export default function SignUpPage() {
           callbackURL: returnTo,
         });
         if (error) return { error: passwordErrorMessage(error) };
+        trackEvent("sign_up_completed", { method: "email" });
         return { message: `Check ${email} for a link to verify your email.` };
       }}
     >

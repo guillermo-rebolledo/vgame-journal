@@ -63,6 +63,7 @@ export function TagShelves({
               <HomeCoverLink
                 gameId={game.id}
                 source="shelf"
+                event={["more_like_this_opened"]}
                 href={`/games/${game.slug}`}
                 className="group flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50 motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out motion-safe:hover:-translate-y-0.5"
                 cover={

@@ -3,6 +3,7 @@
 import { cn } from "cn";
 import { Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { trackEvent } from "@/components/analytics";
 import { Button } from "@/components/ui/button";
 
 const icon =
@@ -11,9 +12,11 @@ const icon =
 export function CopyButton({
   text,
   inputId,
+  target,
 }: {
   text: string;
   inputId: string;
+  target: "profile" | "calendar";
 }) {
   const [state, setState] = useState<"idle" | "copying" | "copied" | "failed">(
     "idle",
@@ -37,6 +40,7 @@ export function CopyButton({
           try {
             await navigator.clipboard.writeText(text);
             setState("copied");
+            trackEvent("link_copied", { target });
             reset.current = setTimeout(() => setState("idle"), 2000);
           } catch {
             setState("failed");

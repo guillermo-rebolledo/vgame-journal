@@ -2,6 +2,11 @@
 
 import { useSearchParams } from "next/navigation";
 import { type CSSProperties, useEffect, useState } from "react";
+import {
+  positionBucket,
+  resultsBucket,
+  trackEvent,
+} from "@/components/analytics";
 import { GameCover } from "@/components/game-cover";
 import { HomeCoverLink } from "@/components/home-cover-link";
 import { PlatformNames } from "@/components/platform";
@@ -80,6 +85,17 @@ export function GameSearch() {
       (!year || String(game.year) === year) &&
       (!platform || game.platforms.includes(platform)),
   );
+
+  const matched = matches?.length;
+
+  // Once per settled answer or filter change; the query itself never leaves the browser.
+  useEffect(() => {
+    if (!current?.results || matched === undefined) return;
+    trackEvent("game_searched", {
+      results: resultsBucket(matched),
+      filtered: Boolean(year || platform),
+    });
+  }, [current, matched, year, platform]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -206,6 +222,10 @@ export function GameSearch() {
                 <HomeCoverLink
                   gameId={game.id}
                   source="search"
+                  event={[
+                    "search_result_opened",
+                    { position: positionBucket(index + 1) },
+                  ]}
                   href={`/games/${game.slug}`}
                   title={game.title}
                   prefetch={true}

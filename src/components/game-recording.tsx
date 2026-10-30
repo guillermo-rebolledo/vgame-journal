@@ -4,6 +4,7 @@ import { BookMarked, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { trackEvent } from "@/components/analytics";
 import {
   type JournalSelection,
   JournalStatus,
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { playthrough } from "@/db/schema";
 import { authPageHref } from "@/lib/auth-continuation";
+import type { Status } from "@/lib/library";
 
 type Playthrough = typeof playthrough.$inferSelect;
 export function GameRecording({
@@ -129,6 +131,7 @@ export function GameRecording({
       else {
         drafts.current.delete(editor.id);
         setEditor(null);
+        trackEvent("playthrough_removed");
       }
     } catch {
       setError("Couldn’t delete. Check your connection and try again.");
@@ -276,9 +279,20 @@ export function GameRecording({
                   ? onAdd
                   : (values) => onUpdate(editor.id, values)
               }
-              onSuccess={() => {
+              onSuccess={(values) => {
                 drafts.current.delete(key);
                 setEditor(null);
+                if (editor !== "add") return;
+                // Saving a playthrough outside the journal adds the game too.
+                if (!entry)
+                  trackEvent("journal_status_set", {
+                    status: (values.status ?? "playing") as Status,
+                    change: "added",
+                  });
+                trackEvent("playthrough_added", {
+                  has_notes: Boolean(values.notes?.trim()),
+                  has_hours: Boolean(values.hours),
+                });
               }}
               onCancel={() => close(true)}
               onDraft={(values) => {
