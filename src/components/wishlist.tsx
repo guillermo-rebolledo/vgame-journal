@@ -11,7 +11,7 @@ import {
 } from "react";
 import { GameCover } from "@/components/game-cover";
 import { Odometer } from "@/components/odometer";
-import { PagedList } from "@/components/paged-list";
+import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { Button } from "@/components/ui/button";
 import type { Status, WishlistEntry } from "@/lib/journal";
 import { capitalize } from "@/lib/library";
@@ -67,13 +67,6 @@ export function Wishlist({
     if (notice?.state === "moved") noticeRef.current?.focus();
   }, [notice]);
 
-  if (entries.length === 0 && !onMove)
-    return (
-      <p className="py-8 text-muted-foreground">
-        No games on this wishlist yet.
-      </p>
-    );
-
   // Until the browser reports its time zone, sections follow the UTC day; Countdowns wait for the local one.
   const sectionDay = day ?? localDay(new Date(), "UTC");
   const section = (e: WishlistEntry) =>
@@ -89,6 +82,28 @@ export function Wishlist({
     tba: [],
   };
   for (const entry of entries) grouped[section(entry)].push(entry);
+
+  const pagination = {
+    out: useUrlPagination(
+      "outPage",
+      day === null ? undefined : grouped.out.length,
+    ),
+    upcoming: useUrlPagination(
+      "upcomingPage",
+      day === null ? undefined : grouped.upcoming.length,
+    ),
+    tba: useUrlPagination(
+      "tbaPage",
+      day === null ? undefined : grouped.tba.length,
+    ),
+  };
+
+  if (entries.length === 0 && !onMove)
+    return (
+      <p className="py-8 text-muted-foreground">
+        No games on this wishlist yet.
+      </p>
+    );
 
   function undo(moved: Moved) {
     setNotice({ ...moved, state: "undoing" });
@@ -153,7 +168,11 @@ export function Wishlist({
                     {games.length}
                   </span>
                 </h2>
-                <PagedList items={games} label={label}>
+                <PagedList
+                  pagination={pagination[key]}
+                  items={games}
+                  label={label}
+                >
                   {(visible) => (
                     <ul className="flex flex-col divide-y divide-border/60">
                       {visible.map((e) => (

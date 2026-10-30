@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { chooseStatus } from "./support/journal";
+import { seedSql } from "./support/seed-sql";
 import { signUp } from "./support/sign-up";
 import { snap } from "./support/snap";
 
@@ -185,21 +186,20 @@ for (const theme of ["light", "dark"] as const) {
           .getByRole("link")
           .click();
         await chooseStatus(page, "wishlist");
-        for (const sql of [
-          `insert into game (id, title, slug, genres, platforms, synced_at)
+        await seedSql(
+          request,
+          [
+            `insert into game (id, title, slug, genres, platforms, synced_at)
            select n, 'Collection game ' || n, 'reflow-' || n, '{}', '{PC}', now()
            from generate_series(21000, 21999) n on conflict (id) do nothing`,
-          `insert into journal_entry (user_id, game_id, status, updated_at)
+            `insert into journal_entry (user_id, game_id, status, updated_at)
            select u.id, n, 'wishlist', now() from "user" u cross join generate_series(21000, 21999) n where u.email = $1`,
-          `insert into playthrough (user_id, game_id, platform, started_on, ended_on, hours, notes)
+            `insert into playthrough (user_id, game_id, platform, started_on, ended_on, hours, notes)
            select u.id, 21000, 'PC', '2026-01-01', '2026-02-02', 1, 'Private reflow note'
            from "user" u cross join generate_series(1, 100) n where u.email = $1`,
-        ]) {
-          const response = await request.post("http://127.0.0.1:3101/query", {
-            data: { sql, params: sql.includes("$1") ? [email] : [] },
-          });
-          expect(response.ok(), await response.text()).toBeTruthy();
-        }
+          ],
+          [email],
+        );
       }
       for (const font of [16, 32]) {
         await page.setViewportSize({ width: 320, height: 740 });

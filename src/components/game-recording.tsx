@@ -208,14 +208,8 @@ export function GameRecording({
           <p className="text-muted-foreground text-sm">No playthroughs yet.</p>
         ) : null}
       </section>
-      {signedIn && playthroughs.length > 0 && (
-        <section
-          aria-label="Playthroughs"
-          className="order-1 flex flex-col gap-1"
-        >
-          <h2 className="font-medium">Playthroughs</h2>
-          <PlaythroughHistory playthroughs={playthroughs} onEdit={open} />
-        </section>
+      {signedIn && (
+        <PlaythroughHistory playthroughs={playthroughs} onEdit={open} />
       )}
 
       <Drawer

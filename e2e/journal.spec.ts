@@ -327,7 +327,14 @@ test("sign up, share a profile without notes, export the journal, and delete the
     contentType: "image/png",
   });
 
+  // F13: views are shareable and history keeps inactive filters/pages.
+  await publicPage.goto(`/u/${username}?view=unknown&outPage=2&marker=keep`);
+  await expect(
+    publicPage.getByRole("button", { name: "Library", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
   await publicPage.getByRole("button", { name: /^wishlist$/i }).click();
+  await expect(publicPage).toHaveURL(/view=wishlist/);
+  expect(new URL(publicPage.url()).searchParams.get("marker")).toBe("keep");
   await expect(
     publicPage.getByRole("heading", { name: "Silksong", exact: true }),
   ).toBeVisible();
@@ -339,8 +346,38 @@ test("sign up, share a profile without notes, export the journal, and delete the
     publicPage.getByRole("main").getByText("12 hours", { exact: true }),
   ).toBeVisible();
   await expect(
-    publicPage.getByRole("main").getByText("1 games", { exact: true }),
+    publicPage.getByRole("main").getByText("1 game", { exact: true }),
   ).toBeVisible();
+  await expect(publicPage).toHaveURL(/view=stats/);
+  await publicPage.goBack();
+  await expect(
+    publicPage.getByRole("button", { name: "Wishlist", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await publicPage.goForward();
+  await expect(
+    publicPage.getByRole("button", { name: "Stats", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await publicPage.reload();
+  await expect(publicPage.getByText("12 hours", { exact: true })).toBeVisible();
+  for (const view of ["library", "wishlist", "stats"]) {
+    const fresh = await browser.newContext();
+    try {
+      const copied = await fresh.newPage();
+      await copied.goto(`/u/${username}?view=${view}&marker=keep`);
+      await expect(
+        copied.getByRole("button", {
+          name: new RegExp(`^${view}$`, "i"),
+          exact: true,
+        }),
+      ).toHaveAttribute("aria-pressed", "true");
+      await expect(
+        copied.getByRole("link", { name: "Sign in", exact: true }),
+      ).toBeVisible();
+      await expect(copied.getByText(privateNote)).toHaveCount(0);
+    } finally {
+      await fresh.close();
+    }
+  }
   const statsScreenshot = testInfo.outputPath("public-stats.png");
   await publicPage.screenshot({ path: statsScreenshot, fullPage: true });
   await testInfo.attach("Public stats", {

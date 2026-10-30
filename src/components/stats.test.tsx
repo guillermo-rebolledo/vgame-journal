@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { Stats } from "./stats";
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 afterEach(cleanup);
 
@@ -62,4 +66,21 @@ test("large backlog histories keep exact chart data without mounting hidden tabl
   await user.click(screen.getByText("View backlog data"));
   expect(await screen.findByRole("table")).toBeTruthy();
   expect(screen.getAllByRole("row")).toHaveLength(49);
+});
+
+test("Stats nouns agree with the formatted value at the rounding boundary", () => {
+  render(
+    <Stats
+      stats={{
+        finishedPerYear: [],
+        hoursByPlatform: [
+          { platform: "PC", hours: 1.004 },
+          { platform: "Nintendo Switch", hours: 1.006 },
+        ],
+        backlogOverTime: [],
+      }}
+    />,
+  );
+  expect(screen.getByText("1 hour")).toBeTruthy();
+  expect(screen.getByText("1.01 hours")).toBeTruthy();
 });

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useState } from "react";
-import { PagedList } from "@/components/paged-list";
+import { useSearchParams } from "next/navigation";
+import { type ReactNode, useEffect, useState } from "react";
+import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformName } from "@/components/platform";
 import type { journal } from "@/lib/journal";
 
@@ -52,13 +53,19 @@ function Empty({
 function Bars({
   rows,
   unit,
+  pagination,
 }: {
   rows: { label: string; value: number; display?: ReactNode }[];
   unit: string;
+  pagination: ReturnType<typeof useUrlPagination>;
 }) {
   const max = rows.reduce((max, row) => Math.max(max, row.value), 1);
   return (
-    <PagedList items={rows} label={`${unit} by category`}>
+    <PagedList
+      pagination={pagination}
+      items={rows}
+      label={`${unit} by category`}
+    >
       {(visible) => (
         <ul className="space-y-4" aria-label={`${unit} by category`}>
           {visible.map(({ label, value, display }) => (
@@ -66,7 +73,8 @@ function Bars({
               <div className="flex justify-between gap-4 text-sm">
                 <span className="min-w-0 break-words">{display ?? label}</span>
                 <span className="shrink-0 tabular-nums">
-                  {number.format(value)} {unit}
+                  {number.format(value)}{" "}
+                  {number.format(value) === "1" ? unit.slice(0, -1) : unit}
                 </span>
               </div>
               <div
@@ -86,8 +94,19 @@ function Bars({
   );
 }
 
-function BacklogChart({ points }: { points: JournalStats["backlogOverTime"] }) {
-  const [showData, setShowData] = useState(false);
+function BacklogChart({
+  points,
+  pagination,
+}: {
+  points: JournalStats["backlogOverTime"];
+  pagination: ReturnType<typeof useUrlPagination>;
+}) {
+  const params = useSearchParams();
+  const linkedPage = params.get("backlogPage");
+  const [showData, setShowData] = useState(linkedPage !== null);
+  useEffect(() => {
+    if (linkedPage !== null) setShowData(true);
+  }, [linkedPage]);
   const max = points.reduce((max, point) => Math.max(max, point.games), 1);
   const left = Math.max(32, String(max).length * 16 + 12);
   const first = Date.parse(points[0].day);
@@ -148,7 +167,8 @@ function BacklogChart({ points }: { points: JournalStats["backlogOverTime"] }) {
               fill="currentColor"
             >
               <title>
-                {point.day}: {point.games} games
+                {point.day}: {point.games}{" "}
+                {point.games === 1 ? "game" : "games"}
               </title>
             </circle>
           ))}
@@ -157,18 +177,25 @@ function BacklogChart({ points }: { points: JournalStats["backlogOverTime"] }) {
         <span>{points[0].day}</span>
         {points.length > 1 && <span>{points[points.length - 1].day}</span>}
       </div>
-      <details
-        className="text-sm"
-        onToggle={(event) => {
-          if (event.currentTarget.open) setShowData(true);
-        }}
-      >
-        <summary className="w-fit cursor-pointer rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+      <details open={showData} className="text-sm">
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: summary is the native keyboard-accessible control for details. */}
+        <summary
+          className="w-fit cursor-pointer rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+          onClick={(event) => {
+            // Native toggle events can arrive after a history-restored page is revealed.
+            event.preventDefault();
+            setShowData(!showData);
+          }}
+        >
           View backlog data
         </summary>
         {showData && (
           <div className="mt-3">
-            <PagedList items={points} label="Backlog data">
+            <PagedList
+              pagination={pagination}
+              items={points}
+              label="Backlog data"
+            >
               {(visible) => (
                 <table className="w-full text-left tabular-nums">
                   <caption className="sr-only">
@@ -211,6 +238,18 @@ export function Stats({
   libraryHref?: string;
   readOnly?: boolean;
 }) {
+  const finishedPagination = useUrlPagination(
+    "finishedPage",
+    stats.finishedPerYear.length,
+  );
+  const hoursPagination = useUrlPagination(
+    "hoursPage",
+    stats.hoursByPlatform.length,
+  );
+  const backlogPagination = useUrlPagination(
+    "backlogPage",
+    stats.backlogOverTime.length,
+  );
   return (
     <div className="space-y-10">
       <div className="grid gap-10 md:grid-cols-2 md:gap-12">
@@ -225,6 +264,7 @@ export function Stats({
                 value: row.games,
               }))}
               unit="games"
+              pagination={finishedPagination}
             />
           ) : (
             <Empty libraryHref={libraryHref}>
@@ -246,6 +286,7 @@ export function Stats({
                 value: row.hours,
               }))}
               unit="hours"
+              pagination={hoursPagination}
             />
           ) : (
             <Empty libraryHref={libraryHref}>
@@ -261,7 +302,10 @@ export function Stats({
         description="Games in Backlog at the end of each day with a status change (UTC)."
       >
         {stats.backlogOverTime.length ? (
-          <BacklogChart points={stats.backlogOverTime} />
+          <BacklogChart
+            points={stats.backlogOverTime}
+            pagination={backlogPagination}
+          />
         ) : (
           <Empty libraryHref={libraryHref}>
             {readOnly
