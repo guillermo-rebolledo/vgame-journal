@@ -7,17 +7,39 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { LibraryEntry } from "@/lib/library";
 import { Library } from "./library";
 
-// The real hook follows history.replaceState; this one reads the same URL.
-vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(window.location.search),
-}));
+// Model Next's native-history subscription at the browser boundary.
+vi.mock("next/navigation", async () => {
+  const { useSyncExternalStore } = await import("react");
+  return {
+    useSearchParams: () =>
+      new URLSearchParams(
+        useSyncExternalStore(
+          (notify) => {
+            window.addEventListener("popstate", notify);
+            return () => window.removeEventListener("popstate", notify);
+          },
+          () => window.location.search,
+        ),
+      ),
+  };
+});
+beforeEach(() => {
+  for (const method of ["replaceState", "pushState"] as const) {
+    const original = window.history[method].bind(window.history);
+    vi.spyOn(window.history, method).mockImplementation((...args) => {
+      original(...args);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+  }
+});
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   window.history.replaceState(null, "", "/library");
 });
 

@@ -3,9 +3,9 @@
 import { LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useDeferredValue, useState, ViewTransition } from "react";
+import { useDeferredValue, useEffect, useState, ViewTransition } from "react";
 import { GameCover } from "@/components/game-cover";
-import { PagedList } from "@/components/paged-list";
+import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformIcon, PlatformNames } from "@/components/platform";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,10 +56,38 @@ export function Library({
 }) {
   const searchParams = useSearchParams();
   const [view, setView] = useState(initialView);
-  const [state, setState] = useState(() => parseLibraryParams(searchParams));
+  const urlQuery = searchParams.toString();
+  const [query, setQuery] = useState(urlQuery);
+  // Next restores native-history URLs in a transition; keep typing synchronous.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).toString() === urlQuery)
+      setQuery(urlQuery);
+  }, [urlQuery]);
+  const state = parseLibraryParams(new URLSearchParams(query));
 
   const { filters: chosen, sort } = state;
-  const deferredState = useDeferredValue(state);
+  const deferredQuery = useDeferredValue(query);
+  const deferredState = parseLibraryParams(new URLSearchParams(deferredQuery));
+
+  const { platforms, years } = libraryChoices(entries);
+  // A platform or year from an old link that no game has any more would hide everything.
+  const filters: LibraryFilters = {
+    ...chosen,
+    platform: platforms.find((p) => p === chosen.platform),
+    year: years.find((y) => y === chosen.year),
+  };
+  const resultFilters: LibraryFilters = {
+    ...deferredState.filters,
+    platform: platforms.find((p) => p === deferredState.filters.platform),
+    year: years.find((y) => y === deferredState.filters.year),
+  };
+  const shown = queryLibrary(entries, resultFilters, deferredState.sort);
+  const filtered = Object.values(filters).some(Boolean);
+
+  const pagination = useUrlPagination(
+    "libraryPage",
+    urlQuery === deferredQuery ? shown.length : undefined,
+  );
 
   if (entries.length === 0 && readOnly)
     return (
@@ -82,30 +110,24 @@ export function Library({
       </div>
     );
 
-  const { platforms, years } = libraryChoices(entries);
-  // A platform or year from an old link that no game has any more would hide everything.
-  const filters: LibraryFilters = {
-    ...chosen,
-    platform: platforms.find((p) => p === chosen.platform),
-    year: years.find((y) => y === chosen.year),
-  };
-  const resultFilters: LibraryFilters = {
-    ...deferredState.filters,
-    platform: platforms.find((p) => p === deferredState.filters.platform),
-    year: years.find((y) => y === deferredState.filters.year),
-  };
-  const shown = queryLibrary(entries, resultFilters, deferredState.sort);
-  const filtered = Object.values(filters).some(Boolean);
-
   // replaceState keeps one history entry while browsing; Next's router follows it.
   function update(next: { filters?: LibraryFilters; sort?: LibrarySort }) {
     const state = { filters: next.filters ?? filters, sort: next.sort ?? sort };
-    setState(state);
-    const query = libraryParams(state.filters, state.sort);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("libraryPage");
+    const nextParams = new URLSearchParams(
+      libraryParams(state.filters, state.sort),
+    );
+    for (const key of ["q", "status", "platform", "year", "sort"]) {
+      const value = nextParams.get(key);
+      if (value) url.searchParams.set(key, value);
+      else url.searchParams.delete(key);
+    }
+    setQuery(url.searchParams.toString());
     window.history.replaceState(
       null,
       "",
-      `${window.location.pathname}${query && `?${query}`}`,
+      `${url.pathname}${url.search}${url.hash}`,
     );
   }
   const setFilters = (next: LibraryFilters) => update({ filters: next });
@@ -241,9 +263,9 @@ export function Library({
           <ClearFilters variant="outline" onClick={() => setFilters({})} />
         </div>
       ) : (
-        <div aria-busy={state !== deferredState}>
+        <div aria-busy={query !== deferredQuery}>
           <PagedList
-            key={libraryParams(resultFilters, deferredState.sort)}
+            pagination={pagination}
             items={shown}
             label="Library games"
           >

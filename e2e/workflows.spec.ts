@@ -44,9 +44,22 @@ test("Home guides new users, and search survives slow, stale and failed requests
   ).toBeVisible();
   await snap(page, testInfo, "home-signed-out", true);
 
-  // The first query answers slowly and late; the newer one must win.
+  // Hold the first response until a newer query wins; no timing sleeps.
+  let releaseStale!: () => void;
+  const held = new Promise<void>((resolve) => {
+    releaseStale = resolve;
+  });
+  let started!: () => void;
+  const staleRequested = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  let finished!: () => void;
+  const staleFinished = new Promise<void>((resolve) => {
+    finished = resolve;
+  });
   await page.route("**/api/games/search?q=ce", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    started();
+    await held;
     await route.fulfill({
       json: [
         {
@@ -59,17 +72,48 @@ test("Home guides new users, and search survives slow, stale and failed requests
         },
       ],
     });
+    finished();
   });
   const box = page.getByRole("searchbox", { name: "Search games" });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const catalogQueries: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/games/search?"))
+      catalogQueries.push(new URL(request.url()).searchParams.get("q") ?? "");
+  });
+  await expect(page.locator("output[aria-live=polite]")).toBeEmpty();
+  await box.fill("   ");
+  await expect(page.locator("output[aria-live=polite]")).toBeEmpty();
+  await box.fill(" c ");
+  await expect(page.getByRole("status")).toHaveText(
+    "Enter at least 2 characters",
+  );
+  await expect(page.getByRole("list", { name: "Search results" })).toHaveCount(
+    0,
+  );
+
   await box.fill("ce");
   await expect(page.getByRole("status")).toHaveText("Searching…");
-  await page.waitForTimeout(500);
+  await staleRequested;
+  await box.fill("c");
+  await expect(page.getByRole("status")).toHaveText(
+    "Enter at least 2 characters",
+  );
+  await expect(page.getByRole("list", { name: "Search results" })).toHaveCount(
+    0,
+  );
   await box.fill("celeste");
   const results = page.getByRole("list", { name: "Search results" });
   await expect(results.getByRole("link", { name: /Celeste/ })).toBeVisible();
-  await page.waitForTimeout(1500);
+  releaseStale();
+  await staleFinished;
   await expect(page.getByText("Stale result")).toHaveCount(0);
   await expect(page.getByRole("status")).toHaveText("1 game found.");
+  await box.fill("c");
+  await expect(page.getByRole("status")).toHaveText(
+    "Enter at least 2 characters",
+  );
+  await expect(results).toHaveCount(0);
 
   await box.fill("nothing like this");
   await expect(page.getByRole("status")).toContainText(
@@ -85,10 +129,36 @@ test("Home guides new users, and search survives slow, stale and failed requests
     "Search isn’t working right now.",
   );
   await snap(page, testInfo, "search-failed");
+  await box.fill("h");
+  await expect(page.getByRole("status")).toHaveText(
+    "Enter at least 2 characters",
+  );
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await box.fill("hollow");
+  await expect(page.getByRole("main").getByRole("alert")).toBeVisible();
+
   await page.unroute("**/api/games/search?q=hollow");
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("status")).toContainText("No games match");
   await expect(box).toHaveValue("hollow");
+  await box.fill("h");
+  await expect(page.getByRole("status")).toHaveText(
+    "Enter at least 2 characters",
+  );
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  for (const theme of ["light", "dark"]) {
+    if (!(await page.locator("html").getAttribute("class"))?.includes(theme))
+      await page.getByRole("button", { name: "Toggle theme" }).click();
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await expect(page.getByRole("status")).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+    }
+  }
+  expect(catalogQueries.length).toBeGreaterThan(0);
+  expect(catalogQueries.every((query) => query.trim().length >= 2)).toBe(true);
+  await box.clear();
+  await expect(page.locator("output[aria-live=polite]")).toBeEmpty();
 });
 
 test("Library search, filters and sort survive game visits, Back and reload", async ({
@@ -112,6 +182,16 @@ test("Library search, filters and sort survive game visits, Back and reload", as
   await snap(page, testInfo, "home-signed-in", true);
 
   await page.goto("/library");
+  await page.getByLabel("Search your Library").fill("Celeste");
+  await expect(
+    page.getByRole("list", { name: "Games" }).getByRole("heading"),
+  ).toHaveText(["Celeste"]);
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/library$/);
+  await expect(page.getByLabel("Search your Library")).toHaveValue("");
   await page.getByLabel("Search your Library").fill("s");
   await page.getByLabel("Status").selectOption("wishlist");
   await page.getByLabel("Sort by").selectOption("title");
@@ -147,13 +227,21 @@ test("Library search, filters and sort survive game visits, Back and reload", as
   await expectNoHorizontalOverflow(page);
   await snap(page, testInfo, "library-filtered-mobile", true);
 
-  // The nav's bare Library link starts over instead of keeping stale filters.
+  await page.getByLabel("Search your Library").fill("Celeste");
+  await page.getByRole("button", { name: "List", exact: true }).click();
+  // The nav's bare Library link starts over even when Next retains this page.
   await page
     .getByRole("navigation", { name: "Main" })
     .getByRole("link", { name: "Library" })
     .click();
   await expect(page).toHaveURL(/\/library$/);
   await expect(page.getByLabel("Status")).toHaveValue("");
+  await expect(page.getByLabel("Search your Library")).toHaveValue("");
+  await expect(page.getByLabel("Sort by")).toHaveValue("added");
+  await expect(
+    page.getByRole("button", { name: "List", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(games.getByRole("listitem")).toHaveCount(3);
   await expect(page.getByText("3 games", { exact: true })).toBeVisible();
 });
 
