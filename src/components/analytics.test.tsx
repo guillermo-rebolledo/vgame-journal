@@ -134,3 +134,19 @@ test("a Google return records sign-in or sign-up once, then drops the marker", (
   render(<Analytics />);
   expect(track).toHaveBeenCalledTimes(2);
 });
+
+test("a new Google user counts as signed up on reaching onboarding, not after it", () => {
+  const returnTo = googleCallbackURL("/library", true);
+  window.history.replaceState(
+    null,
+    "",
+    `/onboarding?${new URLSearchParams({ returnTo })}`,
+  );
+  render(<Analytics />);
+  expect(track).toHaveBeenCalledExactlyOnceWith("sign_up_completed", {
+    method: "google",
+  });
+  expect(new URL(window.location.href).searchParams.get("returnTo")).toBe(
+    "/library",
+  );
+});

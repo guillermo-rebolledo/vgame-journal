@@ -43,16 +43,28 @@ export function googleCallbackURL(returnTo: string, newUser: boolean) {
 export function Analytics() {
   const pathname = usePathname();
   // A Google sign-in only succeeds off-page, so count it when the user lands back with the marker, then drop it.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-check on every navigation, e.g. leaving onboarding.
+  // New users land on onboarding first, with the marker inside its returnTo.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-check on every client navigation.
   useEffect(() => {
     const url = new URL(window.location.href);
-    const marker = url.searchParams.get(GOOGLE_AUTH_PARAM);
+    const returnTo = url.searchParams.get("returnTo");
+    const inner = returnTo ? new URL(returnTo, url.origin) : null;
+    const marker =
+      url.searchParams.get(GOOGLE_AUTH_PARAM) ??
+      inner?.searchParams.get(GOOGLE_AUTH_PARAM);
     if (marker !== "google" && marker !== "google-new") return;
     trackEvent(
       marker === "google-new" ? "sign_up_completed" : "sign_in_completed",
       { method: "google" },
     );
     url.searchParams.delete(GOOGLE_AUTH_PARAM);
+    if (inner?.searchParams.has(GOOGLE_AUTH_PARAM)) {
+      inner.searchParams.delete(GOOGLE_AUTH_PARAM);
+      url.searchParams.set(
+        "returnTo",
+        `${inner.pathname}${inner.search}${inner.hash}`,
+      );
+    }
     window.history.replaceState(
       window.history.state,
       "",
