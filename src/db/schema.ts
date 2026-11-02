@@ -18,6 +18,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { FeedbackType } from "@/lib/feedback-types";
 import type { DatePrecision, DiscoveryKey } from "@/lib/game-source";
 import type { CompletionTag, Status } from "@/lib/journal";
 import type { Region } from "@/lib/release-dates";
@@ -253,7 +254,7 @@ export const feedback = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    type: text("type").$type<"idea" | "bug" | "other">().notNull(),
+    type: text("type").$type<FeedbackType>().notNull(),
     message: text("message").notNull(),
     path: text("path").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),

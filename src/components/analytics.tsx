@@ -6,6 +6,7 @@ import {
   Analytics as VercelAnalytics,
 } from "@vercel/analytics/next";
 import { type ReactNode, useEffect } from "react";
+import type { FeedbackType } from "@/lib/feedback-types";
 import type { CompletionTag, Status } from "@/lib/library";
 
 // Allowlist, not denylist: free text (search), tokens, returnTo and any future param stay out by default.
@@ -89,7 +90,7 @@ export function TrackClicks({
 
 // Vercel Pro allows 2 properties per event. Values are enums, booleans or buckets only: never free text or ids.
 type ProductEvents = {
-  feedback_submitted: { type: "idea" | "bug" | "other" };
+  feedback_submitted: { type: FeedbackType };
   sign_up_completed: { method: "email" | "google" };
   sign_in_completed: { method: "email" | "google" };
   onboarding_completed: undefined;

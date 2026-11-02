@@ -23,16 +23,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { FeedbackInput } from "@/lib/feedback";
+import { FEEDBACK_TYPES, type FeedbackType } from "@/lib/feedback-types";
+import { capitalize } from "@/lib/library";
 
 export type SubmitFeedback = (
   input: FeedbackInput,
 ) => Promise<{ error: string } | undefined>;
-const types = [
-  { value: "idea", label: "Idea" },
-  { value: "bug", label: "Bug" },
-  { value: "other", label: "Other" },
-] as const;
-type FeedbackType = (typeof types)[number]["value"];
+const types = FEEDBACK_TYPES.map((value) => ({
+  value,
+  label: capitalize(value),
+}));
 
 export function Feedback({
   username,

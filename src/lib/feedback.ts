@@ -1,7 +1,9 @@
-import { and, count, eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { feedback } from "@/db/schema";
+import { executeBatch } from "@/db/batch";
+import { feedback, user } from "@/db/schema";
 import type { Email } from "@/lib/email";
+import { isFeedbackType } from "@/lib/feedback-types";
 
 type Author = { id: string; username?: string | null; email: string };
 export type FeedbackInput = { type: string; message: string; path: string };
@@ -12,7 +14,7 @@ export function createFeedback(
   return async (author: Author | null, input: FeedbackInput) => {
     if (!author?.username)
       return { error: "Sign in with a username to send feedback." };
-    if (!input || !["idea", "bug", "other"].includes(input.type))
+    if (!input || !isFeedbackType(input.type))
       return { error: "Choose Idea, Bug or Other." };
     if (
       typeof input.message !== "string" ||
@@ -25,25 +27,23 @@ export function createFeedback(
       !/^\/(?!\/)[^?#\s]*$/.test(input.path)
     )
       return { error: "Invalid page path. Reopen the form and try again." };
-    const type = input.type as "idea" | "bug" | "other";
+    const type = input.type;
     const message = input.message.trim();
-    const [recent] = await db
-      .select({ count: count() })
-      .from(feedback)
-      .where(
-        and(
-          eq(feedback.userId, author.id),
-          sql`${feedback.createdAt} > now() - interval '1 hour'`,
-        ),
-      );
-    if (recent.count >= 5)
+    // Separate statements under READ COMMITTED give the count a fresh snapshot after waiting for the lock.
+    const inserted = await executeBatch(db, [
+      sql`select ${user.id} from ${user} where ${user.id} = ${author.id} for update`,
+      sql`insert into ${feedback} (user_id, type, message, path, created_at)
+          select ${author.id}, ${type}, ${message}, ${input.path}, statement_timestamp()
+          where (select count(*) from ${feedback}
+                 where ${feedback.userId} = ${author.id}
+                   and ${feedback.createdAt} > statement_timestamp() - interval '1 hour') < 5
+          returning id`,
+    ]);
+    if (!inserted.length)
       return {
         error:
           "You’ve sent 5 messages in the past hour. Please try again later.",
       };
-    await db
-      .insert(feedback)
-      .values({ userId: author.id, type, message, path: input.path });
     if (process.env.FEEDBACK_EMAIL) {
       const label = type[0].toUpperCase() + type.slice(1);
       try {

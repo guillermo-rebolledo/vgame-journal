@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
     ...(process.env.E2E_TEST === "1" && {
       resolveAlias: {
         "@/db": "./e2e/support/db.ts",
+        "@/db/batch": "./e2e/support/batch.ts",
         "@/lib/igdb": "./e2e/support/game-source.ts",
       },
     }),

@@ -106,6 +106,40 @@ test("limits each user to five submissions in a rolling hour and permits the nex
   ).toHaveLength(6);
 });
 
+test("concurrent submissions cannot exceed five messages per user", async () => {
+  vi.stubEnv("FEEDBACK_EMAIL", "delivered@resend.dev");
+  const send = vi.fn();
+  const submit = createFeedback(db, send);
+  for (let i = 0; i < 4; i++) await submit(author, input);
+  send.mockClear();
+
+  const results = await Promise.all(
+    Array.from({ length: 8 }, () => submit(author, input)),
+  );
+  expect(results.filter((result) => result === undefined)).toHaveLength(1);
+  expect(results.filter((result) => result?.error)).toHaveLength(7);
+  expect(send).toHaveBeenCalledTimes(1);
+  await expect(submit(author, input)).resolves.toHaveProperty("error");
+});
+
+test("expiry frees only one slot for concurrent submissions while newer messages still count", async () => {
+  const submit = createFeedback(db, vi.fn());
+  for (let i = 0; i < 5; i++) await submit(author, input);
+  await expect(submit(author, input)).resolves.toHaveProperty("error");
+
+  const [oldest] = await db.select({ id: feedback.id }).from(feedback).limit(1);
+  await db
+    .update(feedback)
+    .set({ createdAt: sql`now() - interval '1 hour 1 second'` })
+    .where(eq(feedback.id, oldest.id));
+  const results = await Promise.all(
+    Array.from({ length: 3 }, () => submit(author, input)),
+  );
+  expect(results.filter((result) => result === undefined)).toHaveLength(1);
+  expect(results.filter((result) => result?.error)).toHaveLength(2);
+  await expect(submit(author, input)).resolves.toHaveProperty("error");
+});
+
 test("keeps stored feedback and returns success when email fails", async () => {
   vi.stubEnv("FEEDBACK_EMAIL", "delivered@resend.dev");
   const log = vi.spyOn(console, "error").mockImplementation(() => {});
