@@ -18,6 +18,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { FeedbackType } from "@/lib/feedback-types";
 import type { DatePrecision, DiscoveryKey } from "@/lib/game-source";
 import type { CompletionTag, Status } from "@/lib/journal";
 import type { Region } from "@/lib/release-dates";
@@ -245,3 +246,24 @@ export const scheduledRefresh = pgTable("scheduled_refresh", {
   key: text("key").primaryKey(),
   nextAttemptAt: timestamp("next_attempt_at").notNull(),
 });
+
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    type: text("type").$type<FeedbackType>().notNull(),
+    message: text("message").notNull(),
+    path: text("path").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("feedback_userId_createdAt_idx").on(table.userId, table.createdAt),
+    check(
+      "feedback_type_known",
+      sql`${table.type} in ('idea', 'bug', 'other')`,
+    ),
+  ],
+);

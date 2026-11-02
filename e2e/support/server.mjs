@@ -34,6 +34,15 @@ const server = createServer(async (request, response) => {
         },
       });
       response.end(JSON.stringify({ rows: result.rows }));
+    } else if (request.url === "/batch" && request.method === "POST") {
+      const statements = JSON.parse(body);
+      const result = await database.transaction(async (tx) => {
+        let result;
+        for (const { sql, params } of statements)
+          result = await tx.query(sql, params);
+        return result;
+      });
+      response.end(JSON.stringify({ rows: result.rows }));
     } else if (
       request.url === "/collection-delay" &&
       request.method === "POST"
