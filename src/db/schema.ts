@@ -245,3 +245,24 @@ export const scheduledRefresh = pgTable("scheduled_refresh", {
   key: text("key").primaryKey(),
   nextAttemptAt: timestamp("next_attempt_at").notNull(),
 });
+
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    type: text("type").$type<"idea" | "bug" | "other">().notNull(),
+    message: text("message").notNull(),
+    path: text("path").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("feedback_userId_createdAt_idx").on(table.userId, table.createdAt),
+    check(
+      "feedback_type_known",
+      sql`${table.type} in ('idea', 'bug', 'other')`,
+    ),
+  ],
+);

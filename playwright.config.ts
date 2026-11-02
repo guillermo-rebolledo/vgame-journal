@@ -24,6 +24,7 @@ export default defineConfig({
         CRON_SECRET: "e2e-cron-secret",
         BETTER_AUTH_URL: "http://localhost:3100",
         BETTER_AUTH_SECRET: "e2e-only-secret-at-least-32-characters-long",
+        FEEDBACK_EMAIL: "delivered@resend.dev",
         RESEND_API_KEY: "re_e2e",
         RESEND_BASE_URL: "http://127.0.0.1:3101",
         DATABASE_URL: "",

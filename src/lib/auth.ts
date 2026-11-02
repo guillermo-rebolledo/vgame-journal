@@ -4,26 +4,14 @@ import { nextCookies } from "better-auth/next-js";
 import { username } from "better-auth/plugins";
 import { headers } from "next/headers";
 import { connection } from "next/server";
-import { Resend } from "resend";
 import { SITE_NAME } from "@/config/site";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import { type Email, sendWithResend } from "@/lib/email";
+
 import { PASSWORD_POLICY } from "@/lib/password-policy";
 
-export type Email = { to: string; subject: string; text: string };
-
-// RESEND_EMAIL_DOMAIN comes from the Marketplace integration; without it, Resend's sandbox sender.
-const SENDER = process.env.RESEND_EMAIL_DOMAIN
-  ? `noreply@${process.env.RESEND_EMAIL_DOMAIN}`
-  : "onboarding@resend.dev";
-
-async function sendWithResend(email: Email) {
-  const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({
-    from: `${SITE_NAME} <${SENDER}>`,
-    ...email,
-  });
-  if (error) throw new Error(error.message);
-}
+export type { Email } from "@/lib/email";
 
 /** Tests pass their own database and mailbox; the app uses `auth` below. */
 export function createAuth(
