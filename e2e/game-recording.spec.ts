@@ -1,4 +1,5 @@
 import { expect, type Locator, test } from "@playwright/test";
+import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
 
@@ -622,8 +623,7 @@ test.describe("enlarged-text touch editor", () => {
       await page.goto(
         "/games/the-lantern-keeper-s-extraordinarily-long-voyage-across-the-shattered-archipelago-definitive-edition",
       );
-      if (theme === "light")
-        await page.getByRole("button", { name: "Toggle theme" }).click();
+      if (theme === "light") await chooseTheme(page, "light");
       await expect(page.locator("html")).toHaveClass(new RegExp(theme));
       await page.evaluate(() => {
         document.documentElement.style.fontSize = "32px";
