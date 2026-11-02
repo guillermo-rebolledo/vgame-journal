@@ -79,6 +79,14 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
   expect(await columns()).toBe(2);
   await page.getByRole("searchbox", { name: "Search games" }).focus();
   await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("link", { name: "Sign up to start a Journal" }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("link", { name: "Sign in to your Journal" }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(recent.getByRole("link").first()).toBeFocused();
   expect(
     await recent
