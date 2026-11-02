@@ -6,7 +6,6 @@ import { Suspense } from "react";
 import { Analytics } from "@/components/analytics";
 import { PageTransition } from "@/components/page-transition";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import "./globals.css";
@@ -80,7 +79,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               />
               {SITE_NAME}
             </Link>
-            <Suspense fallback={<ThemeToggle />}>
+            <Suspense fallback={<div aria-hidden className="size-11" />}>
               <UserMenu />
             </Suspense>
           </header>

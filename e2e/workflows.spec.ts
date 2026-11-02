@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
 import { snap } from "./support/snap";
@@ -148,9 +149,9 @@ test("Home guides new users, and search survives slow, stale and failed requests
     "Enter at least 2 characters",
   );
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
-  for (const theme of ["light", "dark"]) {
+  for (const theme of ["light", "dark"] as const) {
     if (!(await page.locator("html").getAttribute("class"))?.includes(theme))
-      await page.getByRole("button", { name: "Toggle theme" }).click();
+      await chooseTheme(page, theme);
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 844 });
       await expect(page.getByRole("status")).toBeVisible();

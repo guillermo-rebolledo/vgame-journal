@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
 import { snap } from "./support/snap";
@@ -17,8 +18,7 @@ for (const viewport of [
       await page.setViewportSize(viewport);
       await page.emulateMedia({ reducedMotion: "reduce" });
       const email = await signUp(page, request, `covers_${Date.now()}`);
-      if (theme === "light")
-        await page.getByRole("button", { name: "Toggle theme" }).click();
+      if (theme === "light") await chooseTheme(page, "light");
       await expect(page.locator("html")).toHaveClass(new RegExp(theme));
 
       const delay = async (milliseconds: number) => {
@@ -174,8 +174,7 @@ for (const signedIn of [false, true]) {
         });
       });
       await page.goto("/games/hades--1");
-      if (theme === "light")
-        await page.getByRole("button", { name: "Toggle theme" }).click();
+      if (theme === "light") await chooseTheme(page, "light");
       await expect(page.locator("html")).toHaveClass(new RegExp(theme));
       const article = page.getByRole("article");
       const fallback = article.getByText("No cover art", { exact: true });

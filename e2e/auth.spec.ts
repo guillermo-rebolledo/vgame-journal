@@ -4,6 +4,7 @@ import {
   type Page,
   test,
 } from "@playwright/test";
+import { chooseTheme } from "./support/header";
 import { signUp } from "./support/sign-up";
 
 test("signed-out visitors see Sign in and can't reach onboarding", async ({
@@ -615,7 +616,7 @@ test("expired resets preserve the old password and a replacement reset acknowled
 test("password recovery pages reflow with enlarged text and both themes", async ({
   page,
 }) => {
-  for (const theme of ["light", "dark"]) {
+  for (const theme of ["light", "dark"] as const) {
     for (const path of [
       "/sign-in?returnTo=%2Fgames%2Fceleste&passwordReset=success",
       "/sign-up",
@@ -626,7 +627,7 @@ test("password recovery pages reflow with enlarged text and both themes", async 
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       if (!(await page.locator("html").getAttribute("class"))?.includes(theme))
-        await page.getByRole("button", { name: "Toggle theme" }).click();
+        await chooseTheme(page, theme);
       for (const [width, fontSize] of [
         [320, 16],
         [320, 32],

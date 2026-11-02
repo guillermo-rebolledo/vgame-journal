@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { chooseAccountMenuItem } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { seedSql } from "./support/seed-sql";
 import { signUp } from "./support/sign-up";
@@ -78,11 +79,11 @@ test("populated collections keep Find a game reachable with comfortable phone co
       ),
     );
     // Account actions sit on their own row, above the collection navigation.
-    const signOut = page.getByRole("button", { name: "Sign out" });
+    const account = page.getByRole("button", { name: /^Account menu/ });
     const navBox = await nav.boundingBox();
-    const signOutBox = await signOut.boundingBox();
-    if (!navBox || !signOutBox) throw new Error("Header has no bounds");
-    expect(signOutBox.y + signOutBox.height).toBeLessThanOrEqual(navBox.y);
+    const accountBox = await account.boundingBox();
+    if (!navBox || !accountBox) throw new Error("Header has no bounds");
+    expect(accountBox.y + accountBox.height).toBeLessThanOrEqual(navBox.y);
   }
   await snap(page, testInfo, "library-mobile");
 
@@ -303,9 +304,7 @@ for (const theme of ["light", "dark"] as const) {
             ).toBeVisible();
           await checkWidth(`${name} ${populated} ${font}`, font);
         }
-        await page
-          .getByRole("button", { name: "Settings", exact: true })
-          .click();
+        await chooseAccountMenuItem(page, "Settings");
         const feed = page.getByRole("textbox", { name: "Calendar feed URL" });
         await expect(feed).toBeVisible();
         await checkWidth(`Settings ${font}`, font);
@@ -318,7 +317,7 @@ for (const theme of ["light", "dark"] as const) {
         await page.getByRole("radio", { name: /Japan/ }).check();
         await page.getByRole("button", { name: "Save", exact: true }).click();
         await expect(page.getByRole("radio", { name: /Japan/ })).toBeChecked();
-        await page.getByRole("link", { name: username, exact: true }).click();
+        await chooseAccountMenuItem(page, "My profile");
         await expect(
           page.getByRole("heading", { name: username, exact: true }),
         ).toBeVisible();
@@ -352,7 +351,7 @@ for (const theme of ["light", "dark"] as const) {
     }
     await page.setViewportSize({ width: 320, height: 740 });
     await visit("/", 32);
-    await page.getByRole("button", { name: "Sign out", exact: true }).click();
+    await chooseAccountMenuItem(page, "Sign out");
     await expect(
       page.getByRole("heading", {
         name: "Your games, remembered.",
