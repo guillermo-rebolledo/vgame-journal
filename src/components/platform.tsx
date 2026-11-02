@@ -62,11 +62,40 @@ export function PlatformIcon({
   );
 }
 
-export function PlatformName({ platform }: { platform: string }) {
+const compactNames: Record<string, string> = {
+  "PC (Microsoft Windows)": "PC",
+  "Nintendo Entertainment System": "NES",
+  "Super Nintendo Entertainment System": "SNES",
+  "Nintendo 64": "N64",
+  "Nintendo GameCube": "GameCube",
+  "Nintendo Switch": "Switch",
+  "Nintendo Switch 2": "Switch 2",
+};
+
+export function PlatformName({
+  platform,
+  compact = false,
+}: {
+  platform: string;
+  compact?: boolean;
+}) {
+  const shortName = compact ? compactNames[platform] : undefined;
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5 align-baseline">
+    <span
+      title={shortName ? platform : undefined}
+      className="inline-flex max-w-full items-center gap-1.5 align-baseline"
+    >
       <PlatformIcon platform={platform} />
-      <span className="min-w-0 self-baseline break-words">{platform}</span>
+      <span className="min-w-0 self-baseline break-words">
+        {shortName ? (
+          <>
+            <span aria-hidden="true">{shortName}</span>
+            <span className="sr-only">{platform}</span>
+          </>
+        ) : (
+          platform
+        )}
+      </span>
     </span>
   );
 }

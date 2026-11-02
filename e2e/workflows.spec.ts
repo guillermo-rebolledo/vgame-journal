@@ -108,7 +108,7 @@ test("Home guides new users, and search survives slow, stale and failed requests
   releaseStale();
   await staleFinished;
   await expect(page.getByText("Stale result")).toHaveCount(0);
-  await expect(page.getByRole("status")).toHaveText("1 game found.");
+  await expect(page.getByRole("status")).toHaveText("1 match for “celeste”.");
   await box.fill("c");
   await expect(page.getByRole("status")).toHaveText(
     "Enter at least 2 characters",
@@ -117,7 +117,7 @@ test("Home guides new users, and search survives slow, stale and failed requests
 
   await box.fill("nothing like this");
   await expect(page.getByRole("status")).toContainText(
-    "No games match “nothing like this”.",
+    "We couldn’t find a match for “nothing like this”.",
   );
   await snap(page, testInfo, "search-no-results");
 
@@ -139,7 +139,9 @@ test("Home guides new users, and search survives slow, stale and failed requests
 
   await page.unroute("**/api/games/search?q=hollow");
   await page.getByRole("button", { name: "Try again" }).click();
-  await expect(page.getByRole("status")).toContainText("No games match");
+  await expect(page.getByRole("status")).toContainText(
+    "We couldn’t find a match",
+  );
   await expect(box).toHaveValue("hollow");
   await box.fill("h");
   await expect(page.getByRole("status")).toHaveText(
@@ -159,6 +161,84 @@ test("Home guides new users, and search survives slow, stale and failed requests
   expect(catalogQueries.every((query) => query.trim().length >= 2)).toBe(true);
   await box.clear();
   await expect(page.locator("output[aria-live=polite]")).toBeEmpty();
+});
+
+test("Search filters keep keyboard focus and long platform names readable at 320 pixels", async ({
+  page,
+}) => {
+  const longPlatform = "長".repeat(100);
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.route("**/api/games/search?q=platforms", (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 1,
+          slug: "platform-test",
+          title: "Platform test",
+          coverImageId: null,
+          platforms: [
+            "PC",
+            "Super Nintendo Entertainment System",
+            longPlatform,
+          ],
+          year: 2024,
+        },
+        {
+          id: 2,
+          slug: "platform-unknown",
+          title: "Unknown platform",
+          coverImageId: null,
+          platforms: [],
+          year: null,
+        },
+      ],
+    }),
+  );
+  await page.goto("/?q=platforms");
+  const platform = page.getByRole("combobox", {
+    name: "Platform",
+    exact: true,
+  });
+  await expect(platform).toBeAttached();
+  await page.getByRole("searchbox", { name: "Search games" }).focus();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("Release year")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(platform).toBeFocused();
+  await platform.selectOption("PC");
+  await expect(platform).toHaveValue("PC");
+  await platform.selectOption(longPlatform);
+  const visibleValue = platform
+    .locator("..")
+    .locator('[aria-hidden="true"] span');
+  await expect(visibleValue).toHaveText(longPlatform);
+  expect(
+    await visibleValue.evaluate((node) => node.scrollWidth <= node.clientWidth),
+  ).toBe(true);
+  await expect(page.getByRole("link", { name: /Platform test/ })).toContainText(
+    `${longPlatform}+2 platforms`,
+  );
+  const controlBounds = await platform.boundingBox();
+  const clearBounds = await page
+    .getByRole("button", { name: "Clear filters" })
+    .boundingBox();
+  expect(controlBounds?.width).toBeGreaterThan(250);
+  expect(clearBounds?.y).toBeGreaterThanOrEqual(
+    (controlBounds?.y ?? 0) + (controlBounds?.height ?? 0),
+  );
+  await expectNoHorizontalOverflow(page);
+  await page.locator("html").evaluate((node) => {
+    node.style.fontSize = "200%";
+  });
+  await expectNoHorizontalOverflow(page);
+  await page.locator("html").evaluate((node) => {
+    node.style.removeProperty("font-size");
+  });
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await expect(platform).toHaveValue("");
+  await expect(page.getByRole("link", { name: /Platform test/ })).toContainText(
+    "PC+2 platforms",
+  );
 });
 
 test("Library search, filters and sort survive game visits, Back and reload", async ({

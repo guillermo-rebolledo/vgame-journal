@@ -72,10 +72,11 @@ async function HomeContent() {
             : SITE_DESCRIPTION}
         </p>
       </div>
-      {!userId && <JournalExample />}
-      {!userId && <GuestActions />}
       <Suspense fallback={<output>Loading game search…</output>}>
-        <GameSearch />
+        <GameSearch
+          example={!userId && <JournalExample />}
+          invitation={!userId && <GuestActions />}
+        />
       </Suspense>
       {userId ? (
         <Suspense

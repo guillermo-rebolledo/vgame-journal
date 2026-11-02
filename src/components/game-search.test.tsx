@@ -82,7 +82,7 @@ test("waits for two characters, then shows searching and the results", async () 
   expect(status()).toBe("Searching…");
   await until(1);
   await act(async () => requests[0].answer([game(1, "Celeste")]));
-  expect(status()).toBe("1 game found.");
+  expect(status()).toBe("1 match for “ce”.");
   expect(titles()).toEqual(["Celeste2018PC"]);
 });
 
@@ -109,7 +109,7 @@ test("no results suggests what to try", async () => {
   await user.type(box(), "zzz");
   await until(1);
   await act(async () => requests[0].answer([]));
-  expect(status()).toContain("No games match “zzz”.");
+  expect(status()).toContain("We couldn’t find a match for “zzz”.");
   expect(status()).toContain("Check the spelling");
 });
 
@@ -139,12 +139,15 @@ test("broad searches show six matches first and let the user expand and collapse
   await until(1);
   await act(async () =>
     requests[0].answer(
-      Array.from({ length: 8 }, (_, i) => game(i + 1, `Game ${i + 1}`)),
+      Array.from({ length: 20 }, (_, i) => game(i + 1, `Game ${i + 1}`)),
     ),
   );
   expect(titles()).toHaveLength(6);
-  await user.click(screen.getByRole("button", { name: "Show all 8 matches" }));
-  expect(titles()).toHaveLength(8);
+  expect(status()).toBe("Top 20 matches for “game”.");
+  await user.click(
+    screen.getByRole("button", { name: "Show 14 more matches" }),
+  );
+  expect(titles()).toHaveLength(20);
   await user.click(screen.getByRole("button", { name: "Show fewer matches" }));
   expect(titles()).toHaveLength(6);
 });
@@ -163,13 +166,57 @@ test("narrows the returned matches by release year and platform and can clear fi
   );
   await user.selectOptions(screen.getByLabelText("Release year"), "2024");
   expect(titles()).toHaveLength(2);
+  expect(status()).toBe("2 of the top 3 matches fit your filters.");
   await user.selectOptions(screen.getByLabelText("Platform"), "Switch");
   expect(titles()).toHaveLength(1);
+  expect(status()).toBe("1 of the top 3 matches fits your filters.");
   expect(titles()[0]).toContain("Game console");
   await user.selectOptions(screen.getByLabelText("Release year"), "2018");
-  expect(status()).toContain("No matches with these filters");
+  expect(status()).toContain("None of these top matches fit your filters.");
   await user.click(screen.getByRole("button", { name: "Clear filters" }));
   expect(titles()).toHaveLength(3);
+  expect(status()).toBe("Top 3 matches for “game”.");
+  expect(requests).toHaveLength(1);
+});
+
+test("summarizes platforms and prioritizes a selected platform without changing the catalog names", async () => {
+  const user = userEvent.setup();
+  const longPlatform = "Super Nintendo Entertainment System";
+  render(<GameSearch />);
+  await user.type(box(), "game");
+  await until(1);
+  await act(async () =>
+    requests[0].answer([
+      {
+        ...game(1, "Game collection"),
+        platforms: ["PC", "Wii", longPlatform],
+      },
+      { ...game(2, "Game unknown"), platforms: [] },
+      { ...game(3, "Game port"), platforms: ["PC", longPlatform] },
+    ]),
+  );
+  expect(titles()).toEqual([
+    "Game collection2018PC+2 platforms",
+    "Game unknown2018",
+    "Game port2018PC+1 platform",
+  ]);
+
+  await user.selectOptions(screen.getByLabelText("Platform"), longPlatform);
+  expect(
+    screen.getByRole("link", {
+      name: /Game collection.*Super Nintendo Entertainment System.*\+2 platforms/,
+    }).textContent,
+  ).toContain("SNES");
+  expect(
+    screen.getByRole("link", {
+      name: /Game port.*Super Nintendo Entertainment System.*\+1 platform/,
+    }).textContent,
+  ).toContain("SNES");
+  expect((screen.getByLabelText("Platform") as HTMLSelectElement).value).toBe(
+    longPlatform,
+  );
+  await user.click(screen.getByRole("button", { name: "Clear filters" }));
+  expect(titles()[0]).toBe("Game collection2018PC+2 platforms");
   expect(requests).toHaveLength(1);
 });
 

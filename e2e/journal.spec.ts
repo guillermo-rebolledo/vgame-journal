@@ -342,9 +342,10 @@ test("sign up, share a profile without notes, export the journal, and delete the
     0,
   );
   await publicPage.getByRole("button", { name: "Stats", exact: true }).click();
-  await expect(
-    publicPage.getByRole("main").getByText("12 hours", { exact: true }),
-  ).toBeVisible();
+  const loggedHours = publicPage
+    .getByRole("list", { name: "hours by category" })
+    .getByText("12 hours", { exact: true });
+  await expect(loggedHours).toBeVisible();
   await expect(
     publicPage.getByRole("main").getByText("1 game", { exact: true }),
   ).toBeVisible();
@@ -358,7 +359,7 @@ test("sign up, share a profile without notes, export the journal, and delete the
     publicPage.getByRole("button", { name: "Stats", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await publicPage.reload();
-  await expect(publicPage.getByText("12 hours", { exact: true })).toBeVisible();
+  await expect(loggedHours).toBeVisible();
   for (const view of ["library", "wishlist", "stats"]) {
     const fresh = await browser.newContext();
     try {
