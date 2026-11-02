@@ -51,11 +51,14 @@ test("Theme sub-menu checks the current theme and switches on select", async () 
   expect(theme.setTheme).toHaveBeenCalledWith("dark", expect.anything());
 });
 
-test("keyboard opens the menu and Escape returns focus to the trigger", async () => {
+test.each([
+  "{Enter}",
+  " ",
+])("%s opens the menu and Escape returns focus to the trigger", async (key) => {
   render(<AccountMenu user={user} />);
   const button = screen.getByRole("button", { name: /Account menu/ });
   button.focus();
-  await userEvent.keyboard("{Enter}");
+  await userEvent.keyboard(key);
   expect(await screen.findByRole("menu")).toBeTruthy();
   expect(button.getAttribute("aria-expanded")).toBe("true");
 

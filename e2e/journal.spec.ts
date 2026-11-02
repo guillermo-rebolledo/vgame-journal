@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import { accountMenuItem } from "./support/header";
+import { chooseAccountMenuItem } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
 
@@ -528,9 +528,10 @@ for (const theme of ["dark", "light"]) {
           });
         });
       }
+      const accountLabel = `Account menu, @${username}`;
       const account = page
         .locator("header")
-        .getByRole("button", { name: `Account menu, @${username}` });
+        .getByRole("button", { name: accountLabel });
       const initials = (surface: typeof page) =>
         surface.getByRole("main").getByText("m", { exact: true });
       const expectProfile = async (surface: typeof page, valid: boolean) => {
@@ -549,12 +550,12 @@ for (const theme of ["dark", "light"]) {
           surface.getByRole("main").locator(`img[src="${failedSource}"]`),
         ).toHaveCount(0);
       };
-      await accountMenuItem(page, "My profile");
+      await chooseAccountMenuItem(page, "My profile");
       await guest.goto(`/u/${username}`);
       await expectProfile(page, false);
       await expectProfile(guest, false);
       await expect(account).toHaveText("M");
-      await expect(account).toHaveAccessibleName(`Account menu, @${username}`);
+      await expect(account).toHaveAccessibleName(accountLabel);
       expect((await account.boundingBox())?.width).toBeGreaterThanOrEqual(44);
 
       const setAvatar = async (image: string) => {
@@ -574,7 +575,7 @@ for (const theme of ["dark", "light"]) {
       expect(failedRequests).toBeGreaterThanOrEqual(2);
       await expect(account.locator("img")).toHaveCount(0);
       await expect(account).toHaveText("M");
-      await expect(account).toHaveAccessibleName(`Account menu, @${username}`);
+      await expect(account).toHaveAccessibleName(accountLabel);
       expect(await guest.content()).not.toContain(email);
       expect(await guest.content()).not.toContain("PRIVATE_MEDIA_ACCOUNT_NAME");
       await expect(
@@ -596,11 +597,11 @@ for (const theme of ["dark", "light"]) {
           ),
         )
         .toBe(true);
-      await expect(account).toHaveAccessibleName(`Account menu, @${username}`);
+      await expect(account).toHaveAccessibleName(accountLabel);
       const headerBox = await headerImage.boundingBox();
       expect(headerBox?.width).toBe(28);
       expect(headerBox?.height).toBe(28);
-      await accountMenuItem(page, "My profile");
+      await chooseAccountMenuItem(page, "My profile");
       await guest.reload();
       await expectProfile(page, true);
       await expectProfile(guest, true);

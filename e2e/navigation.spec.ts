@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { accountMenuItem } from "./support/header";
+import { chooseAccountMenuItem } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { seedSql } from "./support/seed-sql";
 import { signUp } from "./support/sign-up";
@@ -304,7 +304,7 @@ for (const theme of ["light", "dark"] as const) {
             ).toBeVisible();
           await checkWidth(`${name} ${populated} ${font}`, font);
         }
-        await accountMenuItem(page, "Settings");
+        await chooseAccountMenuItem(page, "Settings");
         const feed = page.getByRole("textbox", { name: "Calendar feed URL" });
         await expect(feed).toBeVisible();
         await checkWidth(`Settings ${font}`, font);
@@ -317,7 +317,7 @@ for (const theme of ["light", "dark"] as const) {
         await page.getByRole("radio", { name: /Japan/ }).check();
         await page.getByRole("button", { name: "Save", exact: true }).click();
         await expect(page.getByRole("radio", { name: /Japan/ })).toBeChecked();
-        await accountMenuItem(page, "My profile");
+        await chooseAccountMenuItem(page, "My profile");
         await expect(
           page.getByRole("heading", { name: username, exact: true }),
         ).toBeVisible();
@@ -351,7 +351,7 @@ for (const theme of ["light", "dark"] as const) {
     }
     await page.setViewportSize({ width: 320, height: 740 });
     await visit("/", 32);
-    await accountMenuItem(page, "Sign out");
+    await chooseAccountMenuItem(page, "Sign out");
     await expect(
       page.getByRole("heading", {
         name: "Your games, remembered.",

@@ -106,22 +106,22 @@ export function AccountMenu({ user }: { user: AccountUser | null }) {
           <DropdownMenuLabel className="[overflow-wrap:anywhere]">
             Signed in as {handle}
           </DropdownMenuLabel>
-          <DropdownMenuItem
-            render={
-              <Link
-                href={user.username ? `/u/${user.username}` : "/onboarding"}
-              />
-            }
-          >
-            <UserIcon aria-hidden />
-            My profile
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link href="/settings" />}>
-            <SettingsIcon aria-hidden />
-            Settings
-          </DropdownMenuItem>
-          <ThemeMenu />
         </DropdownMenuGroup>
+        <DropdownMenuItem
+          render={
+            <Link
+              href={user.username ? `/u/${user.username}` : "/onboarding"}
+            />
+          }
+        >
+          <UserIcon aria-hidden />
+          My profile
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link href="/settings" />}>
+          <SettingsIcon aria-hidden />
+          Settings
+        </DropdownMenuItem>
+        <ThemeMenu />
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={async () => {
