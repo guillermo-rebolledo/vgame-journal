@@ -4,12 +4,20 @@ import { Suspense, ViewTransition } from "react";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
 import { FallbackImage } from "@/components/fallback-image";
 import { GameCover } from "@/components/game-cover";
+import {
+  AgeRatingFact,
+  EmptyFact,
+  LanguagesFact,
+} from "@/components/game-facts";
 import { JsonLd } from "@/components/json-ld";
 import { PlatformName, PlatformNames } from "@/components/platform";
 import { Playthroughs } from "@/components/playthroughs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL } from "@/config/site";
-import { coverUrl } from "@/lib/game-source";
+import { boardName, pickRatings } from "@/lib/age-ratings";
+import { signedInUserId } from "@/lib/auth";
+import { coverUrl, type SourceAgeRating } from "@/lib/game-source";
+import { journal } from "@/lib/journal";
 import { regionName, releaseLabel } from "@/lib/release-dates";
 import { findGame } from "./game";
 import { GameTagShelves } from "./tag-shelves";
@@ -130,6 +138,41 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
               count={game.userScoreCount}
               noun="rating"
             />
+            {game.ageRatings &&
+              (game.ageRatings.length === 0 ? (
+                <EmptyFact label="Age rating" note="Not rated yet" />
+              ) : (
+                <Suspense
+                  fallback={
+                    <div className="flex">
+                      <dt className="sr-only">Age rating</dt>
+                      <dd className="flex flex-1">
+                        <output
+                          aria-label="Loading age rating"
+                          className="flex flex-1 flex-col gap-1 rounded-lg border bg-background/60 p-4 backdrop-blur"
+                        >
+                          <span
+                            aria-hidden
+                            className="text-muted-foreground text-sm"
+                          >
+                            Age rating
+                          </span>
+                          <Skeleton className="h-9 w-12" />
+                          <Skeleton className="h-4 w-24" />
+                        </output>
+                      </dd>
+                    </div>
+                  }
+                >
+                  <AgeRating ratings={game.ageRatings} />
+                </Suspense>
+              ))}
+            {game.languages &&
+              (game.languages.length === 0 ? (
+                <EmptyFact label="Languages" note="Unknown" />
+              ) : (
+                <LanguagesFact languages={game.languages} />
+              ))}
           </dl>
 
           {game.summary && (
@@ -189,11 +232,20 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
   );
 }
 
+/** The board follows the signed-in user's Region, so this streams at request time; the cached game stays user-independent. */
+async function AgeRating({ ratings }: { ratings: SourceAgeRating[] }) {
+  const userId = await signedInUserId();
+  const region = userId ? await journal.region(userId) : null;
+  return <AgeRatingFact {...pickRatings(ratings, region)} />;
+}
+
 /** A VideoGame record, so a crawler reads the platforms, dates and scores without parsing the page. */
 function videoGameSchema(
   game: Awaited<ReturnType<typeof findGame>> & object,
   cover: string | false | null,
 ) {
+  // The guest board, so the cached markup stays user-independent.
+  const rating = pickRatings(game.ageRatings ?? [], null).headline;
   const released = game.releaseDates
     .filter((d) => d.date && d.precision === "day")
     .map((d) => d.date as Date)
@@ -207,6 +259,12 @@ function videoGameSchema(
     ...(cover && { image: cover }),
     ...(game.genres.length > 0 && { genre: game.genres }),
     ...(game.platforms.length > 0 && { gamePlatform: game.platforms }),
+    ...(rating && {
+      contentRating: `${boardName(rating.board)} ${rating.rating}`,
+    }),
+    ...(game.languages?.length && {
+      inLanguage: game.languages.map((l) => l.name),
+    }),
     ...(released && { datePublished: released.toISOString().slice(0, 10) }),
     ...(game.userScore !== null &&
       game.userScoreCount && {
