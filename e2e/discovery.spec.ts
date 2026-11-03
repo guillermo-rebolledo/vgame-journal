@@ -46,21 +46,17 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
     ).toBe(true);
   }
   await expect(recent.locator("time")).toHaveAttribute("datetime", /T/);
+  const recentHandle = await recent.elementHandle();
+  if (!recentHandle) throw new Error("Recently released shelf is missing");
   expect(
     await page
       .getByRole("searchbox", { name: "Search games" })
-      .evaluate((node) => {
-        const shelf = document.querySelector(
-          '[aria-labelledby="home-recently-released"]',
+      .evaluate((node, shelf) => {
+        return Boolean(
+          node.compareDocumentPosition(shelf) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
         );
-        return (
-          shelf &&
-          Boolean(
-            node.compareDocumentPosition(shelf) &
-              Node.DOCUMENT_POSITION_FOLLOWING,
-          )
-        );
-      }),
+      }, recentHandle),
   ).toBe(true);
   const headings = await page
     .getByRole("heading", { level: 2 })
@@ -243,6 +239,11 @@ test("successful empty discovery offers search without an error or retry loop", 
   page,
   request,
 }) => {
+  const original = await request.post(supportUrl("/query"), {
+    data: { sql: "select key, game_ids from discovery_snapshot", params: [] },
+  });
+  expect(original.ok()).toBe(true);
+  const { rows }: { rows: [string, number[]][] } = await original.json();
   await seedSql(
     request,
     ["update discovery_snapshot set game_ids = '{}'::integer[]"],
@@ -261,9 +262,14 @@ test("successful empty discovery offers search without an error or retry loop", 
     ).toHaveValue("Celeste");
     await expect(page.getByRole("link", { name: /Celeste/ })).toBeVisible();
   } finally {
-    const restored = await request.get("/api/cron/refresh-release-dates", {
-      headers: { authorization: "Bearer e2e-cron-secret" },
-    });
-    expect(restored.ok()).toBe(true);
+    // Cron's refresh lease can skip an immediate retry; restore the fixture exactly.
+    for (const [key, gameIds] of rows)
+      await seedSql(
+        request,
+        [
+          "update discovery_snapshot set game_ids = array(select jsonb_array_elements_text($1::jsonb)::integer) where key = $2",
+        ],
+        [JSON.stringify(gameIds), key],
+      );
   }
 });

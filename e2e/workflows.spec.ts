@@ -82,59 +82,60 @@ test("Home guides new users, and search survives slow, stale and failed requests
     });
     finished();
   });
-  const box = page.getByRole("searchbox", { name: "Search games" });
+  const search = page.getByRole("search", {
+    name: "Search games",
+    exact: true,
+  });
+  const box = search.getByRole("searchbox", { name: "Search games" });
+  const updates = search.getByRole("status", {
+    name: "Search updates",
+    exact: true,
+  });
+  const emptyUpdates = search.getByRole("status", {
+    name: "Search updates",
+    exact: true,
+    includeHidden: true,
+  });
   await page.emulateMedia({ reducedMotion: "reduce" });
   const catalogQueries: string[] = [];
   page.on("request", (request) => {
     if (request.url().includes("/api/games/search?"))
       catalogQueries.push(new URL(request.url()).searchParams.get("q") ?? "");
   });
-  await expect(
-    page.getByRole("status", { name: "Search updates", exact: true }),
-  ).toBeEmpty();
+  await expect(emptyUpdates).toBeEmpty();
+  await expect(updates).toHaveCount(0);
   await box.fill("   ");
-  await expect(
-    page.getByRole("status", { name: "Search updates", exact: true }),
-  ).toBeEmpty();
+  await expect(emptyUpdates).toBeEmpty();
+  await expect(updates).toHaveCount(0);
   await box.fill(" c ");
+  await expect(updates).toHaveText("Enter at least 2 characters");
   await expect(
-    page.getByRole("status", { name: "Search updates", exact: true }),
-  ).toHaveText("Enter at least 2 characters");
-  await expect(page.getByRole("list", { name: "Search results" })).toHaveCount(
-    0,
-  );
+    search.getByRole("list", { name: "Search results" }),
+  ).toHaveCount(0);
 
   await box.fill("ce");
-  await expect(
-    page.getByRole("status", { name: "Search updates", exact: true }),
-  ).toHaveText("Searching…");
+  await expect(updates).toHaveText("Searching…");
   await staleRequested;
   await box.fill("c");
+  await expect(updates).toHaveText("Enter at least 2 characters");
   await expect(
-    page.getByRole("status", { name: "Search updates", exact: true }),
-  ).toHaveText("Enter at least 2 characters");
-  await expect(page.getByRole("list", { name: "Search results" })).toHaveCount(
-    0,
-  );
+    search.getByRole("list", { name: "Search results" }),
+  ).toHaveCount(0);
   await box.fill("celeste");
-  const results = page.getByRole("list", { name: "Search results" });
+  const results = search.getByRole("list", { name: "Search results" });
   await expect(results.getByRole("link", { name: /Celeste/ })).toBeVisible();
   releaseStale();
   await staleFinished;
   await expect(page.getByText("Stale result")).toHaveCount(0);
-  await expect(
-    page.getByRole("status", { name: "Search updates", exact: true }),
-  ).toHaveText("1 returned match for “celeste”.");
+  await expect(updates).toHaveText("1 returned match for “celeste”.");
   await box.fill("c");
-  await expect(
-    page.getByRole("status", { name: "Search updates", exact: true }),
-  ).toHaveText("Enter at least 2 characters");
+  await expect(updates).toHaveText("Enter at least 2 characters");
   await expect(results).toHaveCount(0);
 
   await box.fill("nothing like this");
-  await expect(
-    page.getByRole("status", { name: "Search updates", exact: true }),
-  ).toContainText("No matches returned for “nothing like this”.");
+  await expect(updates).toContainText(
+    "No matches returned for “nothing like this”.",
+  );
   await snap(page, testInfo, "search-no-results");
 
   await page.route("**/api/games/search?q=hollow", (route) =>
@@ -146,41 +147,32 @@ test("Home guides new users, and search survives slow, stale and failed requests
   );
   await snap(page, testInfo, "search-failed");
   await box.fill("h");
-  await expect(
-    page.getByRole("status", { name: "Search updates", exact: true }),
-  ).toHaveText("Enter at least 2 characters");
+  await expect(updates).toHaveText("Enter at least 2 characters");
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   await box.fill("hollow");
   await expect(page.getByRole("main").getByRole("alert")).toBeVisible();
 
   await page.unroute("**/api/games/search?q=hollow");
   await page.getByRole("button", { name: "Try again" }).click();
-  await expect(
-    page.getByRole("status", { name: "Search updates", exact: true }),
-  ).toContainText("No matches returned");
+  await expect(updates).toContainText("No matches returned");
   await expect(box).toHaveValue("hollow");
   await box.fill("h");
-  await expect(
-    page.getByRole("status", { name: "Search updates", exact: true }),
-  ).toHaveText("Enter at least 2 characters");
+  await expect(updates).toHaveText("Enter at least 2 characters");
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   for (const theme of ["light", "dark"] as const) {
     if (!(await page.locator("html").getAttribute("class"))?.includes(theme))
       await chooseTheme(page, theme);
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 844 });
-      await expect(
-        page.getByRole("status", { name: "Search updates", exact: true }),
-      ).toBeVisible();
+      await expect(updates).toBeVisible();
       await expectNoHorizontalOverflow(page);
     }
   }
   expect(catalogQueries.length).toBeGreaterThan(0);
   expect(catalogQueries.every((query) => query.trim().length >= 2)).toBe(true);
   await box.clear();
-  await expect(
-    page.getByRole("status", { name: "Search updates", exact: true }),
-  ).toBeEmpty();
+  await expect(emptyUpdates).toBeEmpty();
+  await expect(updates).toHaveCount(0);
 });
 
 test("Search filters keep keyboard focus and long platform names readable at 320 pixels", async ({

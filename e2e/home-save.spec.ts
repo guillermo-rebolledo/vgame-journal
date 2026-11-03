@@ -206,7 +206,7 @@ test("guest intent survives sign-in, restores filters and requires confirmation 
 }) => {
   const email = await signUp(page, request, `return_${Date.now()}`);
   await page.context().clearCookies();
-  await page.goto("/?q=Celeste&year=2018&all=1");
+  await page.goto("/?q=Celeste&year=2018&platform=PC&all=1&filters=1");
   await page
     .getByRole("button", { name: "Add Celeste to wishlist", exact: true })
     .click();
@@ -230,9 +230,18 @@ test("guest intent survives sign-in, restores filters and requires confirmation 
   await expect(
     page.getByRole("searchbox", { name: "Search games" }),
   ).toHaveValue("Celeste");
-  await expect(page.getByLabel("Release year", { exact: true })).toHaveValue(
-    "2018",
-  );
+  const search = page.getByRole("search", {
+    name: "Search games",
+    exact: true,
+  });
+  await expect(
+    search.getByRole("combobox", { name: "Release year", exact: true }),
+  ).toHaveValue("2018");
+  await expect(
+    search.getByRole("combobox", { name: "Platform", exact: true }),
+  ).toHaveValue("PC");
+  for (const [key, value] of Object.entries({ all: "1", filters: "1" }))
+    expect(new URL(page.url()).searchParams.get(key)).toBe(value);
   await expect(prompt).toContainText("Current status: Not in your Journal");
   await expect(
     page.getByRole("link", { name: "Backlog (0)", exact: true }),

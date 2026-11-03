@@ -5,6 +5,33 @@ import { seedSql } from "./support/seed-sql";
 import { signUp } from "./support/sign-up";
 import { snap } from "./support/snap";
 
+async function expectForcedColorsFocus(target: Locator) {
+  await expect(target).toBeFocused();
+  await expect(target).toHaveCSS("outline-style", "solid");
+  const indicator = await target.evaluate((node) => {
+    const probe = document.createElement("span");
+    document.body.append(probe);
+    const systemColor = (color: string) => {
+      probe.style.color = color;
+      return getComputedStyle(probe).color;
+    };
+    const palette = [systemColor("CanvasText"), systemColor("Highlight")];
+    const canvas = systemColor("Canvas");
+    probe.remove();
+    const style = getComputedStyle(node);
+    return {
+      width: parseFloat(style.outlineWidth),
+      color: style.outlineColor,
+      palette,
+      canvas,
+    };
+  });
+  expect(indicator.width).toBeGreaterThanOrEqual(2);
+  expect(indicator.palette).toContain(indicator.color);
+  expect(indicator.color).not.toBe(indicator.canvas);
+  await expect(target).toBeInViewport();
+}
+
 /** Every visible target is at least 44 × 44 CSS px and none overlap. */
 async function expectTouchTargets(targets: Locator) {
   const boxes = [];
@@ -47,7 +74,10 @@ test("skip route moves focus into main on Home and details", async ({
     await expect(
       path === "/"
         ? page.getByRole("searchbox", { name: "Search games" })
-        : page.getByRole("link", { name: "Journal status", exact: true }),
+        : page.getByRole("link", {
+            name: "Add to Journal for Celeste",
+            exact: true,
+          }),
     ).toBeVisible();
     await page.keyboard.press("Tab");
     const skip = page.getByRole("link", { name: "Skip to main content" });
@@ -123,6 +153,94 @@ test("header forward and reverse keyboard order matches visible rows at every br
 });
 
 for (const colorScheme of ["light", "dark"] as const) {
+  test(`platform disclosures have contrasting keyboard focus in ${colorScheme} and forced colors`, async ({
+    page,
+  }) => {
+    await page.addInitScript(
+      (theme) => localStorage.setItem("theme", theme),
+      colorScheme,
+    );
+    await page.route("**/api/games/search?**", (route) =>
+      route.fulfill({
+        json: [
+          {
+            id: 1,
+            slug: "celeste",
+            title: "Celeste",
+            coverImageId: null,
+            year: 2018,
+            platforms: ["PC", "Nintendo Switch"],
+          },
+        ],
+      }),
+    );
+    await page.goto("/?q=Celeste");
+    const search = page.getByRole("search", {
+      name: "Search games",
+      exact: true,
+    });
+    const more = search.getByLabel("More platforms for Celeste", {
+      exact: true,
+    });
+    await search.getByRole("link", { name: "Celeste", exact: true }).focus();
+    await page.keyboard.press("Tab");
+    await expect(more).toBeFocused();
+    const indicator = await more.evaluate((node) => {
+      const style = getComputedStyle(node);
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 1;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas unavailable");
+      const ancestors = [];
+      for (
+        let ancestor: Element | null = node;
+        ancestor;
+        ancestor = ancestor.parentElement
+      )
+        ancestors.unshift(ancestor);
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, 1, 1);
+      for (const ancestor of ancestors) {
+        ctx.fillStyle = getComputedStyle(ancestor).backgroundColor;
+        ctx.fillRect(0, 0, 1, 1);
+      }
+      const luminance = () => {
+        const channels = Array.from(ctx.getImageData(0, 0, 1, 1).data)
+          .slice(0, 3)
+          .map((value) => {
+            const c = value / 255;
+            return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+          });
+        return (
+          channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+        );
+      };
+      const background = luminance();
+      ctx.fillStyle = style.outlineColor;
+      ctx.fillRect(0, 0, 1, 1);
+      const foreground = luminance();
+      return {
+        ratio:
+          (Math.max(foreground, background) + 0.05) /
+          (Math.min(foreground, background) + 0.05),
+        width: parseFloat(style.outlineWidth),
+        style: style.outlineStyle,
+        offset: parseFloat(style.outlineOffset),
+      };
+    });
+    expect(indicator.width).toBeGreaterThanOrEqual(3);
+    expect(indicator.style).toBe("solid");
+    expect(indicator.offset).toBeGreaterThanOrEqual(3);
+    expect(indicator.ratio).toBeGreaterThanOrEqual(3);
+    await page.keyboard.press("Enter");
+    await expect(
+      search.getByRole("list", { name: "Additional platforms for Celeste" }),
+    ).toBeVisible();
+    await page.keyboard.press("Enter");
+    await page.emulateMedia({ forcedColors: "active", colorScheme });
+    await expectForcedColorsFocus(more);
+  });
+
   test(`Home keyboard controls retain visible focus in forced colors with ${colorScheme} appearance`, async ({
     page,
   }) => {
@@ -153,43 +271,36 @@ for (const colorScheme of ["light", "dark"] as const) {
     await page.goto("/?q=focus");
     const filters = page.getByRole("button", { name: "Filters", exact: true });
     await expect(filters).toBeVisible();
-    const visibleFocus = async (target: Locator) => {
-      await expect(target).toBeFocused();
-      await expect(target).toHaveCSS("outline-style", "solid");
-      await expect(target).toHaveCSS("outline-width", "2px");
-      await expect(target).toHaveCSS(
-        "outline-color",
-        colorScheme === "light" ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)",
-      );
-      await expect(target).toBeInViewport();
-    };
+
     await page.keyboard.press("Tab");
-    await visibleFocus(
+    await expectForcedColorsFocus(
       page.getByRole("link", { name: "Skip to main content" }),
     );
     await page.keyboard.press("Enter");
     await page.keyboard.press("Tab");
-    await visibleFocus(page.getByRole("searchbox", { name: "Search games" }));
+    await expectForcedColorsFocus(
+      page.getByRole("searchbox", { name: "Search games" }),
+    );
     await page.keyboard.press("Tab");
-    await visibleFocus(filters);
+    await expectForcedColorsFocus(filters);
     await page.keyboard.press("Enter");
     await expect(filters).toHaveAttribute("aria-expanded", "true");
     await page.keyboard.press("Tab");
-    await visibleFocus(
+    await expectForcedColorsFocus(
       page.getByRole("combobox", { name: "Release year", exact: true }),
     );
     await page.keyboard.press("Tab");
-    await visibleFocus(
+    await expectForcedColorsFocus(
       page.getByRole("combobox", { name: "Platform", exact: true }),
     );
     const more = page.getByLabel("More platforms for Celeste");
     // Native platform details remain reachable after the result link.
     await page.keyboard.press("Tab");
-    await visibleFocus(
+    await expectForcedColorsFocus(
       page.getByRole("link", { name: "Celeste", exact: true }),
     );
     await page.keyboard.press("Tab");
-    await visibleFocus(more);
+    await expectForcedColorsFocus(more);
     await page.keyboard.press("Enter");
     await expect(
       page.getByRole("list", { name: "Additional platforms for Celeste" }),
