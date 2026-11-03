@@ -8,10 +8,12 @@ import { STATUSES, type Status } from "@/lib/library";
 
 export async function readHomeJournal(): Promise<HomeSnapshot> {
   const owner = await signedInUserId();
-  return {
-    owner,
-    entries: owner ? homeEntries(await journal.library(owner)) : [],
-  };
+  if (!owner) return { owner, entries: [] };
+  const [entries, wishlist] = await Promise.all([
+    journal.library(owner),
+    journal.wishlist(owner),
+  ]);
+  return { owner, entries: homeEntries(entries, wishlist) };
 }
 
 export async function homeIntentGame(gameId: number, slug: string) {

@@ -65,6 +65,13 @@ async function addPlaythrough(notes: string) {
   await user.click(screen.getByRole("button", { name: "Save" }));
 }
 
+test("a saved game remains visibly Playing with separate empty Playthrough guidance", () => {
+  renderRecording();
+  expect(screen.getByText("Playing", { exact: true })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Playthroughs" })).toBeTruthy();
+  expect(screen.getByText("No playthroughs yet.")).toBeTruthy();
+});
+
 test("adding a playthrough records whether it has notes and hours, never the notes", async () => {
   const onAdd = vi.fn(async () => undefined);
   renderRecording({ onAdd });

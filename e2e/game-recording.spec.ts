@@ -7,6 +7,38 @@ import { supportUrl } from "./support/url";
 test.use({ video: "on", trace: "on" });
 test.describe.configure({ timeout: 90_000 });
 
+test("detail Status remains visible after each confirmed save with one game-specific success announcement", async ({
+  page,
+  request,
+}) => {
+  await signUp(page, request, `visible_status_${Date.now()}`);
+  await page.goto("/games/celeste");
+  const journal = page.getByRole("region", {
+    name: "Game journal",
+    exact: true,
+  });
+  for (const [status, label] of [
+    ["wishlist", "Wishlisted"],
+    ["backlog", "In backlog"],
+    ["playing", "Playing"],
+    ["played", "Played"],
+  ]) {
+    await chooseStatus(page, status);
+    await expect(journal.getByText(label, { exact: true })).toBeVisible();
+    await expect(journal.getByRole("status")).toHaveCount(1);
+    await expect(journal.getByRole("status")).toHaveText(`Celeste: ${label}.`);
+    await expect(journal.getByText("No playthroughs yet.")).toBeVisible();
+    await expect(
+      journal.getByRole("heading", { name: "Playthroughs" }),
+    ).toBeVisible();
+  }
+  await chooseStatus(page, "played");
+  await expect(journal.getByRole("status")).toBeEmpty();
+  await page.reload();
+  await expect(journal.getByText("Played", { exact: true })).toBeVisible();
+  await expect(journal.getByRole("status")).toBeEmpty();
+});
+
 test("journal choices, tags, errors and removal preserve saved state", async ({
   page,
   request,
@@ -258,50 +290,73 @@ test("signed-out actions lead to sign in and no-platform games explain the limit
   ).toBeDisabled();
 });
 
-test("delayed personal content reveals one compact action area without opening an editor", async ({
-  page,
-  request,
-}) => {
-  const email = await signUp(page, request, `delayed_record_${Date.now()}`);
-  await page.goto("/games/celeste");
-  await request.post(supportUrl("/query"), {
-    data: {
-      sql: `insert into journal_entry (user_id, game_id, status) select id, 1, 'played' from "user" where email = $1`,
-      params: [email],
-    },
+for (const populated of [false, true]) {
+  test(`delayed personal content reveals one compact action area without opening an editor (${populated ? "saved history" : "empty Journal"})`, async ({
+    page,
+    request,
+  }) => {
+    const email = await signUp(page, request, `delayed_record_${Date.now()}`);
+    await page.goto("/games/celeste");
+    if (populated) {
+      const entry = await request.post(supportUrl("/query"), {
+        data: {
+          sql: `insert into journal_entry (user_id, game_id, status, updated_at) select u.id, g.id, 'played', now() from "user" u cross join game g where u.email = $1 and g.slug = 'celeste'`,
+          params: [email],
+        },
+      });
+      expect(entry.ok(), await entry.text()).toBe(true);
+      const history = await request.post(supportUrl("/query"), {
+        data: {
+          sql: `insert into playthrough (user_id, game_id, platform, started_on, notes) select u.id, g.id, 'PC', '2026-01-01', 'Delayed history ' || n from "user" u cross join game g cross join generate_series(1, 5) n where u.email = $1 and g.slug = 'celeste'`,
+          params: [email],
+        },
+      });
+      expect(history.ok(), await history.text()).toBe(true);
+    }
+    await request.post(supportUrl("/collection-delay"), {
+      data: { email, milliseconds: 2000 },
+    });
+    await page.goto("/games/celeste", { waitUntil: "commit" });
+    await expect(
+      page.getByRole("heading", { name: "Celeste", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("status", { name: "Loading journal" }),
+    ).toBeVisible();
+    const scores = page
+      .getByText("Critic score", { exact: true })
+      .filter({ visible: true });
+    const before = await scores.boundingBox();
+    await expect(
+      page.getByRole("button", { name: "Add playthrough", exact: true }),
+    ).toBeVisible();
+    expect(
+      Math.abs(((await scores.boundingBox())?.y ?? 0) - (before?.y ?? 0)),
+    ).toBeLessThan(2);
+    if (populated) {
+      await expect(
+        page.getByRole("region", { name: "Game journal" }),
+      ).toContainText("Played");
+      await expect(
+        page
+          .getByRole("group", { name: "Playthrough history", exact: true })
+          .getByRole("listitem"),
+      ).toHaveCount(5);
+    } else {
+      await expect(
+        page.getByRole("region", { name: "Game journal" }),
+      ).toContainText("Not in your Journal");
+      await expect(
+        page.getByText("No playthroughs yet.", { exact: true }),
+      ).toBeVisible();
+    }
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByLabel("Started", { exact: true })).toHaveCount(0);
+    await request.post(supportUrl("/collection-delay"), {
+      data: { email, milliseconds: 0 },
+    });
   });
-  await request.post(supportUrl("/query"), {
-    data: {
-      sql: `insert into playthrough (user_id, game_id, platform, started_on, notes) select u.id, 1, 'PC', '2026-01-01', 'Delayed history ' || n from "user" u cross join generate_series(1, 5) n where email = $1`,
-      params: [email],
-    },
-  });
-  await request.post(supportUrl("/collection-delay"), {
-    data: { email, milliseconds: 2000 },
-  });
-  await page.goto("/games/celeste", { waitUntil: "commit" });
-  await expect(
-    page.getByRole("heading", { name: "Celeste", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("status", { name: "Loading journal" }),
-  ).toBeVisible();
-  const scores = page
-    .getByText("Critic score", { exact: true })
-    .filter({ visible: true });
-  const before = await scores.boundingBox();
-  await expect(
-    page.getByRole("button", { name: "Add playthrough", exact: true }),
-  ).toBeVisible();
-  expect(
-    Math.abs(((await scores.boundingBox())?.y ?? 0) - (before?.y ?? 0)),
-  ).toBeLessThan(2);
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByLabel("Started", { exact: true })).toHaveCount(0);
-  await request.post(supportUrl("/collection-delay"), {
-    data: { email, milliseconds: 0 },
-  });
-});
+}
 
 test("cancel never writes and the drawer stays within a keyboard-reduced visual viewport", async ({
   page,

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { chooseStatus } from "./support/journal";
+import { seedSql } from "./support/seed-sql";
 import { signUp } from "./support/sign-up";
 import { supportUrl } from "./support/url";
 
@@ -45,30 +46,22 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
     ).toBe(true);
   }
   await expect(recent.locator("time")).toHaveAttribute("datetime", /T/);
+  const recentHandle = await recent.elementHandle();
+  if (!recentHandle) throw new Error("Recently released shelf is missing");
   expect(
     await page
       .getByRole("searchbox", { name: "Search games" })
-      .evaluate((node) => {
-        const shelf = document.querySelector(
-          '[aria-labelledby="home-recently-released"]',
+      .evaluate((node, shelf) => {
+        return Boolean(
+          node.compareDocumentPosition(shelf) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
         );
-        return (
-          shelf &&
-          Boolean(
-            node.compareDocumentPosition(shelf) &
-              Node.DOCUMENT_POSITION_FOLLOWING,
-          )
-        );
-      }),
+      }, recentHandle),
   ).toBe(true);
   const headings = await page
     .getByRole("heading", { level: 2 })
     .allTextContents();
-  expect(headings).toEqual([
-    "Recently released",
-    "Popular right now",
-    "How your Journal starts",
-  ]);
+  expect(headings).toEqual(["Recently released", "Popular right now"]);
   const columns = () =>
     recent
       .locator("ul")
@@ -127,7 +120,10 @@ test("empty and saved Journals retain priority; duplicate covers navigate from e
     "Recently released",
     "Popular right now",
   ]);
-  const library = page.getByRole("link", { name: /Library \(2\)/ });
+  const library = page.getByRole("link", {
+    name: "All saved games (2)",
+    exact: true,
+  });
   await expect(library).toBeVisible();
   const personal = page.getByRole("region", { name: "Playing", exact: true });
   await personal.getByRole("link", { name: /Discovery One/ }).click();
@@ -137,9 +133,9 @@ test("empty and saved Journals retain priority; duplicate covers navigate from e
     .getByRole("searchbox", { name: "Search games" })
     .fill("Discovery One");
   const links = page.getByRole("link", { name: /^Discovery One/ });
-  await expect(links).toHaveCount(4);
-  // Search and both discovery shelves share the same game, alongside Playing.
-  for (const index of [0, 1, 2, 3]) {
+  await expect(links).toHaveCount(5);
+  // Search, Playing, Recently added and both discovery shelves share the game.
+  for (const index of [0, 1, 2, 3, 4]) {
     await links.nth(index).click();
     await expect(page).toHaveURL(/\/games\/discovery-one$/);
     await page.goto("/?q=Discovery%20One");
@@ -162,6 +158,9 @@ test("pending and failed discovery leave search and personal shelves usable", as
   try {
     await page.goto("/", { waitUntil: "commit" });
     await expect(
+      page.getByRole("status").filter({ hasText: "Loading discovery picks…" }),
+    ).toBeVisible();
+    await expect(
       page.getByRole("region", { name: "Playing", exact: true }),
     ).toBeVisible();
     await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
@@ -178,19 +177,99 @@ test("pending and failed discovery leave search and personal shelves usable", as
     await request.post(supportUrl("/discovery-state"), {
       data: { fail: true },
     });
-    await page.goto("/");
+    await page.goto("/?q=Celeste&year=2018&platform=PC&all=1&filters=1");
     await expect(
       page.getByRole("region", { name: "Playing", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Recently released", exact: true }),
     ).toHaveCount(0);
+    await expect(
+      page.getByRole("status").filter({ hasText: "Discovery is unavailable." }),
+    ).toBeVisible();
     await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
+    const location = page.url();
+    await request.post(supportUrl("/discovery-state"), {
+      data: { fail: false, hold: true },
+    });
+    await page.getByRole("button", { name: "Retry discovery" }).click();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Retrying discovery…" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Retry discovery" }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("searchbox", { name: "Search games" }),
+    ).toHaveValue("Celeste");
+    await request.post(supportUrl("/discovery-state"), {
+      data: { hold: false },
+    });
+    await expect(
+      page.getByRole("button", { name: "Retry discovery" }),
+    ).toHaveCount(0);
+    await expect(
+      page
+        .getByRole("region", { name: "Recently released", exact: true })
+        .getByRole("link"),
+    ).toHaveCount(4);
+    await expect(page).toHaveURL(location);
+    await expect(
+      page.getByRole("searchbox", { name: "Search games" }),
+    ).toHaveValue("Celeste");
+    await expect(page.getByRole("searchbox")).toHaveAccessibleName(
+      "Search games",
+    );
+    await expect(
+      page.getByRole("combobox", { name: "Release year" }),
+    ).toHaveAccessibleName("Release year");
+    await expect(
+      page.getByRole("combobox", { name: "Platform", exact: true }),
+    ).toHaveAccessibleName("Platform");
     await page.getByRole("link", { name: /Celeste/ }).click();
     await expect(page).toHaveURL(/\/games\/celeste$/);
   } finally {
     await request.post(supportUrl("/discovery-state"), {
       data: { fail: false, hold: false },
     });
+  }
+});
+
+test("successful empty discovery offers search without an error or retry loop", async ({
+  page,
+  request,
+}) => {
+  const original = await request.post(supportUrl("/query"), {
+    data: { sql: "select key, game_ids from discovery_snapshot", params: [] },
+  });
+  expect(original.ok()).toBe(true);
+  const { rows }: { rows: [string, number[]][] } = await original.json();
+  await seedSql(
+    request,
+    ["update discovery_snapshot set game_ids = '{}'::integer[]"],
+    [],
+  );
+  try {
+    await page.goto("/?q=Celeste");
+    await expect(
+      page.getByText("No discovery picks yet—search for a game."),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Retry discovery" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("searchbox", { name: "Search games" }),
+    ).toHaveValue("Celeste");
+    await expect(page.getByRole("link", { name: /Celeste/ })).toBeVisible();
+  } finally {
+    // Cron's refresh lease can skip an immediate retry; restore the fixture exactly.
+    for (const [key, gameIds] of rows)
+      await seedSql(
+        request,
+        [
+          "update discovery_snapshot set game_ids = array(select jsonb_array_elements_text($1::jsonb)::integer) where key = $2",
+        ],
+        [JSON.stringify(gameIds), key],
+      );
   }
 });

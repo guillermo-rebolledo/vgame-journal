@@ -21,10 +21,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { SAVED_LABELS } from "@/lib/home-journal";
 import type { JournalRemovalConfirmation } from "@/lib/journal";
 import {
   COMPLETION_TAGS,
   type CompletionTag,
+  capitalize,
   STATUSES,
   type Status,
 } from "@/lib/library";
@@ -51,6 +53,12 @@ export function JournalStatus({
   disabled: boolean;
   onSave: SaveJournalStatus;
 }) {
+  const [confirmed, setConfirmed] = useState(entry);
+  const [previousEntry, setPreviousEntry] = useState(entry);
+  if (entry !== previousEntry) {
+    setPreviousEntry(entry);
+    setConfirmed(entry);
+  }
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
@@ -66,6 +74,11 @@ export function JournalStatus({
     acknowledged = false,
   ) {
     if (busy.current || disabled) return;
+    if (status === confirmed?.status && tag === confirmed.completionTag) {
+      setNotice(undefined);
+      setError(undefined);
+      return;
+    }
     busy.current = true;
     setPending(true);
     setError(undefined);
@@ -78,18 +91,24 @@ export function JournalStatus({
         else if (result) setError(result.error);
         else {
           setConfirmationCount(null);
+          setConfirmed(status === null ? null : { status, completionTag: tag });
           if (status === null) {
             setNotice(`${gameTitle} removed from your journal.`);
             trackEvent("journal_entry_removed", {
               had_playthroughs: playthroughCount > 0,
             });
-          } else if (status !== entry?.status)
+          } else if (status !== confirmed?.status) {
+            setNotice(`${gameTitle}: ${SAVED_LABELS[status]}.`);
             trackEvent("journal_status_set", {
               status,
-              change: entry ? "changed" : "added",
+              change: confirmed ? "changed" : "added",
             });
-          else if (tag && tag !== entry.completionTag)
-            trackEvent("completion_tag_set", { tag });
+          } else if (tag !== confirmed.completionTag) {
+            setNotice(
+              `${gameTitle}: ${tag ? capitalize(tag) : "Completion tag cleared"}.`,
+            );
+            if (tag) trackEvent("completion_tag_set", { tag });
+          }
         }
       } catch {
         setError(
@@ -117,23 +136,23 @@ export function JournalStatus({
                 render={
                   <Button
                     ref={trigger}
-                    aria-label={`${entry ? "Change Journal status" : "Add to Journal"} for ${gameTitle}`}
+                    aria-label={`${confirmed ? "Change Journal status" : "Add to Journal"} for ${gameTitle}`}
                     aria-description={
-                      entry
-                        ? `In your journal: ${entry.status}${entry.completionTag ? `, ${entry.completionTag}` : ""}`
+                      confirmed
+                        ? `In your journal: ${confirmed.status}${confirmed.completionTag ? `, ${confirmed.completionTag}` : ""}`
                         : "Not in your journal"
                     }
                     aria-busy={pending}
                     aria-disabled={disabled || pending}
-                    variant={entry ? "secondary" : "outline"}
+                    variant={confirmed ? "secondary" : "outline"}
                     className="journal-action min-h-11"
                   >
                     {pending ? (
                       <LoaderCircle className="animate-spin" />
                     ) : (
-                      <BookMarked fill={entry ? "currentColor" : "none"} />
+                      <BookMarked fill={confirmed ? "currentColor" : "none"} />
                     )}
-                    {entry ? "Change Journal status" : "Add to Journal"}
+                    {confirmed ? "Change Journal status" : "Add to Journal"}
                   </Button>
                 }
               />
@@ -144,7 +163,7 @@ export function JournalStatus({
         <DropdownMenuContent className="journal-status-menu w-60">
           <DropdownMenuGroup>
             <DropdownMenuLabel>Journal status</DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={entry?.status ?? ""}>
+            <DropdownMenuRadioGroup value={confirmed?.status ?? ""}>
               {STATUSES.map((status) => (
                 <DropdownMenuRadioItem
                   closeOnClick
@@ -156,7 +175,7 @@ export function JournalStatus({
                     save(
                       status,
                       status === "played"
-                        ? (entry?.completionTag ?? null)
+                        ? (confirmed?.completionTag ?? null)
                         : null,
                     )
                   }
@@ -166,12 +185,14 @@ export function JournalStatus({
               ))}
             </DropdownMenuRadioGroup>
           </DropdownMenuGroup>
-          {entry?.status === "played" && (
+          {confirmed?.status === "played" && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuLabel>Completion tag</DropdownMenuLabel>
-                <DropdownMenuRadioGroup value={entry.completionTag ?? "none"}>
+                <DropdownMenuRadioGroup
+                  value={confirmed.completionTag ?? "none"}
+                >
                   {["none", ...COMPLETION_TAGS].map((tag) => (
                     <DropdownMenuRadioItem
                       closeOnClick
@@ -193,7 +214,7 @@ export function JournalStatus({
               </DropdownMenuGroup>
             </>
           )}
-          {entry && (
+          {confirmed && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
@@ -275,8 +296,16 @@ export function JournalStatus({
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>
-      {notice && <output className="mt-2 block text-sm">{notice}</output>}
-      {pending && <output className="sr-only">Saving journal status…</output>}
+      <p className="mt-2 text-sm">
+        {confirmed ? SAVED_LABELS[confirmed.status] : "Not in your Journal"}
+      </p>
+      <output
+        className={notice ? "mt-2 block text-sm" : "sr-only"}
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {pending ? "Saving journal status…" : notice}
+      </output>
       {error && confirmationCount === null && (
         <p role="alert" className="mt-2 max-w-xs text-destructive text-sm">
           {error}

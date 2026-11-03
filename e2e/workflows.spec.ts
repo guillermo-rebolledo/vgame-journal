@@ -35,8 +35,15 @@ test("Home guides new users, and search survives slow, stale and failed requests
 }, testInfo) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "How your Journal starts" }),
+    page.getByRole("heading", {
+      name: "Track what you’re playing, build your backlog, and save games you want",
+    }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("searchbox", { name: "Search games" }),
+  ).toHaveAccessibleDescription(
+    /Find a game, then save it to Backlog or Wishlist/,
+  );
   await expect(
     page.getByRole("link", { name: "Sign up to start a Journal" }),
   ).toHaveAttribute("href", "/sign-up");
@@ -75,55 +82,60 @@ test("Home guides new users, and search survives slow, stale and failed requests
     });
     finished();
   });
-  const box = page.getByRole("searchbox", { name: "Search games" });
+  const search = page.getByRole("search", {
+    name: "Search games",
+    exact: true,
+  });
+  const box = search.getByRole("searchbox", { name: "Search games" });
+  const updates = search.getByRole("status", {
+    name: "Search updates",
+    exact: true,
+  });
+  const emptyUpdates = search.getByRole("status", {
+    name: "Search updates",
+    exact: true,
+    includeHidden: true,
+  });
   await page.emulateMedia({ reducedMotion: "reduce" });
   const catalogQueries: string[] = [];
   page.on("request", (request) => {
     if (request.url().includes("/api/games/search?"))
       catalogQueries.push(new URL(request.url()).searchParams.get("q") ?? "");
   });
-  await expect(page.getByLabel("Search updates", { exact: true })).toBeEmpty();
+  await expect(emptyUpdates).toBeEmpty();
+  await expect(updates).toHaveCount(0);
   await box.fill("   ");
-  await expect(page.getByLabel("Search updates", { exact: true })).toBeEmpty();
+  await expect(emptyUpdates).toBeEmpty();
+  await expect(updates).toHaveCount(0);
   await box.fill(" c ");
-  await expect(page.getByLabel("Search updates", { exact: true })).toHaveText(
-    "Enter at least 2 characters",
-  );
-  await expect(page.getByRole("list", { name: "Search results" })).toHaveCount(
-    0,
-  );
+  await expect(updates).toHaveText("Enter at least 2 characters");
+  await expect(
+    search.getByRole("list", { name: "Search results" }),
+  ).toHaveCount(0);
 
   await box.fill("ce");
-  await expect(page.getByLabel("Search updates", { exact: true })).toHaveText(
-    "Searching…",
-  );
+  await expect(updates).toHaveText("Searching…");
   await staleRequested;
   await box.fill("c");
-  await expect(page.getByLabel("Search updates", { exact: true })).toHaveText(
-    "Enter at least 2 characters",
-  );
-  await expect(page.getByRole("list", { name: "Search results" })).toHaveCount(
-    0,
-  );
+  await expect(updates).toHaveText("Enter at least 2 characters");
+  await expect(
+    search.getByRole("list", { name: "Search results" }),
+  ).toHaveCount(0);
   await box.fill("celeste");
-  const results = page.getByRole("list", { name: "Search results" });
+  const results = search.getByRole("list", { name: "Search results" });
   await expect(results.getByRole("link", { name: /Celeste/ })).toBeVisible();
   releaseStale();
   await staleFinished;
   await expect(page.getByText("Stale result")).toHaveCount(0);
-  await expect(page.getByLabel("Search updates", { exact: true })).toHaveText(
-    "1 match for “celeste”.",
-  );
+  await expect(updates).toHaveText("1 returned match for “celeste”.");
   await box.fill("c");
-  await expect(page.getByLabel("Search updates", { exact: true })).toHaveText(
-    "Enter at least 2 characters",
-  );
+  await expect(updates).toHaveText("Enter at least 2 characters");
   await expect(results).toHaveCount(0);
 
   await box.fill("nothing like this");
-  await expect(
-    page.getByLabel("Search updates", { exact: true }),
-  ).toContainText("We couldn’t find a match for “nothing like this”.");
+  await expect(updates).toContainText(
+    "No matches returned for “nothing like this”.",
+  );
   await snap(page, testInfo, "search-no-results");
 
   await page.route("**/api/games/search?q=hollow", (route) =>
@@ -135,39 +147,32 @@ test("Home guides new users, and search survives slow, stale and failed requests
   );
   await snap(page, testInfo, "search-failed");
   await box.fill("h");
-  await expect(page.getByLabel("Search updates", { exact: true })).toHaveText(
-    "Enter at least 2 characters",
-  );
+  await expect(updates).toHaveText("Enter at least 2 characters");
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   await box.fill("hollow");
   await expect(page.getByRole("main").getByRole("alert")).toBeVisible();
 
   await page.unroute("**/api/games/search?q=hollow");
   await page.getByRole("button", { name: "Try again" }).click();
-  await expect(
-    page.getByLabel("Search updates", { exact: true }),
-  ).toContainText("We couldn’t find a match");
+  await expect(updates).toContainText("No matches returned");
   await expect(box).toHaveValue("hollow");
   await box.fill("h");
-  await expect(page.getByLabel("Search updates", { exact: true })).toHaveText(
-    "Enter at least 2 characters",
-  );
+  await expect(updates).toHaveText("Enter at least 2 characters");
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   for (const theme of ["light", "dark"] as const) {
     if (!(await page.locator("html").getAttribute("class"))?.includes(theme))
       await chooseTheme(page, theme);
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 844 });
-      await expect(
-        page.getByLabel("Search updates", { exact: true }),
-      ).toBeVisible();
+      await expect(updates).toBeVisible();
       await expectNoHorizontalOverflow(page);
     }
   }
   expect(catalogQueries.length).toBeGreaterThan(0);
   expect(catalogQueries.every((query) => query.trim().length >= 2)).toBe(true);
   await box.clear();
-  await expect(page.getByLabel("Search updates", { exact: true })).toBeEmpty();
+  await expect(emptyUpdates).toBeEmpty();
+  await expect(updates).toHaveCount(0);
 });
 
 test("Search filters keep keyboard focus and long platform names readable at 320 pixels", async ({
@@ -206,8 +211,14 @@ test("Search filters keep keyboard focus and long platform names readable at 320
     name: "Platform",
     exact: true,
   });
-  await expect(platform).toBeAttached();
+  const filters = page.getByRole("button", { name: "Filters", exact: true });
+  await expect(filters).toBeVisible();
   await page.getByRole("searchbox", { name: "Search games" }).focus();
+  await page.keyboard.press("Tab");
+  await expect(filters).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(filters).toHaveAttribute("aria-expanded", "true");
+  await expect(page).toHaveURL(/filters=1/);
   await page.keyboard.press("Tab");
   await expect(page.getByLabel("Release year")).toBeFocused();
   await page.keyboard.press("Tab");
@@ -222,17 +233,16 @@ test("Search filters keep keyboard focus and long platform names readable at 320
   expect(
     await visibleValue.evaluate((node) => node.scrollWidth <= node.clientWidth),
   ).toBe(true);
-  await expect(page.getByRole("link", { name: /Platform test/ })).toContainText(
-    `${longPlatform}+2 platforms`,
-  );
+  const result = page.getByRole("listitem").filter({
+    has: page.getByRole("link", { name: "Platform test", exact: true }),
+  });
+  await expect(result.getByText(longPlatform, { exact: true })).toBeVisible();
   const controlBounds = await platform.boundingBox();
   const clearBounds = await page
     .getByRole("button", { name: "Clear filters" })
     .boundingBox();
   expect(controlBounds?.width).toBeGreaterThan(250);
-  expect(clearBounds?.y).toBeGreaterThanOrEqual(
-    (controlBounds?.y ?? 0) + (controlBounds?.height ?? 0),
-  );
+  expect(clearBounds?.y).toBeLessThan(controlBounds?.y ?? 0);
   await expectNoHorizontalOverflow(page);
   await page.locator("html").evaluate((node) => {
     node.style.fontSize = "200%";
@@ -243,9 +253,23 @@ test("Search filters keep keyboard focus and long platform names readable at 320
   });
   await page.getByRole("button", { name: "Clear filters" }).click();
   await expect(platform).toHaveValue("");
-  await expect(page.getByRole("link", { name: /Platform test/ })).toContainText(
-    "PC+2 platforms",
-  );
+  const availability = result.getByLabel("More platforms for Platform test");
+  await expect(availability).toContainText("+2 platforms");
+  await availability.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    result
+      .getByRole("list", {
+        name: "Additional platforms for Platform test",
+      })
+      .getByText(longPlatform, { exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Space");
+  await expect(
+    result.getByRole("list", {
+      name: "Additional platforms for Platform test",
+    }),
+  ).toBeHidden();
 });
 
 test("Library search, filters and sort survive game visits, Back and reload", async ({
@@ -264,7 +288,9 @@ test("Library search, filters and sort survive game visits, Back and reload", as
   await expect(
     page.getByRole("heading", { name: "Recently added" }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Library (3)" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "All saved games (3)" }),
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: "Wishlist (2)" })).toBeVisible();
   await snap(page, testInfo, "home-signed-in", true);
 

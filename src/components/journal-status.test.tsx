@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { track } from "@vercel/analytics";
 import { afterEach, expect, test, vi } from "vitest";
@@ -58,6 +58,27 @@ test("adding a game to the backlog records it as added", async () => {
   );
 });
 
+test.each([
+  ["played", "Played"],
+  ["playing", "Playing"],
+  ["backlog", "In backlog"],
+  ["wishlist", "Wishlisted"],
+] as const)("confirmed %s is visible after the menu closes and announces once", async (status, label) => {
+  renderStatus(
+    null,
+    vi.fn(async () => undefined),
+  );
+  await choose(status);
+  await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+  expect(await screen.findByText(label, { exact: true })).toBeTruthy();
+  expect(screen.getAllByRole("status").map((node) => node.textContent)).toEqual(
+    [`Celeste: ${label}.`],
+  );
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: /Change Journal status for Celeste/ }),
+  );
+});
+
 test("changing the status of a journal entry records it as changed", async () => {
   renderStatus(
     { status: "playing", completionTag: null },
@@ -98,6 +119,39 @@ test("a failed save records nothing", async () => {
   await choose("wishlist");
   await screen.findByRole("alert");
   expect(track).not.toHaveBeenCalled();
+});
+
+test("pending and failed changes retain the current Status, then retry announces only confirmed success", async () => {
+  let finish!: (result: { error: string } | undefined) => void;
+  const onSave = vi.fn(
+    () =>
+      new Promise<{ error: string } | undefined>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  renderStatus({ status: "playing", completionTag: null }, onSave);
+  await choose("wishlist");
+  expect(screen.getByText("Playing", { exact: true })).toBeTruthy();
+  expect(screen.getByRole("status").textContent).toBe("Saving journal status…");
+  await act(async () => finish({ error: "Couldn’t save. Try again." }));
+  expect(await screen.findByRole("alert")).toBeTruthy();
+  expect(screen.getByText("Playing", { exact: true })).toBeTruthy();
+  expect(screen.getByRole("status").textContent).toBe("");
+  await choose("wishlist");
+  await act(async () => finish(undefined));
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toBe("Celeste: Wishlisted."),
+  );
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+test("an unchanged selection produces no save or success announcement", async () => {
+  const onSave = vi.fn(async () => undefined);
+  renderStatus({ status: "backlog", completionTag: null }, onSave);
+  await choose("backlog");
+  expect(onSave).not.toHaveBeenCalled();
+  expect(screen.getByRole("status").textContent).toBe("");
+  expect(screen.getByText("In backlog", { exact: true })).toBeTruthy();
 });
 
 test("removing an entry records whether it had playthroughs, once confirmed", async () => {

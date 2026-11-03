@@ -20,6 +20,7 @@ import {
 } from "@/app/home-actions";
 import { GameCover } from "@/components/game-cover";
 import { HomeCoverLink } from "@/components/home-cover-link";
+import { HomeWishlistPreview } from "@/components/home-wishlist-preview";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -36,7 +37,8 @@ import {
   type HomeSnapshot,
   SAVED_LABELS,
 } from "@/lib/home-journal";
-import { capitalize, STATUSES, type Status } from "@/lib/library";
+import { byTitle, capitalize, STATUSES, type Status } from "@/lib/library";
+import { compareWishlist } from "@/lib/release-dates";
 
 type Game = { gameId: number; slug: string; title: string };
 type Intent = Game & { status: Status };
@@ -70,14 +72,23 @@ function runAction<T>(action: () => Promise<T>): Promise<T> {
 }
 
 function focusHomeGame(gameId?: number) {
+  const visible = (element: HTMLElement) =>
+    !element.closest('[hidden], [inert], [aria-hidden="true"]') &&
+    (element.checkVisibility?.() ?? true);
   const control = gameId
-    ? document.querySelector<HTMLButtonElement>(
-        `[data-home-game="${gameId}"] button`,
-      )
+    ? Array.from(
+        document.querySelectorAll<HTMLButtonElement>(
+          `[data-home-game="${gameId}"] button`,
+        ),
+      ).find(visible)
     : null;
   (
     control ??
-    document.querySelector<HTMLInputElement>('[aria-label="Search games"]')
+    Array.from(
+      document.querySelectorAll<HTMLInputElement>(
+        '.home-journal search input[type="search"]',
+      ),
+    ).find(visible)
   )?.focus({ preventScroll: true });
 }
 
@@ -253,7 +264,13 @@ export function HomeJournalProvider({
           if (old.owner !== expectedOwner) return old;
           const others =
             old.entries?.filter((e) => e.gameId !== game.gameId) ?? [];
-          return { ...old, entries: entry ? [entry, ...others] : others };
+          return {
+            ...old,
+            entries: (entry ? [entry, ...others] : others).sort(
+              (a, b) =>
+                b.addedAt.getTime() - a.addedAt.getTime() || byTitle(a, b),
+            ),
+          };
         });
       }
       const confirmed =
@@ -592,125 +609,195 @@ export function HomeCollections() {
   const home = useContext(HomeContext);
   if (!home?.snapshot.owner) return null;
   const entries = home.snapshot.entries;
+  if (!entries)
+    return (
+      <div className="flex flex-wrap gap-2">
+        {[
+          ["/library", "All saved games"],
+          ["/library?status=backlog", "Backlog"],
+          ["/wishlist", "Wishlist"],
+        ].map(([href, label]) => (
+          <Link
+            key={href}
+            href={href}
+            className={buttonVariants({
+              variant: "outline",
+              className: "min-h-11",
+            })}
+          >
+            {label} (…)
+          </Link>
+        ))}
+        <p>
+          {home.loaded
+            ? "Journal status unavailable."
+            : "Checking Journal status…"}
+        </p>
+        <Button onClick={home.retry} disabled={!home.loaded}>
+          Retry Journal
+        </Button>
+      </div>
+    );
   return (
-    <>
-      <Link
-        href="/library?status=backlog"
-        className={buttonVariants({
-          variant: "outline",
-          className: "min-h-11 self-start",
-        })}
-      >
-        Backlog (
-        {entries ? entries.filter((e) => e.status === "backlog").length : "…"})
-      </Link>
-      {entries && (
-        <div className="mt-2 flex flex-col gap-6 border-t pt-6">
-          {!entries.length ? (
-            <p className="text-muted-foreground">
-              Your Journal is empty. Search above and add a game to Backlog or
-              Wishlist.
-            </p>
-          ) : (
-            <>
-              {entries.some((e) => e.status === "playing") && (
-                <HomeShelf
-                  title="Playing"
-                  games={entries
-                    .filter((e) => e.status === "playing")
-                    .slice(0, 4)}
-                />
-              )}
-              {entries.some((e) => e.status !== "playing") && (
-                <HomeShelf
-                  title="Recently added"
-                  games={entries
-                    .filter((e) => e.status !== "playing")
-                    .slice(0, 4)}
-                />
-              )}
-            </>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/library"
-              className={buttonVariants({
-                variant: "outline",
-                className: "min-h-11",
-              })}
-            >
-              Library ({entries.length})
-            </Link>
-            <Link
-              href="/wishlist"
-              className={buttonVariants({
-                variant: "outline",
-                className: "min-h-11",
-              })}
-            >
-              Wishlist ({entries.filter((e) => e.status === "wishlist").length})
-            </Link>
-          </div>
-        </div>
-      )}
-    </>
+    <HomeJournal
+      entries={entries}
+      wishlistPreview={
+        <HomeWishlistPreview
+          renderControls={(game) => <HomeSaveControls game={game} />}
+          entries={entries
+            .flatMap((entry) =>
+              entry.status === "wishlist" && entry.release
+                ? [
+                    {
+                      gameId: entry.gameId,
+                      title: entry.title,
+                      slug: entry.slug,
+                      coverImageId: entry.coverImageId,
+                      release: entry.release,
+                    },
+                  ]
+                : [],
+            )
+            .sort(compareWishlist)}
+        />
+      }
+    />
   );
 }
 
-export function HomeShelf({
+/** Entries arrive in the Journal's canonical addition order, without private notes. */
+export function HomeJournal({
+  entries,
+  wishlistPreview,
+}: {
+  entries: HomeEntry[];
+  wishlistPreview?: ReactNode;
+}) {
+  const playing = entries
+    .filter((entry) => entry.status === "playing")
+    .slice(0, 4);
+  const recent = entries.slice(0, 4);
+  return (
+    <div className="mt-2 flex flex-col gap-6 border-t pt-6">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ["/library", "All saved games", entries.length],
+              [
+                "/library?status=backlog",
+                "Backlog",
+                entries.filter((e) => e.status === "backlog").length,
+              ],
+              [
+                "/wishlist",
+                "Wishlist",
+                entries.filter((e) => e.status === "wishlist").length,
+              ],
+            ] as const
+          ).map(([href, label, count]) => (
+            <Link
+              key={href}
+              href={href}
+              className={buttonVariants({
+                variant: "outline",
+                className: "min-h-11 h-auto whitespace-normal py-2",
+              })}
+            >
+              {label} ({count})
+            </Link>
+          ))}
+        </div>
+        <p className="text-muted-foreground text-sm">
+          All saved games are in Library. Backlog and Wishlist are Status groups
+          within it.
+        </p>
+        {wishlistPreview}
+      </div>
+      {entries.length === 0 ? (
+        <p className="text-muted-foreground">
+          Your Journal is empty. Search above and add a game to Backlog or
+          Wishlist.
+        </p>
+      ) : (
+        <>
+          {playing.length > 0 && (
+            <PersonalShelf
+              title="Playing"
+              games={playing}
+              href="/library?status=playing"
+            />
+          )}
+          <PersonalShelf
+            title="Recently added"
+            games={recent}
+            href="/library?sort=added"
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+function PersonalShelf({
   title,
   games,
-  refreshedAt,
-  event,
+  href,
 }: {
   title: string;
-  games: Omit<HomeEntry, "status">[];
-  refreshedAt?: Date;
-  event?: import("@/components/analytics").ProductEvent;
+  games: HomeEntry[];
+  href: string;
 }) {
-  const id = `home-${title.toLowerCase().replace(/ /g, "-")}`;
+  const id = useId();
+  const compact = games.length <= 2;
   return (
     <section aria-labelledby={id} className="flex flex-col gap-3">
-      <h2 id={id} className="font-semibold text-xl">
-        {title}
-      </h2>
-      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {games.map((game) => (
-          <li key={game.gameId} className="min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-x-3">
+        <h2 id={id} className="font-semibold text-xl">
+          {title}
+        </h2>
+        <Link
+          href={href}
+          aria-label={`View all ${title} games`}
+          className="inline-flex min-h-11 items-center rounded-md text-sm underline underline-offset-4"
+        >
+          View all
+        </Link>
+      </div>
+      <ul
+        className={
+          compact
+            ? "flex flex-col gap-3"
+            : "grid grid-cols-2 gap-4 sm:grid-cols-4"
+        }
+      >
+        {games.map((entry) => (
+          <li key={entry.gameId} className="min-w-0">
             <HomeCoverLink
-              gameId={game.gameId}
+              gameId={entry.gameId}
               source="shelf"
-              event={event}
-              href={`/games/${game.slug}`}
-              className="home-details group flex flex-col gap-2 rounded-lg outline-none"
+              href={`/games/${entry.slug}`}
+              className={`home-details group flex gap-3 rounded-lg outline-none ${compact ? "items-center" : "flex-col"}`}
               cover={
                 <GameCover
-                  imageId={game.coverImageId}
-                  className="w-full rounded-lg shadow-lg"
+                  imageId={entry.coverImageId}
+                  size={compact ? "cover_small" : undefined}
+                  className={
+                    compact ? "w-12 rounded" : "w-full rounded-lg shadow-lg"
+                  }
                 />
               }
             >
-              <span className="line-clamp-2 font-medium text-sm leading-snug [overflow-wrap:anywhere] group-hover:underline group-hover:underline-offset-4">
-                {game.title}
-              </span>
+              <div className="flex min-w-0 flex-col gap-1">
+                <span className="break-words font-medium text-sm leading-snug group-hover:underline group-hover:underline-offset-4">
+                  {entry.title}
+                </span>
+              </div>
             </HomeCoverLink>
-            <HomeSaveControls game={game} />
+            <HomeSaveControls game={entry} />
           </li>
         ))}
       </ul>
-      {refreshedAt && (
-        <p className="text-muted-foreground text-xs">
-          Updated{" "}
-          <time dateTime={refreshedAt.toISOString()}>
-            {refreshedAt.toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-              timeZone: "UTC",
-            })}
-          </time>
-        </p>
-      )}
     </section>
   );
 }

@@ -5,6 +5,33 @@ import { seedSql } from "./support/seed-sql";
 import { signUp } from "./support/sign-up";
 import { snap } from "./support/snap";
 
+async function expectForcedColorsFocus(target: Locator) {
+  await expect(target).toBeFocused();
+  await expect(target).toHaveCSS("outline-style", "solid");
+  const indicator = await target.evaluate((node) => {
+    const probe = document.createElement("span");
+    document.body.append(probe);
+    const systemColor = (color: string) => {
+      probe.style.color = color;
+      return getComputedStyle(probe).color;
+    };
+    const palette = [systemColor("CanvasText"), systemColor("Highlight")];
+    const canvas = systemColor("Canvas");
+    probe.remove();
+    const style = getComputedStyle(node);
+    return {
+      width: parseFloat(style.outlineWidth),
+      color: style.outlineColor,
+      palette,
+      canvas,
+    };
+  });
+  expect(indicator.width).toBeGreaterThanOrEqual(2);
+  expect(indicator.palette).toContain(indicator.color);
+  expect(indicator.color).not.toBe(indicator.canvas);
+  await expect(target).toBeInViewport();
+}
+
 /** Every visible target is at least 44 × 44 CSS px and none overlap. */
 async function expectTouchTargets(targets: Locator) {
   const boxes = [];
@@ -36,6 +63,249 @@ async function expectNoHorizontalOverflow(page: Page) {
     width: window.innerWidth,
   }));
   expect(scroll).toBeLessThanOrEqual(width);
+}
+
+test("skip route moves focus into main on Home and details", async ({
+  page,
+}) => {
+  for (const path of ["/", "/games/celeste"]) {
+    await page.goto(path);
+    // Main can still be an empty streamed fallback after navigation commits.
+    await expect(
+      path === "/"
+        ? page.getByRole("searchbox", { name: "Search games" })
+        : page.getByRole("link", {
+            name: "Add to Journal for Celeste",
+            exact: true,
+          }),
+    ).toBeVisible();
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeInViewport();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("main")).toBeFocused();
+    await page.keyboard.press("Tab");
+    expect(
+      await page
+        .getByRole("main")
+        .evaluate((main) => main.contains(document.activeElement)),
+    ).toBe(true);
+    if (path === "/")
+      await expect(
+        page.getByRole("searchbox", { name: "Search games" }),
+      ).toBeFocused();
+  }
+});
+
+test("header forward and reverse keyboard order matches visible rows at every breakpoint", async ({
+  page,
+  request,
+}) => {
+  const username = `header_${Date.now()}`;
+  await signUp(page, request, username);
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    const header = page.locator("header");
+    const targets = [
+      header.getByRole("link", { name: "shelve.games", exact: true }),
+      header.getByRole("button", { name: "Send feedback", exact: true }),
+      header.getByRole("button", {
+        name: `Account menu, @${username}`,
+        exact: true,
+      }),
+      ...["Find a game", "Library", "Wishlist", "Stats"].map((name) =>
+        header.getByRole("link", { name, exact: true }),
+      ),
+    ];
+    // The request-scoped account/navigation header streams after the brand.
+    for (const target of targets) await expect(target).toBeVisible();
+    await page.getByRole("link", { name: "Skip to main content" }).focus();
+    let previous: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    } | null = null;
+    for (const target of targets) {
+      await page.keyboard.press("Tab");
+      await expect(target).toBeFocused();
+      const box = await target.boundingBox();
+      if (!box) throw new Error("Header control has no bounds");
+      if (previous)
+        expect(
+          box.y >= previous.y + previous.height - 1 ||
+            box.x >= previous.x + previous.width - 1,
+        ).toBe(true);
+      previous = box;
+    }
+    for (const target of targets.slice(0, -1).reverse()) {
+      await page.keyboard.press("Shift+Tab");
+      await expect(target).toBeFocused();
+    }
+    await page.keyboard.press("Shift+Tab");
+    await expect(
+      page.getByRole("link", { name: "Skip to main content" }),
+    ).toBeFocused();
+    await expectNoHorizontalOverflow(page);
+  }
+});
+
+for (const colorScheme of ["light", "dark"] as const) {
+  test(`platform disclosures have contrasting keyboard focus in ${colorScheme} and forced colors`, async ({
+    page,
+  }) => {
+    await page.addInitScript(
+      (theme) => localStorage.setItem("theme", theme),
+      colorScheme,
+    );
+    await page.route("**/api/games/search?**", (route) =>
+      route.fulfill({
+        json: [
+          {
+            id: 1,
+            slug: "celeste",
+            title: "Celeste",
+            coverImageId: null,
+            year: 2018,
+            platforms: ["PC", "Nintendo Switch"],
+          },
+        ],
+      }),
+    );
+    await page.goto("/?q=Celeste");
+    const search = page.getByRole("search", {
+      name: "Search games",
+      exact: true,
+    });
+    const more = search.getByLabel("More platforms for Celeste", {
+      exact: true,
+    });
+    await search.getByRole("link", { name: "Celeste", exact: true }).focus();
+    await page.keyboard.press("Tab");
+    await expect(more).toBeFocused();
+    const indicator = await more.evaluate((node) => {
+      const style = getComputedStyle(node);
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 1;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas unavailable");
+      const ancestors = [];
+      for (
+        let ancestor: Element | null = node;
+        ancestor;
+        ancestor = ancestor.parentElement
+      )
+        ancestors.unshift(ancestor);
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, 1, 1);
+      for (const ancestor of ancestors) {
+        ctx.fillStyle = getComputedStyle(ancestor).backgroundColor;
+        ctx.fillRect(0, 0, 1, 1);
+      }
+      const luminance = () => {
+        const channels = Array.from(ctx.getImageData(0, 0, 1, 1).data)
+          .slice(0, 3)
+          .map((value) => {
+            const c = value / 255;
+            return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+          });
+        return (
+          channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+        );
+      };
+      const background = luminance();
+      ctx.fillStyle = style.outlineColor;
+      ctx.fillRect(0, 0, 1, 1);
+      const foreground = luminance();
+      return {
+        ratio:
+          (Math.max(foreground, background) + 0.05) /
+          (Math.min(foreground, background) + 0.05),
+        width: parseFloat(style.outlineWidth),
+        style: style.outlineStyle,
+        offset: parseFloat(style.outlineOffset),
+      };
+    });
+    expect(indicator.width).toBeGreaterThanOrEqual(3);
+    expect(indicator.style).toBe("solid");
+    expect(indicator.offset).toBeGreaterThanOrEqual(3);
+    expect(indicator.ratio).toBeGreaterThanOrEqual(3);
+    await page.keyboard.press("Enter");
+    await expect(
+      search.getByRole("list", { name: "Additional platforms for Celeste" }),
+    ).toBeVisible();
+    await page.keyboard.press("Enter");
+    await page.emulateMedia({ forcedColors: "active", colorScheme });
+    await expectForcedColorsFocus(more);
+  });
+
+  test(`Home keyboard controls retain visible focus in forced colors with ${colorScheme} appearance`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ forcedColors: "active", colorScheme });
+    await page.route("**/api/games/search?**", (route) =>
+      route.fulfill({
+        json: [
+          {
+            id: 1,
+            slug: "celeste",
+            title: "Celeste",
+            coverImageId: null,
+            year: 2018,
+            platforms: ["PC", "Nintendo Switch"],
+          },
+          {
+            id: 2,
+            slug: "silksong",
+            title: "Silksong",
+            coverImageId: null,
+            year: 2026,
+            platforms: ["PC"],
+          },
+        ],
+      }),
+    );
+    await page.goto("/?q=focus");
+    const filters = page.getByRole("button", { name: "Filters", exact: true });
+    await expect(filters).toBeVisible();
+
+    await page.keyboard.press("Tab");
+    await expectForcedColorsFocus(
+      page.getByRole("link", { name: "Skip to main content" }),
+    );
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Tab");
+    await expectForcedColorsFocus(
+      page.getByRole("searchbox", { name: "Search games" }),
+    );
+    await page.keyboard.press("Tab");
+    await expectForcedColorsFocus(filters);
+    await page.keyboard.press("Enter");
+    await expect(filters).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Tab");
+    await expectForcedColorsFocus(
+      page.getByRole("combobox", { name: "Release year", exact: true }),
+    );
+    await page.keyboard.press("Tab");
+    await expectForcedColorsFocus(
+      page.getByRole("combobox", { name: "Platform", exact: true }),
+    );
+    const more = page.getByLabel("More platforms for Celeste");
+    // Native platform details remain reachable after the result link.
+    await page.keyboard.press("Tab");
+    await expectForcedColorsFocus(
+      page.getByRole("link", { name: "Celeste", exact: true }),
+    );
+    await page.keyboard.press("Tab");
+    await expectForcedColorsFocus(more);
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("list", { name: "Additional platforms for Celeste" }),
+    ).toBeVisible();
+  });
 }
 
 test("populated collections keep Find a game reachable with comfortable phone controls", async ({
@@ -101,7 +371,11 @@ test("populated collections keep Find a game reachable with comfortable phone co
   );
   await snap(page, testInfo, "wishlist-mobile");
 
-  // Keyboard: the brand is the first stop and carries a visible focus ring.
+  // Keyboard: the skip route comes before the brand.
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("link", { name: "Skip to main content" }),
+  ).toBeFocused();
   await page.keyboard.press("Tab");
   const brand = page.getByRole("link", { name: "shelve.games" });
   await expect(brand).toBeFocused();
@@ -354,7 +628,7 @@ for (const theme of ["light", "dark"] as const) {
     await chooseAccountMenuItem(page, "Sign out");
     await expect(
       page.getByRole("heading", {
-        name: "Your games, remembered.",
+        name: "Track what you’re playing, build your backlog, and save games you want",
         exact: true,
       }),
     ).toBeVisible();

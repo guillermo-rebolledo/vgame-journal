@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { game, journalEntry, user } from "@/db/schema";
+import { game, journalEntry, searchCache, user } from "@/db/schema";
 import type { DatePrecision } from "@/lib/game-source";
 import { createTestDb } from "@/test/db";
 import { createFakeGameSource, sourceGame } from "@/test/fake-game-source";
@@ -56,6 +56,126 @@ test("a repeated query is served from the catalog for 24 hours", async () => {
   vi.setSystemTime(new Date("2026-01-02T00:01:00Z"));
   await catalog.search("celeste");
   expect(source.searches).toBe(2);
+});
+
+test("search retains the full bounded candidate set across cache reuse and bypasses legacy truncated entries", async () => {
+  const games = Array.from({ length: 50 }, (_, i) =>
+    sourceGame({
+      id: i + 1,
+      title: `Quest ${i + 1}`,
+      popularity: 50 - i,
+      platforms: i === 24 ? ["Switch"] : ["PC"],
+      releaseDates: [
+        {
+          platform: null,
+          region: "worldwide",
+          date: new Date(i === 24 ? "2024-01-01" : "2018-01-01"),
+          precision: "year",
+          status: null,
+        },
+      ],
+    }),
+  );
+  const source = createFakeGameSource(games);
+  const db = await createTestDb();
+  await db.insert(game).values(
+    games.slice(0, 20).map((g) => ({
+      id: g.id,
+      title: g.title,
+      slug: g.slug,
+      genres: [],
+      platforms: g.platforms,
+      syncedAt: new Date(),
+    })),
+  );
+  // A still-fresh cache from the former implementation contains only 20 IDs.
+  await db.insert(searchCache).values({
+    query: "quest",
+    gameIds: games.slice(0, 20).map((g) => g.id),
+    fetchedAt: new Date(),
+  });
+  const catalog = createCatalog(db, source);
+  const results = await catalog.search("  Quest  ");
+  expect(results).toHaveLength(50);
+  expect(results[24]).toMatchObject({
+    id: 25,
+    year: 2024,
+    platforms: ["Switch"],
+  });
+  expect(results.map((g) => g.id)).toEqual(games.map((g) => g.id));
+  const reopened = createCatalog(db, source);
+  expect(await reopened.search("quest")).toEqual(results);
+  expect(source.searches).toBe(1);
+});
+
+test("search stays within fifty source candidates even if a source returns extra records", async () => {
+  const source = createFakeGameSource(
+    Array.from({ length: 51 }, (_, i) =>
+      sourceGame({
+        id: i + 1,
+        title: `Quest ${i + 1}`,
+        popularity: i === 50 ? 1000 : 0,
+      }),
+    ),
+  );
+  const catalog = createCatalog(await createTestDb(), source);
+  const results = await catalog.search("quest");
+  expect(results).toHaveLength(50);
+  expect(results[0].id).toBe(1);
+  expect(results.at(-1)?.id).toBe(50);
+  expect(source.searches).toBe(1);
+});
+
+test("discovery projects the same earliest known year and platform availability as search", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-03T12:00:00Z"));
+  const source = createFakeGameSource([
+    sourceGame({
+      id: 7,
+      title: "Old Quest",
+      coverImageId: "cover",
+      platforms: ["PC", "Nintendo Switch"],
+      visits: 100,
+      releaseDates: [
+        {
+          platform: "PC",
+          region: "worldwide",
+          date: new Date("1990-01-01"),
+          precision: "tbd",
+          status: null,
+        },
+        {
+          platform: "Nintendo Switch",
+          region: "worldwide",
+          date: new Date("2024-01-01"),
+          precision: "year",
+          status: null,
+        },
+        {
+          platform: "PC",
+          region: "worldwide",
+          date: new Date("2018-05-01"),
+          precision: "day",
+          status: null,
+        },
+      ],
+    }),
+  ]);
+  const catalog = createCatalog(await createTestDb(), source);
+  await catalog.refreshDiscovery();
+  const [shelf] = await catalog.discovery();
+  expect(shelf.games).toEqual([
+    {
+      id: 7,
+      title: "Old Quest",
+      slug: "game-7",
+      coverImageId: "cover",
+      year: 2018,
+      platforms: ["PC", "Nintendo Switch"],
+    },
+  ]);
+  expect(shelf.refreshedAt.getUTCFullYear()).toBe(2026);
+  expect(await catalog.search("old quest")).toEqual(shelf.games);
 });
 
 test("only main games, standalone expansions and remakes are kept", async () => {
