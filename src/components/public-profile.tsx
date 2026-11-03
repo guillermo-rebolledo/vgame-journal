@@ -1,19 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FallbackImage } from "@/components/fallback-image";
 import { Library } from "@/components/library";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformName } from "@/components/platform";
+import { PublicLists } from "@/components/public-lists";
 import { Stats } from "@/components/stats";
 import { Wishlist } from "@/components/wishlist";
 import type { journal } from "@/lib/journal";
+import type { PublicList } from "@/lib/lists";
 
 type Profile = NonNullable<Awaited<ReturnType<typeof journal.publicProfile>>>;
-const tabs = ["Library", "Wishlist", "Stats"] as const;
+const tabs = ["Library", "Wishlist", "Stats", "Lists"] as const;
 
-export function PublicProfile({ profile }: { profile: Profile }) {
+export function PublicProfile({
+  profile,
+  lists,
+}: {
+  profile: Profile;
+  lists: PublicList[] | null;
+}) {
+  const router = useRouter();
   const games = new Map(profile.library.map((game) => [game.gameId, game]));
   const params = useSearchParams();
   const tab =
@@ -34,6 +43,7 @@ export function PublicProfile({ profile }: { profile: Profile }) {
       "",
       `${url.pathname}${url.search}${url.hash}`,
     );
+    if (label === "Lists") router.refresh();
   }
   return (
     <div className="space-y-8">
@@ -131,6 +141,7 @@ export function PublicProfile({ profile }: { profile: Profile }) {
           )}
         </div>
       )}
+      {tab === "Lists" && <PublicLists lists={lists} />}
       {tab === "Wishlist" && <Wishlist entries={profile.wishlist} />}
       {tab === "Stats" && (
         <Stats

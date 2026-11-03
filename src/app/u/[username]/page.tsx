@@ -6,6 +6,7 @@ import { JsonLd } from "@/components/json-ld";
 import { PublicProfile } from "@/components/public-profile";
 import { SITE_NAME, SITE_URL } from "@/config/site";
 import { journal } from "@/lib/journal";
+import { lists } from "@/lib/lists";
 
 export async function generateMetadata({
   params,
@@ -39,6 +40,7 @@ async function Profile({ params }: Pick<PageProps<"/u/[username]">, "params">) {
   const { username } = await params;
   const profile = await journal.publicProfile(username);
   if (!profile) notFound();
+  const publicLists = await lists.publicCollection(username).catch(() => null);
   return (
     <>
       <JsonLd
@@ -53,7 +55,7 @@ async function Profile({ params }: Pick<PageProps<"/u/[username]">, "params">) {
           },
         }}
       />
-      <PublicProfile profile={profile} />
+      <PublicProfile profile={profile} lists={publicLists} />
     </>
   );
 }
