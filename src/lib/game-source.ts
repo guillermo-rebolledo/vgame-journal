@@ -80,6 +80,25 @@ export type SourceGame = {
   firstReleaseDate?: Date | null;
   themes?: number[];
   versionParent?: number | null;
+  ageRatings: SourceAgeRating[];
+  languages: SourceLanguage[];
+};
+
+/**
+ * `board` is IGDB's organization name (ESRB, PEGI, CERO, USK, GRAC, CLASS_IND, ACB); `rating` its code, e.g. "T", "12", "MA 15+".
+ * `board` is a plain string, not a union, because IGDB may send boards we don't know yet.
+ */
+export type SourceAgeRating = {
+  board: string;
+  rating: string;
+  descriptors: string[];
+};
+
+export type SourceLanguage = {
+  name: string;
+  voices: boolean;
+  subtitles: boolean;
+  interface: boolean;
 };
 
 export type DatePrecision = "day" | "month" | "quarter" | "year" | "tbd";
