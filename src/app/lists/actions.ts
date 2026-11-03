@@ -56,6 +56,20 @@ function invalidate(id: string) {
   revalidatePath("/u/[username]/lists/[listId]", "page");
 }
 
+async function readMutationResult(
+  actor: string,
+  id: string,
+): Promise<ListResult<OwnerList>> {
+  try {
+    const value = await lists.ownerDetail(actor, id);
+    return value
+      ? { ok: true, value }
+      : { ok: false, code: "not_found", message: "List not found." };
+  } catch {
+    return unavailable;
+  }
+}
+
 export async function createOwnerList(
   expectedActor: string,
   input: CreateListInput,
@@ -78,14 +92,7 @@ export async function editOwnerList(
   const result = await lists.edit(actor, id, revision, input);
   if (!result.ok) return result;
   invalidate(id);
-  try {
-    const value = await lists.ownerDetail(actor, id);
-    return value
-      ? { ok: true, value }
-      : { ok: false, code: "not_found", message: "List not found." };
-  } catch {
-    return unavailable;
-  }
+  return readMutationResult(actor, id);
 }
 
 export type ListChange =
@@ -124,12 +131,5 @@ export async function changeOwnerList(
   if (!result.ok) return result;
   invalidate(id);
   if (change.kind === "delete") return { ok: true, value: null };
-  try {
-    const value = await lists.ownerDetail(actor, id);
-    return value
-      ? { ok: true, value }
-      : { ok: false, code: "not_found", message: "List not found." };
-  } catch {
-    return unavailable;
-  }
+  return readMutationResult(actor, id);
 }

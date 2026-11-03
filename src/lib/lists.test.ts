@@ -76,6 +76,23 @@ async function saved(
   return result.value;
 }
 
+test("public access preflight follows the current creator and visibility through publication and deletion", async () => {
+  const list = await saved();
+  expect(await lists.hasPublicList("mario", list.id)).toBe(false);
+  await lists.setVisibility("mario", list.id, 0, "public");
+  expect(await lists.hasPublicList("MARIO", list.id)).toBe(true);
+  expect(await lists.hasPublicList("luigi", list.id)).toBe(false);
+  for (const id of [null, "invalid", randomUUID()])
+    expect(await lists.hasPublicList("mario", id)).toBe(false);
+  await lists.addGame("mario", list.id, 1, 1);
+  expect(await lists.hasPublicList("mario", list.id)).toBe(true);
+  await lists.setVisibility("mario", list.id, 2, "private");
+  expect(await lists.hasPublicList("mario", list.id)).toBe(false);
+  await lists.setVisibility("mario", list.id, 3, "public");
+  await lists.delete("mario", list.id, 4);
+  expect(await lists.hasPublicList("mario", list.id)).toBe(false);
+});
+
 test("publication is revisioned, public reads are allowlisted and stale edits cannot republish", async () => {
   const list = await saved();
   expect(await lists.setVisibility("mario", list.id, 0, "public")).toEqual({
@@ -370,6 +387,7 @@ test("read failures are reported as unavailable rather than empty collections or
     () => lists.ownerDetail("mario", list.id),
     () => lists.publicCollection("mario"),
     () => lists.publicDetail("mario", list.id),
+    () => lists.hasPublicList("mario", list.id),
   ])
     await expect(read()).rejects.toThrow(
       /^Lists are unavailable\. Please try again\.$/,

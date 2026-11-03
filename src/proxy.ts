@@ -45,7 +45,7 @@ async function route(request: NextRequest) {
       return missing(request);
     }
     try {
-      if (!(await lists.publicDetail(username, id))) return missing(request);
+      if (!(await lists.hasPublicList(username, id))) return missing(request);
     } catch {
       // Let the page report a temporary failure with retry, rather than a false 404.
     }

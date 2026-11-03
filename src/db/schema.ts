@@ -19,7 +19,12 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import type { FeedbackType } from "@/lib/feedback-types";
-import type { DatePrecision, DiscoveryKey } from "@/lib/game-source";
+import type {
+  DatePrecision,
+  DiscoveryKey,
+  SourceAgeRating,
+  SourceLanguage,
+} from "@/lib/game-source";
 import type { CompletionTag, Status } from "@/lib/journal";
 import type { Region } from "@/lib/release-dates";
 
@@ -126,6 +131,9 @@ export const game = pgTable(
     criticScoreCount: integer("critic_score_count"),
     userScore: real("user_score"),
     userScoreCount: integer("user_score_count"),
+    // null: not synced since these were added; []: IGDB has none.
+    ageRatings: jsonb("age_ratings").$type<SourceAgeRating[]>(),
+    languages: jsonb("languages").$type<SourceLanguage[]>(),
     syncedAt: timestamp("synced_at").notNull(),
   },
   (table) => [index("game_slug_idx").on(table.slug)],

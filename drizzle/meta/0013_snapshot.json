@@ -1,5 +1,5 @@
 {
-  "id": "5419a41b-0cb6-473a-af90-3f95c1a033ae",
+  "id": "a92233ad-19fd-4650-a339-f346f06c4578",
   "prevId": "ef0b73aa-00b9-4e2c-849f-91aee2f2a9c8",
   "version": "7",
   "dialect": "postgresql",
@@ -120,154 +120,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.custom_list": {
-      "name": "custom_list",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "visibility": {
-          "name": "visibility",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'private'"
-        },
-        "submission_id": {
-          "name": "submission_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "custom_list_user_submission_idx": {
-          "name": "custom_list_user_submission_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "submission_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "custom_list_user_updated_idx": {
-          "name": "custom_list_user_updated_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "custom_list_user_id_user_id_fk": {
-          "name": "custom_list_user_id_user_id_fk",
-          "tableFrom": "custom_list",
-          "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "custom_list_title_valid": {
-          "name": "custom_list_title_valid",
-          "value": "char_length(btrim(\"custom_list\".\"title\")) between 1 and 100 and \"custom_list\".\"title\" = btrim(\"custom_list\".\"title\")"
-        },
-        "custom_list_description_valid": {
-          "name": "custom_list_description_valid",
-          "value": "char_length(\"custom_list\".\"description\") <= 2000"
-        },
-        "custom_list_visibility_known": {
-          "name": "custom_list_visibility_known",
-          "value": "\"custom_list\".\"visibility\" in ('private', 'public')"
-        },
-        "custom_list_revision_valid": {
-          "name": "custom_list_revision_valid",
-          "value": "\"custom_list\".\"revision\" >= 0"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.discovery_snapshot": {
@@ -470,6 +322,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "age_ratings": {
+          "name": "age_ratings",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "languages": {
+          "name": "languages",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "synced_at": {
           "name": "synced_at",
           "type": "timestamp",
@@ -576,94 +440,6 @@
         "journal_entry_tag_only_when_played": {
           "name": "journal_entry_tag_only_when_played",
           "value": "\"journal_entry\".\"completion_tag\" is null or \"journal_entry\".\"status\" = 'played'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.list_entry": {
-      "name": "list_entry",
-      "schema": "",
-      "columns": {
-        "list_id": {
-          "name": "list_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "game_id": {
-          "name": "game_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "list_entry_order_idx": {
-          "name": "list_entry_order_idx",
-          "columns": [
-            {
-              "expression": "list_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "position",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "game_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "list_entry_list_id_custom_list_id_fk": {
-          "name": "list_entry_list_id_custom_list_id_fk",
-          "tableFrom": "list_entry",
-          "tableTo": "custom_list",
-          "columnsFrom": ["list_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "list_entry_game_id_game_id_fk": {
-          "name": "list_entry_game_id_game_id_fk",
-          "tableFrom": "list_entry",
-          "tableTo": "game",
-          "columnsFrom": ["game_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "list_entry_list_id_game_id_pk": {
-          "name": "list_entry_list_id_game_id_pk",
-          "columns": ["list_id", "game_id"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "list_entry_position_valid": {
-          "name": "list_entry_position_valid",
-          "value": "\"list_entry\".\"position\" >= 0"
         }
       },
       "isRLSEnabled": false

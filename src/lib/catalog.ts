@@ -418,7 +418,7 @@ export function createCatalog(db: Db, source: GameSource) {
     async findBySlug(slug: string) {
       const local = await loadBySlug(slug);
       if (local) {
-        if (local.tags !== null) return local;
+        if (local.tags !== null && local.ageRatings !== null) return local;
         try {
           const refreshed = await source.fetchGame(local.id);
           if (refreshed) {
@@ -426,7 +426,7 @@ export function createCatalog(db: Db, source: GameSource) {
             return (await loadBySlug(refreshed.slug)) ?? local;
           }
         } catch {
-          // An optional tag refresh must never hide an existing Catalog game.
+          // An optional refresh (tags, age ratings, languages) must never hide an existing Catalog game.
         }
         return local;
       }
