@@ -92,6 +92,13 @@
       "when": 1793645133012,
       "tag": "0012_slow_stryfe",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793738580662,
+      "tag": "0013_fresh_scrambler",
+      "breakpoints": true
     }
   ]
 }
