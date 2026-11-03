@@ -368,7 +368,7 @@ test("discovery propagates metadata errors and cancellation", async () => {
   ).rejects.toThrow("Timed out");
 });
 
-test("recent candidate pages query the inclusive release window and review counts with a stable ID cursor", async () => {
+test("recent candidate pages query the inclusive release window and eligibility without review gates", async () => {
   const bodies: string[] = [];
   vi.stubGlobal(
     "fetch",
@@ -380,7 +380,12 @@ test("recent candidate pages query the inclusive release window and review count
       if (
         !body.includes("first_release_date >= 1000") ||
         !body.includes("first_release_date <= 2000") ||
-        !body.includes("(rating_count >= 10 | aggregated_rating_count >= 3)") ||
+        /rating_count\s*>=/.test(body) ||
+        !body.includes("game_type = (0,4,8)") ||
+        !body.includes("cover != null") ||
+        !body.includes("version_parent = null") ||
+        !body.includes("keywords != (2004,24124,27216,25522)") ||
+        !body.includes("themes != (42)") ||
         !body.includes("sort id asc") ||
         /offset/.test(body)
       )

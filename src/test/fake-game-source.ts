@@ -38,8 +38,7 @@ export function createFakeGameSource(
             g.id > afterId &&
             g.firstReleaseDate &&
             g.firstReleaseDate >= from &&
-            g.firstReleaseDate <= through &&
-            ((g.userScoreCount ?? 0) >= 10 || (g.criticScoreCount ?? 0) >= 3),
+            g.firstReleaseDate <= through,
         )
         .toSorted((a, b) => a.id - b.id);
       return { games: pool.slice(0, 500), hasMore: pool.length >= 500 };

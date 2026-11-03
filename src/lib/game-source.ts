@@ -5,7 +5,7 @@ export interface GameSource {
     excludedIds: number[],
     signal: AbortSignal,
   ): Promise<DiscoveryRankPage>;
-  /** Recent first releases with sufficient review counts; Catalog applies scores and eligibility. */
+  /** Recent first releases, including launches without reviews; Catalog applies activity and eligibility. */
   fetchRecentCandidates(
     afterId: number,
     from: Date,

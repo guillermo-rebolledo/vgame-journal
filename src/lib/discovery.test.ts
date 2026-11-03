@@ -1,4 +1,4 @@
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createTestDb } from "@/test/db";
 import {
   createFakeGameSource,
@@ -7,11 +7,150 @@ import {
 import { createCatalog } from "./catalog";
 import type { SourceGame } from "./game-source";
 
-// Discovery fixtures explicitly qualify unless a case overrides their review evidence.
+// Review evidence is independent of discovery activity.
 const sourceGame = (overrides: Parameters<typeof fixtureGame>[0] = {}) =>
   fixtureGame({ userScore: 75, userScoreCount: 10, ...overrides });
 
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-28T12:00:00Z"));
+});
+
 afterEach(() => vi.useRealTimers());
+
+test("a major launch can enter discovery before reviews arrive", async () => {
+  const games = [
+    fixtureGame({
+      id: 1,
+      title: "Major launch",
+      visits: 100,
+      coverImageId: "cover",
+      firstReleaseDate: new Date(),
+    }),
+  ];
+  const catalog = createCatalog(
+    await createTestDb(),
+    createFakeGameSource(games),
+  );
+  await catalog.refreshDiscovery();
+  expect(
+    (await catalog.discovery())
+      .find((s) => s.key === "recent")
+      ?.games.map((g) => g.id),
+  ).toEqual([1]);
+});
+
+test("trending mixes launches, upcoming games and older hits, with a bounded launch boost", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-28T12:00:00Z"));
+  const games = [
+    { id: 1, visits: 100, firstReleaseDate: new Date("2018-01-01") },
+    { id: 2, visits: 90, firstReleaseDate: new Date("2019-01-01") },
+    { id: 3, visits: 80, firstReleaseDate: new Date("2020-01-01") },
+    { id: 4, visits: 70, firstReleaseDate: null },
+    { id: 5, visits: 65, firstReleaseDate: new Date("2026-10-28T12:00:00Z") },
+    { id: 6, visits: 60, firstReleaseDate: new Date("2026-11-02T12:00:00Z") },
+    { id: 7, visits: 1, firstReleaseDate: new Date("2026-10-28T12:00:00Z") },
+  ].map((g) => fixtureGame({ ...g, coverImageId: "cover" }));
+  const source = createFakeGameSource(games);
+  // The launch boost must not stop traversal after the first four raw Visits ranks.
+  source.fetchDiscoveryRanks = async (excluded, signal) => {
+    signal.throwIfAborted();
+    const remaining = games.filter((g) => !excluded.includes(g.id));
+    return {
+      ranks: remaining
+        .slice(0, 4)
+        .map((g) => ({ gameId: g.id, visits: g.visits ?? 0 })),
+      hasMore: remaining.length > 4,
+    };
+  };
+  const catalog = createCatalog(await createTestDb(), source);
+  await catalog.refreshDiscovery();
+  expect(
+    (await catalog.discovery())
+      .find((s) => s.key === "popular")
+      ?.games.map((g) => g.id),
+  ).toEqual([5, 6, 1, 2]);
+});
+
+test("recent releases favor fresh activity over an equally active three-month-old release", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-28T12:00:00Z"));
+  const games = [
+    fixtureGame({
+      id: 1,
+      visits: 100,
+      coverImageId: "cover",
+      firstReleaseDate: new Date("2026-08-01"),
+    }),
+    fixtureGame({
+      id: 2,
+      visits: 100,
+      coverImageId: "cover",
+      firstReleaseDate: new Date("2026-10-28T12:00:00Z"),
+    }),
+  ];
+  const catalog = createCatalog(
+    await createTestDb(),
+    createFakeGameSource(games),
+  );
+  await catalog.refreshDiscovery();
+  expect(
+    (await catalog.discovery())
+      .find((s) => s.key === "recent")
+      ?.games.map((g) => g.id),
+  ).toEqual([2, 1]);
+});
+
+test("the daily refresh replaces yesterday's selection when attention shifts", async () => {
+  const games = Array.from({ length: 5 }, (_, i) =>
+    fixtureGame({
+      id: i + 1,
+      visits: 100 - i * 10,
+      coverImageId: "cover",
+      firstReleaseDate: new Date("2026-10-28T12:00:00Z"),
+    }),
+  );
+  const source = createFakeGameSource(games);
+  const db = await createTestDb();
+  const catalog = createCatalog(db, source);
+  await catalog.refreshDiscovery();
+  expect((await catalog.discovery()).every((s) => s.games[0].id === 1)).toBe(
+    true,
+  );
+  vi.setSystemTime(new Date("2026-10-29T12:00:00Z"));
+  games[4].visits = 200;
+  await catalog.refreshDiscovery();
+  const reopened = createCatalog(db, createFakeGameSource([]));
+  const shelves = await reopened.discovery();
+  expect(shelves.every((s) => s.games[0].id === 5)).toBe(true);
+  expect(
+    shelves.every(
+      (s) => s.refreshedAt.toISOString() === "2026-10-29T12:00:00.000Z",
+    ),
+  ).toBe(true);
+});
+
+test("trending considers a boosted launch beyond the first metadata batch", async () => {
+  const games = Array.from({ length: 102 }, (_, i) =>
+    fixtureGame({
+      id: i + 1,
+      visits: i < 100 ? 100 - i / 100 : 60,
+      coverImageId: "cover",
+      firstReleaseDate: i < 100 ? new Date("2018-01-01") : new Date(),
+    }),
+  );
+  const catalog = createCatalog(
+    await createTestDb(),
+    createFakeGameSource(games),
+  );
+  await catalog.refreshDiscovery();
+  expect(
+    (await catalog.discovery())
+      .find((s) => s.key === "popular")
+      ?.games.map((g) => g.id),
+  ).toEqual([101, 102, 1, 2]);
+});
 
 test("discovery publishes ranked canonical games that resolve locally and survive a new Catalog instance", async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -125,8 +264,8 @@ test("Recently released uses inclusive worldwide first-release timestamps, then 
   expect(
     (await catalog.discovery()).map((s) => [s.key, s.games.map((g) => g.id)]),
   ).toEqual([
-    ["recent", [1, 2]],
-    ["popular", [1, 2, 3, 4]],
+    ["recent", [2, 1]],
+    ["popular", [2, 4, 1, 3]],
   ]);
   vi.setSystemTime(new Date("2026-10-28T12:00:01Z"));
   const shelves = await catalog.discovery();
@@ -443,7 +582,7 @@ test("a failed recent candidate continuation retains its snapshot while popular 
   expect(shelves[1].refreshedAt.toISOString()).toBe("2026-10-29T00:00:00.000Z");
 });
 
-test("Recently released requires complete user or critic evidence at inclusive quality thresholds", async () => {
+test("Recently released ranks activity independently of review scores and counts", async () => {
   const evidence = [
     { userScore: 75, userScoreCount: 10 },
     { criticScore: 75, criticScoreCount: 3 },
@@ -478,12 +617,12 @@ test("Recently released requires complete user or critic evidence at inclusive q
   expect(
     (await catalog.discovery()).map((s) => [s.key, s.games.map((g) => g.id)]),
   ).toEqual([
-    ["recent", [1, 2]],
+    ["recent", [1, 2, 3, 4]],
     ["popular", [1, 2, 3, 4]],
   ]);
 });
 
-test("Recently released reserves two qualifying indies before filling by Visits and finally sorts all tiles", async () => {
+test("Recently released never displaces active major releases for an indie quota", async () => {
   const games = [
     [1, 100, false],
     [2, 90, false],
@@ -511,12 +650,12 @@ test("Recently released reserves two qualifying indies before filling by Visits 
   expect(
     (await catalog.discovery()).map((s) => [s.key, s.games.map((g) => g.id)]),
   ).toEqual([
-    ["recent", [1, 2, 6, 7]],
+    ["recent", [1, 2, 3, 4]],
     ["popular", [1, 2, 3, 4]],
   ]);
 });
 
-test("stale Recently released snapshots recheck persisted Catalog review evidence without calling the provider", async () => {
+test("persisted discovery remains readable when review evidence changes, without provider calls", async () => {
   const games = [1, 2, 3].map((id) =>
     sourceGame({
       id,
@@ -545,7 +684,7 @@ test("stale Recently released snapshots recheck persisted Catalog review evidenc
   };
   const shelves = await createCatalog(db, source).discovery();
   expect(shelves.map((s) => [s.key, s.games.map((g) => g.id)])).toEqual([
-    ["recent", [3]],
+    ["recent", [1, 2, 3]],
     ["popular", [1, 2, 3]],
   ]);
   expect(shelves[0].refreshedAt).toEqual(before[0].refreshedAt);
@@ -553,9 +692,9 @@ test("stale Recently released snapshots recheck persisted Catalog review evidenc
 
 test.each([
   { indies: [], expected: [1, 2, 3, 4] },
-  { indies: [5], expected: [1, 2, 3, 5] },
+  { indies: [5], expected: [1, 2, 3, 4] },
   { indies: [2, 3], expected: [1, 2, 3, 4] },
-])("scarce indies $indies fill correctly without traversing the global Visits tail", async ({
+])("genre mix $indies does not override activity or require the global Visits tail", async ({
   indies,
   expected,
 }) => {
@@ -584,7 +723,7 @@ test.each([
   );
 });
 
-test("a short recent pool omits missing, zero, invalid Visits and never relaxes quality or eligibility", async () => {
+test("a short recent pool omits missing, zero, invalid Visits and never relaxes eligibility", async () => {
   const games = [1, 2, 3, 4, 5, 6, 7].map((id) =>
     sourceGame({
       id,
@@ -603,11 +742,11 @@ test("a short recent pool omits missing, zero, invalid Visits and never relaxes 
   expect((await catalog.discovery())[0].games.map((g) => g.id)).toEqual([2]);
 });
 
-test("recent candidates page by stable IDs before selecting the best indies across the whole pool", async () => {
+test("recent candidates page by stable IDs before selecting the most active games across the whole pool", async () => {
   const games = Array.from({ length: 502 }, (_, i) =>
     sourceGame({
       id: i + 1,
-      visits: i < 500 ? 1000 - i : 1,
+      visits: i < 500 ? 1000 - i : 2000,
       coverImageId: "cover",
       firstReleaseDate: new Date(),
       genres: i >= 500 ? ["Indie"] : [],
@@ -619,7 +758,7 @@ test("recent candidates page by stable IDs before selecting the best indies acro
   );
   expect((await catalog.refreshDiscovery()).recent).toBe(4);
   expect((await catalog.discovery())[0].games.map((g) => g.id)).toEqual([
-    1, 2, 501, 502,
+    501, 502, 1, 2,
   ]);
 });
 

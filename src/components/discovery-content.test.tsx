@@ -187,7 +187,7 @@ test("discovery saves update shared Status, counts and the resolved Wishlist pre
   );
   await screen.findByRole("link", { name: "Wishlist (1)" });
   expect(
-    screen.getByRole("region", { name: "Popular right now" }).textContent,
+    screen.getByRole("region", { name: "Recently trending" }).textContent,
   ).toContain("Wishlisted");
   expect(
     screen.getByRole("region", { name: "Wishlist release preview" })
