@@ -4,6 +4,7 @@ import { Suspense, ViewTransition } from "react";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
 import { FallbackImage } from "@/components/fallback-image";
 import { GameCover } from "@/components/game-cover";
+import { GameLists } from "@/components/game-lists";
 import { JsonLd } from "@/components/json-ld";
 import { PlatformName, PlatformNames } from "@/components/platform";
 import { Playthroughs } from "@/components/playthroughs";
@@ -114,6 +115,12 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
               gameId={game.id}
               gameTitle={game.title}
               platforms={game.platforms}
+            />
+          </Suspense>
+
+          <Suspense fallback={<output>Loading list controls…</output>}>
+            <GameLists
+              game={{ id: game.id, slug: game.slug, title: game.title }}
             />
           </Suspense>
 

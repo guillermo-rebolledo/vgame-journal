@@ -12,7 +12,11 @@ afterEach(() => {
   vi.mocked(track).mockClear();
 });
 
-test("records a copied link by target only after the clipboard write succeeds", async () => {
+test.each([
+  "calendar",
+  "profile",
+  "list",
+] as const)("records a copied %s link by target only after the clipboard write succeeds", async (target) => {
   const user = userEvent.setup();
   const writeText = vi
     .spyOn(navigator.clipboard, "writeText")
@@ -21,7 +25,7 @@ test("records a copied link by target only after the clipboard write succeeds", 
     <CopyButton
       text="https://x/feed-token.ics"
       inputId="url"
-      target="calendar"
+      target={target}
     />,
   );
 
@@ -33,6 +37,6 @@ test("records a copied link by target only after the clipboard write succeeds", 
   await user.click(screen.getByRole("button", { name: "Copy" }));
   await screen.findByText("Copied");
   expect(track).toHaveBeenCalledExactlyOnceWith("link_copied", {
-    target: "calendar",
+    target,
   });
 });
