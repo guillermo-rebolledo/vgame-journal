@@ -183,7 +183,7 @@ test("discovery saves update shared Status, counts and the resolved Wishlist pre
   );
   await screen.findByRole("link", { name: "All saved games (0)" });
   await userEvent.click(
-    screen.getByRole("button", { name: "Add Old classic to wishlist" }),
+    screen.getByRole("button", { name: "Add to wishlist for Old classic" }),
   );
   await screen.findByRole("link", { name: "Wishlist (1)" });
   expect(

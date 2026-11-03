@@ -501,7 +501,7 @@ export function HomeSaveControls({ game }: { game: Game }) {
                 aria-label={
                   entry
                     ? `Change status for ${game.title}`
-                    : `Add ${game.title} to backlog`
+                    : `Add to backlog for ${game.title}`
                 }
                 aria-disabled={busy || loading}
                 aria-busy={!!busy}
@@ -538,7 +538,7 @@ export function HomeSaveControls({ game }: { game: Game }) {
           <Button
             variant="outline"
             className="min-h-11"
-            aria-label={`Add ${game.title} to wishlist`}
+            aria-label={`Add to wishlist for ${game.title}`}
             aria-describedby={state?.error ? errorId : undefined}
             aria-disabled={busy || loading}
             onClick={() => {

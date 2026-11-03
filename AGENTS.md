@@ -9,6 +9,16 @@
 
 ## Agent skills
 
+### Design and accessibility
+
+- Before changing UI, interaction, or product copy, read `DESIGN.md` and use the vocabulary in `GLOSSARY.md`.
+- Before adding or extending UI components, read `docs/ui-catalog.md` and search the Storybook catalog (`pnpm storybook`). With Storybook MCP connected, use `docs-list` and `docs-show`; otherwise read the colocated `*.stories.tsx` files. Check the implementation and callers too: a component without a story may already exist.
+- Reuse a component when its semantics fit; extend it when the capability belongs to its existing purpose; compose or create a component when the responsibility is distinct. Explain the choice and the closest existing component considered in the change description.
+- If no local component fits, check the shadcn Base UI registry through MCP (or CLI if unavailable). Keep generic primitives in `ui/` and product compositions in `src/components/`. Add or update colocated stories and the `DESIGN.md` index for reusable components; include meaningful states and interaction tests.
+- Keep Storybook local/CI-only: app code must import production components directly, never stories or catalog dependencies. Keep catalog output outside `public/` and web deployment scripts. Preserve the production exclusions documented in `docs/ui-catalog.md`.
+- Use `emil-design-eng` for interaction polish, `animate` for new motion, `review-animations` for motion review, and `impeccable` for broader UI audits. These skills guide implementation; `DESIGN.md` records this app's choices.
+- For UI changes, run `pnpm test:storybook`, `pnpm build-storybook`, `pnpm test:e2e e2e/accessibility.spec.ts`, and relevant interaction tests. Complete the manual checks in `DESIGN.md` for the affected flow; report checks you could not perform.
+
 ### Issue tracker
 
 Issues live in GitHub Issues (`guillermo-rebolledo/vgame-journal`), managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.

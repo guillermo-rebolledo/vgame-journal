@@ -143,10 +143,10 @@ test("reversed save responses preserve both games and the Backlog count", async 
   );
   await screen.findByRole("link", { name: "Backlog (0)" });
   await user.click(
-    screen.getByRole("button", { name: "Add Celeste to backlog" }),
+    screen.getByRole("button", { name: "Add to backlog for Celeste" }),
   );
   await user.click(
-    screen.getByRole("button", { name: "Add Hades to backlog" }),
+    screen.getByRole("button", { name: "Add to backlog for Hades" }),
   );
   await act(async () =>
     second.resolve({ snapshot: snapshot([hades, celeste]) }),

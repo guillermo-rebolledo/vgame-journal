@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "pnpm build",
+  "outputDirectory": ".next",
   "crons": [
     { "path": "/api/cron/refresh-release-dates", "schedule": "0 6 * * *" }
   ]

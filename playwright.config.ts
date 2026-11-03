@@ -6,6 +6,7 @@ process.env.E2E_SUPPORT_URL = `http://127.0.0.1:${supportPort}`;
 
 export default defineConfig({
   testDir: "./e2e",
+  reporter: [["list"], ["html", { open: "never" }]],
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   // ubuntu-latest has 4 cores; Playwright would default to 2. Specs are mostly awaiting the server.
