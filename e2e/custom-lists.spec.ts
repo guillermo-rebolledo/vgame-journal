@@ -358,6 +358,8 @@ test("lists preserve Journal history and account export/deletion stays complete 
   request,
   browser,
 }) => {
+  // Two account lifecycles and the full list/deletion flow can exceed 30s on shared CI workers.
+  test.setTimeout(90_000);
   const username = uniqueUsername("lists_accept_account");
   await signUp(page, request, username);
   await page.goto("/games/celeste");
