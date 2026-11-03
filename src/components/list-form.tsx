@@ -1,6 +1,12 @@
 "use client";
 
 import { useId } from "react";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { ListVisibility } from "@/lib/lists";
 
@@ -10,41 +16,51 @@ export function ListFields({
   onTitle,
   onDescription,
   disabled,
+  titleError,
 }: {
   title: string;
   description: string;
   onTitle: (value: string) => void;
   onDescription: (value: string) => void;
   disabled?: boolean;
+  titleError?: string;
 }) {
   const id = useId();
   return (
     <fieldset disabled={disabled} className="flex min-w-0 flex-col gap-4">
-      <label htmlFor={`${id}-title`} className="flex flex-col gap-2">
-        List title
+      <Field data-invalid={Boolean(titleError)}>
+        <FieldLabel htmlFor={`${id}-title`}>List title</FieldLabel>
         <Input
           id={`${id}-title`}
+          name="title"
           required
           maxLength={100}
           value={title}
+          aria-invalid={Boolean(titleError)}
+          aria-describedby={titleError ? `${id}-title-error` : undefined}
           onChange={(e) => onTitle(e.target.value)}
         />
-      </label>
-      <div className="flex flex-col gap-2">
-        <label htmlFor={`${id}-description`}>Description</label>
+        {titleError && (
+          <FieldError id={`${id}-title-error`}>{titleError}</FieldError>
+        )}
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${id}-description`}>
+          Description (optional)
+        </FieldLabel>
         <textarea
           id={`${id}-description`}
           aria-describedby={`${id}-help`}
           maxLength={2000}
-          rows={4}
+          rows={3}
           value={description}
           onChange={(e) => onDescription(e.target.value)}
-          className="min-h-28 w-full rounded-lg border border-input bg-background px-3 py-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive md:text-sm"
         />
-      </div>
-      <p id={`${id}-help`} className="text-muted-foreground text-sm">
-        Optional, up to 2,000 characters. Plain text; line breaks are kept.
-      </p>
+        <FieldDescription id={`${id}-help`}>
+          Up to 2,000 characters.
+        </FieldDescription>
+      </Field>
     </fieldset>
   );
 }
@@ -64,6 +80,7 @@ export function ListVisibilityFields({
         <input
           type="radio"
           name={`${id}-visibility`}
+          className="accent-primary"
           checked={value === "private"}
           onChange={() => onChange("private")}
         />
@@ -73,6 +90,7 @@ export function ListVisibilityFields({
         <input
           type="radio"
           name={`${id}-visibility`}
+          className="accent-primary"
           checked={value === "public"}
           onChange={() => onChange("public")}
         />

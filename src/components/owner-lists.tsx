@@ -13,6 +13,7 @@ import {
 import { CopyButton } from "@/components/copy-button";
 import { GameCover } from "@/components/game-cover";
 import { GameSearch } from "@/components/game-search";
+import { ListCreationDrawer } from "@/components/list-creation-drawer";
 import { useListDraft } from "@/components/list-draft";
 import { ListFields, ListVisibilityFields } from "@/components/list-form";
 import { useListSession } from "@/components/list-session";
@@ -27,11 +28,15 @@ export function CreateListForm({
   onCreated,
   scope = "create",
   disabled = false,
+  onCancel,
+  onPendingChange,
 }: {
   actor: string;
   onCreated?: (list: OwnerList) => void;
   scope?: string;
   disabled?: boolean;
+  onCancel?: () => void;
+  onPendingChange?: (pending: boolean) => void;
 }) {
   const access = useListSession();
   const router = useRouter();
@@ -43,16 +48,31 @@ export function CreateListForm({
   });
   const { title, description, visibility } = draft;
   const [error, setError] = useState("");
+  const [titleError, setTitleError] = useState("");
   const [pending, start] = useTransition();
   return (
     <form
       aria-label="Create a list"
-      className="flex max-w-2xl flex-col gap-4"
+      noValidate
+      className={
+        onCancel
+          ? "mx-auto flex w-full max-w-xl flex-col gap-6 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6"
+          : "flex max-w-xl flex-col gap-4 text-sm"
+      }
       onSubmit={(event) => {
         event.preventDefault();
         if (pending || !ready || disabled) return;
+        if (!title.trim()) {
+          setTitleError("Enter a list title.");
+          event.currentTarget
+            .querySelector<HTMLInputElement>('[name="title"]')
+            ?.focus();
+          return;
+        }
+        setTitleError("");
         const submissionId = draft.submissionId || crypto.randomUUID();
         update({ submissionId });
+        onPendingChange?.(true);
         start(async () => {
           try {
             const result = await createOwnerList(actor, {
@@ -76,34 +96,56 @@ export function CreateListForm({
             else router.push(`/lists/${result.value.id}`);
           } catch {
             setError(
-              "Couldn’t confirm creation. Your input is kept. Retry uses the same submission and will not create a duplicate.",
+              "Couldn’t confirm creation. Your draft is kept. Try again; this won’t create a duplicate list.",
             );
+          } finally {
+            onPendingChange?.(false);
           }
         });
       }}
     >
-      <h2 className="font-semibold text-xl">Create a list</h2>
+      {!onCancel && <h2 className="font-semibold text-xl">Create a list</h2>}
       <ListFields
         title={title}
         description={description}
-        onTitle={(title) => update({ title })}
+        titleError={titleError}
+        onTitle={(title) => {
+          update({ title });
+          setTitleError("");
+        }}
         onDescription={(description) => update({ description })}
         disabled={pending || !ready || disabled}
       />
-      <fieldset disabled={pending || disabled}>
+      <fieldset disabled={pending || !ready || disabled}>
         <ListVisibilityFields
           value={visibility}
           onChange={(visibility) => update({ visibility })}
         />
       </fieldset>
-      {error && <p role="alert">{error}</p>}
-      <Button
-        type="submit"
-        disabled={pending || !ready || disabled}
-        className="min-h-11 self-start"
-      >
-        {pending ? "Creating…" : "Create list"}
-      </Button>
+      {error && (
+        <p role="alert" className="text-destructive text-sm">
+          {error}
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-3">
+        {onCancel && (
+          <Button
+            variant="outline"
+            className="min-h-11"
+            disabled={pending}
+            onClick={onCancel}
+          >
+            Cancel
+          </Button>
+        )}
+        <Button
+          type="submit"
+          disabled={pending || !ready || disabled}
+          className="min-h-11 self-start"
+        >
+          {pending ? "Creating…" : "Create list"}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -116,48 +158,94 @@ export function OwnerLists({
   items: OwnerList[];
 }) {
   const pagination = useUrlPagination("listsPage", items.length);
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   return (
-    <div className="flex flex-col gap-8">
-      {items.length === 0 ? (
-        <p>No lists yet. Create your first collection below.</p>
-      ) : (
-        <PagedList items={items} label="Your lists" pagination={pagination}>
-          {(items) => (
-            <ul className="grid gap-4 sm:grid-cols-2">
-              {items.map((list) => (
-                <li key={list.id} className="min-w-0 rounded-lg border p-4">
-                  <Link
-                    href={`/lists/${list.id}`}
-                    prefetch={false}
-                    className="break-words font-semibold underline underline-offset-4"
+    <>
+      <div className="sm:col-start-2 sm:row-start-1 sm:self-start">
+        <ListCreationDrawer
+          open={open}
+          onOpenChange={setOpen}
+          pending={creating}
+        >
+          <CreateListForm
+            actor={actor}
+            onCancel={() => setOpen(false)}
+            onPendingChange={setCreating}
+            onCreated={(list) => {
+              setOpen(false);
+              router.push(`/lists/${list.id}`);
+            }}
+          />
+        </ListCreationDrawer>
+      </div>
+      <div className="min-w-0 sm:col-span-2">
+        {items.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-4 text-sm sm:p-8">
+            <p className="font-medium">No lists yet</p>
+            <p className="mt-2 text-muted-foreground">
+              Create a list to keep games together for any occasion.
+            </p>
+          </div>
+        ) : (
+          <PagedList items={items} label="Your lists" pagination={pagination}>
+            {(items) => (
+              <ul className="grid gap-4 sm:grid-cols-2">
+                {items.map((list) => (
+                  <li
+                    key={list.id}
+                    className="group relative flex h-full min-w-0 flex-col gap-4 rounded-lg border p-4 hover:bg-muted/40"
                   >
-                    {list.title}
-                  </Link>
-                  <p>
-                    {list.visibility === "private" ? "Private" : "Public"} ·{" "}
-                    {list.gameCount} {list.gameCount === 1 ? "game" : "games"}
-                  </p>
-                  <p className="text-muted-foreground text-sm">
-                    Updated{" "}
-                    {new Date(list.updatedAt).toLocaleDateString("en-US")}
-                  </p>
-                  <div className="mt-3 flex gap-2">
-                    {list.games.slice(0, 4).map((game) => (
-                      <GameCover
-                        key={game.gameId}
-                        imageId={game.coverImageId}
-                        className="w-12 rounded"
-                      />
-                    ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </PagedList>
-      )}
-      <CreateListForm actor={actor} />
-    </div>
+                    <div
+                      className="grid min-h-17 w-full max-w-56 grid-cols-4 gap-2"
+                      aria-hidden="true"
+                    >
+                      {list.games.slice(0, 4).map((game) => (
+                        <GameCover
+                          key={game.gameId}
+                          imageId={game.coverImageId}
+                          size="cover_small"
+                          className="w-full max-w-12 self-start rounded"
+                        />
+                      ))}
+                      {list.games.length === 0 && (
+                        <div className="col-span-4 flex min-h-17 items-center rounded bg-muted/40 px-3 text-muted-foreground text-xs">
+                          No games added yet
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <h2 className="break-words font-semibold text-base group-hover:underline group-hover:underline-offset-4">
+                        <Link
+                          href={`/lists/${list.id}`}
+                          prefetch={false}
+                          className="outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-offset-4 focus-visible:after:outline-foreground"
+                        >
+                          {list.title}
+                        </Link>
+                      </h2>
+                      <p className="text-muted-foreground text-sm tabular-nums">
+                        {list.visibility === "private" ? "Private" : "Public"} ·{" "}
+                        {list.gameCount}{" "}
+                        {list.gameCount === 1 ? "game" : "games"}
+                        <span className="mx-1" aria-hidden="true">
+                          ·
+                        </span>
+                        <span className="inline-block">
+                          Updated{" "}
+                          {new Date(list.updatedAt).toLocaleDateString("en-US")}
+                        </span>
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </PagedList>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -182,6 +270,7 @@ export function OwnerListEditor({
   const { title, description } = draft;
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [titleError, setTitleError] = useState("");
   const [pending, start] = useTransition();
   const [needsRefresh, setNeedsRefresh] = useState(false);
   const [gone, setGone] = useState(false);
@@ -327,10 +416,19 @@ export function OwnerListEditor({
       </p>
       <form
         aria-label="List details"
+        noValidate
         className="flex max-w-2xl flex-col gap-4"
         onSubmit={(event) => {
           event.preventDefault();
           if (pending || needsRefresh || !ready) return;
+          if (!title.trim()) {
+            setTitleError("Enter a list title.");
+            event.currentTarget
+              .querySelector<HTMLInputElement>('[name="title"]')
+              ?.focus();
+            return;
+          }
+          setTitleError("");
           start(async () => {
             try {
               const result = await editOwnerList(
@@ -369,7 +467,11 @@ export function OwnerListEditor({
         <ListFields
           title={title}
           description={description}
-          onTitle={(title) => update({ title })}
+          titleError={titleError}
+          onTitle={(title) => {
+            update({ title });
+            setTitleError("");
+          }}
           onDescription={(description) => update({ description })}
           disabled={pending || !ready || needsRefresh}
         />

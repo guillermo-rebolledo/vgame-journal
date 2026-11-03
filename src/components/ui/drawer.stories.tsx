@@ -11,6 +11,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "./drawer";
+import { Input } from "./input";
 
 const meta = {
   title: "UI/Drawer",
@@ -75,3 +76,42 @@ export const OpenAndDismiss: Story = {
   },
 };
 export const Open: Story = { args: { defaultOpen: true } };
+
+export const KeepMountedDraft: Story = {
+  render: () => (
+    <Drawer>
+      <DrawerTrigger render={<Button />}>Open draft</DrawerTrigger>
+      <DrawerContent keepMounted>
+        <DrawerHeader>
+          <DrawerTitle>Draft editor</DrawerTitle>
+          <DrawerDescription>Closing keeps your draft.</DrawerDescription>
+        </DrawerHeader>
+        <div className="p-4">
+          <label htmlFor="drawer-draft">Draft title</label>
+          <Input id="drawer-draft" />
+        </div>
+      </DrawerContent>
+    </Drawer>
+  ),
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole("button", {
+      name: "Open draft",
+    });
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(trigger);
+    await userEvent.type(
+      await body.findByRole("textbox", { name: "Draft title" }),
+      "Keep this draft",
+    );
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(body.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    await expect(trigger).toHaveFocus();
+    await userEvent.click(trigger);
+    await expect(
+      await body.findByRole("textbox", { name: "Draft title" }),
+    ).toHaveValue("Keep this draft");
+    await userEvent.keyboard("{Escape}");
+  },
+};

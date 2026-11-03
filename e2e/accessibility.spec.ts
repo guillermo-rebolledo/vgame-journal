@@ -31,6 +31,50 @@ for (const theme of ["light", "dark"] as const) {
   test.describe(`accessibility in ${theme} theme`, () => {
     test.setTimeout(120_000);
 
+    test("lists and list creation drawer", async ({
+      page,
+      request,
+    }, testInfo) => {
+      await signUp(page, request, `axe_lists_${theme}_${Date.now()}`);
+      await chooseTheme(page, theme);
+      await page.goto("/lists");
+      await expect(
+        page
+          .getByText("No lists yet", { exact: true })
+          .filter({ visible: true }),
+      ).toBeVisible();
+      await scan(page, testInfo, "empty-lists");
+      await page
+        .getByRole("button", { name: "Create a list", exact: true })
+        .click();
+      await expect(
+        page.getByRole("dialog", { name: "Create a list", exact: true }),
+      ).toBeVisible();
+      await scan(page, testInfo, "list-creation-drawer");
+      await page
+        .getByRole("textbox", { name: "List title", exact: true })
+        .fill("   ");
+      await page
+        .getByRole("button", { name: "Create list", exact: true })
+        .click();
+      await expect(
+        page.getByRole("textbox", { name: "List title", exact: true }),
+      ).toHaveAttribute("aria-invalid", "true");
+      await scan(page, testInfo, "list-title-validation");
+      await page
+        .getByRole("textbox", { name: "List title", exact: true })
+        .fill("Weekend games");
+      await page
+        .getByRole("button", { name: "Create list", exact: true })
+        .click();
+      await expect(page).toHaveURL(/\/lists\/[a-f0-9-]+$/);
+      await page.goto("/lists");
+      await expect(
+        page.getByRole("link", { name: "Weekend games", exact: true }),
+      ).toBeVisible();
+      await scan(page, testInfo, "populated-lists");
+    });
+
     test("guest pages and search results", async ({ page }, testInfo) => {
       await page.goto("/");
       await chooseTheme(page, theme);
