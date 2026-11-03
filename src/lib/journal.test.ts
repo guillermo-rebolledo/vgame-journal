@@ -1049,3 +1049,54 @@ test("recording outside the journal validates before adding the chosen status an
     completionTag: "completed",
   });
 });
+
+test("Home reads keep new Playing entries, stable addition order and owner-only note-free projections", async () => {
+  await db.insert(game).values(
+    [3, 4, 5, 6].map((id) => ({
+      id,
+      title: `Game ${id}`,
+      slug: `game-${id}`,
+      genres: [],
+      platforms: ["PlayStation 5"],
+      syncedAt: new Date(),
+    })),
+  );
+  vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+  await journal.set("mario", 1, { status: "backlog" });
+  vi.setSystemTime(new Date("2026-02-01T00:00:00Z"));
+  for (const [gameId, status] of [
+    [5, "wishlist"],
+    [4, "played"],
+    [3, "backlog"],
+    [2, "playing"],
+  ] as const)
+    await journal.set("mario", gameId, { status });
+  vi.setSystemTime(new Date("2026-03-01T00:00:00Z"));
+  await journal.set("mario", 6, { status: "playing" });
+  await journal.set("mario", 1, { status: "played" });
+  await journal.set("luigi", 1, { status: "wishlist" });
+  await journal.addPlaythrough("mario", 5, {
+    platform: "PlayStation 5",
+    startedOn: "2026-02-01",
+    notes: "Private Home note",
+  });
+  const entries = await journal.library("mario");
+  expect(
+    entries.slice(0, 4).map((entry) => [entry.gameId, entry.status]),
+  ).toEqual([
+    [6, "playing"],
+    [2, "playing"],
+    [3, "backlog"],
+    [4, "played"],
+  ]);
+  expect(entries.at(-1)).toMatchObject({
+    gameId: 1,
+    addedAt: new Date("2026-01-01T00:00:00Z"),
+  });
+  expect(entries).toHaveLength(6);
+  const wishlist = await journal.wishlist("mario");
+  expect(wishlist.map((entry) => entry.gameId)).toEqual([5]);
+  expect(JSON.stringify({ entries, wishlist })).not.toMatch(
+    /notes|Private Home note|luigi|userId/,
+  );
+});
