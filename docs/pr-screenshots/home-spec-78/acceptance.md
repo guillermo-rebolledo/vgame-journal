@@ -1,8 +1,8 @@
 # Home spec #78 acceptance evidence
 
-Baseline: `d4f0a08`. Issue #78 is one spec with no child tickets. Related #77
-remains a separate issue; this change reuses the existing Journal mutation path
-and canonical game IDs without adding a second Home save implementation.
+Baseline: `d4f0a08`. Issue #78 is one spec with no child tickets. Related #77 merged into main through PR #80 during implementation. This branch
+integrates it and reuses its single save coordinator, canonical game IDs, owner
+checks, explicit guest confirmation, shared Status labels, and solid focus tokens.
 
 | Finding | Observable behavior | Focused evidence |
 | --- | --- | --- |
@@ -29,13 +29,11 @@ Baseline: `pnpm test` passed 28 files / 301 tests. New app-level checks failed
 against the baseline for the missing search landmark and missing Home returnTo.
 Final checks:
 
-- `pnpm lint`: pass (191 files).
+- `pnpm lint`: pass (195 files).
 - `pnpm typecheck`: pass (Next route generation and TypeScript).
-- `pnpm test`: 35 files / 360 tests passed.
-- `pnpm test:e2e --workers=4`: all 87 production browser cases passed.
-- After the final retained-view label fix, the affected discovery, Home-context,
-  Home responsive/personal, and search/Library/Wishlist workflows passed all 12
-  selected production cases with a fresh build.
+- `pnpm test`: 35 files / 366 tests passed.
+- `pnpm test:e2e --workers=4`: all **103** combined production browser cases passed after integrating #77 (3.7 minutes).
+- Focused combined save/discovery/auth/keyboard/focus verification: 13 cases passed.
 - `git diff --check`: pass.
 
 Screenshots were inspected at phone and desktop sizes in both themes. The browser
@@ -60,14 +58,18 @@ one area-level read boundary, so read errors use one area-level recovery state.
 
 No hard documented-standard violations. Two low-priority judgment calls were
 resolved: unused GameSearch guest-content slots were removed, and Home/Wishlist
-release-phase classification now shares `releasePhase`. Lint and typecheck pass.
+release-phase classification now shares `releasePhase`. Lint and typecheck pass. A fresh standards review of the combined #77/#78 diff found no violations or actionable smell findings.
 
 ## Spec review
 
 One partial requirement was found and resolved: both header sign-in entries now
 retain validated Home browsing context. Component and production browser coverage
 exercise both header entry points as well as the body signup/sign-in flow.
-No material scope creep or additional spec defects were found.
+After #77 merged, a fresh review found one additional product issue and two test
+mismatches. Platform disclosures now share the solid 3:1-or-better focus treatment;
+normal-theme and forced-colors browser checks cover them. Skip readiness and focus
+assertions now exercise the accepted game-specific names and stronger system-color
+outlines. No unresolved product finding or material scope creep remains.
 
 ## Runtime corrections
 
@@ -85,3 +87,22 @@ IDs and passes with the change; the discovery retry browser case requires exact
 accessible names after returning to a query-bearing Home view. Recovery checks
 scope themselves to accessible status regions so hidden retained copies cannot
 satisfy or ambiguously fail the outcome assertion.
+
+## Shared Home save integration
+
+All Home occurrences, including discovery, search, Playing, Recently added, and the
+selected Wishlist preview, use the accepted #77 save controls. A single confirmed
+projection supplies counts, current Status, original added timestamps, and only the
+region-resolved release needed by the preview. Per-game reconciliation preserves
+newer responses for other games and sorts by original addition time/title.
+
+The combined browser acceptance changes an older entry through search, verifies
+that its original Recently added position remains, checks region-specific preview
+and subset counts, then changes it through a personal shelf and verifies every
+occurrence, reload, original timestamp, and private history. Pending guest intents
+still require explicit confirmation. Existing owner checks and no-write ordinary
+authentication return coverage remain in place.
+
+Discovery fixture cleanup restores the prior snapshots directly through the
+acknowledged isolated SQL seam; it does not depend on bypassing the production
+refresh lease. Production Retry remains a read-only snapshot refresh.
