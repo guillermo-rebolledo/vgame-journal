@@ -5,6 +5,56 @@ import { seedSql } from "./support/seed-sql";
 import { signUp } from "./support/sign-up";
 import { supportUrl } from "./support/url";
 
+test("an unconfirmed status change cannot make the retained status a false local no-op", async ({
+  page,
+  request,
+}) => {
+  await signUp(page, request, `uncertain_${Date.now()}`);
+  await page.goto("/games/celeste");
+  await chooseStatus(page, "played");
+  await page.goto("/?q=Celeste");
+  const results = page.getByRole("list", { name: "Search results" });
+  const change = results.getByRole("button", {
+    name: "Change status for Celeste",
+    exact: true,
+  });
+  await expect(results.getByText("Played", { exact: true })).toBeVisible();
+  let failed = 0;
+  await page.route("**/*", async (route) => {
+    if (route.request().headers()["next-action"]) {
+      if (failed++ === 0) await route.fetch();
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await change.click();
+  await page
+    .getByRole("menuitemradio", { name: "Backlog", exact: true })
+    .click();
+  await expect(
+    results.getByRole("button", {
+      name: "Retry Celeste to Backlog",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("status", { name: "Journal updates" }),
+  ).toContainText("Celeste: save not confirmed");
+  await expect(results.getByText("Played", { exact: true })).toBeVisible();
+  await page.unrouteAll({ behavior: "wait" });
+  await change.click();
+  await page
+    .getByRole("menuitemradio", { name: "Played", exact: true })
+    .click();
+  await expect(
+    page.getByRole("status", { name: "Journal updates" }),
+  ).toContainText(/Celeste (?:is already Played|saved to Played)/);
+  await page.reload();
+  await expect(results.getByText("Played", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Backlog (0)", exact: true }),
+  ).toBeVisible();
+});
+
 test("Home saves a search result without losing browsing context and opens filtered Backlog", async ({
   page,
   request,
