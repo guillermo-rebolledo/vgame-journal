@@ -109,8 +109,13 @@ test.describe("on a phone", () => {
     page,
   }) => {
     await page.goto("/games/hades--1");
-    await ageRating(page).tap();
-    await expect(ageRating(page)).toHaveAttribute("aria-expanded", "true");
+    // The card streams in after the page; a tap that lands before it hydrates does nothing, so retry.
+    await expect(async () => {
+      await ageRating(page).tap();
+      await expect(ageRating(page)).toHaveAttribute("aria-expanded", "true", {
+        timeout: 1000,
+      });
+    }).toPass();
     await expect(page.getByText("Other regions")).toBeVisible();
     await page.getByRole("heading", { level: 1 }).tap();
     await expect(page.getByText("Other regions")).toHaveCount(0);

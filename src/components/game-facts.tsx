@@ -2,7 +2,7 @@
 
 import { cn } from "cn";
 import { CheckIcon, MinusIcon } from "lucide-react";
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 import {
   HoverCard,
   HoverCardContent,
@@ -78,6 +78,7 @@ function HoverFact({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const openAtTouch = useRef<boolean>(undefined);
   const id = useId();
   return (
     <div className="flex">
@@ -90,9 +91,15 @@ function HoverFact({
             aria-label={`${label}: ${summary}`}
             aria-expanded={open}
             aria-controls={open ? id : undefined}
-            onClick={(event) => {
-              if ((event.nativeEvent as PointerEvent).pointerType === "touch")
-                setOpen(!open);
+            // A tap also focuses and "hovers" the trigger, which opens the card after `delay`; on a
+            // slow device that can land before the click. Toggle from the state at touch-down instead.
+            onPointerDown={(event) => {
+              openAtTouch.current =
+                event.pointerType === "touch" ? open : undefined;
+            }}
+            onClick={() => {
+              if (openAtTouch.current !== undefined)
+                setOpen(!openAtTouch.current);
             }}
             className={cn(
               CARD,
