@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { seedSql } from "./support/seed-sql";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { snap } from "./support/snap";
 import { supportUrl } from "./support/url";
 
@@ -8,7 +8,7 @@ test("lost membership and delete responses reconcile before another mutation", a
   page,
   request,
 }) => {
-  await signUp(page, request, "lists_owner_ambiguous");
+  await signUp(page, request, uniqueUsername("lists_owner_ambiguous"));
   await page.goto("/lists");
   await page
     .getByRole("textbox", { name: "List title", exact: true })
@@ -72,7 +72,7 @@ test("an empty public list can be created explicitly and has generic owner metad
   page,
   request,
 }) => {
-  await signUp(page, request, "lists_owner_public_create");
+  await signUp(page, request, uniqueUsername("lists_owner_public_create"));
   await page.goto("/lists");
   await page
     .getByRole("textbox", { name: "List title", exact: true })
@@ -104,7 +104,7 @@ test("owner routes and direct mutations reject another actor, and a switched-acc
   browser,
   context,
 }) => {
-  await signUp(page, request, "lists_owner_guard");
+  await signUp(page, request, uniqueUsername("lists_owner_guard"));
   await page.goto("/lists");
   await page
     .getByRole("textbox", { name: "List title", exact: true })
@@ -126,7 +126,7 @@ test("owner routes and direct mutations reject another actor, and a switched-acc
   ).toBeVisible();
   const otherContext = await browser.newContext();
   const other = await otherContext.newPage();
-  await signUp(other, request, "lists_other_guard");
+  await signUp(other, request, uniqueUsername("lists_other_guard"));
   const session = await (
     await other.request.get("/api/auth/get-session")
   ).json();
@@ -177,7 +177,11 @@ test("owner read and search failures stay distinct from empty states and can be 
   page,
   request,
 }) => {
-  const email = await signUp(page, request, "lists_owner_unavailable");
+  const email = await signUp(
+    page,
+    request,
+    uniqueUsername("lists_owner_unavailable"),
+  );
   await request.post(supportUrl("/collection-delay"), {
     data: { email, fail: true },
   });
@@ -233,7 +237,7 @@ test("keyboard moves cross game pages with focus and preserve URL state, and own
 }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 760 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await signUp(page, request, "lists_owner_pages");
+  await signUp(page, request, uniqueUsername("lists_owner_pages"));
   await page.goto("/lists");
   await page
     .getByRole("textbox", { name: "List title", exact: true })
@@ -336,7 +340,8 @@ test("signup and username onboarding return to the selected game without mutatin
   await page
     .getByRole("link", { name: "Create an account", exact: true })
     .click();
-  const email = "lists_owner_onboard@example.com";
+  const username = uniqueUsername("lists_owner_onboard");
+  const email = `${username}@example.com`;
   await page.getByLabel("Name", { exact: true }).fill("Player");
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill("password123");
@@ -348,9 +353,7 @@ test("signup and username onboarding return to the selected game without mutatin
   const mail = mailbox.findLast((mail: { to: string }) => mail.to === email);
   await page.goto(mail.text.match(/https?:\S+/)[0]);
   await expect(page).toHaveURL(/\/onboarding\?returnTo=/);
-  await page
-    .getByLabel("Username", { exact: true })
-    .fill("lists_owner_onboard");
+  await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page).toHaveURL(/\/games\/celeste\?addToList=1$/);
   await expect(
@@ -366,7 +369,11 @@ test("game-page picker retains the selected game through sign-in and no-lists cr
   page,
   request,
 }) => {
-  const email = await signUp(page, request, "lists_owner_picker");
+  const email = await signUp(
+    page,
+    request,
+    uniqueUsername("lists_owner_picker"),
+  );
   await page.context().clearCookies();
   await page.goto("/games/celeste");
   await expect(
@@ -431,7 +438,11 @@ test("expired sessions preserve metadata through sign-in and a lost save require
   request,
   context,
 }) => {
-  const email = await signUp(page, request, "lists_owner_session");
+  const email = await signUp(
+    page,
+    request,
+    uniqueUsername("lists_owner_session"),
+  );
   await page.goto("/lists");
   await page
     .getByRole("textbox", { name: "List title", exact: true })
@@ -492,7 +503,7 @@ test("a lost creation response retains the draft and retry key across reload wit
   page,
   request,
 }) => {
-  await signUp(page, request, "lists_owner_retry");
+  await signUp(page, request, uniqueUsername("lists_owner_retry"));
   await page.goto("/lists");
   await page
     .getByRole("textbox", { name: "List title", exact: true })
@@ -530,7 +541,7 @@ test("stale metadata cannot republish a list and refresh keeps the local draft f
   request,
   context,
 }) => {
-  await signUp(page, request, "lists_owner_stale");
+  await signUp(page, request, uniqueUsername("lists_owner_stale"));
   await page.goto("/lists");
   await page
     .getByRole("textbox", { name: "List title", exact: true })
@@ -599,7 +610,8 @@ test("publishing is separate from metadata, links survive renames, clipboard den
   page,
   request,
 }) => {
-  await signUp(page, request, "lists_owner_share");
+  const username = uniqueUsername("lists_owner_share");
+  await signUp(page, request, username);
   await page.goto("/lists");
   await page
     .getByRole("textbox", { name: "List title", exact: true })
@@ -624,7 +636,7 @@ test("publishing is separate from metadata, links survive renames, clipboard den
   });
   const url = await sharing.inputValue();
   expect(url).toMatch(
-    /^https:\/\/shelve.games\/u\/lists_owner_share\/lists\/[a-f0-9-]+$/,
+    new RegExp(`^https://shelve[.]games/u/${username}/lists/[a-f0-9-]+$`),
   );
   await page.getByRole("button", { name: "Save details", exact: true }).click();
   await expect(
@@ -677,7 +689,7 @@ test("Catalog selection appends, deduplicates, moves and removes without recordi
   page,
   request,
 }) => {
-  await signUp(page, request, "lists_owner_catalog");
+  await signUp(page, request, uniqueUsername("lists_owner_catalog"));
   await page.goto("/lists");
   await page
     .getByRole("textbox", { name: "List title", exact: true })
@@ -739,7 +751,7 @@ test("owner creates an empty private list, saves metadata, and keeps duplicate t
   page,
   request,
 }) => {
-  await signUp(page, request, "lists_owner_create");
+  await signUp(page, request, uniqueUsername("lists_owner_create"));
   await page
     .getByRole("navigation", { name: "Main", exact: true })
     .getByRole("link", { name: "Lists", exact: true })

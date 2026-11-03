@@ -26,7 +26,7 @@ export function DiscoveryLoading() {
       </output>
       {["recent", "popular"].map((key) => (
         <div key={key} aria-hidden="true" className="flex flex-col gap-3">
-          <div className="h-7 w-44 rounded bg-muted" />
+          <div className="h-7 w-44 max-w-full rounded bg-muted" />
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {[1, 2, 3, 4].map((tile) => (
               <div key={tile} className="flex flex-col gap-2">

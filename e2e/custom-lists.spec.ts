@@ -7,7 +7,7 @@ import {
   test,
 } from "@playwright/test";
 import { chooseStatus } from "./support/journal";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { snap } from "./support/snap";
 
 async function createList(page: Page, title: string) {
@@ -63,7 +63,7 @@ test("real Next actions recheck sessions and ownership for every list mutation f
   request,
   browser,
 }) => {
-  await signUp(page, request, "lists_accept_actions");
+  await signUp(page, request, uniqueUsername("lists_accept_actions"));
   await page.goto("/lists");
   await page
     .getByRole("textbox", { name: "List title", exact: true })
@@ -89,7 +89,11 @@ test("real Next actions recheck sessions and ownership for every list mutation f
   const stranger = await browser.newContext();
   const anonymous = await browser.newContext();
   try {
-    await signUp(await stranger.newPage(), request, "lists_accept_attacker");
+    await signUp(
+      await stranger.newPage(),
+      request,
+      uniqueUsername("lists_accept_attacker"),
+    );
     const session = await (
       await stranger.request.get("/api/auth/get-session")
     ).json();
@@ -185,7 +189,7 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
   request,
   browser,
 }, testInfo) => {
-  const username = "lists_accept_lifecycle";
+  const username = uniqueUsername("lists_accept_lifecycle");
   await signUp(page, request, username);
   const ownerPath = await createList(page, "LIFECYCLE_PRIVATE_88");
   await page
@@ -228,7 +232,11 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
   const stranger = await browser.newContext();
   try {
     const guest = await visitor.newPage();
-    await signUp(await stranger.newPage(), request, "lists_accept_reader");
+    await signUp(
+      await stranger.newPage(),
+      request,
+      uniqueUsername("lists_accept_reader"),
+    );
     for (const client of [visitor.request, stranger.request, page.request]) {
       await deniedList(client, path, [
         "LIFECYCLE_PRIVATE_88",
@@ -344,7 +352,7 @@ test("lists preserve Journal history and account export/deletion stays complete 
   request,
   browser,
 }) => {
-  const username = "lists_accept_account";
+  const username = uniqueUsername("lists_accept_account");
   await signUp(page, request, username);
   await page.goto("/games/celeste");
   await chooseStatus(page, "played");
@@ -453,7 +461,7 @@ test("lists preserve Journal history and account export/deletion stays complete 
   });
   try {
     const other = await survivor.newPage();
-    await signUp(other, request, "lists_accept_survivor");
+    await signUp(other, request, uniqueUsername("lists_accept_survivor"));
     const survivingPath = await createList(other, "Surviving collection");
     await addGame(other, "Celeste");
     await other.goto("/games/celeste");

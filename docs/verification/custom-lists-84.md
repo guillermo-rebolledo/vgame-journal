@@ -1,5 +1,35 @@
 # Custom Lists acceptance — #84 / #88
 
+## CI failure follow-up
+
+The first GitHub run at `7acada8` passed the check job but failed the browser job.
+The failing lifecycle case first hit an `AbortError` in screenshot capture, then its
+retry reused an account and bypassed username onboarding. Both enlarged-text Home
+cases also exposed a 384 px loading placeholder on a 320 px viewport.
+
+Each failure was reproduced before its fix:
+
+- The lifecycle case repeated twice against one PGlite server passed once, then
+  reproduced the onboarding URL failure with retries disabled.
+- The new screenshot regression canceled a native in-flight animation while
+  `snap` awaited it: all four repetitions reproduced the same `AbortError`.
+- Holding the existing discovery query open and measuring the real loading state
+  at 320 px with a 32 px root font reproduced a document width of 384 px.
+
+The screenshot helper now waits for settled animation promises, including normal
+cancellation. List browser tests use fresh, username-length-safe account names on
+every attempt, including the manual onboarding journey. The discovery title
+placeholder is constrained to its container. The width assertions and all privacy,
+workflow and ownership assertions remain intact; no retries or timeouts were added.
+
+Repeated screenshot/lifecycle validation passed six cases with four workers and
+retries disabled. Lint and typecheck pass. The expanded discovery loading-state
+assertion also passes. Full browser verification uses the CI concurrency explicitly:
+
+```sh
+CI=1 E2E_PORT=3700 E2E_SUPPORT_PORT=3701 pnpm test:e2e --workers=4 --retries=0
+```
+
 ## Final implementer fix pass and upstream integration
 
 November 3, 2026. Isolated worktree

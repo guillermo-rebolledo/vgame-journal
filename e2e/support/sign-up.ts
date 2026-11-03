@@ -1,5 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { type APIRequestContext, expect, type Page } from "@playwright/test";
 import { supportUrl } from "./url";
+
+/** Retries and repeats share a database, so each test attempt needs fresh accounts. */
+export function uniqueUsername(prefix: string) {
+  return `${prefix.slice(0, 21)}_${randomUUID().slice(0, 8)}`;
+}
 
 /** Signs up with email, follows the verification mail, and claims `username`; ends on Home. */
 export async function signUp(
