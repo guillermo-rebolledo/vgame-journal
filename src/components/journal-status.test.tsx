@@ -37,7 +37,11 @@ function renderStatus(
 
 async function choose(name: string | RegExp) {
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "Journal status" }));
+  await user.click(
+    screen.getByRole("button", {
+      name: /^(?:Add to Journal|Change Journal status) for /,
+    }),
+  );
   await user.click(await screen.findByRole("menuitemradio", { name }));
 }
 
@@ -103,7 +107,11 @@ test("removing an entry records whether it had playthroughs, once confirmed", as
     vi.fn(async () => undefined),
     2,
   );
-  await user.click(screen.getByRole("button", { name: "Journal status" }));
+  await user.click(
+    screen.getByRole("button", {
+      name: /^(?:Add to Journal|Change Journal status) for /,
+    }),
+  );
   await user.click(
     await screen.findByRole("menuitem", { name: "Remove from journal" }),
   );

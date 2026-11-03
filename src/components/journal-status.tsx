@@ -117,7 +117,7 @@ export function JournalStatus({
                 render={
                   <Button
                     ref={trigger}
-                    aria-label="Journal status"
+                    aria-label={`${entry ? "Change Journal status" : "Add to Journal"} for ${gameTitle}`}
                     aria-description={
                       entry
                         ? `In your journal: ${entry.status}${entry.completionTag ? `, ${entry.completionTag}` : ""}`
@@ -126,14 +126,14 @@ export function JournalStatus({
                     aria-busy={pending}
                     aria-disabled={disabled || pending}
                     variant={entry ? "secondary" : "outline"}
-                    size="icon"
-                    className="size-11 rounded-full"
+                    className="journal-action min-h-11"
                   >
                     {pending ? (
                       <LoaderCircle className="animate-spin" />
                     ) : (
                       <BookMarked fill={entry ? "currentColor" : "none"} />
                     )}
+                    {entry ? "Change Journal status" : "Add to Journal"}
                   </Button>
                 }
               />
@@ -141,7 +141,7 @@ export function JournalStatus({
           />
           <TooltipContent>Journal status</TooltipContent>
         </Tooltip>
-        <DropdownMenuContent className="w-60">
+        <DropdownMenuContent className="journal-status-menu w-60">
           <DropdownMenuGroup>
             <DropdownMenuLabel>Journal status</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={entry?.status ?? ""}>
@@ -150,7 +150,7 @@ export function JournalStatus({
                   closeOnClick
                   key={status}
                   value={status}
-                  className="min-h-10 capitalize"
+                  className="min-h-11 capitalize"
                   disabled={pending}
                   onClick={() =>
                     save(
@@ -177,7 +177,7 @@ export function JournalStatus({
                       closeOnClick
                       key={tag}
                       value={tag}
-                      className="min-h-10 capitalize"
+                      className="min-h-11 capitalize"
                       disabled={pending}
                       onClick={() =>
                         save(

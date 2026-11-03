@@ -6,6 +6,7 @@ import {
 } from "@playwright/test";
 import { chooseTheme } from "./support/header";
 import { signUp } from "./support/sign-up";
+import { supportUrl } from "./support/url";
 
 test("signed-out visitors see Sign in and can't reach onboarding", async ({
   page,
@@ -41,12 +42,19 @@ test("R10 guest recording returns an existing member to the game after retry wit
   await page.context().clearCookies();
   await page.goto("/games/celeste");
   const journal = page.getByRole("region", { name: "Game journal" });
-  for (const name of ["Journal status", "Add playthrough", "Sign in"])
+  for (const name of [
+    /^(?:Add to Journal|Change Journal status) for /,
+    "Add playthrough",
+    "Sign in",
+  ])
     await expect(
       journal.getByRole("link", { name, exact: true }),
     ).toHaveAttribute("href", "/sign-in?returnTo=%2Fgames%2Fceleste");
   await journal
-    .getByRole("link", { name: "Journal status", exact: true })
+    .getByRole("link", {
+      name: /^(?:Add to Journal|Change Journal status) for /,
+      exact: true,
+    })
     .click();
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill("wrong-password");
@@ -63,7 +71,10 @@ test("R10 guest recording returns an existing member to the game after retry wit
   await page.getByRole("button", { name: "Sign in with email" }).click();
   await expect(page).toHaveURL("/games/celeste");
   await expect(
-    page.getByRole("button", { name: "Journal status", exact: true }),
+    page.getByRole("button", {
+      name: /^(?:Add to Journal|Change Journal status) for /,
+      exact: true,
+    }),
   ).toHaveAttribute("aria-description", "Not in your journal");
   await expect(journal.getByText("No playthroughs yet.")).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -153,9 +164,7 @@ test("R10 signup switching, verification resend and username retry preserve the 
   await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "Verify your email first",
   );
-  const mailbox = await (
-    await request.get("http://127.0.0.1:3101/mailbox")
-  ).json();
+  const mailbox = await (await request.get(supportUrl("/mailbox"))).json();
   const verification = mailbox.filter(
     (mail: { to: string }) => mail.to === email,
   );
@@ -181,7 +190,10 @@ test("R10 signup switching, verification resend and username retry preserve the 
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page).toHaveURL("/games/celeste");
   await expect(
-    page.getByRole("button", { name: "Journal status", exact: true }),
+    page.getByRole("button", {
+      name: /^(?:Add to Journal|Change Journal status) for /,
+      exact: true,
+    }),
   ).toHaveAttribute("aria-description", "Not in your journal");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   const exported = await (await page.request.get("/api/account/export")).json();
@@ -307,9 +319,7 @@ test("R10 username selection and both session gates reject unsafe continuations"
     data: { name: "Player", email, password: "password123", callbackURL: "/" },
   });
   expect(signup.ok()).toBe(true);
-  const mailbox = await (
-    await request.get("http://127.0.0.1:3101/mailbox")
-  ).json();
+  const mailbox = await (await request.get(supportUrl("/mailbox"))).json();
   const verification = mailbox.findLast(
     (mail: { to: string }) => mail.to === email,
   );
@@ -421,9 +431,7 @@ test("new-account passwords explain length errors and retain nonsecret fields", 
     await expect(page.getByLabel("Email", { exact: true })).toHaveValue(email);
     await expect(password).toHaveValue("");
   }
-  const mailbox = await (
-    await request.get("http://127.0.0.1:3101/mailbox")
-  ).json();
+  const mailbox = await (await request.get(supportUrl("/mailbox"))).json();
   expect(mailbox.filter((mail: { to: string }) => mail.to === email)).toEqual(
     [],
   );
@@ -454,9 +462,7 @@ async function requestResetLink(
   await expect(
     page.getByText(`If ${email} has an account, a reset link is on its way.`),
   ).toBeVisible();
-  const mailbox = await (
-    await request.get("http://127.0.0.1:3101/mailbox")
-  ).json();
+  const mailbox = await (await request.get(supportUrl("/mailbox"))).json();
   const mail = mailbox.findLast(
     (mail: { to: string; subject: string }) =>
       mail.to === email && mail.subject.startsWith("Reset "),
@@ -482,7 +488,7 @@ test("expired resets preserve the old password and a replacement reset acknowled
   await page.goto(await requestResetLink(page, request, email));
   const expiredToken = new URL(page.url()).searchParams.get("token");
   expect(expiredToken).toBeTruthy();
-  const expired = await request.post("http://127.0.0.1:3101/query", {
+  const expired = await request.post(supportUrl("/query"), {
     data: {
       sql: "update verification set expires_at = $1 where identifier = $2 returning id",
       params: ["2000-01-01T00:00:00.000Z", `reset-password:${expiredToken}`],
@@ -500,7 +506,7 @@ test("expired resets preserve the old password and a replacement reset acknowled
   const signIn = (password: string) =>
     request.post("/api/auth/sign-in/email", {
       data: { email, password },
-      headers: { origin: "http://localhost:3100" },
+      headers: { origin: new URL(page.url()).origin },
     });
   expect((await signIn("password123")).ok()).toBe(true);
   expect((await signIn(replacement)).status()).toBe(401);

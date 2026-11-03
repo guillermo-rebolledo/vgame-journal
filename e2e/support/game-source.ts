@@ -248,6 +248,24 @@ export const igdbGameSource = createFakeGameSource([
     summary: null,
   }),
 
+  ...Array.from({ length: 8 }, (_, i) =>
+    sourceGame({
+      id: 301 + i,
+      title: `Search Journey ${i + 1}`,
+      slug: `search-journey-${i + 1}`,
+      platforms: ["PC"],
+      releaseDates: [
+        {
+          platform: "PC",
+          region: "worldwide",
+          date: new Date("2020-01-01"),
+          precision: "day",
+          status: null,
+        },
+      ],
+    }),
+  ),
+
   ...["One", "Two", "Three", "Four", "Five"].map((name, i) =>
     sourceGame({
       id: 201 + i,

@@ -3,6 +3,7 @@ import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
 import { snap } from "./support/snap";
+import { supportUrl } from "./support/url";
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -22,12 +23,9 @@ for (const viewport of [
       await expect(page.locator("html")).toHaveClass(new RegExp(theme));
 
       const delay = async (milliseconds: number) => {
-        const response = await request.post(
-          "http://127.0.0.1:3101/collection-delay",
-          {
-            data: { email, milliseconds },
-          },
-        );
+        const response = await request.post(supportUrl("/collection-delay"), {
+          data: { email, milliseconds },
+        });
         expect(response.ok()).toBeTruthy();
       };
       const visit = async (

@@ -2,6 +2,7 @@ import { expect, type Locator, test } from "@playwright/test";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
+import { supportUrl } from "./support/url";
 
 test.use({ video: "on", trace: "on" });
 test.describe.configure({ timeout: 90_000 });
@@ -22,10 +23,16 @@ test("journal choices, tags, errors and removal preserve saved state", async ({
   ])
     await chooseStatus(page, status);
   await expect(
-    page.getByRole("button", { name: "Journal status", exact: true }),
+    page.getByRole("button", {
+      name: /^(?:Add to Journal|Change Journal status) for /,
+      exact: true,
+    }),
   ).toBeFocused();
   await page
-    .getByRole("button", { name: "Journal status", exact: true })
+    .getByRole("button", {
+      name: /^(?:Add to Journal|Change Journal status) for /,
+      exact: true,
+    })
     .click();
   await expect(
     page.getByRole("menuitemradio", { name: "completed", exact: true }),
@@ -37,7 +44,10 @@ test("journal choices, tags, errors and removal preserve saved state", async ({
   await chooseStatus(page, "backlog");
   await chooseStatus(page, "played");
   await page
-    .getByRole("button", { name: "Journal status", exact: true })
+    .getByRole("button", {
+      name: /^(?:Add to Journal|Change Journal status) for /,
+      exact: true,
+    })
     .click();
   await expect(
     page.getByRole("menuitemradio", { name: "No tag", exact: true }),
@@ -48,7 +58,10 @@ test("journal choices, tags, errors and removal preserve saved state", async ({
     route.request().method() === "POST" ? route.abort() : route.continue();
   await page.route("**/games/celeste", fail);
   await page
-    .getByRole("button", { name: "Journal status", exact: true })
+    .getByRole("button", {
+      name: /^(?:Add to Journal|Change Journal status) for /,
+      exact: true,
+    })
     .click();
   await page
     .getByRole("menuitemradio", { name: "wishlist", exact: true })
@@ -59,11 +72,17 @@ test("journal choices, tags, errors and removal preserve saved state", async ({
   await page.unroute("**/games/celeste", fail);
   await chooseStatus(page, "wishlist");
   await page
-    .getByRole("button", { name: "Journal status", exact: true })
+    .getByRole("button", {
+      name: /^(?:Add to Journal|Change Journal status) for /,
+      exact: true,
+    })
     .click();
   await page.getByRole("menuitem", { name: "Remove from journal" }).click();
   await expect(
-    page.getByRole("button", { name: "Journal status", exact: true }),
+    page.getByRole("button", {
+      name: /^(?:Add to Journal|Change Journal status) for /,
+      exact: true,
+    }),
   ).toHaveAttribute("aria-description", "Not in your journal");
 });
 
@@ -96,7 +115,10 @@ test("drawer drafts, validation, retry, outside-journal status, editing and dele
     page.getByText("No playthroughs yet.").filter({ visible: true }),
   ).toBeVisible();
   await expect(page.getByLabel("Started", { exact: true })).toHaveCount(0);
-  for (const name of ["Journal status", "Add playthrough"]) {
+  for (const name of [
+    /^(?:Add to Journal|Change Journal status) for /,
+    "Add playthrough",
+  ]) {
     const box = await page
       .getByRole("button", { name, exact: true })
       .boundingBox();
@@ -220,7 +242,7 @@ test("signed-out actions lead to sign in and no-platform games explain the limit
     .click();
   await expect(page).toHaveURL("/sign-in?returnTo=%2Fgames%2Fceleste");
   await signUp(page, request, `platformless_${Date.now()}`);
-  await request.post("http://127.0.0.1:3101/query", {
+  await request.post(supportUrl("/query"), {
     data: {
       sql: "insert into game (id, title, slug, genres, platforms, synced_at) values (8888, 'No platforms', 'no-platforms', '{}', '{}', now()) on conflict do nothing",
       params: [],
@@ -242,19 +264,19 @@ test("delayed personal content reveals one compact action area without opening a
 }) => {
   const email = await signUp(page, request, `delayed_record_${Date.now()}`);
   await page.goto("/games/celeste");
-  await request.post("http://127.0.0.1:3101/query", {
+  await request.post(supportUrl("/query"), {
     data: {
       sql: `insert into journal_entry (user_id, game_id, status) select id, 1, 'played' from "user" where email = $1`,
       params: [email],
     },
   });
-  await request.post("http://127.0.0.1:3101/query", {
+  await request.post(supportUrl("/query"), {
     data: {
       sql: `insert into playthrough (user_id, game_id, platform, started_on, notes) select u.id, 1, 'PC', '2026-01-01', 'Delayed history ' || n from "user" u cross join generate_series(1, 5) n where email = $1`,
       params: [email],
     },
   });
-  await request.post("http://127.0.0.1:3101/collection-delay", {
+  await request.post(supportUrl("/collection-delay"), {
     data: { email, milliseconds: 2000 },
   });
   await page.goto("/games/celeste", { waitUntil: "commit" });
@@ -276,7 +298,7 @@ test("delayed personal content reveals one compact action area without opening a
   ).toBeLessThan(2);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByLabel("Started", { exact: true })).toHaveCount(0);
-  await request.post("http://127.0.0.1:3101/collection-delay", {
+  await request.post(supportUrl("/collection-delay"), {
     data: { email, milliseconds: 0 },
   });
 });
@@ -356,7 +378,7 @@ test("F01: cancelling or dismissing Journal removal preserves saved Playthroughs
       writes++;
   });
   const trigger = page.getByRole("button", {
-    name: "Journal status",
+    name: /^(?:Add to Journal|Change Journal status) for /,
     exact: true,
   });
   const dialog = page.getByRole("dialog", {
@@ -419,7 +441,10 @@ test("F01: confirmed removal waits for acknowledgement, recovers locally, and pe
   }
   const before = await (await page.request.get("/api/account/export")).json();
   await page
-    .getByRole("button", { name: "Journal status", exact: true })
+    .getByRole("button", {
+      name: /^(?:Add to Journal|Change Journal status) for /,
+      exact: true,
+    })
     .click();
   await page.getByRole("menuitem", { name: "Remove from journal" }).click();
   const dialog = page.getByRole("dialog", {
@@ -507,7 +532,10 @@ test("F01: confirmed removal waits for acknowledgement, recovers locally, and pe
   );
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "Journal status", exact: true }),
+    page.getByRole("button", {
+      name: /^(?:Add to Journal|Change Journal status) for /,
+      exact: true,
+    }),
   ).toHaveAttribute("aria-description", "Not in your journal");
   const removed = await (await page.request.get("/api/account/export")).json();
   expect(removed.entries).toEqual([]);
@@ -557,7 +585,7 @@ test.describe("F01: stale Journal removal on a touch screen", () => {
     await addInOtherTab("Private note added in the other tab");
     const before = await (await page.request.get("/api/account/export")).json();
     const trigger = page.getByRole("button", {
-      name: "Journal status",
+      name: /^(?:Add to Journal|Change Journal status) for /,
       exact: true,
     });
     await trigger.tap();
@@ -591,7 +619,10 @@ test.describe("F01: stale Journal removal on a touch screen", () => {
     );
     await other.reload();
     await expect(
-      other.getByRole("button", { name: "Journal status", exact: true }),
+      other.getByRole("button", {
+        name: /^(?:Add to Journal|Change Journal status) for /,
+        exact: true,
+      }),
     ).toHaveAttribute("aria-description", "Not in your journal");
     const removed = await (
       await page.request.get("/api/account/export")
