@@ -188,7 +188,7 @@ test("pending and failed discovery leave search and personal shelves usable", as
       page.getByRole("region", { name: "Recently released", exact: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByText("Discovery is unavailable.", { exact: false }),
+      page.getByRole("status").filter({ hasText: "Discovery is unavailable." }),
     ).toBeVisible();
     await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
     const location = page.url();
@@ -196,7 +196,9 @@ test("pending and failed discovery leave search and personal shelves usable", as
       data: { fail: false, hold: true },
     });
     await page.getByRole("button", { name: "Retry discovery" }).click();
-    await expect(page.getByText("Retrying discovery…")).toBeVisible();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Retrying discovery…" }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Retry discovery" }),
     ).toBeDisabled();
