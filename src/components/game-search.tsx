@@ -10,6 +10,7 @@ import {
 } from "@/components/analytics";
 import { GameCover } from "@/components/game-cover";
 import { HomeCoverLink } from "@/components/home-cover-link";
+import { HomeSaveControls } from "@/components/home-journal";
 import { PlatformName } from "@/components/platform";
 import { TiltCover } from "@/components/tilt-cover";
 import { Button } from "@/components/ui/button";
@@ -124,6 +125,7 @@ export function GameSearch({
         />
       </div>
       <output
+        aria-label="Search updates"
         aria-live="polite"
         className="text-muted-foreground text-sm empty:hidden"
       >
@@ -217,7 +219,7 @@ export function GameSearch({
                   href={`/games/${game.slug}`}
                   title={game.title}
                   prefetch={true}
-                  className="-mx-2 flex items-center gap-3 rounded-md p-2 hover:bg-muted focus-visible:bg-muted"
+                  className="home-details -mx-2 flex items-center gap-3 rounded-md p-2 hover:bg-muted focus-visible:bg-muted"
                   cover={
                     <div
                       className="cover-entry shrink-0"
@@ -250,6 +252,7 @@ export function GameSearch({
                     />
                   </div>
                 </HomeCoverLink>
+                <HomeSaveControls game={{ ...game, gameId: game.id }} />
               </li>
             ),
           )}
