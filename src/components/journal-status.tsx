@@ -21,6 +21,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { SAVED_LABELS } from "@/lib/home-journal";
 import type { JournalRemovalConfirmation } from "@/lib/journal";
 import {
   COMPLETION_TAGS,
@@ -29,13 +30,6 @@ import {
   STATUSES,
   type Status,
 } from "@/lib/library";
-
-const STATUS_LABELS: Record<Status, string> = {
-  played: "Played",
-  playing: "Playing",
-  backlog: "In backlog",
-  wishlist: "Wishlisted",
-};
 
 export type JournalSelection = {
   status: Status;
@@ -104,7 +98,7 @@ export function JournalStatus({
               had_playthroughs: playthroughCount > 0,
             });
           } else if (status !== confirmed?.status) {
-            setNotice(`${gameTitle}: ${STATUS_LABELS[status]}.`);
+            setNotice(`${gameTitle}: ${SAVED_LABELS[status]}.`);
             trackEvent("journal_status_set", {
               status,
               change: confirmed ? "changed" : "added",
@@ -142,7 +136,7 @@ export function JournalStatus({
                 render={
                   <Button
                     ref={trigger}
-                    aria-label="Journal status"
+                    aria-label={`${confirmed ? "Change Journal status" : "Add to Journal"} for ${gameTitle}`}
                     aria-description={
                       confirmed
                         ? `In your journal: ${confirmed.status}${confirmed.completionTag ? `, ${confirmed.completionTag}` : ""}`
@@ -151,14 +145,14 @@ export function JournalStatus({
                     aria-busy={pending}
                     aria-disabled={disabled || pending}
                     variant={confirmed ? "secondary" : "outline"}
-                    size="icon"
-                    className="size-11 rounded-full"
+                    className="journal-action min-h-11"
                   >
                     {pending ? (
                       <LoaderCircle className="animate-spin" />
                     ) : (
                       <BookMarked fill={confirmed ? "currentColor" : "none"} />
                     )}
+                    {confirmed ? "Change Journal status" : "Add to Journal"}
                   </Button>
                 }
               />
@@ -166,7 +160,7 @@ export function JournalStatus({
           />
           <TooltipContent>Journal status</TooltipContent>
         </Tooltip>
-        <DropdownMenuContent className="w-60">
+        <DropdownMenuContent className="journal-status-menu w-60">
           <DropdownMenuGroup>
             <DropdownMenuLabel>Journal status</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={confirmed?.status ?? ""}>
@@ -175,7 +169,7 @@ export function JournalStatus({
                   closeOnClick
                   key={status}
                   value={status}
-                  className="min-h-10 capitalize"
+                  className="min-h-11 capitalize"
                   disabled={pending}
                   onClick={() =>
                     save(
@@ -204,7 +198,7 @@ export function JournalStatus({
                       closeOnClick
                       key={tag}
                       value={tag}
-                      className="min-h-10 capitalize"
+                      className="min-h-11 capitalize"
                       disabled={pending}
                       onClick={() =>
                         save(
@@ -303,7 +297,7 @@ export function JournalStatus({
         </Dialog.Portal>
       </Dialog.Root>
       <p className="mt-2 text-sm">
-        {confirmed ? STATUS_LABELS[confirmed.status] : "Not in your Journal"}
+        {confirmed ? SAVED_LABELS[confirmed.status] : "Not in your Journal"}
       </p>
       <output
         className={notice ? "mt-2 block text-sm" : "sr-only"}

@@ -235,7 +235,7 @@ for (const source of ["search", "shelf"] as const) {
     await expect(search).toBeVisible();
     const shelf = page
       .getByRole("region", { name: "Recently added" })
-      .getByRole("link", { name: "Celeste Backlog", exact: true });
+      .getByRole("link", { name: "Celeste", exact: true });
     await expect(shelf).toBeVisible();
     const link = source === "search" ? search : shelf;
     const cover = link.locator("img");

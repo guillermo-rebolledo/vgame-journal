@@ -136,3 +136,107 @@ test("Home summaries, compact personal shelves, addition order and region-aware 
     .click();
   await expect(page).toHaveURL("/library?sort=added");
 });
+
+test("direct Home status changes reconcile release preview and counts without changing addition order or private history", async ({
+  page,
+  request,
+}) => {
+  const email = await signUp(page, request, `integrated78_${Date.now()}`);
+  await seedSql(
+    request,
+    [
+      `insert into game (id, title, slug, genres, tags, platforms, synced_at)
+     values (78101, 'Home integration older', 'home-integration-older', '{}', '{}', '{PC}', now()),
+            (78102, 'Home integration newer', 'home-integration-newer', '{}', '{}', '{PC}', now())
+     on conflict (id) do nothing`,
+      `insert into journal_entry (user_id, game_id, status, created_at, updated_at)
+     select id, 78101, 'backlog', '2026-01-01', '2026-01-01' from "user" where email = $1`,
+      `insert into journal_entry (user_id, game_id, status, created_at, updated_at)
+     select id, 78102, 'playing', '2026-02-01', '2026-02-01' from "user" where email = $1`,
+      `insert into release_date (game_id, region, date, precision)
+     select 78101, 'japan', '2098-11-05', 'day' where not exists (select 1 from release_date where game_id = 78101 and region = 'japan')`,
+      `insert into release_date (game_id, region, date, precision)
+     select 78101, 'europe', '2099-12-10', 'day' where not exists (select 1 from release_date where game_id = 78101 and region = 'europe')`,
+      `update "user" set region = 'europe' where email = $1`,
+      `insert into playthrough (user_id, game_id, platform, started_on, notes)
+     select id, 78101, 'PC', '2026-01-01', 'Integrated private history' from "user" where email = $1`,
+    ],
+    [email],
+  );
+  await page.route("**/api/games/search?**", (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 78101,
+          title: "Home integration older",
+          slug: "home-integration-older",
+          coverImageId: null,
+          year: 2098,
+          platforms: ["PC"],
+        },
+      ],
+    }),
+  );
+  const response = await page.goto("/?q=Home%20integration");
+  expect(await response?.text()).not.toContain("Integrated private history");
+  const recent = page.getByRole("region", {
+    name: "Recently added",
+    exact: true,
+  });
+  const search = page.getByRole("list", { name: "Search results" });
+  const preview = page.getByRole("region", {
+    name: "Wishlist release preview",
+  });
+  await expect(recent.getByRole("listitem")).toContainText([
+    "Home integration newer",
+    "Home integration older",
+  ]);
+  await search
+    .getByRole("button", { name: "Change status for Home integration older" })
+    .click();
+  await page
+    .getByRole("menuitemradio", { name: "Wishlist", exact: true })
+    .click();
+  await expect(
+    page.getByRole("link", { name: "All saved games (2)", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Backlog (0)", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Wishlist (1)", exact: true }),
+  ).toBeVisible();
+  await expect(preview).toContainText("Dec 10, 2099");
+  await expect(recent.getByRole("listitem")).toContainText([
+    "Home integration newer",
+    "Home integration older",
+  ]);
+  await expect(recent.getByText("Wishlisted", { exact: true })).toBeVisible();
+  await recent
+    .getByRole("button", { name: "Change status for Home integration older" })
+    .click();
+  await page
+    .getByRole("menuitemradio", { name: "Backlog", exact: true })
+    .click();
+  await expect(preview).toHaveCount(0);
+  await expect(search.getByText("In backlog", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Backlog (1)", exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(recent.getByRole("listitem")).toContainText([
+    "Home integration newer",
+    "Home integration older",
+  ]);
+  const exported = await (await page.request.get("/api/account/export")).json();
+  expect(
+    exported.entries.find((entry: { gameId: number }) => entry.gameId === 78101)
+      .createdAt,
+  ).toContain("2026-01-01");
+  expect(exported.playthroughs).toEqual([
+    expect.objectContaining({
+      gameId: 78101,
+      notes: "Integrated private history",
+    }),
+  ]);
+});

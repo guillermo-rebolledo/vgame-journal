@@ -76,8 +76,8 @@ test("retained Home views keep each search and filter correctly labelled", () =>
   window.history.replaceState(null, "", "/?year=2018&platform=PC&filters=1");
   render(
     <>
-      <GameSearch />
-      <GameSearch />
+      <GameSearch guidance="Find a game, then save it to Backlog or Wishlist." />
+      <GameSearch guidance="Find a game, then save it to Backlog or Wishlist." />
     </>,
   );
   const searches = screen.getAllByLabelText("Search games", {
@@ -90,6 +90,15 @@ test("retained Home views keep each search and filter correctly labelled", () =>
         name: "Search games",
       }),
     ).toHaveLength(1);
+    const input = within(search).getByRole("searchbox", {
+      name: "Search games",
+    });
+    const guidance = document.getElementById(
+      input.getAttribute("aria-describedby") ?? "",
+    );
+    expect(guidance?.textContent).toBe(
+      "Find a game, then save it to Backlog or Wishlist.",
+    );
     for (const name of ["Release year", "Platform"])
       expect(within(search).queryAllByRole("combobox", { name })).toHaveLength(
         1,
@@ -100,19 +109,17 @@ test("retained Home views keep each search and filter correctly labelled", () =>
 test("keeps a visible input label and nearby guidance within a named search landmark", async () => {
   const user = userEvent.setup();
   render(
-    <>
-      <p id="home-search-guidance">
-        Find a game, then save it to Backlog or Wishlist.
-      </p>
-      <GameSearch descriptionId="home-search-guidance" />
-    </>,
+    <GameSearch guidance="Find a game, then save it to Backlog or Wishlist." />,
   );
   const search = screen.getByLabelText("Search games", { selector: "search" });
   expect(within(search).getByLabelText("Search games")).toBe(box());
   const label = within(search).getByText("Search games", { selector: "label" });
   await user.type(box(), "ce");
   expect(label.textContent).toBe("Search games");
-  expect(box().getAttribute("aria-describedby")).toBe("home-search-guidance");
+  expect(
+    document.getElementById(box().getAttribute("aria-describedby") ?? "")
+      ?.textContent,
+  ).toBe("Find a game, then save it to Backlog or Wishlist.");
   expect(
     screen.getAllByText("Find a game, then save it to Backlog or Wishlist."),
   ).toHaveLength(1);

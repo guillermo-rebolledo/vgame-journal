@@ -11,6 +11,7 @@ import {
 import { GameCover } from "@/components/game-cover";
 import { GameIdentificationMetadata } from "@/components/game-identification-metadata";
 import { HomeCoverLink } from "@/components/home-cover-link";
+import { HomeSaveControls } from "@/components/home-journal";
 import { TiltCover } from "@/components/tilt-cover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ const INITIAL_RESULTS = 6;
 /** What came back for one query and attempt; null results mean the search failed. */
 type Answer = { q: string; attempt: number; results: SearchResult[] | null };
 
-export function GameSearch({ descriptionId }: { descriptionId?: string }) {
+export function GameSearch({ guidance }: { guidance?: string }) {
   const id = useId();
   const searchParams = useSearchParams();
   const query = searchParams.get("q") ?? "";
@@ -114,6 +115,11 @@ export function GameSearch({ descriptionId }: { descriptionId?: string }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {guidance && (
+        <p id={`${id}-guidance`} className="text-muted-foreground text-sm">
+          {guidance}
+        </p>
+      )}
       <search aria-labelledby={`${id}-label`} className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <label
@@ -126,7 +132,7 @@ export function GameSearch({ descriptionId }: { descriptionId?: string }) {
           <Input
             id={`${id}-input`}
             type="search"
-            aria-describedby={descriptionId}
+            aria-describedby={guidance ? `${id}-guidance` : undefined}
             placeholder="Search games…"
             value={query}
             onChange={(e) => {
@@ -142,6 +148,7 @@ export function GameSearch({ descriptionId }: { descriptionId?: string }) {
           />
         </div>
         <output
+          aria-label="Search updates"
           aria-live="polite"
           className="text-muted-foreground text-sm empty:hidden"
         >
@@ -292,6 +299,7 @@ export function GameSearch({ descriptionId }: { descriptionId?: string }) {
                       selectedPlatform={platform}
                     />
                   </div>
+                  <HomeSaveControls game={{ ...game, gameId: game.id }} />
                 </li>
               ),
             )}

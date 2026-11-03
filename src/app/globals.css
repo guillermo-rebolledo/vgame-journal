@@ -337,3 +337,24 @@ body {
     transform: none;
   }
 }
+
+/* Solid, separated indicators stay visible beside cover art and in both themes. */
+.home-journal :is(a, button, input):focus-visible,
+.home-journal div:has(> select:focus-visible),
+.journal-action:focus-visible,
+.journal-status-menu [role="menuitemradio"]:focus,
+.home-journal-menu [role="menuitemradio"]:focus {
+  outline: 3px solid var(--foreground);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px var(--background);
+}
+@media (forced-colors: active) {
+  .home-journal :is(a, button, input):focus-visible,
+  .home-journal div:has(> select:focus-visible),
+  .journal-action:focus-visible,
+  .journal-status-menu [role="menuitemradio"]:focus,
+  .home-journal-menu [role="menuitemradio"]:focus {
+    outline-color: Highlight;
+    box-shadow: none;
+  }
+}

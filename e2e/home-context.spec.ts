@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { supportUrl } from "./support/url";
 
 // The search workstream owns the disclosure and candidate rendering; this exercises
 // the real Home/auth continuation flow using its existing controlled-request seam.
@@ -78,9 +79,7 @@ test("Home browsing survives account switching, verification, onboarding and sig
   await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "Verify your email first",
   );
-  const mailbox = await (
-    await request.get("http://127.0.0.1:3101/mailbox")
-  ).json();
+  const mailbox = await (await request.get(supportUrl("/mailbox"))).json();
   const verification = mailbox.filter(
     (mail: { to: string }) => mail.to === email,
   );

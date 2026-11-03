@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { chooseAccountMenuItem } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
+import { supportUrl } from "./support/url";
 
 test("F05/F16: Release region save stays local on transport failure and retries the retained choice", async ({
   page,
@@ -94,7 +95,7 @@ test("F05/F16: invalid region and expired-session action failures stay in Settin
 
   const signedOut = await page.request.post("/api/auth/sign-out", {
     data: {},
-    headers: { origin: "http://localhost:3100" },
+    headers: { origin: new URL(page.url()).origin },
   });
   expect(signedOut.ok()).toBe(true);
   await page.getByRole("radio", { name: /Europe European/ }).check();
@@ -559,7 +560,7 @@ for (const theme of ["dark", "light"]) {
       expect((await account.boundingBox())?.width).toBeGreaterThanOrEqual(44);
 
       const setAvatar = async (image: string) => {
-        const response = await request.post("http://127.0.0.1:3101/query", {
+        const response = await request.post(supportUrl("/query"), {
           data: {
             sql: 'update "user" set image = $1, name = $2 where email = $3',
             params: [image, "PRIVATE_MEDIA_ACCOUNT_NAME", email],

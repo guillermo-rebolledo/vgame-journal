@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { seedSql } from "./support/seed-sql";
 import { signUp } from "./support/sign-up";
+import { supportUrl } from "./support/url";
 
 test("large collections bound rendered rows and retain navigation, search and editing", async ({
   page,
@@ -35,7 +36,7 @@ test("large collections bound rendered rows and retain navigation, search and ed
     ],
     [email],
   );
-  const delay = await request.post("http://127.0.0.1:3101/collection-delay", {
+  const delay = await request.post(supportUrl("/collection-delay"), {
     data: { email, milliseconds: 1500 },
   });
   expect(delay.ok()).toBeTruthy();
@@ -49,7 +50,7 @@ test("large collections bound rendered rows and retain navigation, search and ed
       .getByRole("navigation", { name: "Library games pages" })
       .getByRole("status"),
   ).toHaveText("49–96 of 1000");
-  await request.post("http://127.0.0.1:3101/collection-delay", {
+  await request.post(supportUrl("/collection-delay"), {
     data: { email, milliseconds: 0 },
   });
   await page.goto("/library");
@@ -260,7 +261,7 @@ test("large collections bound rendered rows and retain navigation, search and ed
   await page.goto("/library?libraryPage=999&outPage=3&sort=title");
   await expect(libraryPages.getByRole("status")).toHaveText("961–1000 of 1000");
   await expect(page).toHaveURL(/libraryPage=21&outPage=3&sort=title$/);
-  const shrink = await request.post("http://127.0.0.1:3101/query", {
+  const shrink = await request.post(supportUrl("/query"), {
     data: {
       sql: `delete from journal_entry where user_id = (select id from "user" where email = $1) and game_id >= 10960`,
       params: [email],
@@ -270,7 +271,7 @@ test("large collections bound rendered rows and retain navigation, search and ed
   await page.reload();
   await expect(libraryPages.getByRole("status")).toHaveText("913–960 of 960");
   await expect(page).toHaveURL(/libraryPage=20&outPage=3&sort=title$/);
-  const restore = await request.post("http://127.0.0.1:3101/query", {
+  const restore = await request.post(supportUrl("/query"), {
     data: {
       sql: `insert into journal_entry (user_id, game_id, status, updated_at) select u.id, n, 'wishlist', now() from "user" u cross join generate_series(10960,10999) n where u.email = $1`,
       params: [email],
@@ -532,7 +533,7 @@ test("large collections bound rendered rows and retain navigation, search and ed
   await expect(
     page.getByRole("button", { name: "Add playthrough", exact: true }),
   ).toBeFocused();
-  const emptyHistory = await request.post("http://127.0.0.1:3101/query", {
+  const emptyHistory = await request.post(supportUrl("/query"), {
     data: {
       sql: `delete from playthrough where user_id = (select id from "user" where email = $1) and game_id = 10000`,
       params: [email],
@@ -671,7 +672,7 @@ test("F14 Wishlist section links retain independent pages through move, Undo and
         : /\/wishlist\?marker=keep$/,
     );
   }
-  const shrink = await request.post("http://127.0.0.1:3101/query", {
+  const shrink = await request.post(supportUrl("/query"), {
     data: {
       sql: `delete from journal_entry where user_id = (select id from "user" where email = $1) and game_id >= 20145`,
       params: [email],
@@ -879,14 +880,14 @@ test("F14 Stats dataset links restore bounded personal and public rows lazily", 
         : /\/stats\?marker=keep$/,
     );
   }
-  const shrink = await request.post("http://127.0.0.1:3101/query", {
+  const shrink = await request.post(supportUrl("/query"), {
     data: {
       sql: `delete from playthrough where user_id = (select id from "user" where email = $1) and started_on >= date '1996-01-01'`,
       params: [email],
     },
   });
   expect(shrink.ok(), await shrink.text()).toBeTruthy();
-  const shrinkBacklog = await request.post("http://127.0.0.1:3101/query", {
+  const shrinkBacklog = await request.post(supportUrl("/query"), {
     data: {
       sql: `delete from status_event where user_id = (select id from "user" where email = $1) and at >= timestamp '2020-04-06'`,
       params: [email],
@@ -909,7 +910,7 @@ test("F14 Stats dataset links restore bounded personal and public rows lazily", 
     /finishedPage=2&hoursPage=2&backlogPage=2&marker=keep$/,
   );
   for (const table of ["playthrough", "status_event"]) {
-    const empty = await request.post("http://127.0.0.1:3101/query", {
+    const empty = await request.post(supportUrl("/query"), {
       data: {
         sql: `delete from ${table} where user_id = (select id from "user" where email = $1)`,
         params: [email],

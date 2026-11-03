@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { chooseStatus } from "./support/journal";
 import { seedSql } from "./support/seed-sql";
 import { signUp } from "./support/sign-up";
+import { supportUrl } from "./support/url";
 
 test.describe.configure({ mode: "serial" });
 
@@ -155,7 +156,7 @@ test("pending and failed discovery leave search and personal shelves usable", as
   await signUp(page, request, `discfail_${Date.now()}`);
   await page.goto("/games/discovery-one");
   await chooseStatus(page, "playing");
-  await request.post("http://127.0.0.1:3101/discovery-state", {
+  await request.post(supportUrl("/discovery-state"), {
     data: { hold: true },
   });
   try {
@@ -171,13 +172,13 @@ test("pending and failed discovery leave search and personal shelves usable", as
     await expect(
       page.getByRole("region", { name: "Recently released", exact: true }),
     ).toHaveCount(0);
-    await request.post("http://127.0.0.1:3101/discovery-state", {
+    await request.post(supportUrl("/discovery-state"), {
       data: { hold: false },
     });
     await expect(
       page.getByRole("region", { name: "Recently released", exact: true }),
     ).toBeVisible();
-    await request.post("http://127.0.0.1:3101/discovery-state", {
+    await request.post(supportUrl("/discovery-state"), {
       data: { fail: true },
     });
     await page.goto("/?q=Celeste&year=2018&platform=PC&all=1&filters=1");
@@ -192,7 +193,7 @@ test("pending and failed discovery leave search and personal shelves usable", as
     ).toBeVisible();
     await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
     const location = page.url();
-    await request.post("http://127.0.0.1:3101/discovery-state", {
+    await request.post(supportUrl("/discovery-state"), {
       data: { fail: false, hold: true },
     });
     await page.getByRole("button", { name: "Retry discovery" }).click();
@@ -205,7 +206,7 @@ test("pending and failed discovery leave search and personal shelves usable", as
     await expect(
       page.getByRole("searchbox", { name: "Search games" }),
     ).toHaveValue("Celeste");
-    await request.post("http://127.0.0.1:3101/discovery-state", {
+    await request.post(supportUrl("/discovery-state"), {
       data: { hold: false },
     });
     await expect(
@@ -232,7 +233,7 @@ test("pending and failed discovery leave search and personal shelves usable", as
     await page.getByRole("link", { name: /Celeste/ }).click();
     await expect(page).toHaveURL(/\/games\/celeste$/);
   } finally {
-    await request.post("http://127.0.0.1:3101/discovery-state", {
+    await request.post(supportUrl("/discovery-state"), {
       data: { fail: false, hold: false },
     });
   }

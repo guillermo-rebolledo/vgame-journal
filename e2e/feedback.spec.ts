@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { signUp } from "./support/sign-up";
 import { snap } from "./support/snap";
+import { supportUrl } from "./support/url";
 
 test("feedback stores real submissions, collapses on mobile, and limits the sixth message", async ({
   page,
@@ -59,7 +60,7 @@ test("feedback stores real submissions, collapses on mobile, and limits the sixt
     }
   }
   const stored = await (
-    await request.post("http://127.0.0.1:3101/query", {
+    await request.post(supportUrl("/query"), {
       data: {
         sql: 'select f.type, f.message, f.path from feedback f join "user" u on f.user_id = u.id where u.username = $1 order by f.id',
         params: [username],
@@ -68,9 +69,7 @@ test("feedback stores real submissions, collapses on mobile, and limits the sixt
   ).json();
   expect(stored.rows).toHaveLength(5);
   expect(stored.rows[0]).toEqual(["bug", "Feedback 0", "/library"]);
-  const mailbox = await (
-    await request.get("http://127.0.0.1:3101/mailbox")
-  ).json();
+  const mailbox = await (await request.get(supportUrl("/mailbox"))).json();
   const notifications = mailbox.filter((mail: { subject: string }) =>
     mail.subject.endsWith(`@${username}`),
   );

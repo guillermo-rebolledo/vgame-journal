@@ -1,16 +1,19 @@
 import { Suspense } from "react";
+import { readHomeJournal } from "@/app/home-actions";
 import { Discovery, DiscoveryLoading } from "@/components/discovery";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
 import { GameSearch } from "@/components/game-search";
 import { HomeAuthActions } from "@/components/home-auth-actions";
 import { HomeCoverTransitions } from "@/components/home-cover-link";
 import { HomeIntroduction, JournalExample } from "@/components/home-guest";
-import { HomeJournal } from "@/components/home-journal";
-import { HomeWishlistPreview } from "@/components/home-wishlist-preview";
+import {
+  HomeCollections,
+  HomeJournalProvider,
+  HomePendingSave,
+} from "@/components/home-journal";
 import { JsonLd } from "@/components/json-ld";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import { signedInUserId } from "@/lib/auth";
-import { journal } from "@/lib/journal";
 
 /**
  * The site itself, for search engines and AI crawlers.
@@ -49,67 +52,49 @@ export default function Home() {
 /** How to start, for visitors; what's going on in their Journal, for its owner. */
 async function HomeContent() {
   const userId = await signedInUserId();
+  const initial = userId
+    ? readHomeJournal().catch(() => ({ owner: userId, entries: null }))
+    : Promise.resolve({ owner: null, entries: [] });
   return (
     <HomeCoverTransitions>
-      {userId ? (
-        <div className="flex flex-col gap-3">
-          <h1 className="font-semibold text-3xl tracking-tight [overflow-wrap:anywhere]">
-            Your Journal
-          </h1>
-          <p className="max-w-xl text-lg text-muted-foreground">
-            Find a game to add, or pick up where you left off.
-          </p>
-        </div>
-      ) : (
-        <HomeIntroduction />
-      )}
-      <div className="flex flex-col gap-3">
-        <p id="home-search-guidance" className="text-muted-foreground text-sm">
-          Find a game, then save it to Backlog or Wishlist.
-          {!userId && " Sign in to save its Status in your Journal."}
-        </p>
+      <HomeJournalProvider
+        key={userId ?? "guest"}
+        owner={userId}
+        initial={initial}
+      >
+        {userId ? (
+          <div className="flex flex-col gap-3">
+            <h1 className="font-semibold text-3xl tracking-tight [overflow-wrap:anywhere]">
+              Your Journal
+            </h1>
+            <p className="max-w-xl text-lg text-muted-foreground">
+              Find a game to add, or pick up where you left off.
+            </p>
+          </div>
+        ) : (
+          <HomeIntroduction />
+        )}
         <Suspense fallback={<output>Loading game search…</output>}>
-          <GameSearch descriptionId="home-search-guidance" />
+          <GameSearch
+            guidance={`Find a game, then save it to Backlog or Wishlist.${!userId ? " Sign in to save its Status in your Journal." : ""}`}
+          />
         </Suspense>
-      </div>
-      {!userId && (
-        <div className="flex flex-col gap-4">
-          <Suspense fallback={null}>
-            <HomeAuthActions />
+        {!userId && (
+          <div className="flex flex-col gap-4">
+            <Suspense fallback={null}>
+              <HomeAuthActions />
+            </Suspense>
+            <JournalExample />
+          </div>
+        )}
+        <HomePendingSave />
+        <HomeCollections />
+        <DiscoveryBoundary>
+          <Suspense fallback={<DiscoveryLoading />}>
+            <Discovery />
           </Suspense>
-          <JournalExample />
-        </div>
-      )}
-      {userId ? (
-        <Suspense
-          fallback={
-            <output className="text-muted-foreground">
-              Loading your shelves…
-            </output>
-          }
-        >
-          <YourJournal userId={userId} />
-        </Suspense>
-      ) : null}
-      <DiscoveryBoundary>
-        <Suspense fallback={<DiscoveryLoading />}>
-          <Discovery />
-        </Suspense>
-      </DiscoveryBoundary>
+        </DiscoveryBoundary>
+      </HomeJournalProvider>
     </HomeCoverTransitions>
-  );
-}
-
-async function YourJournal({ userId }: { userId: string }) {
-  // Both reads are owner-scoped allowlists with no private notes.
-  const [entries, wishlist] = await Promise.all([
-    journal.library(userId),
-    journal.wishlist(userId),
-  ]);
-  return (
-    <HomeJournal
-      entries={entries}
-      wishlistPreview={<HomeWishlistPreview entries={wishlist} />}
-    />
   );
 }

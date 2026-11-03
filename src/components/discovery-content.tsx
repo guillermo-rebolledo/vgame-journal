@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { GameCover } from "@/components/game-cover";
 import { GameIdentificationMetadata } from "@/components/game-identification-metadata";
 import { HomeCoverLink } from "@/components/home-cover-link";
+import { HomeSaveControls } from "@/components/home-journal";
 import { Button } from "@/components/ui/button";
 import type { catalog } from "@/lib/catalog";
 
@@ -44,6 +45,7 @@ export function DiscoveryError({
 /** Refresh merges the payload into this mounted component, retaining its last successful read. */
 export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
   const router = useRouter();
+  const instance = useId();
   const [snapshot, setSnapshot] = useState(result);
   if (result !== snapshot && "shelves" in result) setSnapshot(result);
   const shelves = "shelves" in snapshot ? snapshot.shelves : [];
@@ -58,7 +60,7 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
       {shelves.map((shelf) => {
         const title =
           shelf.key === "recent" ? "Recently released" : "Popular right now";
-        const id = `home-${title.toLowerCase().replace(/ /g, "-")}`;
+        const id = `${instance}-${shelf.key}`;
         return (
           <section
             key={shelf.key}
@@ -103,6 +105,7 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
                       platforms={game.platforms}
                     />
                   </div>
+                  <HomeSaveControls game={{ ...game, gameId: game.id }} />
                 </li>
               ))}
             </ul>

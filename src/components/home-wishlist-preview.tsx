@@ -1,12 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useToday } from "@/components/use-today";
 import type { WishlistEntry } from "@/lib/journal";
 import { countdown, localDay, releasePhase } from "@/lib/release-dates";
 
 /** A small view of the owner's already region-resolved, ordered Wishlist. */
-export function HomeWishlistPreview({ entries }: { entries: WishlistEntry[] }) {
+export function HomeWishlistPreview({
+  entries,
+  renderControls,
+}: {
+  entries: WishlistEntry[];
+  renderControls?: (entry: WishlistEntry) => ReactNode;
+}) {
   const day = useToday();
   const sectionDay = day ?? localDay(new Date(), "UTC");
   const next =
@@ -47,6 +54,7 @@ export function HomeWishlistPreview({ entries }: { entries: WishlistEntry[] }) {
         {next.release.date ? next.release.label : "Release date not announced"}
       </p>
       {left && <p className="font-medium tabular-nums">{left}</p>}
+      {renderControls?.(next)}
     </section>
   );
 }
