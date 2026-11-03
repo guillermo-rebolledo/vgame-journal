@@ -9,6 +9,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -69,17 +70,15 @@ function runAction<T>(action: () => Promise<T>): Promise<T> {
 }
 
 function focusHomeGame(gameId?: number) {
-  requestAnimationFrame(() => {
-    const control = gameId
-      ? document.querySelector<HTMLButtonElement>(
-          `[data-home-game="${gameId}"] button`,
-        )
-      : null;
-    (
-      control ??
-      document.querySelector<HTMLInputElement>('[aria-label="Search games"]')
-    )?.focus({ preventScroll: true });
-  });
+  const control = gameId
+    ? document.querySelector<HTMLButtonElement>(
+        `[data-home-game="${gameId}"] button`,
+      )
+    : null;
+  (
+    control ??
+    document.querySelector<HTMLInputElement>('[aria-label="Search games"]')
+  )?.focus({ preventScroll: true });
 }
 
 function replaceHomeUrl(intent: Intent | null) {
@@ -109,6 +108,7 @@ export function HomeJournalProvider({
 }) {
   const router = useRouter();
   const params = useSearchParams();
+  const [source, setSource] = useState(initial);
   const [snapshot, setSnapshot] = useState<HomeSnapshot>({
     owner,
     entries: owner ? null : [],
@@ -117,6 +117,7 @@ export function HomeJournalProvider({
   const [saves, setSaves] = useState<Record<number, SaveState>>({});
   const [notice, setNotice] = useState("");
   const [intent, setIntent] = useState<Intent | null>(null);
+  const [focusAfterSave, setFocusAfterSave] = useState<Intent | null>(null);
   const [intentFailed, setIntentFailed] = useState(false);
   const promptRef = useRef<HTMLElement | null>(null);
   const focusIntent = useRef(false);
@@ -125,6 +126,12 @@ export function HomeJournalProvider({
   const saveGame = params.get("saveGame");
   const saveSlug = params.get("saveSlug");
   const saveStatus = params.get("saveStatus");
+
+  if (source !== initial) {
+    setSource(initial);
+    setSnapshot({ owner, entries: owner ? null : [] });
+    setLoaded(!owner);
+  }
 
   useEffect(() => {
     let active = true;
@@ -199,12 +206,6 @@ export function HomeJournalProvider({
       return false;
     }
     if (!snapshot.entries) return false;
-    if (
-      snapshot.entries.find((e) => e.gameId === game.gameId)?.status === status
-    ) {
-      setNotice(`${game.title} is already ${SAVED_LABELS[status]}.`);
-      return true;
-    }
     const expectedOwner = snapshot.owner;
     locks.current.add(game.gameId);
     ++version.current;
@@ -243,7 +244,18 @@ export function HomeJournalProvider({
         return false;
       }
       // Keep the last confirmed projection if reconciliation itself is unavailable.
-      if (result.snapshot.entries) accept(result.snapshot);
+      if (result.snapshot.entries) {
+        const entry = result.snapshot.entries.find(
+          (e) => e.gameId === game.gameId,
+        );
+        // Another game's response may have arrived since this snapshot was read.
+        setSnapshot((old) => {
+          if (old.owner !== expectedOwner) return old;
+          const others =
+            old.entries?.filter((e) => e.gameId !== game.gameId) ?? [];
+          return { ...old, entries: entry ? [entry, ...others] : others };
+        });
+      }
       const confirmed =
         result.snapshot.entries?.find((e) => e.gameId === game.gameId)
           ?.status === status;
@@ -280,6 +292,18 @@ export function HomeJournalProvider({
       promptRef.current?.querySelector<HTMLElement>("a, button")?.focus();
     }
   }, [intent]);
+  useLayoutEffect(() => {
+    if (
+      !focusAfterSave ||
+      intent ||
+      saves[focusAfterSave.gameId]?.pending ||
+      snapshot.entries?.find((e) => e.gameId === focusAfterSave.gameId)
+        ?.status !== focusAfterSave.status
+    )
+      return;
+    focusHomeGame(focusAfterSave.gameId);
+    setFocusAfterSave(null);
+  }, [focusAfterSave, intent, saves, snapshot]);
   const returnTo = `/${params.size ? `?${params}` : ""}`;
   const continuation = (intent || intentFailed) && (
     <section
@@ -347,7 +371,7 @@ export function HomeJournalProvider({
                   if (await save(intent, intent.status)) {
                     setIntent(null);
                     replaceHomeUrl(null);
-                    focusHomeGame(intent.gameId);
+                    setFocusAfterSave(intent);
                   }
                 }}
               >
