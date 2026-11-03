@@ -88,13 +88,12 @@ test("retained Home views keep each search and filter correctly labelled", () =>
     expect(
       within(search).queryAllByRole("searchbox", {
         name: "Search games",
-        exact: true,
       }),
     ).toHaveLength(1);
     for (const name of ["Release year", "Platform"])
-      expect(
-        within(search).queryAllByRole("combobox", { name, exact: true }),
-      ).toHaveLength(1);
+      expect(within(search).queryAllByRole("combobox", { name })).toHaveLength(
+        1,
+      );
   }
 });
 
