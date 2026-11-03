@@ -104,6 +104,8 @@ export const sourceGame = (
     userScoreCount: null,
     popularity: 0,
     fanMade: false,
+    ageRatings: [],
+    languages: [],
     ...overrides,
   };
 };

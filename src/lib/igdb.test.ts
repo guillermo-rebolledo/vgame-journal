@@ -44,6 +44,107 @@ test("a game's platforms include those of its remasters and ports, once each", a
   ]);
 });
 
+test("age ratings and languages are asked for and mapped from IGDB's shape", async () => {
+  const bodies: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      bodies.push(String(init?.body));
+      // Recorded from IGDB (Hades II), trimmed.
+      return Response.json([
+        {
+          id: 1,
+          name: "Hades II",
+          slug: "hades-ii",
+          age_ratings: [
+            {
+              organization: { name: "ESRB" },
+              rating_category: { rating: "T" },
+              rating_content_descriptions: [
+                { description: "Blood" },
+                { description: "Violence" },
+              ],
+            },
+            {
+              organization: { name: "CLASS_IND" },
+              rating_category: { rating: "14" },
+              rating_content_descriptions: [
+                { description: "Violência (Violence)" },
+                { description: "Conteúdo Sexual (Sexual Content)" },
+              ],
+            },
+            {
+              organization: { name: "ACB" },
+              rating_category: { rating: "M" },
+            },
+            {
+              organization: { name: "GRAC" },
+              rating_category: { rating: "TESTING" },
+            },
+          ],
+          language_supports: [
+            {
+              language: { name: "English" },
+              language_support_type: { name: "Audio" },
+            },
+            {
+              language: { name: "English" },
+              language_support_type: { name: "Subtitles" },
+            },
+            {
+              language: { name: "French" },
+              language_support_type: { name: "Interface" },
+            },
+          ],
+        },
+      ]);
+    }),
+  );
+
+  const game = await igdbGameSource.fetchGame(1);
+
+  expect(bodies[0]).toContain("age_ratings.organization.name");
+  expect(bodies[0]).toContain("age_ratings.rating_category.rating");
+  expect(bodies[0]).toContain(
+    "age_ratings.rating_content_descriptions.description",
+  );
+  expect(bodies[0]).toContain("language_supports.language.name");
+  expect(bodies[0]).toContain("language_supports.language_support_type.name");
+  expect(game?.ageRatings).toEqual([
+    { board: "ESRB", rating: "T", descriptors: ["Blood", "Violence"] },
+    {
+      board: "CLASS_IND",
+      rating: "14",
+      descriptors: ["Violence", "Sexual Content"],
+    },
+    { board: "ACB", rating: "M", descriptors: [] },
+  ]);
+  expect(game?.languages).toEqual([
+    { name: "English", voices: true, subtitles: true, interface: false },
+    { name: "French", voices: false, subtitles: false, interface: true },
+  ]);
+});
+
+test("a game without age ratings or languages maps to empty lists", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      Response.json(
+        url.includes("twitch")
+          ? { access_token: "t", expires_in: 3600 }
+          : [{ id: 1, name: "Game", slug: "game" }],
+      ),
+    ),
+  );
+
+  const game = await igdbGameSource.fetchGame(1);
+
+  expect(game?.ageRatings).toEqual([]);
+  expect(game?.languages).toEqual([]);
+});
+
 test("release date precision follows IGDB's date formats", async () => {
   const dated = (format: string) => ({
     date: 1_790_000_000,
