@@ -11,6 +11,9 @@ test("lost membership and delete responses reconcile before another mutation", a
   await signUp(page, request, uniqueUsername("lists_owner_ambiguous"));
   await page.goto("/lists");
   await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
+  await page
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("Ambiguous operations");
   await page.getByRole("button", { name: "Create list", exact: true }).click();
@@ -75,6 +78,9 @@ test("an empty public list can be created explicitly and has generic owner metad
   await signUp(page, request, uniqueUsername("lists_owner_public_create"));
   await page.goto("/lists");
   await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
+  await page
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("Public from creation");
   await page
@@ -107,10 +113,13 @@ test("owner routes and direct mutations reject another actor, and a switched-acc
   await signUp(page, request, uniqueUsername("lists_owner_guard"));
   await page.goto("/lists");
   await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
+  await page
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("Distinct private owner title");
   await page
-    .getByRole("textbox", { name: "Description", exact: true })
+    .getByRole("textbox", { name: "Description (optional)", exact: true })
     .fill("Distinct private description");
   await page.getByRole("button", { name: "Create list", exact: true }).click();
   await expect(
@@ -200,6 +209,9 @@ test("owner read and search failures stay distinct from empty states and can be 
   });
   await page.getByRole("button", { name: "Try again", exact: true }).click();
   await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
+  await page
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("Long collection ".repeat(6));
   await page.getByRole("button", { name: "Create list", exact: true }).click();
@@ -239,6 +251,9 @@ test("keyboard moves cross game pages with focus and preserve URL state, and own
   await page.emulateMedia({ reducedMotion: "reduce" });
   await signUp(page, request, uniqueUsername("lists_owner_pages"));
   await page.goto("/lists");
+  await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
   await page
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("Paged collection");
@@ -445,6 +460,9 @@ test("expired sessions preserve metadata through sign-in and a lost save require
   );
   await page.goto("/lists");
   await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
+  await page
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("Original title");
   await page.getByRole("button", { name: "Create list", exact: true }).click();
@@ -506,10 +524,13 @@ test("a lost creation response retains the draft and retry key across reload wit
   await signUp(page, request, uniqueUsername("lists_owner_retry"));
   await page.goto("/lists");
   await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
+  await page
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("Uncertain creation");
   await page
-    .getByRole("textbox", { name: "Description", exact: true })
+    .getByRole("textbox", { name: "Description (optional)", exact: true })
     .fill("Keep this draft");
   let intercepted = false;
   await page.route("**/*", async (route) => {
@@ -525,6 +546,9 @@ test("a lost creation response retains the draft and retry key across reload wit
   ).toBeVisible();
   await page.unrouteAll({ behavior: "wait" });
   await page.reload();
+  await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
   await expect(
     page.getByRole("textbox", { name: "List title", exact: true }),
   ).toHaveValue("Uncertain creation");
@@ -543,6 +567,9 @@ test("stale metadata cannot republish a list and refresh keeps the local draft f
 }) => {
   await signUp(page, request, uniqueUsername("lists_owner_stale"));
   await page.goto("/lists");
+  await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
   await page
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("Concurrent list");
@@ -613,6 +640,9 @@ test("publishing is separate from metadata, links survive renames, clipboard den
   const username = uniqueUsername("lists_owner_share");
   await signUp(page, request, username);
   await page.goto("/lists");
+  await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
   await page
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("Share me");
@@ -692,6 +722,9 @@ test("Catalog selection appends, deduplicates, moves and removes without recordi
   await signUp(page, request, uniqueUsername("lists_owner_catalog"));
   await page.goto("/lists");
   await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
+  await page
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("Catalog only");
   await page.getByRole("button", { name: "Create list", exact: true }).click();
@@ -758,11 +791,14 @@ test("owner creates an empty private list, saves metadata, and keeps duplicate t
     .click();
   await expect(page.getByText("No lists yet")).toBeVisible();
   await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
+  await page
     .getByRole("textbox", { name: "List title", exact: true })
     .filter({ visible: true })
     .fill("Friends");
   await page
-    .getByRole("textbox", { name: "Description", exact: true })
+    .getByRole("textbox", { name: "Description (optional)", exact: true })
     .filter({ visible: true })
     .fill("First line\nSecond line");
   await expect(page.getByLabel("Private — only you")).toBeChecked();
@@ -785,12 +821,15 @@ test("owner creates an empty private list, saves metadata, and keeps duplicate t
       .filter({ visible: true }),
   ).toHaveValue("Friends renamed");
   await expect(
-    page.getByRole("textbox", { name: "Description", exact: true }),
+    page.getByRole("textbox", { name: "Description (optional)", exact: true }),
   ).toHaveValue("First line\nSecond line");
   await page.goto("/lists");
   await expect(
     page.getByRole("link", { name: "Friends renamed", exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
   await page
     .getByRole("textbox", { name: "List title", exact: true })
     .filter({ visible: true })

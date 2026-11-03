@@ -236,6 +236,8 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | Playthrough recording | `playthrough-form.tsx`, `playthrough-history.tsx` | Reuse validation, draft retention, and editor dismissal behavior. |
 | Search and discovery | `game-search.tsx`, `discovery-content.tsx`, `tag-shelves.tsx` | Preserve result, retry, and empty states. |
 | Collections | `library.tsx`, `wishlist.tsx`, `paged-list.tsx`, `collection-loading.tsx` | Reuse filtering, pagination, and collection loading patterns. |
+| List creation | `list-creation-drawer.tsx`, `list-form.tsx` | Open the shared list fields on demand; keep drafts on dismissal, associate title errors, and block dismissal while saving. |
+| Modal editor viewport | `use-editor-viewport.ts` and `.editor-drawer` | Shared by Playthrough and list creation drawers; keep the editor above the software keyboard with a scrollable body. |
 | Header and navigation | `main-nav.tsx`, `account-menu.tsx`, `skip-link.tsx` | Maintain current-page state and keyboard access to main content. |
 | Copying and feedback | `copy-button.tsx`, `feedback.tsx` | Reuse success, failure, and manual-copy recovery. |
 | Meaningful motion | `burst-button.tsx`, `odometer.tsx`, `page-transition.tsx` | Use only for the purposes defined below. |
@@ -257,6 +259,8 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 - **Card:** a 10px radius and hairline border with 16px padding. No shadow.
 - **Notice:** a hairline border on Dust at 40%, with 12–16px padding. It enters with the `.enter` class.
 - **Empty state:** a dashed border with 16px padding (32px from `sm`), left-aligned. It has one sentence and one action.
+- **List collection:** align the page with the 72rem frame. Group the heading and explanation with 8px spacing and place “Create a list” beside them on wider screens. Cards are one link with cover previews, a wrapping title, and quiet 14px metadata; changing counts use tabular figures. Empty cards retain the preview area with “No games added yet”.
+- **List creation drawer:** reuse the Playthrough editor's bottom-sheet shape and viewport handling. Keep the form in a 36rem column with optional description guidance. Closing keeps the draft; successful creation opens the new list to add games. Editor entry is 220ms and exit is 140ms, with the shared reduced-motion override.
 
 ### Navigation
 - **Style:** Pencil text-sm links with an underline on hover. The current page uses Ink, weight 500 and a 2px underline, driven by `aria-current="page"`.

@@ -347,7 +347,7 @@ export function createLists(db: Db) {
       )
         return fail(
           "validation",
-          "Use a title of 1–100 characters, a description up to 2000 characters, and valid visibility and submission ID.",
+          "Check the list title, description, and visibility, then try again.",
         );
       try {
         if (

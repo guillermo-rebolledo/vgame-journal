@@ -8,7 +8,7 @@ export function ListReadUnavailable() {
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
-    <div role="alert" className="flex flex-col gap-3">
+    <div role="alert" className="col-span-full flex flex-col gap-3">
       <p>Lists are unavailable. Your saved lists could not be loaded.</p>
       <Button
         variant="outline"

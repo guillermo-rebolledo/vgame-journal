@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-03T23:10:06.192216+00:00",
+  "generatedAt": "2026-11-03T23:17:45.902836+00:00",
   "title": "Design System: shelve.games",
   "extensions": {
     "colorMeta": {
@@ -228,6 +228,11 @@
         "name": "popup-transition",
         "value": "opacity, transform; 200ms enter / 140ms exit",
         "purpose": "Base UI starting/ending states retarget from current rendered values. Tooltips use 125ms; reduced motion and aligned selects use opacity alone."
+      },
+      {
+        "name": "duration-editor-enter",
+        "value": "220ms",
+        "purpose": "Shared Playthrough and list-creation editor drawer entry; exits use 140ms and reduced motion removes movement."
       }
     ],
     "breakpoints": [

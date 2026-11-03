@@ -15,10 +15,20 @@ export const metadata: Metadata = {
 
 export default function ListsPage() {
   return (
-    <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-8">
-      <h1 className="font-semibold text-3xl">Lists</h1>
-      <p>Curate Catalog games independently of your Journal.</p>
-      <Suspense fallback={<output>Loading your lists…</output>}>
+    <section className="mx-auto grid w-full max-w-6xl flex-1 content-start grid-cols-1 gap-6 px-4 py-8 sm:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-balance font-semibold text-3xl tracking-tight">
+          Lists
+        </h1>
+        <p className="max-w-prose text-muted-foreground text-sm">
+          Organize games into lists without adding them to your Journal.
+        </p>
+      </div>
+      <Suspense
+        fallback={
+          <output className="col-span-full">Loading your lists…</output>
+        }
+      >
         <Content />
       </Suspense>
     </section>
