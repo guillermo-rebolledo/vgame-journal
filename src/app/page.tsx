@@ -69,7 +69,7 @@ async function HomeContent() {
           {!userId && " Sign in to save its Status in your Journal."}
         </p>
         <Suspense fallback={<output>Loading game search…</output>}>
-          <GameSearch />
+          <GameSearch descriptionId="home-search-guidance" />
         </Suspense>
       </div>
       {!userId && (
