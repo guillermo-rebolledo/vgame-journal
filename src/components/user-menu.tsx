@@ -20,11 +20,11 @@ export async function UserMenu() {
   const { image, username, name } = session.user;
   return (
     <>
-      <MainNav className="order-last -ml-2 w-full sm:order-none sm:mr-auto sm:ml-0 sm:w-auto" />
       <div className="ml-auto flex items-center gap-2">
         <Feedback username={username} onSubmit={submitFeedback} />
         <AccountMenu user={{ username, name, image }} />
       </div>
+      <MainNav className="-ml-2 w-full sm:ml-0 sm:w-auto" />
     </>
   );
 }
