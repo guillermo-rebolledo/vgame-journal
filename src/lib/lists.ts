@@ -57,6 +57,16 @@ const validActor = (actor: unknown): actor is string =>
 const validId = (id: unknown): id is string =>
   typeof id === "string" &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+const validText = (input: EditListInput) =>
+  !!input &&
+  typeof input.title === "string" &&
+  input.title.trim().length > 0 &&
+  input.title.trim().length <= 100 &&
+  (input.description === undefined ||
+    (typeof input.description === "string" &&
+      input.description.length <= 2000));
+const validGameId = (id: unknown): id is number =>
+  typeof id === "number" && Number.isInteger(id) && id > 0 && id <= 2147483647;
 const fields = {
   id: customList.id,
   title: customList.title,
@@ -153,13 +163,18 @@ export function createLists(db: Db) {
         .where(where)
         .orderBy(desc(customList.updatedAt), customList.id),
     );
-  const readPublic = (where: SQL) =>
+  const publicAccess = (username: string) =>
+    and(
+      eq(customList.visibility, "public"),
+      eq(user.username, username.toLowerCase()),
+    );
+  const readPublic = (username: string, where?: SQL) =>
     read(
       db
         .select(fields)
         .from(customList)
         .innerJoin(user, eq(user.id, customList.userId))
-        .where(and(eq(customList.visibility, "public"), where))
+        .where(and(publicAccess(username), where))
         .orderBy(desc(customList.updatedAt), customList.id),
     );
   return {
@@ -184,12 +199,7 @@ export function createLists(db: Db) {
       revision: unknown,
       gameId: unknown,
     ): Promise<ListResult<ListMutation>> {
-      if (
-        typeof gameId !== "number" ||
-        !Number.isInteger(gameId) ||
-        gameId <= 0 ||
-        gameId > 2147483647
-      )
+      if (!validGameId(gameId))
         return fail("validation", "Choose a Catalog game.");
       return mutate(
         actor,
@@ -207,13 +217,7 @@ export function createLists(db: Db) {
     ): Promise<ListResult<ListMutation>> {
       if (
         !Array.isArray(gameIds) ||
-        gameIds.some(
-          (id) =>
-            typeof id !== "number" ||
-            !Number.isInteger(id) ||
-            id <= 0 ||
-            id > 2147483647,
-        ) ||
+        gameIds.some((id) => !validGameId(id)) ||
         new Set(gameIds).size !== gameIds.length
       )
         return fail("validation", "Use each current game exactly once.");
@@ -242,12 +246,7 @@ export function createLists(db: Db) {
       revision: unknown,
       gameId: unknown,
     ): Promise<ListResult<ListMutation>> {
-      if (
-        typeof gameId !== "number" ||
-        !Number.isInteger(gameId) ||
-        gameId <= 0 ||
-        gameId > 2147483647
-      )
+      if (!validGameId(gameId))
         return fail("validation", "Choose a Catalog game.");
       return mutate(
         actor,
@@ -266,15 +265,7 @@ export function createLists(db: Db) {
       revision: unknown,
       input: EditListInput,
     ): Promise<ListResult<ListMutation>> {
-      if (
-        !input ||
-        typeof input.title !== "string" ||
-        !input.title.trim() ||
-        input.title.trim().length > 100 ||
-        (input.description !== undefined &&
-          (typeof input.description !== "string" ||
-            input.description.length > 2000))
-      )
+      if (!validText(input))
         return fail(
           "validation",
           "Use a title of 1–100 characters and a description up to 2000 characters.",
@@ -321,23 +312,26 @@ export function createLists(db: Db) {
     },
     async publicCollection(username: string): Promise<PublicList[]> {
       if (typeof username !== "string") return [];
-      return readPublic(eq(user.username, username.toLowerCase()));
+      return readPublic(username);
+    },
+    async hasPublicList(username: string, id: unknown): Promise<boolean> {
+      if (typeof username !== "string" || !validId(id)) return false;
+      const rows = await read(
+        db
+          .select({ id: customList.id })
+          .from(customList)
+          .innerJoin(user, eq(user.id, customList.userId))
+          .where(and(publicAccess(username), eq(customList.id, id)))
+          .limit(1),
+      );
+      return rows.length > 0;
     },
     async publicDetail(
       username: string,
       id: unknown,
     ): Promise<PublicList | null> {
       if (typeof username !== "string" || !validId(id)) return null;
-      return (
-        (
-          await readPublic(
-            and(
-              eq(user.username, username.toLowerCase()),
-              eq(customList.id, id),
-            ) as SQL,
-          )
-        )[0] ?? null
-      );
+      return (await readPublic(username, eq(customList.id, id)))[0] ?? null;
     },
     async create(
       actor: unknown,
@@ -345,13 +339,7 @@ export function createLists(db: Db) {
     ): Promise<ListResult<OwnerList>> {
       if (!validActor(actor)) return authentication();
       if (
-        !input ||
-        typeof input.title !== "string" ||
-        !input.title.trim() ||
-        input.title.trim().length > 100 ||
-        (input.description !== undefined &&
-          (typeof input.description !== "string" ||
-            input.description.length > 2000)) ||
+        !validText(input) ||
         (input.visibility !== undefined &&
           input.visibility !== "private" &&
           input.visibility !== "public") ||

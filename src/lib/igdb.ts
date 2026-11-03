@@ -3,7 +3,9 @@ import {
   type DatePrecision,
   GAME_TYPES,
   type GameSource,
+  type SourceAgeRating,
   type SourceGame,
+  type SourceLanguage,
   type SourceReleaseDate,
   STANDALONE_TYPES,
 } from "@/lib/game-source";
@@ -161,6 +163,15 @@ type IgdbGame = {
   first_release_date?: number;
   themes?: number[];
   version_parent?: number;
+  age_ratings?: {
+    organization?: { name: string };
+    rating_category?: { rating: string };
+    rating_content_descriptions?: { description: string }[];
+  }[];
+  language_supports?: {
+    language?: { name: string };
+    language_support_type?: { name: string };
+  }[];
 };
 
 const RELEASE_DATE_FIELDS = [
@@ -193,6 +204,11 @@ const GAME_FIELDS = [
   "first_release_date",
   "themes",
   "version_parent",
+  "age_ratings.organization.name",
+  "age_ratings.rating_category.rating",
+  "age_ratings.rating_content_descriptions.description",
+  "language_supports.language.name",
+  "language_supports.language_support_type.name",
   ...RELEASE_DATE_FIELDS.map((f) => `release_dates.${f}`),
 ].join(",");
 
@@ -205,6 +221,52 @@ const toReleaseDate = (d: IgdbReleaseDate): SourceReleaseDate => ({
     (d.date === undefined ? "tbd" : "day"),
   status: d.status?.name ?? null,
 });
+
+// IGDB `language_support_types` names.
+const SUPPORT_FLAGS: Record<string, "voices" | "subtitles" | "interface"> = {
+  Audio: "voices",
+  Subtitles: "subtitles",
+  Interface: "interface",
+};
+
+/** IGDB has one row per language and support type; fold them into one entry per language. */
+function toLanguages(rows: IgdbGame["language_supports"] = []) {
+  const byName = new Map<string, SourceLanguage>();
+  for (const { language, language_support_type } of rows) {
+    if (!language) continue;
+    const entry = byName.get(language.name) ?? {
+      name: language.name,
+      voices: false,
+      subtitles: false,
+      interface: false,
+    };
+    const flag = SUPPORT_FLAGS[language_support_type?.name ?? ""];
+    if (flag) entry[flag] = true;
+    byName.set(language.name, entry);
+  }
+  return [...byName.values()];
+}
+
+/** GRAC "TESTING" is an IGDB placeholder, not a rating; ClassInd's "Violência (Violence)" keeps the English. */
+function toAgeRatings(rows: IgdbGame["age_ratings"] = []): SourceAgeRating[] {
+  return rows.flatMap(
+    ({ organization, rating_category, rating_content_descriptions = [] }) =>
+      organization && rating_category && rating_category.rating !== "TESTING"
+        ? [
+            {
+              board: organization.name,
+              rating: rating_category.rating,
+              descriptors: rating_content_descriptions.map(
+                ({ description }) =>
+                  (organization.name === "CLASS_IND" &&
+                    description.match(/\(([^)]+)\)\s*$/)?.[1]) ||
+                  description,
+              ),
+            },
+          ]
+        : [],
+  );
+}
 
 const toGame = (g: IgdbGame): SourceGame => ({
   id: g.id,
@@ -243,6 +305,8 @@ const toGame = (g: IgdbGame): SourceGame => ({
   themes: g.themes ?? [],
   versionParent: g.version_parent ?? null,
   fanMade: g.keywords?.some((k) => FAN_KEYWORD_IDS.includes(k)) ?? false,
+  ageRatings: toAgeRatings(g.age_ratings),
+  languages: toLanguages(g.language_supports),
 });
 
 /**

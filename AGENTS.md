@@ -4,7 +4,7 @@
 
 - `npx vercel@latest env pull .env.local` pulls `DATABASE_URL` (Neon, via Vercel Marketplace).
 - `pnpm dev` · `pnpm lint` · `pnpm typecheck` · `pnpm test` (Vitest) · `pnpm test:e2e` (Playwright).
-- Schema changes: edit `src/db/schema.ts`, then `pnpm db:generate`; apply with `pnpm db:migrate` (needs `DATABASE_URL` in the shell env).
+- Schema changes: edit `src/db/schema.ts`, then `pnpm db:generate`. Production deploys apply pending migrations during `pnpm build` (only when `VERCEL_ENV=production`); old code serves until the deploy is live, so migrations must stay backward compatible (add, don't drop or rename in the same deploy). To migrate by hand: `pnpm db:migrate` (needs `DATABASE_URL` in the shell env).
 - Module tests use `createTestDb()` (in-memory PGlite with all migrations applied); never hit Neon from tests.
 
 ## Agent skills

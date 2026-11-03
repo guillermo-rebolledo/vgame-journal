@@ -4,13 +4,22 @@ import { Suspense, ViewTransition } from "react";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
 import { FallbackImage } from "@/components/fallback-image";
 import { GameCover } from "@/components/game-cover";
+import {
+  AgeRatingFact,
+  AgeRatingFactSkeleton,
+  Fact,
+  LanguagesFact,
+} from "@/components/game-facts";
 import { GameLists } from "@/components/game-lists";
 import { JsonLd } from "@/components/json-ld";
 import { PlatformName, PlatformNames } from "@/components/platform";
 import { Playthroughs } from "@/components/playthroughs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL } from "@/config/site";
-import { coverUrl } from "@/lib/game-source";
+import { boardName, pickRatings } from "@/lib/age-ratings";
+import { signedInUserId } from "@/lib/auth";
+import { coverUrl, type SourceAgeRating } from "@/lib/game-source";
+import { journal } from "@/lib/journal";
 import { regionName, releaseLabel } from "@/lib/release-dates";
 import { findGame } from "./game";
 import { GameTagShelves } from "./tag-shelves";
@@ -137,6 +146,20 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
               count={game.userScoreCount}
               noun="rating"
             />
+            {game.ageRatings &&
+              (game.ageRatings.length === 0 ? (
+                <Fact label="Age rating" note="Not rated yet" />
+              ) : (
+                <Suspense fallback={<AgeRatingFactSkeleton />}>
+                  <AgeRating ratings={game.ageRatings} />
+                </Suspense>
+              ))}
+            {game.languages &&
+              (game.languages.length === 0 ? (
+                <Fact label="Languages" note="Unknown" />
+              ) : (
+                <LanguagesFact languages={game.languages} />
+              ))}
           </dl>
 
           {game.summary && (
@@ -196,11 +219,20 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
   );
 }
 
+/** The board follows the signed-in user's Region, so this streams at request time; the cached game stays user-independent. */
+async function AgeRating({ ratings }: { ratings: SourceAgeRating[] }) {
+  const userId = await signedInUserId();
+  const region = userId ? await journal.region(userId) : null;
+  return <AgeRatingFact {...pickRatings(ratings, region)} />;
+}
+
 /** A VideoGame record, so a crawler reads the platforms, dates and scores without parsing the page. */
 function videoGameSchema(
   game: Awaited<ReturnType<typeof findGame>> & object,
   cover: string | false | null,
 ) {
+  // The guest board, so the cached markup stays user-independent.
+  const rating = pickRatings(game.ageRatings ?? [], null).headline;
   const released = game.releaseDates
     .filter((d) => d.date && d.precision === "day")
     .map((d) => d.date as Date)
@@ -214,6 +246,12 @@ function videoGameSchema(
     ...(cover && { image: cover }),
     ...(game.genres.length > 0 && { genre: game.genres }),
     ...(game.platforms.length > 0 && { gamePlatform: game.platforms }),
+    ...(rating && {
+      contentRating: `${boardName(rating.board)} ${rating.rating}`,
+    }),
+    ...(game.languages?.length && {
+      inLanguage: game.languages.map((l) => l.name),
+    }),
     ...(released && { datePublished: released.toISOString().slice(0, 10) }),
     ...(game.userScore !== null &&
       game.userScoreCount && {
@@ -240,18 +278,16 @@ function Score({
   noun: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border bg-background/60 p-4 backdrop-blur">
-      <dt className="text-muted-foreground text-sm">{label}</dt>
-      <dd className="font-semibold text-3xl tabular-nums">
-        {score === null ? "–" : Math.round(score)}
-      </dd>
-      <dd className="text-muted-foreground text-xs">
-        {score === null
+    <Fact
+      label={label}
+      value={score === null ? undefined : Math.round(score)}
+      note={
+        score === null
           ? "Not enough ratings yet"
           : count
             ? `${count.toLocaleString("en-US")} ${noun}${count === 1 ? "" : "s"}`
-            : null}
-      </dd>
-    </div>
+            : null
+      }
+    />
   );
 }
