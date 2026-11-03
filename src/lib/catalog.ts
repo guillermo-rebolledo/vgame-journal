@@ -22,7 +22,7 @@ import { GAME_TAGS, type Tag, type TagShelf } from "@/lib/game-tags";
 import { igdbGameSource } from "@/lib/igdb";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const MAX_RESULTS = 20;
+const MAX_SEARCH_CANDIDATES = 50;
 const EROTIC_THEME_ID = 42;
 /** Games per release date fetch; the GameSource pages past its own per-request limits. */
 const REFRESH_BATCH = 50;
@@ -514,13 +514,15 @@ export function createCatalog(db: Db, source: GameSource) {
     async search(rawQuery: string) {
       const query = rawQuery.trim().toLowerCase().replace(/\s+/g, " ");
       if (query.length < 2) return [];
+      // Older entries discarded eligible candidates after the first 20.
+      const cacheKey = `v2:${query}`;
       const now = new Date();
       const [cached] = await db
         .select()
         .from(searchCache)
         .where(
           and(
-            eq(searchCache.query, query),
+            eq(searchCache.query, cacheKey),
             gt(searchCache.fetchedAt, new Date(now.getTime() - CACHE_TTL_MS)),
           ),
         );
@@ -528,16 +530,16 @@ export function createCatalog(db: Db, source: GameSource) {
 
       const games = rank(
         query,
-        (await source.search(query)).filter(
-          (g) => STANDALONE_TYPES.has(g.type) && !g.fanMade,
-        ),
-      ).slice(0, MAX_RESULTS);
+        (await source.search(query))
+          .slice(0, MAX_SEARCH_CANDIDATES)
+          .filter((g) => STANDALONE_TYPES.has(g.type) && !g.fanMade),
+      );
       await save(games);
       const gameIds = games.map((g) => g.id);
       // ponytail: expired rows are overwritten, never pruned; add a cleanup to the daily cron if the table grows large.
       await db
         .insert(searchCache)
-        .values({ query, gameIds, fetchedAt: now })
+        .values({ query: cacheKey, gameIds, fetchedAt: now })
         .onConflictDoUpdate({
           target: searchCache.query,
           set: { gameIds, fetchedAt: now },

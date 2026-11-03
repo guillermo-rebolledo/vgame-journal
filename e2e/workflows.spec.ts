@@ -109,7 +109,9 @@ test("Home guides new users, and search survives slow, stale and failed requests
   releaseStale();
   await staleFinished;
   await expect(page.getByText("Stale result")).toHaveCount(0);
-  await expect(page.getByRole("status")).toHaveText("1 match for “celeste”.");
+  await expect(page.getByRole("status")).toHaveText(
+    "1 returned match for “celeste”.",
+  );
   await box.fill("c");
   await expect(page.getByRole("status")).toHaveText(
     "Enter at least 2 characters",
@@ -118,7 +120,7 @@ test("Home guides new users, and search survives slow, stale and failed requests
 
   await box.fill("nothing like this");
   await expect(page.getByRole("status")).toContainText(
-    "We couldn’t find a match for “nothing like this”.",
+    "No matches returned for “nothing like this”.",
   );
   await snap(page, testInfo, "search-no-results");
 
@@ -140,9 +142,7 @@ test("Home guides new users, and search survives slow, stale and failed requests
 
   await page.unroute("**/api/games/search?q=hollow");
   await page.getByRole("button", { name: "Try again" }).click();
-  await expect(page.getByRole("status")).toContainText(
-    "We couldn’t find a match",
-  );
+  await expect(page.getByRole("status")).toContainText("No matches returned");
   await expect(box).toHaveValue("hollow");
   await box.fill("h");
   await expect(page.getByRole("status")).toHaveText(
@@ -203,6 +203,12 @@ test("Search filters keep keyboard focus and long platform names readable at 320
   await expect(platform).toBeAttached();
   await page.getByRole("searchbox", { name: "Search games" }).focus();
   await page.keyboard.press("Tab");
+  const filters = page.getByRole("button", { name: "Filters", exact: true });
+  await expect(filters).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(filters).toHaveAttribute("aria-expanded", "true");
+  await expect(page).toHaveURL(/filters=1/);
+  await page.keyboard.press("Tab");
   await expect(page.getByLabel("Release year")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(platform).toBeFocused();
@@ -216,17 +222,16 @@ test("Search filters keep keyboard focus and long platform names readable at 320
   expect(
     await visibleValue.evaluate((node) => node.scrollWidth <= node.clientWidth),
   ).toBe(true);
-  await expect(page.getByRole("link", { name: /Platform test/ })).toContainText(
-    `${longPlatform}+2 platforms`,
-  );
+  const result = page.getByRole("listitem").filter({
+    has: page.getByRole("link", { name: "Platform test", exact: true }),
+  });
+  await expect(result.getByText(longPlatform, { exact: true })).toBeVisible();
   const controlBounds = await platform.boundingBox();
   const clearBounds = await page
     .getByRole("button", { name: "Clear filters" })
     .boundingBox();
   expect(controlBounds?.width).toBeGreaterThan(250);
-  expect(clearBounds?.y).toBeGreaterThanOrEqual(
-    (controlBounds?.y ?? 0) + (controlBounds?.height ?? 0),
-  );
+  expect(clearBounds?.y).toBeLessThan(controlBounds?.y ?? 0);
   await expectNoHorizontalOverflow(page);
   await page.locator("html").evaluate((node) => {
     node.style.fontSize = "200%";
@@ -237,9 +242,23 @@ test("Search filters keep keyboard focus and long platform names readable at 320
   });
   await page.getByRole("button", { name: "Clear filters" }).click();
   await expect(platform).toHaveValue("");
-  await expect(page.getByRole("link", { name: /Platform test/ })).toContainText(
-    "PC+2 platforms",
-  );
+  const availability = result.getByLabel("More platforms for Platform test");
+  await expect(availability).toContainText("+2 platforms");
+  await availability.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    result
+      .getByRole("list", {
+        name: "Additional platforms for Platform test",
+      })
+      .getByText(longPlatform, { exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Space");
+  await expect(
+    result.getByRole("list", {
+      name: "Additional platforms for Platform test",
+    }),
+  ).toBeHidden();
 });
 
 test("Library search, filters and sort survive game visits, Back and reload", async ({
