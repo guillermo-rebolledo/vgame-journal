@@ -21,7 +21,7 @@ export function ListSessionRecovery() {
   const path = usePathname();
   const query = useSearchParams().toString();
   return (
-    <div role="alert" className="flex flex-col gap-3">
+    <div role="alert" className="col-span-full flex flex-col gap-3">
       <p>
         Your session expired or changed. Your draft is kept for the original
         account.

@@ -13,6 +13,9 @@ import { snap } from "./support/snap";
 async function createList(page: Page, title: string) {
   await page.goto("/lists");
   await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
+  await page
     .getByRole("textbox", { name: "List title", exact: true })
     .fill(title);
   await page.getByRole("button", { name: "Create list", exact: true }).click();
@@ -65,6 +68,9 @@ test("real Next actions recheck sessions and ownership for every list mutation f
 }) => {
   await signUp(page, request, uniqueUsername("lists_accept_actions"));
   await page.goto("/lists");
+  await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
   await page
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("ACTION_PRIVATE_TITLE_88");
@@ -193,7 +199,7 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
   await signUp(page, request, username);
   const ownerPath = await createList(page, "LIFECYCLE_PRIVATE_88");
   await page
-    .getByRole("textbox", { name: "Description", exact: true })
+    .getByRole("textbox", { name: "Description (optional)", exact: true })
     .fill("LIFECYCLE_DESCRIPTION_88\n<em>Plain text</em>");
   await page.getByRole("button", { name: "Save details", exact: true }).click();
   await expect(
@@ -352,6 +358,8 @@ test("lists preserve Journal history and account export/deletion stays complete 
   request,
   browser,
 }) => {
+  // Two account lifecycles and the full list/deletion flow can exceed 30s on shared CI workers.
+  test.setTimeout(90_000);
   const username = uniqueUsername("lists_accept_account");
   await signUp(page, request, username);
   await page.goto("/games/celeste");
