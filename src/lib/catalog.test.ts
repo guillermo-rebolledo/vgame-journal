@@ -634,3 +634,62 @@ test("a tag source failure propagates to the section's local error boundary", as
   const catalog = createCatalog(await createTestDb(), source);
   await expect(catalog.tagShelves(1, ["roguelike"])).rejects.toThrow("Offline");
 });
+
+test("age ratings and languages are saved, replaced on resync, and an empty list stays distinct from not synced", async () => {
+  const rated = sourceGame({
+    title: "Hades II",
+    slug: "hades-ii",
+    ageRatings: [{ board: "ESRB", rating: "T", descriptors: ["Violence"] }],
+    languages: [
+      { name: "English", voices: true, subtitles: true, interface: true },
+    ],
+  });
+  const unrated = sourceGame({ title: "Hades Demo", slug: "hades-demo" });
+  const catalog = createCatalog(
+    await createTestDb(),
+    createFakeGameSource([rated, unrated]),
+  );
+  vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+  await catalog.search("hades");
+
+  expect(await catalog.findBySlug("hades-ii")).toMatchObject({
+    ageRatings: [{ board: "ESRB", rating: "T", descriptors: ["Violence"] }],
+    languages: [
+      { name: "English", voices: true, subtitles: true, interface: true },
+    ],
+  });
+  expect(await catalog.findBySlug("hades-demo")).toMatchObject({
+    ageRatings: [],
+    languages: [],
+  });
+
+  rated.ageRatings = [{ board: "PEGI", rating: "12", descriptors: [] }];
+  rated.languages = [];
+  vi.setSystemTime(new Date("2026-01-02T00:01:00Z"));
+  await catalog.search("hades");
+
+  expect(await catalog.findBySlug("hades-ii")).toMatchObject({
+    ageRatings: [{ board: "PEGI", rating: "12", descriptors: [] }],
+    languages: [],
+  });
+});
+
+test("a catalog game synced before age ratings and languages existed reads them as not synced", async () => {
+  const db = await createTestDb();
+  await db.insert(game).values({
+    id: 902,
+    title: "Celeste",
+    slug: "celeste",
+    genres: [],
+    tags: [],
+    platforms: [],
+    syncedAt: new Date(),
+  });
+  const catalog = createCatalog(db, createFakeGameSource([]));
+
+  expect(await catalog.findBySlug("celeste")).toMatchObject({
+    title: "Celeste",
+    ageRatings: null,
+    languages: null,
+  });
+});
