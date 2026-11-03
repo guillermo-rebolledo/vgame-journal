@@ -115,7 +115,7 @@ test("header forward and reverse keyboard order matches visible rows at every br
         name: `Account menu, @${username}`,
         exact: true,
       }),
-      ...["Find a game", "Library", "Wishlist", "Stats"].map((name) =>
+      ...["Find a game", "Library", "Wishlist", "Lists", "Stats"].map((name) =>
         header.getByRole("link", { name, exact: true }),
       ),
     ];

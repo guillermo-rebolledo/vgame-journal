@@ -16,7 +16,7 @@ export function CopyButton({
 }: {
   text: string;
   inputId: string;
-  target: "profile" | "calendar";
+  target: "profile" | "calendar" | "list";
 }) {
   const [state, setState] = useState<"idle" | "copying" | "copied" | "failed">(
     "idle",
@@ -68,7 +68,13 @@ export function CopyButton({
       </Button>
       {state === "failed" && (
         <p role="alert" className="basis-full text-destructive text-sm">
-          Could not copy. Select the Calendar feed URL and copy it manually.
+          Could not copy. Select the{" "}
+          {target === "calendar"
+            ? "Calendar feed URL"
+            : target === "list"
+              ? "public list URL"
+              : "public profile URL"}{" "}
+          and copy it manually.
         </p>
       )}
     </>

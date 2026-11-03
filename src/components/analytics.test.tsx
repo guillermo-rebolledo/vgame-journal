@@ -50,6 +50,12 @@ test("redactAnalyticsEvent hides usernames on public profiles", () => {
   expect(urlOf("https://example.com/u/jane-doe?view=finished")).toBe(
     "https://example.com/u/[username]?view=finished",
   );
+  expect(
+    urlOf("https://example.com/u/jane-doe/lists/private-id?view=lists"),
+  ).toBe("https://example.com/u/[username]/lists/[listId]?view=lists");
+  expect(urlOf("https://example.com/lists/private-id?gamesPage=2")).toBe(
+    "https://example.com/lists/[listId]?gamesPage=2",
+  );
 });
 
 test("redactAnalyticsEvent leaves public game pages untouched", () => {

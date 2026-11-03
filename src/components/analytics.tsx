@@ -28,6 +28,10 @@ export function redactAnalyticsEvent(event: BeforeSendEvent): BeforeSendEvent {
     if (!isSafeParam(key)) url.searchParams.delete(key);
   url.hash = "";
   url.pathname = url.pathname.replace(/^\/u\/[^/]+/, "/u/[username]");
+  url.pathname = url.pathname.replace(
+    /^(\/(?:u\/\[username\]\/)?lists)\/[^/]+/,
+    "$1/[listId]",
+  );
   return { ...event, url: url.toString() };
 }
 
@@ -105,7 +109,7 @@ type ProductEvents = {
   playthrough_added: { has_notes: boolean; has_hours: boolean };
   playthrough_removed: undefined;
   wishlist_moved: { to: Status };
-  link_copied: { target: "profile" | "calendar" };
+  link_copied: { target: "profile" | "calendar" | "list" };
   calendar_feed_subscribed: undefined;
   calendar_feed_regenerated: undefined;
   account_data_exported: undefined;

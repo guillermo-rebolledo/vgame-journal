@@ -18,6 +18,8 @@ test.each([
   ["/", "Find a game"],
   ["/library", "Library"],
   ["/wishlist", "Wishlist"],
+  ["/lists", "Lists"],
+  ["/lists/opaque-id", "Lists"],
   ["/stats", "Stats"],
 ])("marks %s as %s", (path, label) => {
   pathname.current = path;

@@ -23,7 +23,11 @@ const server = createServer(async (request, response) => {
           await new Promise((resolve) => discoveryWaiters.push(resolve));
       }
       const state = collectionDelays.get(params?.[0]);
-      if (state && sql.includes('from "journal_entry"')) {
+      if (
+        state &&
+        (sql.includes('from "journal_entry"') ||
+          sql.includes('from "custom_list"'))
+      ) {
         if (state.fail)
           throw new Error("Synthetic personal Journal read failure");
         if (state.milliseconds)
