@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useToday } from "@/components/use-today";
 import type { WishlistEntry } from "@/lib/journal";
-import { countdown, localDay, OUT_NOW } from "@/lib/release-dates";
+import { countdown, localDay, releasePhase } from "@/lib/release-dates";
 
 /** A small view of the owner's already region-resolved, ordered Wishlist. */
 export function HomeWishlistPreview({ entries }: { entries: WishlistEntry[] }) {
@@ -11,9 +11,9 @@ export function HomeWishlistPreview({ entries }: { entries: WishlistEntry[] }) {
   const sectionDay = day ?? localDay(new Date(), "UTC");
   const next =
     entries.find(
-      (entry) =>
-        entry.release.date && countdown(entry.release, sectionDay) !== OUT_NOW,
-    ) ?? entries.find((entry) => !entry.release.date);
+      (entry) => releasePhase(entry.release, sectionDay) === "upcoming",
+    ) ??
+    entries.find((entry) => releasePhase(entry.release, sectionDay) === "tba");
   if (!entries.length) return null;
   if (!next)
     return (

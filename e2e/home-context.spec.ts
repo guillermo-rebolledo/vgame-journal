@@ -34,6 +34,22 @@ test("Home browsing survives account switching, verification, onboarding and sig
     (await example.boundingBox())?.y ?? 0,
   );
   const destination = `?${new URLSearchParams({ returnTo: home })}`;
+  // Both shared-header entry points use the current browsing URL too.
+  await page
+    .locator("header")
+    .getByRole("link", { name: "Sign in", exact: true })
+    .click();
+  await expect(page).toHaveURL(`/sign-in${destination}`);
+  await page.goto(home);
+  await page
+    .locator("header")
+    .getByRole("button", { name: "Menu", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(`/sign-in${destination}`);
+  await page.getByRole("link", { name: "Create an account" }).click();
+  await expect(page).toHaveURL(`/sign-up${destination}`);
+  await page.goto(home);
   await signup.click();
   await expect(page).toHaveURL(`/sign-up${destination}`);
   await page

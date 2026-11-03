@@ -94,13 +94,19 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
             fallback={
               <output
                 aria-label="Loading journal"
-                className="flex min-h-24 flex-col gap-3"
+                className="flex min-h-[calc(9rem+1px)] flex-col gap-4"
               >
-                <div className="flex gap-3">
-                  <Skeleton className="size-11 rounded-full" />
-                  <Skeleton className="size-11 rounded-full" />
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-3">
+                    <Skeleton className="size-11 rounded-full" />
+                    <Skeleton className="size-11 rounded-full" />
+                  </div>
+                  <Skeleton className="h-5 w-32" />
                 </div>
-                <Skeleton className="h-5 w-48" />
+                <div className="flex flex-col gap-1 border-t pt-3">
+                  <Skeleton className="h-5 w-24" />
+                  <Skeleton className="h-5 w-48" />
+                </div>
               </output>
             }
           >

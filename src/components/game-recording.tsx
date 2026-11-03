@@ -144,7 +144,7 @@ export function GameRecording({
     <TooltipProvider delay={300}>
       <section
         aria-label="Game journal"
-        className="flex min-h-24 flex-col gap-4"
+        className="flex min-h-[calc(9rem+1px)] flex-col gap-4"
       >
         <div className="flex items-start gap-3">
           {signedIn ? (

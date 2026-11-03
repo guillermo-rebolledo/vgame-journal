@@ -8,7 +8,7 @@ import {
   UserIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth-client";
+import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
 
 type AccountUser = {
   username?: string | null;
@@ -58,12 +59,18 @@ function ThemeMenu() {
 /** Avatar-triggered account menu; guests get a visible Sign in link plus a Theme / Sign in menu. Content only mounts on open, so the client-only theme never hydrates. */
 export function AccountMenu({ user }: { user: AccountUser | null }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams().toString();
+  const signInHref = authPageHref(
+    "/sign-in",
+    pathname === "/" && params ? safeReturnTo(`/?${params}`) : "/",
+  );
 
   if (!user)
     return (
       <div className="flex items-center gap-1">
         <Link
-          href="/sign-in"
+          href={signInHref}
           className="inline-flex min-h-11 items-center rounded-md px-2 text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           Sign in
@@ -74,7 +81,7 @@ export function AccountMenu({ user }: { user: AccountUser | null }) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
             <ThemeMenu />
-            <DropdownMenuItem render={<Link href="/sign-in" />}>
+            <DropdownMenuItem render={<Link href={signInHref} />}>
               <LogInIcon aria-hidden />
               Sign in
             </DropdownMenuItem>
