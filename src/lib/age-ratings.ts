@@ -1,13 +1,5 @@
+import type { SourceAgeRating, SourceLanguage } from "@/lib/game-source";
 import type { Region } from "@/lib/release-dates";
-
-/** Same shape as GameSource's SourceAgeRating; board is IGDB's organization name. */
-type AgeRating = { board: string; rating: string; descriptors: string[] };
-type Language = {
-  name: string;
-  voices: boolean;
-  subtitles: boolean;
-  interface: boolean;
-};
 
 /** Each board's display name, region and IGDB rating codes (except GRAC "TESTING"). In fallback order. */
 const BOARDS: Record<
@@ -53,7 +45,7 @@ const REGION_BOARD: Record<Region, string> = {
 };
 
 /** The rating to headline for a Region (guests: null, get ESRB), falling back in board order; the rest in board order. */
-export function pickRatings<T extends AgeRating>(
+export function pickRatings<T extends SourceAgeRating>(
   ratings: readonly T[],
   region: Region | null,
 ) {
@@ -108,7 +100,9 @@ export function ratingLogo(board: string, code: string) {
 }
 
 /** Voiced languages first, then alphabetical. */
-export const sortLanguages = <T extends Language>(languages: readonly T[]) =>
+export const sortLanguages = <T extends SourceLanguage>(
+  languages: readonly T[],
+) =>
   languages.toSorted(
     (a, b) =>
       Number(b.voices) - Number(a.voices) || a.name.localeCompare(b.name),
