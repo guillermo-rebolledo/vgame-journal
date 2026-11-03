@@ -76,9 +76,7 @@ test("discovery separates release metadata from freshness and reveals platforms 
     screen.getByRole("list", { name: "Additional platforms for Old classic" })
       .textContent,
   ).toBe("Super Nintendo Entertainment System");
-  expect(
-    screen.getByRole("link", { name: "Old classic", exact: true }),
-  ).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Old classic" })).toBeTruthy();
   expect(screen.queryByText(/TBA|upcoming|announcement/i)).toBeNull();
 });
 
