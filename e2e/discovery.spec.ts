@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { chooseStatus } from "./support/journal";
+import { seedSql } from "./support/seed-sql";
 import { signUp } from "./support/sign-up";
 
 test.describe.configure({ mode: "serial" });
@@ -161,6 +162,9 @@ test("pending and failed discovery leave search and personal shelves usable", as
   try {
     await page.goto("/", { waitUntil: "commit" });
     await expect(
+      page.getByRole("status").filter({ hasText: "Loading discovery picks…" }),
+    ).toBeVisible();
+    await expect(
       page.getByRole("region", { name: "Playing", exact: true }),
     ).toBeVisible();
     await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
@@ -177,19 +181,78 @@ test("pending and failed discovery leave search and personal shelves usable", as
     await request.post("http://127.0.0.1:3101/discovery-state", {
       data: { fail: true },
     });
-    await page.goto("/");
+    await page.goto("/?q=Celeste&year=2018&platform=PC&all=1&filters=1");
     await expect(
       page.getByRole("region", { name: "Playing", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Recently released", exact: true }),
     ).toHaveCount(0);
+    await expect(
+      page.getByText("Discovery is unavailable.", { exact: false }),
+    ).toBeVisible();
     await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
+    const location = page.url();
+    await request.post("http://127.0.0.1:3101/discovery-state", {
+      data: { fail: false, hold: true },
+    });
+    await page.getByRole("button", { name: "Retry discovery" }).click();
+    await expect(page.getByText("Retrying discovery…")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Retry discovery" }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("searchbox", { name: "Search games" }),
+    ).toHaveValue("Celeste");
+    await request.post("http://127.0.0.1:3101/discovery-state", {
+      data: { hold: false },
+    });
+    await expect(
+      page.getByRole("button", { name: "Retry discovery" }),
+    ).toHaveCount(0);
+    await expect(
+      page
+        .getByRole("region", { name: "Recently released", exact: true })
+        .getByRole("link"),
+    ).toHaveCount(4);
+    await expect(page).toHaveURL(location);
+    await expect(
+      page.getByRole("searchbox", { name: "Search games" }),
+    ).toHaveValue("Celeste");
     await page.getByRole("link", { name: /Celeste/ }).click();
     await expect(page).toHaveURL(/\/games\/celeste$/);
   } finally {
     await request.post("http://127.0.0.1:3101/discovery-state", {
       data: { fail: false, hold: false },
     });
+  }
+});
+
+test("successful empty discovery offers search without an error or retry loop", async ({
+  page,
+  request,
+}) => {
+  await seedSql(
+    request,
+    ["update discovery_snapshot set game_ids = '{}'::integer[]"],
+    [],
+  );
+  try {
+    await page.goto("/?q=Celeste");
+    await expect(
+      page.getByText("No discovery picks yet—search for a game."),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Retry discovery" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("searchbox", { name: "Search games" }),
+    ).toHaveValue("Celeste");
+    await expect(page.getByRole("link", { name: /Celeste/ })).toBeVisible();
+  } finally {
+    const restored = await request.get("/api/cron/refresh-release-dates", {
+      headers: { authorization: "Bearer e2e-cron-secret" },
+    });
+    expect(restored.ok()).toBe(true);
   }
 });
