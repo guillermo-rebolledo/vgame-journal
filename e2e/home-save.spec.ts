@@ -110,7 +110,7 @@ test("discovery saves coordinate repeated games, labels and counts across all Ho
     exact: true,
   });
   const popular = page.getByRole("region", {
-    name: "Popular right now",
+    name: "Recently trending",
     exact: true,
   });
   for (const [shelf, title, status] of [
@@ -309,7 +309,7 @@ test("pending saves block duplicate occurrences; failures before and after persi
     .getByRole("button", { name: "Add Discovery One to backlog", exact: true })
     .click();
   const popular = page.getByRole("region", {
-    name: "Popular right now",
+    name: "Recently trending",
     exact: true,
   });
   await expect(
@@ -485,7 +485,7 @@ test("four Status labels are owner scoped; unchanged Played and status changes p
     exact: true,
   });
   const popular = page.getByRole("region", {
-    name: "Popular right now",
+    name: "Recently trending",
     exact: true,
   });
   for (const [title, label] of [
@@ -782,7 +782,7 @@ test("Home controls reflow with long titles and missing art at phone, tablet, de
       for (const region of [
         results,
         page.getByRole("region", { name: "Recently added", exact: true }),
-        page.getByRole("region", { name: "Popular right now", exact: true }),
+        page.getByRole("region", { name: "Recently trending", exact: true }),
       ]) {
         for (const row of await region.getByRole("listitem").all()) {
           const link = await row.getByRole("link").boundingBox();
