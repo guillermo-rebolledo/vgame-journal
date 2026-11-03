@@ -1,20 +1,16 @@
-import Link from "next/link";
 import { Suspense } from "react";
-import type { ProductEvent } from "@/components/analytics";
 import { Discovery, DiscoveryLoading } from "@/components/discovery";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
-import { GameCover } from "@/components/game-cover";
 import { GameSearch } from "@/components/game-search";
-import {
-  HomeCoverLink,
-  HomeCoverTransitions,
-} from "@/components/home-cover-link";
+import { HomeAuthActions } from "@/components/home-auth-actions";
+import { HomeCoverTransitions } from "@/components/home-cover-link";
+import { HomeIntroduction, JournalExample } from "@/components/home-guest";
+import { HomeJournal } from "@/components/home-journal";
+import { HomeWishlistPreview } from "@/components/home-wishlist-preview";
 import { JsonLd } from "@/components/json-ld";
-import { buttonVariants } from "@/components/ui/button";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import { signedInUserId } from "@/lib/auth";
 import { journal } from "@/lib/journal";
-import { capitalize, type LibraryEntry } from "@/lib/library";
 
 /**
  * The site itself, for search engines and AI crawlers.
@@ -55,28 +51,35 @@ async function HomeContent() {
   const userId = await signedInUserId();
   return (
     <HomeCoverTransitions>
+      {userId ? (
+        <div className="flex flex-col gap-3">
+          <h1 className="font-semibold text-3xl tracking-tight [overflow-wrap:anywhere]">
+            Your Journal
+          </h1>
+          <p className="max-w-xl text-lg text-muted-foreground">
+            Find a game to add, or pick up where you left off.
+          </p>
+        </div>
+      ) : (
+        <HomeIntroduction />
+      )}
       <div className="flex flex-col gap-3">
-        <h1
-          className={
-            userId
-              ? "font-semibold text-3xl tracking-tight [overflow-wrap:anywhere]"
-              : "font-semibold text-4xl tracking-tight [overflow-wrap:anywhere] sm:text-5xl"
-          }
-        >
-          {userId ? "Your Journal" : "Your games, remembered."}
-        </h1>
-        <p className="max-w-xl text-lg text-muted-foreground">
-          {userId
-            ? "Find a game to add, or pick up where you left off."
-            : SITE_DESCRIPTION}
+        <p id="home-search-guidance" className="text-muted-foreground text-sm">
+          Find a game, then save it to Backlog or Wishlist.
+          {!userId && " Sign in to save its Status in your Journal."}
         </p>
+        <Suspense fallback={<output>Loading game search…</output>}>
+          <GameSearch />
+        </Suspense>
       </div>
-      <Suspense fallback={<output>Loading game search…</output>}>
-        <GameSearch
-          example={!userId && <JournalExample />}
-          invitation={!userId && <GuestActions />}
-        />
-      </Suspense>
+      {!userId && (
+        <div className="flex flex-col gap-4">
+          <Suspense fallback={null}>
+            <HomeAuthActions />
+          </Suspense>
+          <JournalExample />
+        </div>
+      )}
       {userId ? (
         <Suspense
           fallback={
@@ -93,178 +96,20 @@ async function HomeContent() {
           <Discovery />
         </Suspense>
       </DiscoveryBoundary>
-      {!userId && <GettingStarted />}
     </HomeCoverTransitions>
   );
 }
 
-function JournalExample() {
-  return (
-    <figure
-      aria-label="Example Journal"
-      className="flex flex-col gap-4 rounded-xl border p-4 sm:p-5"
-    >
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div className="flex flex-wrap items-center gap-4">
-          <GameCover imageId="co3byy" className="w-16 rounded-md" />
-          <div>
-            <p className="font-medium">Celeste</p>
-            <p className="mt-1 text-muted-foreground text-sm">
-              Played · in your Library
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col justify-center gap-1 border-t pt-4 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-5">
-          <p className="font-medium">Your next release</p>
-          <p className="text-muted-foreground text-sm">
-            Wishlist ·{" "}
-            <span className="text-foreground tabular-nums">12 days to go</span>
-          </p>
-        </div>
-      </div>
-      <figcaption className="text-muted-foreground text-xs">
-        Example Journal with an illustrative countdown.
-      </figcaption>
-    </figure>
-  );
-}
-
-function GuestActions() {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Link
-        href="/sign-up"
-        className={buttonVariants({
-          variant: "default",
-          className: "h-11 px-4",
-        })}
-      >
-        Sign up to start a Journal
-      </Link>
-      <Link
-        href="/sign-in"
-        className={buttonVariants({ variant: "ghost", className: "h-11" })}
-      >
-        Sign in to your Journal
-      </Link>
-    </div>
-  );
-}
-
-function GettingStarted() {
-  return (
-    <div className="mt-2 flex flex-col gap-4 border-t pt-6">
-      <h2 className="font-semibold text-xl">How your Journal starts</h2>
-      <ol className="flex list-decimal flex-col gap-1 pl-5 text-muted-foreground">
-        <li>Search above for a game you’ve played or want to play.</li>
-        <li>
-          Open it, then sign in to save a Status: Played, Playing, Backlog or
-          Wishlist.
-        </li>
-        <li>
-          Find your saved games in your Library. Follow releases in your
-          Wishlist.
-        </li>
-      </ol>
-    </div>
-  );
-}
-
 async function YourJournal({ userId }: { userId: string }) {
-  // The Library allowlist has no notes, so nothing private reaches Home.
-  const entries = await journal.library(userId);
-  const playing = entries.filter((e) => e.status === "playing").slice(0, 4);
-  const recent = entries.filter((e) => e.status !== "playing").slice(0, 4);
+  // Both reads are owner-scoped allowlists with no private notes.
+  const [entries, wishlist] = await Promise.all([
+    journal.library(userId),
+    journal.wishlist(userId),
+  ]);
   return (
-    <div className="mt-2 flex flex-col gap-6 border-t pt-6">
-      {entries.length === 0 ? (
-        <p className="text-muted-foreground">
-          Your Journal is empty. Search above, open a game, and set its Status
-          to add it.
-        </p>
-      ) : (
-        <>
-          {playing.length > 0 && <Shelf title="Playing" games={playing} />}
-          {recent.length > 0 && <Shelf title="Recently added" games={recent} />}
-        </>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Link
-          href="/library"
-          className={buttonVariants({ variant: "outline", className: "h-11" })}
-        >
-          Library ({entries.length})
-        </Link>
-        <Link
-          href="/wishlist"
-          className={buttonVariants({ variant: "outline", className: "h-11" })}
-        >
-          Wishlist ({entries.filter((e) => e.status === "wishlist").length})
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function Shelf({
-  title,
-  games,
-  refreshedAt,
-  event,
-}: {
-  title: string;
-  games: (Pick<LibraryEntry, "gameId" | "title" | "slug" | "coverImageId"> &
-    Partial<Pick<LibraryEntry, "status">>)[];
-  refreshedAt?: Date;
-  event?: ProductEvent;
-}) {
-  const id = `home-${title.toLowerCase().replace(/ /g, "-")}`;
-  return (
-    <section aria-labelledby={id} className="flex flex-col gap-3">
-      <h2 id={id} className="font-semibold text-xl">
-        {title}
-      </h2>
-      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {games.map((e) => (
-          <li key={e.gameId}>
-            <HomeCoverLink
-              gameId={e.gameId}
-              source="shelf"
-              event={event}
-              href={`/games/${e.slug}`}
-              className="group flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              cover={
-                <GameCover
-                  imageId={e.coverImageId}
-                  className="w-full rounded-lg shadow-lg"
-                />
-              }
-            >
-              <span className="line-clamp-2 font-medium text-sm leading-snug group-hover:underline group-hover:underline-offset-4">
-                {e.title}
-              </span>
-              {e.status && (
-                <span className="text-muted-foreground text-sm">
-                  {capitalize(e.status)}
-                </span>
-              )}
-            </HomeCoverLink>
-          </li>
-        ))}
-      </ul>
-      {refreshedAt && (
-        <p className="text-muted-foreground text-xs">
-          Updated{" "}
-          <time dateTime={refreshedAt.toISOString()}>
-            {refreshedAt.toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-              timeZone: "UTC",
-            })}
-          </time>
-        </p>
-      )}
-    </section>
+    <HomeJournal
+      entries={entries}
+      wishlistPreview={<HomeWishlistPreview entries={wishlist} />}
+    />
   );
 }

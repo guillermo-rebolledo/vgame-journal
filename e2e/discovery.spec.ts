@@ -64,11 +64,7 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
   const headings = await page
     .getByRole("heading", { level: 2 })
     .allTextContents();
-  expect(headings).toEqual([
-    "Recently released",
-    "Popular right now",
-    "How your Journal starts",
-  ]);
+  expect(headings).toEqual(["Recently released", "Popular right now"]);
   const columns = () =>
     recent
       .locator("ul")
@@ -127,7 +123,10 @@ test("empty and saved Journals retain priority; duplicate covers navigate from e
     "Recently released",
     "Popular right now",
   ]);
-  const library = page.getByRole("link", { name: /Library \(2\)/ });
+  const library = page.getByRole("link", {
+    name: "All saved games (2)",
+    exact: true,
+  });
   await expect(library).toBeVisible();
   const personal = page.getByRole("region", { name: "Playing", exact: true });
   await personal.getByRole("link", { name: /Discovery One/ }).click();
@@ -137,9 +136,9 @@ test("empty and saved Journals retain priority; duplicate covers navigate from e
     .getByRole("searchbox", { name: "Search games" })
     .fill("Discovery One");
   const links = page.getByRole("link", { name: /^Discovery One/ });
-  await expect(links).toHaveCount(4);
-  // Search and both discovery shelves share the same game, alongside Playing.
-  for (const index of [0, 1, 2, 3]) {
+  await expect(links).toHaveCount(5);
+  // Search, Playing, Recently added and both discovery shelves share the game.
+  for (const index of [0, 1, 2, 3, 4]) {
     await links.nth(index).click();
     await expect(page).toHaveURL(/\/games\/discovery-one$/);
     await page.goto("/?q=Discovery%20One");
