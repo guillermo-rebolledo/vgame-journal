@@ -7,6 +7,7 @@ const database = new PGlite();
 await migrate(drizzle(database), { migrationsFolder: "./drizzle" });
 const mailbox = [];
 const collectionDelays = new Map();
+const publicListStates = new Map();
 const discoveryState = { fail: false, hold: false };
 const discoveryWaiters = [];
 const server = createServer(async (request, response) => {
@@ -31,6 +32,17 @@ const server = createServer(async (request, response) => {
             setTimeout(resolve, state.milliseconds),
           );
       }
+      const listState = sql.includes('from "custom_list"')
+        ? [...publicListStates.values()].find((state) =>
+            params?.includes(state.username),
+          )
+        : null;
+      if (listState?.fail)
+        throw new Error("Synthetic public Lists read failure");
+      if (listState?.milliseconds)
+        await new Promise((resolve) =>
+          setTimeout(resolve, listState.milliseconds),
+        );
       const result = await database.query(sql, params, {
         rowMode: "array",
         parsers: {
@@ -39,6 +51,13 @@ const server = createServer(async (request, response) => {
           1184: (value) => value,
         },
       });
+      if (listState?.revokeId) {
+        await database.query(
+          "update custom_list set visibility = 'private', revision = revision + 1 where id = $1",
+          [listState.revokeId],
+        );
+        delete listState.revokeId;
+      }
       response.end(JSON.stringify({ rows: result.rows }));
     } else if (request.url === "/batch" && request.method === "POST") {
       const statements = JSON.parse(body);
@@ -68,6 +87,13 @@ const server = createServer(async (request, response) => {
       Object.assign(discoveryState, JSON.parse(body));
       if (!discoveryState.hold)
         for (const resolve of discoveryWaiters.splice(0)) resolve();
+      response.end("{}");
+    } else if (
+      request.url === "/public-lists-state" &&
+      request.method === "POST"
+    ) {
+      const state = JSON.parse(body);
+      publicListStates.set(state.username, state);
       response.end("{}");
     } else if (request.url === "/emails" && request.method === "POST") {
       mailbox.push(JSON.parse(body));
