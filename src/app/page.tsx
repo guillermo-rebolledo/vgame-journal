@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { connection } from "next/server";
 import { Suspense } from "react";
 import type { ProductEvent } from "@/components/analytics";
+import { Discovery, DiscoveryLoading } from "@/components/discovery";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
 import { GameCover } from "@/components/game-cover";
 import { GameSearch } from "@/components/game-search";
@@ -13,7 +13,6 @@ import { JsonLd } from "@/components/json-ld";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import { signedInUserId } from "@/lib/auth";
-import { catalog } from "@/lib/catalog";
 import { journal } from "@/lib/journal";
 import { capitalize, type LibraryEntry } from "@/lib/library";
 
@@ -90,7 +89,7 @@ async function HomeContent() {
         </Suspense>
       ) : null}
       <DiscoveryBoundary>
-        <Suspense fallback={null}>
+        <Suspense fallback={<DiscoveryLoading />}>
           <Discovery />
         </Suspense>
       </DiscoveryBoundary>
@@ -205,30 +204,6 @@ async function YourJournal({ userId }: { userId: string }) {
       </div>
     </div>
   );
-}
-
-async function Discovery() {
-  await connection();
-  try {
-    const shelves = await catalog.discovery();
-    return shelves.map((shelf) => (
-      <Shelf
-        key={shelf.key}
-        title={
-          shelf.key === "recent" ? "Recently released" : "Popular right now"
-        }
-        games={shelf.games.map((g) => ({ ...g, gameId: g.id }))}
-        refreshedAt={shelf.refreshedAt}
-        event={[
-          "home_shelf_opened",
-          { shelf: shelf.key === "recent" ? "recent_releases" : "popular" },
-        ]}
-      />
-    ));
-  } catch {
-    console.error("Home discovery unavailable");
-    return null;
-  }
 }
 
 function Shelf({
