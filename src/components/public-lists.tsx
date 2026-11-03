@@ -1,32 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState } from "react";
 import { GameCover } from "@/components/game-cover";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { Button } from "@/components/ui/button";
 import type { PublicList } from "@/lib/lists";
 
+export function ListsUnavailable() {
+  const [pending, setPending] = useState(false);
+  return (
+    <div className="space-y-3">
+      <p role="alert">Lists are unavailable. Please try again.</p>
+      <Button
+        variant="outline"
+        className="min-h-11"
+        disabled={pending}
+        aria-busy={pending}
+        onClick={() => {
+          setPending(true);
+          // Reload also replaces streamed metadata from the failed read.
+          window.location.reload();
+        }}
+      >
+        {pending ? "Retrying lists…" : "Retry lists"}
+      </Button>
+    </div>
+  );
+}
+
 export function PublicLists({ lists }: { lists: PublicList[] | null }) {
   const pagination = useUrlPagination("publicListPage", lists?.length);
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  if (!lists)
-    return (
-      <div className="space-y-3">
-        <p role="alert">Lists are unavailable. Please try again.</p>
-        <Button
-          variant="outline"
-          className="min-h-11"
-          disabled={pending}
-          aria-busy={pending}
-          onClick={() => startTransition(() => router.refresh())}
-        >
-          {pending ? "Retrying lists…" : "Retry lists"}
-        </Button>
-      </div>
-    );
+  if (!lists) return <ListsUnavailable />;
   return (
     <section className="space-y-4" aria-label="Public collections">
       <h2 className="font-semibold text-xl">Public lists</h2>

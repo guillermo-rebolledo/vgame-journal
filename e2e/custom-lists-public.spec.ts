@@ -325,10 +325,12 @@ test("profile Lists discovers only public cards and counts while preserving URL 
     );
     await guest.goto(`/u/${username}?view=lists&publicListPage=99&keep=1`);
     await expect(
-      guest.getByText("No public lists yet.", { exact: true }),
+      guest
+        .getByRole("main")
+        .getByText("No public lists yet.", { exact: true }),
     ).toBeVisible();
     await expect(
-      guest.getByText("0 public lists", { exact: true }),
+      guest.getByRole("main").getByText("0 public lists", { exact: true }),
     ).toBeVisible();
     await expect(guest).not.toHaveURL(/publicListPage=/);
     expect(new URL(guest.url()).searchParams.get("keep")).toBe("1");
@@ -379,7 +381,9 @@ test("public readers see loading, unavailable with recovery, and genuine empty c
       "Lists are unavailable. Please try again.",
     );
     await expect(
-      guest.getByText("No public lists yet.", { exact: true }),
+      guest
+        .getByRole("main")
+        .getByText("No public lists yet.", { exact: true }),
     ).toHaveCount(0);
     await listState(request, username, {});
     await guest
@@ -389,7 +393,7 @@ test("public readers see loading, unavailable with recovery, and genuine empty c
       guest.getByRole("link", { name: /An empty collection/ }),
     ).toBeVisible();
     await listState(request, username, { fail: true });
-    const failed = await guest.goto(path);
+    const failed = await guest.goto(`${path}?keep=recovery&listGamePage=2`);
     expect(failed?.headers()["cache-control"]).toContain("no-store");
     await expect(guest.getByRole("main").getByRole("alert")).toBeVisible();
     await expect(guest.locator('meta[name="robots"]')).toHaveAttribute(
@@ -399,7 +403,9 @@ test("public readers see loading, unavailable with recovery, and genuine empty c
     await expect(guest.locator('link[rel="canonical"]')).toHaveCount(0);
     expect(await guest.content()).not.toContain("An empty collection");
     await listState(request, username, {});
-    await guest.getByRole("link", { name: "Try again", exact: true }).click();
+    await guest
+      .getByRole("button", { name: "Retry lists", exact: true })
+      .click();
     await expect(
       guest
         .getByRole("main")
@@ -408,6 +414,23 @@ test("public readers see loading, unavailable with recovery, and genuine empty c
     await expect(
       guest.getByRole("heading", { name: "An empty collection" }),
     ).toBeVisible();
+    expect(new URL(guest.url()).searchParams.get("keep")).toBe("recovery");
+    await expect(
+      guest.locator('meta[name="robots"][content*="noindex"]'),
+    ).toHaveCount(0);
+    await expect(guest.locator('meta[name="robots"]').first()).toHaveAttribute(
+      "content",
+      "index, follow",
+    );
+    await expect
+      .poll(() =>
+        guest
+          .locator('link[rel="canonical"]')
+          .evaluateAll((links) => [
+            ...new Set(links.map((link) => link.getAttribute("href"))),
+          ]),
+      )
+      .toEqual([`https://shelve.games${path}`]);
   } finally {
     await listState(request, username, {});
     await visitor.close();

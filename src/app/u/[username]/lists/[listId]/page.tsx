@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PublicListDetail } from "@/components/public-list";
+import { ListsUnavailable } from "@/components/public-lists";
 import { publicList } from "./list";
 
 type Props = PageProps<"/u/[username]/lists/[listId]">;
@@ -60,17 +61,7 @@ async function List({ params }: Pick<Props, "params">) {
   try {
     list = await publicList(username, listId);
   } catch {
-    return (
-      <div className="space-y-3">
-        <p role="alert">Lists are unavailable. Please try again.</p>
-        <a
-          href={`/u/${encodeURIComponent(username)}/lists/${encodeURIComponent(listId)}`}
-          className="inline-flex min-h-11 items-center rounded-md px-3 underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          Try again
-        </a>
-      </div>
-    );
+    return <ListsUnavailable />;
   }
   if (!list) notFound();
   return <PublicListDetail list={list} />;
