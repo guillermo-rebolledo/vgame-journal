@@ -43,6 +43,12 @@ test("skip route moves focus into main on Home and details", async ({
 }) => {
   for (const path of ["/", "/games/celeste"]) {
     await page.goto(path);
+    // Main can still be an empty streamed fallback after navigation commits.
+    await expect(
+      path === "/"
+        ? page.getByRole("searchbox", { name: "Search games" })
+        : page.getByRole("link", { name: "Journal status", exact: true }),
+    ).toBeVisible();
     await page.keyboard.press("Tab");
     const skip = page.getByRole("link", { name: "Skip to main content" });
     await expect(skip).toBeFocused();
@@ -83,6 +89,8 @@ test("header forward and reverse keyboard order matches visible rows at every br
         header.getByRole("link", { name, exact: true }),
       ),
     ];
+    // The request-scoped account/navigation header streams after the brand.
+    for (const target of targets) await expect(target).toBeVisible();
     await page.getByRole("link", { name: "Skip to main content" }).focus();
     let previous: {
       x: number;
@@ -113,6 +121,81 @@ test("header forward and reverse keyboard order matches visible rows at every br
     await expectNoHorizontalOverflow(page);
   }
 });
+
+for (const colorScheme of ["light", "dark"] as const) {
+  test(`Home keyboard controls retain visible focus in forced colors with ${colorScheme} appearance`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ forcedColors: "active", colorScheme });
+    await page.route("**/api/games/search?**", (route) =>
+      route.fulfill({
+        json: [
+          {
+            id: 1,
+            slug: "celeste",
+            title: "Celeste",
+            coverImageId: null,
+            year: 2018,
+            platforms: ["PC", "Nintendo Switch"],
+          },
+          {
+            id: 2,
+            slug: "silksong",
+            title: "Silksong",
+            coverImageId: null,
+            year: 2026,
+            platforms: ["PC"],
+          },
+        ],
+      }),
+    );
+    await page.goto("/?q=focus");
+    const filters = page.getByRole("button", { name: "Filters", exact: true });
+    await expect(filters).toBeVisible();
+    const visibleFocus = async (target: Locator) => {
+      await expect(target).toBeFocused();
+      await expect(target).toHaveCSS("outline-style", "solid");
+      await expect(target).toHaveCSS("outline-width", "2px");
+      await expect(target).toHaveCSS(
+        "outline-color",
+        colorScheme === "light" ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)",
+      );
+      await expect(target).toBeInViewport();
+    };
+    await page.keyboard.press("Tab");
+    await visibleFocus(
+      page.getByRole("link", { name: "Skip to main content" }),
+    );
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Tab");
+    await visibleFocus(page.getByRole("searchbox", { name: "Search games" }));
+    await page.keyboard.press("Tab");
+    await visibleFocus(filters);
+    await page.keyboard.press("Enter");
+    await expect(filters).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Tab");
+    await visibleFocus(
+      page.getByRole("combobox", { name: "Release year", exact: true }),
+    );
+    await page.keyboard.press("Tab");
+    await visibleFocus(
+      page.getByRole("combobox", { name: "Platform", exact: true }),
+    );
+    const more = page.getByLabel("More platforms for Celeste");
+    // Native platform details remain reachable after the result link.
+    await page.keyboard.press("Tab");
+    await visibleFocus(
+      page.getByRole("link", { name: "Celeste", exact: true }),
+    );
+    await page.keyboard.press("Tab");
+    await visibleFocus(more);
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("list", { name: "Additional platforms for Celeste" }),
+    ).toBeVisible();
+  });
+}
 
 test("populated collections keep Find a game reachable with comfortable phone controls", async ({
   page,
@@ -434,7 +517,7 @@ for (const theme of ["light", "dark"] as const) {
     await chooseAccountMenuItem(page, "Sign out");
     await expect(
       page.getByRole("heading", {
-        name: "Your games, remembered.",
+        name: "Track what you’re playing, build your backlog, and save games you want",
         exact: true,
       }),
     ).toBeVisible();

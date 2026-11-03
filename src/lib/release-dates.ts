@@ -100,6 +100,15 @@ const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
 export const TODAY = "Today!";
 export const OUT_NOW = "Out now";
 
+/** Wishlist sections share the user's calendar day; Today is still upcoming. */
+export function releasePhase(release: ResolvedRelease, today: string) {
+  return !release.date
+    ? "tba"
+    : countdown(release, today) === OUT_NOW
+      ? "out"
+      : "upcoming";
+}
+
 /** The last day of the month, quarter or year an imprecise date stands for, as a UTC timestamp. */
 function periodEnd(date: Date, precision: DatePrecision) {
   const month = date.getUTCMonth();

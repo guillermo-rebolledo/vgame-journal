@@ -35,8 +35,15 @@ test("Home guides new users, and search survives slow, stale and failed requests
 }, testInfo) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "How your Journal starts" }),
+    page.getByRole("heading", {
+      name: "Track what you’re playing, build your backlog, and save games you want",
+    }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("searchbox", { name: "Search games" }),
+  ).toHaveAccessibleDescription(
+    /Find a game, then save it to Backlog or Wishlist/,
+  );
   await expect(
     page.getByRole("link", { name: "Sign up to start a Journal" }),
   ).toHaveAttribute("href", "/sign-up");
@@ -200,10 +207,10 @@ test("Search filters keep keyboard focus and long platform names readable at 320
     name: "Platform",
     exact: true,
   });
-  await expect(platform).toBeAttached();
+  const filters = page.getByRole("button", { name: "Filters", exact: true });
+  await expect(filters).toBeVisible();
   await page.getByRole("searchbox", { name: "Search games" }).focus();
   await page.keyboard.press("Tab");
-  const filters = page.getByRole("button", { name: "Filters", exact: true });
   await expect(filters).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(filters).toHaveAttribute("aria-expanded", "true");
@@ -277,7 +284,9 @@ test("Library search, filters and sort survive game visits, Back and reload", as
   await expect(
     page.getByRole("heading", { name: "Recently added" }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Library (3)" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "All saved games (3)" }),
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: "Wishlist (2)" })).toBeVisible();
   await snap(page, testInfo, "home-signed-in", true);
 

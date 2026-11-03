@@ -93,27 +93,6 @@ test("keeps a visible input label and nearby guidance within a named search land
   ).toHaveLength(1);
 });
 
-test("places the invitation before the example and retains it while searching", async () => {
-  const user = userEvent.setup();
-  render(
-    <GameSearch
-      invitation={<a href="/sign-up">Create a Journal</a>}
-      example={<p>Illustrative Journal</p>}
-    />,
-  );
-  const invitation = screen.getByRole("link", { name: "Create a Journal" });
-  const example = screen.getByText("Illustrative Journal");
-  expect(
-    invitation.compareDocumentPosition(example) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
-  await user.type(box(), "ce");
-  expect(screen.queryByText("Illustrative Journal")).toBeNull();
-  expect(screen.getByRole("link", { name: "Create a Journal" })).toBe(
-    invitation,
-  );
-});
-
 test("waits for two characters, then shows searching and the results", async () => {
   const user = userEvent.setup();
   render(<GameSearch />);

@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 import {
   positionBucket,
   resultsBucket,
@@ -23,15 +23,7 @@ const INITIAL_RESULTS = 6;
 /** What came back for one query and attempt; null results mean the search failed. */
 type Answer = { q: string; attempt: number; results: SearchResult[] | null };
 
-export function GameSearch({
-  example,
-  invitation,
-  descriptionId,
-}: {
-  example?: ReactNode;
-  invitation?: ReactNode;
-  descriptionId?: string;
-}) {
+export function GameSearch({ descriptionId }: { descriptionId?: string }) {
   const searchParams = useSearchParams();
   const query = searchParams.get("q") ?? "";
   const year = searchParams.get("year") ?? "";
@@ -322,12 +314,6 @@ export function GameSearch({
           </Button>
         )}
       </search>
-      {(example || invitation) && (
-        <div className="mt-2 flex flex-col gap-6 border-t pt-6">
-          {invitation}
-          {q.length === 0 && example}
-        </div>
-      )}
     </div>
   );
 }

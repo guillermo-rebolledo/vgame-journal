@@ -5,8 +5,29 @@ import {
   countdown,
   localDay,
   releaseLabel,
+  releasePhase,
   resolveRelease,
 } from "./release-dates";
+
+test.each([
+  [null, "tbd", "2026-11-03", "tba"],
+  ["2026-11-02", "day", "2026-11-03", "out"],
+  ["2026-11-03", "day", "2026-11-03", "upcoming"],
+  ["2026-11-04", "day", "2026-11-03", "upcoming"],
+  ["2026-11-01", "month", "2026-11-30", "upcoming"],
+  ["2026-11-01", "month", "2026-12-01", "out"],
+  ["2026-10-01", "quarter", "2026-12-31", "upcoming"],
+  ["2026-10-01", "quarter", "2027-01-01", "out"],
+  ["2026-01-01", "year", "2026-12-31", "upcoming"],
+  ["2026-01-01", "year", "2027-01-01", "out"],
+] as const)("release %s (%s) is in %s's %s phase", (date, precision, today, phase) => {
+  expect(
+    releasePhase(
+      { date: date ? new Date(date) : null, precision, label: "" },
+      today,
+    ),
+  ).toBe(phase);
+});
 
 test.each([
   ["2017-02-24T00:00:00Z", "day", "Feb 24, 2017"],

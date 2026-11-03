@@ -151,7 +151,12 @@ test("an unreachable cover keeps the game's title and cover proportions", async 
   const after = await fallback.boundingBox();
   expect(after?.width).toBe(before?.width);
   expect(after?.height).toBeCloseTo(before?.height ?? 0, 0);
-  await expect(result).toHaveAccessibleName("Celeste 2018 PC");
+  await expect(result).toHaveAccessibleName("Celeste");
+  const row = page
+    .getByRole("list", { name: "Search results" })
+    .getByRole("listitem");
+  await expect(row.getByText("2018", { exact: true })).toBeVisible();
+  await expect(row.getByText("PC", { exact: true })).toBeVisible();
 });
 
 for (const signedIn of [false, true]) {

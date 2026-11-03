@@ -268,50 +268,73 @@ test("signed-out actions lead to sign in and no-platform games explain the limit
   ).toBeDisabled();
 });
 
-test("delayed personal content reveals one compact action area without opening an editor", async ({
-  page,
-  request,
-}) => {
-  const email = await signUp(page, request, `delayed_record_${Date.now()}`);
-  await page.goto("/games/celeste");
-  await request.post("http://127.0.0.1:3101/query", {
-    data: {
-      sql: `insert into journal_entry (user_id, game_id, status) select id, 1, 'played' from "user" where email = $1`,
-      params: [email],
-    },
+for (const populated of [false, true]) {
+  test(`delayed personal content reveals one compact action area without opening an editor (${populated ? "saved history" : "empty Journal"})`, async ({
+    page,
+    request,
+  }) => {
+    const email = await signUp(page, request, `delayed_record_${Date.now()}`);
+    await page.goto("/games/celeste");
+    if (populated) {
+      const entry = await request.post("http://127.0.0.1:3101/query", {
+        data: {
+          sql: `insert into journal_entry (user_id, game_id, status, updated_at) select u.id, g.id, 'played', now() from "user" u cross join game g where u.email = $1 and g.slug = 'celeste'`,
+          params: [email],
+        },
+      });
+      expect(entry.ok(), await entry.text()).toBe(true);
+      const history = await request.post("http://127.0.0.1:3101/query", {
+        data: {
+          sql: `insert into playthrough (user_id, game_id, platform, started_on, notes) select u.id, g.id, 'PC', '2026-01-01', 'Delayed history ' || n from "user" u cross join game g cross join generate_series(1, 5) n where u.email = $1 and g.slug = 'celeste'`,
+          params: [email],
+        },
+      });
+      expect(history.ok(), await history.text()).toBe(true);
+    }
+    await request.post("http://127.0.0.1:3101/collection-delay", {
+      data: { email, milliseconds: 2000 },
+    });
+    await page.goto("/games/celeste", { waitUntil: "commit" });
+    await expect(
+      page.getByRole("heading", { name: "Celeste", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("status", { name: "Loading journal" }),
+    ).toBeVisible();
+    const scores = page
+      .getByText("Critic score", { exact: true })
+      .filter({ visible: true });
+    const before = await scores.boundingBox();
+    await expect(
+      page.getByRole("button", { name: "Add playthrough", exact: true }),
+    ).toBeVisible();
+    expect(
+      Math.abs(((await scores.boundingBox())?.y ?? 0) - (before?.y ?? 0)),
+    ).toBeLessThan(2);
+    if (populated) {
+      await expect(
+        page.getByRole("region", { name: "Game journal" }),
+      ).toContainText("Played");
+      await expect(
+        page
+          .getByRole("group", { name: "Playthrough history", exact: true })
+          .getByRole("listitem"),
+      ).toHaveCount(5);
+    } else {
+      await expect(
+        page.getByRole("region", { name: "Game journal" }),
+      ).toContainText("Not in your Journal");
+      await expect(
+        page.getByText("No playthroughs yet.", { exact: true }),
+      ).toBeVisible();
+    }
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByLabel("Started", { exact: true })).toHaveCount(0);
+    await request.post("http://127.0.0.1:3101/collection-delay", {
+      data: { email, milliseconds: 0 },
+    });
   });
-  await request.post("http://127.0.0.1:3101/query", {
-    data: {
-      sql: `insert into playthrough (user_id, game_id, platform, started_on, notes) select u.id, 1, 'PC', '2026-01-01', 'Delayed history ' || n from "user" u cross join generate_series(1, 5) n where email = $1`,
-      params: [email],
-    },
-  });
-  await request.post("http://127.0.0.1:3101/collection-delay", {
-    data: { email, milliseconds: 2000 },
-  });
-  await page.goto("/games/celeste", { waitUntil: "commit" });
-  await expect(
-    page.getByRole("heading", { name: "Celeste", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("status", { name: "Loading journal" }),
-  ).toBeVisible();
-  const scores = page
-    .getByText("Critic score", { exact: true })
-    .filter({ visible: true });
-  const before = await scores.boundingBox();
-  await expect(
-    page.getByRole("button", { name: "Add playthrough", exact: true }),
-  ).toBeVisible();
-  expect(
-    Math.abs(((await scores.boundingBox())?.y ?? 0) - (before?.y ?? 0)),
-  ).toBeLessThan(2);
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByLabel("Started", { exact: true })).toHaveCount(0);
-  await request.post("http://127.0.0.1:3101/collection-delay", {
-    data: { email, milliseconds: 0 },
-  });
-});
+}
 
 test("cancel never writes and the drawer stays within a keyboard-reduced visual viewport", async ({
   page,

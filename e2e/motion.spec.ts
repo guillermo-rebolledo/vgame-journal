@@ -55,13 +55,20 @@ test("playthrough drawer keeps the page stationary and dismisses its select firs
     })
     .filter({ visible: true });
   await expect(cover).toBeVisible();
+  const add = page.getByRole("button", {
+    name: "Add playthrough",
+    exact: true,
+  });
+  // Establish a visible trigger, then exclude Playwright's pre-mousedown scrolling.
+  await add.scrollIntoViewIfNeeded();
+  await expect(add).toBeInViewport();
   const before = await cover.boundingBox();
-  await page
-    .getByRole("button", { name: "Add playthrough", exact: true })
-    .click();
+  const scrollBefore = await page.evaluate(() => scrollY);
+  await add.click({ scroll: "none" });
   await expect(page.getByRole("dialog")).toBeVisible();
   await expect(page.getByLabel("Started", { exact: true })).toBeVisible();
   expect((await cover.boundingBox())?.y).toBe(before?.y);
+  expect(await page.evaluate(() => scrollY)).toBe(scrollBefore);
   await page.getByRole("combobox", { name: "Platform", exact: true }).click();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeVisible();
