@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { seedSql } from "./support/seed-sql";
 import { signUp } from "./support/sign-up";
+import { snap } from "./support/snap";
 import { supportUrl } from "./support/url";
 
 test("lost membership and delete responses reconcile before another mutation", async ({
@@ -229,13 +230,16 @@ test("owner read and search failures stay distinct from empty states and can be 
 test("keyboard moves cross game pages with focus and preserve URL state, and owner lists paginate", async ({
   page,
   request,
-}) => {
+}, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 760 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await signUp(page, request, "lists_owner_pages");
   await page.goto("/lists");
   await page
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("Paged collection");
-  await page.getByRole("button", { name: "Create list", exact: true }).click();
+  await page.getByRole("button", { name: "Create list", exact: true }).focus();
+  await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/lists\/[a-f0-9-]+$/);
   const path = new URL(page.url()).pathname;
   const id = path.split("/").at(-1) as string;
@@ -261,6 +265,12 @@ test("keyboard moves cross game pages with focus and preserve URL state, and own
   await expect(
     games.getByRole("link", { name: "List game 47", exact: true }),
   ).toBeFocused();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await snap(page, testInfo, "owner-mobile-keyboard-page-two");
   await games
     .getByRole("button", { name: "Move List game 47 up", exact: true })
     .focus();
@@ -304,6 +314,12 @@ test("keyboard moves cross game pages with focus and preserve URL state, and own
   await expect(page).toHaveURL(/\?kept=1$/);
   await page.goForward();
   await expect(page).toHaveURL(/listsPage=2$/);
+  await page.reload();
+  await expect(
+    page
+      .getByRole("group", { name: "Your lists", exact: true })
+      .getByRole("listitem"),
+  ).toHaveCount(1);
 });
 
 test("signup and username onboarding return to the selected game without mutating during authentication", async ({
@@ -520,6 +536,20 @@ test("stale metadata cannot republish a list and refresh keeps the local draft f
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("Concurrent list");
   await page.getByRole("button", { name: "Create list", exact: true }).click();
+  for (const title of ["Celeste", "Hades"]) {
+    await page
+      .getByRole("searchbox", { name: "Search games", exact: true })
+      .fill(title);
+    await page
+      .getByRole("button", { name: `Add ${title} to list`, exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: `${title} already in list`,
+        exact: true,
+      }),
+    ).toBeDisabled();
+  }
   await page.getByRole("button", { name: "Publish list", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Make private", exact: true }),
@@ -542,6 +572,9 @@ test("stale metadata cannot republish a list and refresh keeps the local draft f
   await expect(
     page.getByRole("button", { name: "Refresh saved list", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Move Celeste down", exact: true }),
+  ).toBeDisabled();
   await page
     .getByRole("button", { name: "Refresh saved list", exact: true })
     .click();
@@ -609,6 +642,22 @@ test("publishing is separate from metadata, links survive renames, clipboard den
     page.getByRole("alert").filter({ hasText: "Select the public list URL" }),
   ).toBeVisible();
   await expect(sharing).toBeFocused();
+  expect(
+    await sharing.evaluate(
+      (input: HTMLInputElement) =>
+        (input.selectionEnd ?? 0) - (input.selectionStart ?? 0),
+    ),
+  ).toBe(url.length);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(() => Reflect.deleteProperty(navigator, "clipboard"));
+  await page.getByRole("button", { name: "Copy", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Copied", exact: true }),
+  ).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Could not copy" }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Make private", exact: true }).click();
   await expect(sharing).toHaveCount(0);
   page.once("dialog", (dialog) => dialog.dismiss());

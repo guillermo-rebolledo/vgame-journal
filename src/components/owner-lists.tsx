@@ -500,7 +500,10 @@ export function OwnerListEditor({
                             className="min-h-11"
                             aria-label={`Move ${game.title} down`}
                             disabled={
-                              pending || index === list.games.length - 1
+                              pending ||
+                              !ready ||
+                              needsRefresh ||
+                              index === list.games.length - 1
                             }
                             onClick={() => move(index, 1)}
                           >
