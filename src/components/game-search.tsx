@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { type CSSProperties, useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useId, useState } from "react";
 import {
   positionBucket,
   resultsBucket,
@@ -24,6 +24,7 @@ const INITIAL_RESULTS = 6;
 type Answer = { q: string; attempt: number; results: SearchResult[] | null };
 
 export function GameSearch({ descriptionId }: { descriptionId?: string }) {
+  const id = useId();
   const searchParams = useSearchParams();
   const query = searchParams.get("q") ?? "";
   const year = searchParams.get("year") ?? "";
@@ -113,20 +114,17 @@ export function GameSearch({ descriptionId }: { descriptionId?: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <search
-        aria-labelledby="game-search-label"
-        className="flex flex-col gap-4"
-      >
+      <search aria-labelledby={`${id}-label`} className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <label
-            id="game-search-label"
-            htmlFor="game-search-input"
+            id={`${id}-label`}
+            htmlFor={`${id}-input`}
             className="font-medium"
           >
             Search games
           </label>
           <Input
-            id="game-search-input"
+            id={`${id}-input`}
             type="search"
             aria-describedby={descriptionId}
             placeholder="Search games…"
@@ -183,7 +181,7 @@ export function GameSearch({ descriptionId }: { descriptionId?: string }) {
                 variant="outline"
                 className="min-h-11 sm:hidden"
                 aria-expanded={filtersOpen}
-                aria-controls="game-search-filters"
+                aria-controls={`${id}-filters`}
                 onClick={() =>
                   updateSearch({ filters: filtersOpen ? "" : "1" })
                 }
@@ -204,7 +202,7 @@ export function GameSearch({ descriptionId }: { descriptionId?: string }) {
               )}
             </div>
             <div
-              id="game-search-filters"
+              id={`${id}-filters`}
               className={cn(
                 "grid-cols-1 items-end gap-3 sm:grid sm:grid-cols-2",
                 filtersOpen ? "grid" : "hidden",
@@ -212,7 +210,8 @@ export function GameSearch({ descriptionId }: { descriptionId?: string }) {
             >
               {showYear && (
                 <SearchFilter
-                  id="game-search-year"
+                  id={`${id}-year`}
+                  descriptionId={`${id}-filter-help`}
                   label="Release year"
                   value={year}
                   emptyLabel="All years"
@@ -222,7 +221,8 @@ export function GameSearch({ descriptionId }: { descriptionId?: string }) {
               )}
               {showPlatform && (
                 <SearchFilter
-                  id="game-search-platform"
+                  id={`${id}-platform`}
+                  descriptionId={`${id}-filter-help`}
                   label="Platform"
                   value={platform}
                   emptyLabel="All platforms"
@@ -234,17 +234,14 @@ export function GameSearch({ descriptionId }: { descriptionId?: string }) {
           </div>
         )}
         {(results || year || platform) && (
-          <p
-            id="game-search-filter-help"
-            className="text-muted-foreground text-xs"
-          >
+          <p id={`${id}-filter-help`} className="text-muted-foreground text-xs">
             Search returns up to 50 candidates. Filters narrow these returned
             results only. Use a more specific title to find other games.
           </p>
         )}
         {matches && matches.length > 0 && (
           <ul
-            id="game-search-results"
+            id={`${id}-results`}
             aria-label="Search results"
             className="flex flex-col gap-2"
           >
@@ -305,7 +302,7 @@ export function GameSearch({ descriptionId }: { descriptionId?: string }) {
             variant="outline"
             className="h-11 self-start"
             aria-expanded={expanded}
-            aria-controls="game-search-results"
+            aria-controls={`${id}-results`}
             onClick={() => updateSearch({ all: expanded ? "" : "1" })}
           >
             {expanded
@@ -320,6 +317,7 @@ export function GameSearch({ descriptionId }: { descriptionId?: string }) {
 
 function SearchFilter({
   id,
+  descriptionId,
   label,
   value,
   emptyLabel,
@@ -327,6 +325,7 @@ function SearchFilter({
   onChange,
 }: {
   id: string;
+  descriptionId: string;
   label: string;
   value: string;
   emptyLabel: string;
@@ -354,7 +353,7 @@ function SearchFilter({
         <select
           id={id}
           value={value}
-          aria-describedby="game-search-filter-help"
+          aria-describedby={descriptionId}
           onChange={(e) => onChange(e.target.value)}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
         >

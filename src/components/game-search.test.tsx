@@ -72,6 +72,32 @@ const titles = () =>
   screen.queryAllByRole("link").map((link) => link.textContent);
 const until = (n: number) => vi.waitFor(() => expect(requests).toHaveLength(n));
 
+test("retained Home views keep each search and filter correctly labelled", () => {
+  window.history.replaceState(null, "", "/?year=2018&platform=PC&filters=1");
+  render(
+    <>
+      <GameSearch />
+      <GameSearch />
+    </>,
+  );
+  const searches = screen.getAllByLabelText("Search games", {
+    selector: "search",
+  });
+  expect(searches).toHaveLength(2);
+  for (const search of searches) {
+    expect(
+      within(search).queryAllByRole("searchbox", {
+        name: "Search games",
+        exact: true,
+      }),
+    ).toHaveLength(1);
+    for (const name of ["Release year", "Platform"])
+      expect(
+        within(search).queryAllByRole("combobox", { name, exact: true }),
+      ).toHaveLength(1);
+  }
+});
+
 test("keeps a visible input label and nearby guidance within a named search landmark", async () => {
   const user = userEvent.setup();
   render(

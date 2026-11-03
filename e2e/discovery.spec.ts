@@ -220,6 +220,15 @@ test("pending and failed discovery leave search and personal shelves usable", as
     await expect(
       page.getByRole("searchbox", { name: "Search games" }),
     ).toHaveValue("Celeste");
+    await expect(page.getByRole("searchbox")).toHaveAccessibleName(
+      "Search games",
+    );
+    await expect(
+      page.getByRole("combobox", { name: "Release year" }),
+    ).toHaveAccessibleName("Release year");
+    await expect(
+      page.getByRole("combobox", { name: "Platform", exact: true }),
+    ).toHaveAccessibleName("Platform");
     await page.getByRole("link", { name: /Celeste/ }).click();
     await expect(page).toHaveURL(/\/games\/celeste$/);
   } finally {
