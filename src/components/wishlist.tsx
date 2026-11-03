@@ -5,7 +5,6 @@ import {
   useEffect,
   useRef,
   useState,
-  useSyncExternalStore,
   useTransition,
   ViewTransition,
 } from "react";
@@ -14,20 +13,10 @@ import { GameCover } from "@/components/game-cover";
 import { Odometer } from "@/components/odometer";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { Button } from "@/components/ui/button";
+import { useToday } from "@/components/use-today";
 import type { Status, WishlistEntry } from "@/lib/journal";
 import { capitalize } from "@/lib/library";
 import { countdown, localDay, OUT_NOW, TODAY } from "@/lib/release-dates";
-
-// Re-read the clock every minute so a Countdown ticks over at local midnight.
-const everyMinute = (onChange: () => void) => {
-  const id = setInterval(onChange, 60_000);
-  return () => clearInterval(id);
-};
-const today = () =>
-  localDay(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone);
-
-/** The user's local calendar day; null while rendering on the server, which doesn't know their time zone. */
-const useToday = () => useSyncExternalStore(everyMinute, today, () => null);
 
 type Destination = "backlog" | "playing";
 /** Changes a game's Status if it's still as `from` says; resolves to the change's time (for undo), or null if it had changed meanwhile. */
