@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { expectContainedScroll } from "./support/contained-scroll";
 import { signUp } from "./support/sign-up";
 
 const ageRating = (page: Page) =>
@@ -84,20 +85,7 @@ test("a game the guest board hasn't rated falls back, and many languages scroll"
     "transform",
     "matrix(1, 0, 0, 1, 0, 0)",
   );
-  expect(
-    await scroller.evaluate((el) => el.scrollHeight > el.clientHeight),
-  ).toBe(true);
-  await expect(scroller).toHaveCSS("overscroll-behavior-y", "contain");
-  for (const delta of [10000, -10000]) {
-    await scroller.evaluate((el, delta) => {
-      el.scrollTop = delta > 0 ? el.scrollHeight : 0;
-    }, delta);
-    await scroller.hover();
-    const before = await page.evaluate(() => scrollY);
-    await page.mouse.wheel(0, delta);
-    await page.waitForTimeout(200);
-    expect(await page.evaluate(() => scrollY)).toBe(before);
-  }
+  await expectContainedScroll(page, scroller);
 });
 
 test("structured data carries the guest rating and languages", async ({

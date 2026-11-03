@@ -1,4 +1,5 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+import { expectContainedScroll } from "./support/contained-scroll";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { seedSql } from "./support/seed-sql";
@@ -110,23 +111,6 @@ for (const theme of ["light", "dark"] as const) {
   });
 }
 
-async function expectContainedScroll(page: Page, scroller: Locator) {
-  await expect(scroller).toHaveCSS("overscroll-behavior-y", "contain");
-  expect(
-    await scroller.evaluate((el) => el.scrollHeight > el.clientHeight),
-  ).toBe(true);
-  for (const delta of [10000, -10000]) {
-    await scroller.evaluate((el, delta) => {
-      el.scrollTop = delta > 0 ? el.scrollHeight : 0;
-    }, delta);
-    await scroller.hover();
-    const before = await page.evaluate(() => scrollY);
-    await page.mouse.wheel(0, delta);
-    await page.waitForTimeout(200);
-    expect(await page.evaluate(() => scrollY)).toBe(before);
-  }
-}
-
 test("overflowing menus, Platform choices and removal confirmations contain boundary scrolling", async ({
   page,
   request,
@@ -200,11 +184,20 @@ test("popup reversals retarget continuously during entry and exit at ten percent
     node.evaluate((el) => ({
       connected: el.isConnected,
       opacity: Number(getComputedStyle(el).opacity),
-      transform: getComputedStyle(el).transform,
+      transform: Array.from(
+        new DOMMatrixReadOnly(getComputedStyle(el).transform).toFloat64Array(),
+      ),
       animations: el
         .getAnimations()
         .map((animation) => animation.constructor.name),
     }));
+  const expectContinuousTransform = (before: number[], after: number[]) => {
+    // Scale may advance by 0.01 and translation by 1px while input is dispatched.
+    for (const index of [0, 5])
+      expect(Math.abs(after[index] - before[index])).toBeLessThan(0.01);
+    for (const index of [12, 13])
+      expect(Math.abs(after[index] - before[index])).toBeLessThan(1);
+  };
   await page.waitForTimeout(100);
   const entering = await sample();
   expect(entering.opacity).toBeGreaterThan(0);
@@ -212,6 +205,7 @@ test("popup reversals retarget continuously during entry and exit at ten percent
   expect(entering.animations).toContain("CSSTransition");
   await page.keyboard.press("Escape");
   const closing = await sample();
+  expectContinuousTransform(entering.transform, closing.transform);
   expect(closing.opacity).toBeLessThan(1);
   expect(Math.abs(closing.opacity - entering.opacity)).toBeLessThan(0.2);
   await page.waitForTimeout(50);
@@ -219,14 +213,26 @@ test("popup reversals retarget continuously during entry and exit at ten percent
   expect(exiting.opacity).toBeLessThan(closing.opacity);
   await trigger.click({ force: true });
   const reversing = await sample();
+  expectContinuousTransform(exiting.transform, reversing.transform);
   expect(reversing.connected).toBe(true);
   expect(reversing.opacity).toBeGreaterThan(0);
   expect(Math.abs(reversing.opacity - exiting.opacity)).toBeLessThan(0.2);
+  await expect
+    .poll(async () => (await sample()).opacity)
+    .toBeGreaterThan(reversing.opacity);
+  const reopened = await sample();
+  expect(reopened.transform[0]).toBeGreaterThan(reversing.transform[0]);
+  await expect(menu).toHaveCSS("opacity", "1");
+  await expect(menu).toHaveCSS("transform", "matrix(1, 0, 0, 1, 0, 0)");
   await page.screenshot({
     path: testInfo.outputPath("popup-reversal-10-percent.png"),
   });
   await testInfo.attach("popup-reversal-samples", {
-    body: JSON.stringify({ entering, closing, exiting, reversing }, null, 2),
+    body: JSON.stringify(
+      { entering, closing, exiting, reversing, reopened },
+      null,
+      2,
+    ),
     contentType: "application/json",
   });
   await cdp.send("Animation.setPlaybackRate", { playbackRate: 1 });
@@ -350,7 +356,48 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     await page.emulateMedia({ reducedMotion });
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await signUp(page, request, `copy_motion_${Date.now()}`);
+    await page.addInitScript(() => {
+      window.motionCopyTransitions = [];
+      function sample() {
+        const button = Array.from(document.querySelectorAll("button")).find(
+          (button) => button.textContent === "Copy",
+        );
+        const icons = button?.querySelectorAll("svg");
+        if (icons?.length === 2) {
+          const frame = Array.from(icons, (icon) => {
+            const style = getComputedStyle(icon);
+            return {
+              opacity: style.opacity,
+              scale: style.scale,
+              filter: style.filter,
+            };
+          });
+          window.motionCopyFirstPaint ??= frame;
+          for (const icon of icons) {
+            for (const animation of icon.getAnimations()) {
+              if (animation.playState === "running")
+                window.motionCopyTransitions.push(animation.constructor.name);
+            }
+          }
+        }
+        requestAnimationFrame(sample);
+      }
+      requestAnimationFrame(sample);
+    });
     await page.goto("/settings");
+    // Wait only for the first sampled paint, never for icons to settle.
+    await expect
+      .poll(() => page.evaluate(() => window.motionCopyFirstPaint))
+      .toBeDefined();
+    expect(await page.evaluate(() => window.motionCopyFirstPaint)).toEqual([
+      { opacity: "1", scale: "1", filter: "none" },
+      {
+        opacity: "0",
+        scale: reducedMotion === "reduce" ? "1" : "0.25",
+        filter: reducedMotion === "reduce" ? "none" : "blur(4px)",
+      },
+    ]);
+    expect(await page.evaluate(() => window.motionCopyTransitions)).toEqual([]);
     const copy = page.getByRole("button", { name: "Copy", exact: true });
     const icons = copy.locator("svg");
     await expect(icons.nth(0)).toHaveCSS("opacity", "1");
@@ -379,35 +426,8 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
   });
 }
 
-test("explicit and System Theme changes suppress transitions through the style flush", async ({
-  page,
-}) => {
-  await page.emulateMedia({ colorScheme: "light" });
-  await page.goto("/sign-up");
-  const button = page.getByRole("button", { name: "Sign up", exact: true });
-  await expect(page.locator("html")).toHaveClass(/dark/);
-  for (const theme of ["light", "dark", "system"] as const) {
-    const flush = page.evaluate(
-      () =>
-        new Promise<string>((resolve) => {
-          const observer = new MutationObserver((records) => {
-            if (!records.some((record) => record.attributeName === "class"))
-              return;
-            observer.disconnect();
-            resolve(
-              getComputedStyle(
-                document.querySelector('button[type="submit"]') as Element,
-              ).transitionDuration,
-            );
-          });
-          observer.observe(document.documentElement, { attributes: true });
-        }),
-    );
-    await chooseTheme(page, theme);
-    expect(await flush).toBe("0s");
-    await expect(button).toHaveCSS("transition-duration", "0.15s");
-  }
-  const flush = page.evaluate(
+function themeStyleFlush(page: Page) {
+  return page.evaluate(
     () =>
       new Promise<string>((resolve) => {
         const observer = new MutationObserver(() => {
@@ -424,6 +444,22 @@ test("explicit and System Theme changes suppress transitions through the style f
         });
       }),
   );
+}
+
+test("explicit and System Theme changes suppress transitions through the style flush", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/sign-up");
+  const button = page.getByRole("button", { name: "Sign up", exact: true });
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  for (const theme of ["light", "dark", "system"] as const) {
+    const flush = themeStyleFlush(page);
+    await chooseTheme(page, theme);
+    expect(await flush).toBe("0s");
+    await expect(button).toHaveCSS("transition-duration", "0.15s");
+  }
+  const flush = themeStyleFlush(page);
   await page.emulateMedia({ colorScheme: "dark" });
   expect(await flush).toBe("0s");
   await expect(page.locator("html")).toHaveClass(/dark/);
@@ -461,6 +497,51 @@ test("popup transitions retain opacity feedback and forced-colors edges", async 
   await expect(facts).toHaveCount(0);
 });
 
+test("tooltips keep a visible edge in forced colors", async ({
+  page,
+}, testInfo) => {
+  await page.emulateMedia({ forcedColors: "active", reducedMotion: "reduce" });
+  await page.goto("/games/hades--1");
+  await page
+    .getByRole("link", { name: "Add playthrough", exact: true })
+    .hover();
+  const tooltip = page.locator('[data-slot="tooltip-content"]');
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toHaveCSS("border-top-width", "1px");
+  await expect(tooltip).toHaveCSS("border-top-style", "solid");
+  await expect(tooltip).toHaveCSS("transform", "none");
+  expect(
+    await tooltip.evaluate((el) => getComputedStyle(el).borderTopColor),
+  ).not.toBe("rgba(0, 0, 0, 0)");
+  await page.screenshot({
+    path: testInfo.outputPath("tooltip-forced-colors.png"),
+  });
+  await page.keyboard.press("Escape");
+  await expect(tooltip).toHaveCount(0);
+  await page.emulateMedia({ forcedColors: "none" });
+  for (const theme of ["light", "dark"] as const) {
+    await chooseTheme(page, theme);
+    for (const width of [320, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page
+        .getByRole("link", { name: "Add playthrough", exact: true })
+        .hover();
+      await expect(tooltip).toBeVisible();
+      await expect(tooltip).toHaveCSS("opacity", "1");
+      const box = await tooltip.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box?.x).toBeGreaterThanOrEqual(0);
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width);
+      await page.screenshot({
+        path: testInfo.outputPath(`tooltip-${theme}-${width}.png`),
+      });
+      await page.keyboard.press("Escape");
+      await expect(tooltip).toHaveCount(0);
+      await page.mouse.move(0, 0);
+    }
+  }
+});
+
 test("enabled buttons press to 0.96 and reduced motion stays stationary", async ({
   page,
 }) => {
@@ -482,6 +563,8 @@ test("enabled buttons press to 0.96 and reduced motion stays stationary", async 
 
 declare global {
   interface Window {
+    motionCopyFirstPaint?: { opacity: string; scale: string; filter: string }[];
+    motionCopyTransitions: string[];
     motionAnimations: string[];
     motionCoverWidth?: string;
   }
