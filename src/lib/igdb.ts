@@ -285,7 +285,7 @@ export const igdbGameSource: GameSource = {
     signal.throwIfAborted();
     const page = await igdb<IgdbGame>(
       "games",
-      `fields ${GAME_FIELDS}; where id > ${Math.trunc(afterId)} & first_release_date >= ${Math.ceil(from.getTime() / 1000)} & first_release_date <= ${Math.floor(through.getTime() / 1000)} & (rating_count >= 10 | aggregated_rating_count >= 3); sort id asc; limit 500;`,
+      `fields ${GAME_FIELDS}; where id > ${Math.trunc(afterId)} & first_release_date >= ${Math.ceil(from.getTime() / 1000)} & first_release_date <= ${Math.floor(through.getTime() / 1000)} & game_type = (${STANDALONE_TYPE_IDS}) & version_parent = null & keywords != (${FAN_KEYWORD_IDS}) & themes != (42) & cover != null; sort id asc; limit 500;`,
       signal,
     );
     signal.throwIfAborted();

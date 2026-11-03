@@ -25,7 +25,7 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
     exact: true,
   });
   const popular = page.getByRole("region", {
-    name: "Popular right now",
+    name: "Recently trending",
     exact: true,
   });
   await expect(recent.getByRole("link")).toHaveCount(4);
@@ -61,7 +61,7 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
   const headings = await page
     .getByRole("heading", { level: 2 })
     .allTextContents();
-  expect(headings).toEqual(["Recently released", "Popular right now"]);
+  expect(headings).toEqual(["Recently released", "Recently trending"]);
   const columns = () =>
     recent
       .locator("ul")
@@ -107,7 +107,7 @@ test("empty and saved Journals retain priority; duplicate covers navigate from e
     page.getByRole("region", { name: "Recently released", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("region", { name: "Popular right now", exact: true })
+    .getByRole("region", { name: "Recently trending", exact: true })
     .getByRole("link", { name: "Discovery One", exact: true })
     .click();
   await chooseStatus(page, "playing");
@@ -118,7 +118,7 @@ test("empty and saved Journals retain priority; duplicate covers navigate from e
     "Playing",
     "Recently added",
     "Recently released",
-    "Popular right now",
+    "Recently trending",
   ]);
   const library = page.getByRole("link", {
     name: "All saved games (2)",

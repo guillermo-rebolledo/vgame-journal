@@ -59,7 +59,7 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
       )}
       {shelves.map((shelf) => {
         const title =
-          shelf.key === "recent" ? "Recently released" : "Popular right now";
+          shelf.key === "recent" ? "Recently released" : "Recently trending";
         const id = `${instance}-${shelf.key}`;
         return (
           <section

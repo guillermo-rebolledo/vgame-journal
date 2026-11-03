@@ -24,6 +24,9 @@ import { igdbGameSource } from "@/lib/igdb";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_SEARCH_CANDIDATES = 50;
 const EROTIC_THEME_ID = 42;
+const DAY_MS = 86400000;
+const RELEASE_BOOST_DAYS = 30;
+const MAX_TRENDING_BOOST = 2;
 /** Games per release date fetch; the GameSource pages past its own per-request limits. */
 const REFRESH_BATCH = 50;
 
@@ -34,31 +37,6 @@ export type SearchResult = {
   coverImageId: string | null;
   year: number | null;
   platforms: string[];
-};
-
-/** A complete review arm must qualify; missing or malformed evidence never does. */
-const hasRecentQuality = (g: {
-  userScore: number | null;
-  userScoreCount: number | null;
-  criticScore: number | null;
-  criticScoreCount: number | null;
-}) => {
-  const qualifies = (
-    score: number | null,
-    count: number | null,
-    minimum: number,
-  ) =>
-    score !== null &&
-    Number.isFinite(score) &&
-    score >= 75 &&
-    score <= 100 &&
-    count !== null &&
-    Number.isSafeInteger(count) &&
-    count >= minimum;
-  return (
-    qualifies(g.userScore, g.userScoreCount, 10) ||
-    qualifies(g.criticScore, g.criticScoreCount, 3)
-  );
 };
 
 /** Tests pass their own database and a fake GameSource. */
@@ -115,17 +93,10 @@ export function createCatalog(db: Db, source: GameSource) {
   }
 
   /** Catalog games in the given order. */
-  async function load(
-    ids: number[],
-    requireQuality = false,
-  ): Promise<SearchResult[]> {
+  async function load(ids: number[]): Promise<SearchResult[]> {
     if (ids.length === 0) return [];
     const rows = await db
       .select({
-        userScore: game.userScore,
-        userScoreCount: game.userScoreCount,
-        criticScore: game.criticScore,
-        criticScoreCount: game.criticScoreCount,
         id: game.id,
         title: game.title,
         slug: game.slug,
@@ -139,18 +110,7 @@ export function createCatalog(db: Db, source: GameSource) {
       .leftJoin(releaseDate, eq(releaseDate.gameId, game.id))
       .where(inArray(game.id, ids))
       .groupBy(game.id);
-    const eligible = rows
-      .filter((r) => !requireQuality || hasRecentQuality(r))
-      .map(
-        ({
-          userScore,
-          userScoreCount,
-          criticScore,
-          criticScoreCount,
-          ...result
-        }) => result,
-      );
-    return ids.flatMap((id) => eligible.find((r) => r.id === id) ?? []);
+    return ids.flatMap((id) => rows.find((r) => r.id === id) ?? []);
   }
 
   /** The game with its release dates, earliest first (undated last). */
@@ -171,7 +131,7 @@ export function createCatalog(db: Db, source: GameSource) {
 
   const recent = (date: number | undefined, now: Date) =>
     date !== undefined &&
-    date >= now.getTime() - 90 * 86400000 &&
+    date >= now.getTime() - 90 * DAY_MS &&
     date <= now.getTime();
 
   // Bound even a source that ignores cancellation; never publish after its deadline.
@@ -202,18 +162,14 @@ export function createCatalog(db: Db, source: GameSource) {
 
   async function refreshRecent(signal: AbortSignal) {
     const now = new Date();
-    const from = new Date(now.getTime() - 90 * 86400000);
+    const from = new Date(now.getTime() - 90 * DAY_MS);
     const candidates = new Map<number, SourceGame>();
     for (let afterId = 0; ; ) {
       const page = await beforeDeadline(signal, () =>
         source.fetchRecentCandidates(afterId, from, now, signal),
       );
       for (const g of page.games) {
-        if (
-          homepageEligible(g) &&
-          hasRecentQuality(g) &&
-          recent(g.firstReleaseDate?.getTime(), now)
-        )
+        if (homepageEligible(g) && recent(g.firstReleaseDate?.getTime(), now))
           candidates.set(g.id, g);
       }
       if (!page.hasMore) break;
@@ -236,19 +192,18 @@ export function createCatalog(db: Db, source: GameSource) {
       if (rank.visits > (ranks.get(rank.gameId)?.visits ?? 0))
         ranks.set(rank.gameId, rank);
     }
-    const compare = (a: DiscoveryRank, b: DiscoveryRank) =>
-      b.visits - a.visits || a.gameId - b.gameId;
-    const ordered = [...ranks.values()].sort(compare);
-    const selected = ordered
-      .filter((r) => candidates.get(r.gameId)?.genres.includes("Indie"))
-      .slice(0, 2);
-    for (const rank of ordered) {
-      if (selected.length === 4) break;
-      if (!selected.some((r) => r.gameId === rank.gameId)) selected.push(rank);
-    }
+    // Activity still drives discovery; age gradually gives newer launches room.
+    const score = (r: DiscoveryRank) => {
+      const released = candidates.get(r.gameId)?.firstReleaseDate as Date;
+      const ageDays = (now.getTime() - released.getTime()) / DAY_MS;
+      return r.visits / (1 + ageDays / RELEASE_BOOST_DAYS);
+    };
+    const selected = [...ranks.values()]
+      .sort((a, b) => score(b) - score(a) || a.gameId - b.gameId)
+      .slice(0, 4);
     return publishShelf(
       "recent",
-      selected.sort(compare).map((r) => candidates.get(r.gameId) as SourceGame),
+      selected.map((r) => candidates.get(r.gameId) as SourceGame),
       signal,
     );
   }
@@ -258,7 +213,8 @@ export function createCatalog(db: Db, source: GameSource) {
     signal: AbortSignal,
     getPage: (index: number, signal: AbortSignal) => Promise<DiscoveryRankPage>,
   ) {
-    const selected: { rank: DiscoveryRank; game: SourceGame }[] = [];
+    const now = Date.now();
+    const selected: { score: number; game: SourceGame }[] = [];
     for (let index = 0; ; index++) {
       const page = await getPage(index, signal);
       const tail = page.ranks.at(-1)?.visits;
@@ -268,7 +224,7 @@ export function createCatalog(db: Db, source: GameSource) {
       for (let start = 0; start < ranks.length; start += 100) {
         if (
           selected.length === 4 &&
-          ranks[start].visits < selected[3].rank.visits
+          ranks[start].visits * MAX_TRENDING_BOOST < selected[3].score
         )
           break;
         const candidates = ranks.slice(start, start + 100);
@@ -281,20 +237,27 @@ export function createCatalog(db: Db, source: GameSource) {
         for (const rank of candidates) {
           const g = metadata.find((g) => g.id === rank.gameId);
           if (!g || !homepageEligible(g)) continue;
-          selected.push({ rank, game: g });
+          const releaseDistance =
+            Math.abs(now - (g.firstReleaseDate?.getTime() ?? Number.NaN)) /
+            DAY_MS;
+          // Up to 2x around launch, tapering to 1x at ±30 days; older hits stay eligible.
+          const boost = Number.isFinite(releaseDistance)
+            ? 1 +
+              (MAX_TRENDING_BOOST - 1) *
+                Math.max(0, 1 - releaseDistance / RELEASE_BOOST_DAYS)
+            : 1;
+          selected.push({ score: rank.visits * boost, game: g });
         }
-        selected.sort(
-          (a, b) => b.rank.visits - a.rank.visits || a.game.id - b.game.id,
-        );
+        selected.sort((a, b) => b.score - a.score || a.game.id - b.game.id);
         selected.splice(4);
       }
-      // A full boundary tie must be drained before canonical-ID ordering is final.
+      // Stop only when no remaining game's maximum launch boost can reach the cutoff.
       if (
         !page.hasMore ||
         (selected.length === 4 &&
           tail !== undefined &&
           Number.isFinite(tail) &&
-          tail < selected[3].rank.visits)
+          tail * MAX_TRENDING_BOOST < selected[3].score)
       )
         break;
     }
@@ -378,7 +341,7 @@ export function createCatalog(db: Db, source: GameSource) {
           (id) =>
             key !== "recent" || recent(snapshot.firstReleaseDates[id], now),
         );
-        const games = (await load(ids, key === "recent")).filter(
+        const games = (await load(ids)).filter(
           (g) => g.coverImageId && g.title && g.slug,
         );
         if (games.length)
