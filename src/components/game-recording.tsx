@@ -146,7 +146,7 @@ export function GameRecording({
         aria-label="Game journal"
         className="flex min-h-24 flex-col gap-4"
       >
-        <div className="flex items-start gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           {signedIn ? (
             <JournalStatus
               entry={entry}
@@ -170,13 +170,14 @@ export function GameRecording({
                 render={
                   <Button
                     render={<Link href={signInHref} />}
-                    aria-label="Journal status"
+                    aria-label={`Add to Journal for ${gameTitle}`}
                     variant="outline"
-                    className="size-11 rounded-full"
+                    className="journal-action min-h-11"
                   />
                 }
               >
                 <BookMarked />
+                Add to Journal
               </TooltipTrigger>
               <TooltipContent>Journal status</TooltipContent>
             </Tooltip>
@@ -189,13 +190,14 @@ export function GameRecording({
                   aria-label="Add playthrough"
                   variant="outline"
                   disabled={pending}
-                  className="size-11 rounded-full"
+                  className="journal-action min-h-11"
                   render={signedIn ? undefined : <Link href={signInHref} />}
                   onClick={signedIn ? () => open("add") : undefined}
                 />
               }
             >
               <Plus />
+              Add playthrough
             </TooltipTrigger>
             <TooltipContent>Add playthrough</TooltipContent>
           </Tooltip>

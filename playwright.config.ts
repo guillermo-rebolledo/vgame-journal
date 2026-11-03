@@ -1,32 +1,36 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const port = Number(process.env.E2E_PORT ?? 3100);
+const supportPort = Number(process.env.E2E_SUPPORT_PORT ?? 3101);
+process.env.E2E_SUPPORT_URL = `http://127.0.0.1:${supportPort}`;
+
 export default defineConfig({
   testDir: "./e2e",
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   // ubuntu-latest has 4 cores; Playwright would default to 2. Specs are mostly awaiting the server.
   workers: process.env.CI ? 4 : undefined,
-  use: { baseURL: "http://localhost:3100", trace: "on-first-retry" },
+  use: { baseURL: `http://localhost:${port}`, trace: "on-first-retry" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
       command: "node e2e/support/server.mjs",
-      url: "http://127.0.0.1:3101/health",
+      url: `${process.env.E2E_SUPPORT_URL}/health`,
       reuseExistingServer: false,
     },
     {
-      command: "pnpm exec next build && pnpm exec next start -p 3100",
-      url: "http://localhost:3100",
+      command: `pnpm exec next build && pnpm exec next start -p ${port}`,
+      url: `http://localhost:${port}`,
       reuseExistingServer: false,
       timeout: 180_000,
       env: {
         E2E_TEST: "1",
         CRON_SECRET: "e2e-cron-secret",
-        BETTER_AUTH_URL: "http://localhost:3100",
+        BETTER_AUTH_URL: `http://localhost:${port}`,
         BETTER_AUTH_SECRET: "e2e-only-secret-at-least-32-characters-long",
         FEEDBACK_EMAIL: "delivered@resend.dev",
         RESEND_API_KEY: "re_e2e",
-        RESEND_BASE_URL: "http://127.0.0.1:3101",
+        RESEND_BASE_URL: process.env.E2E_SUPPORT_URL,
         DATABASE_URL: "",
         GOOGLE_CLIENT_ID: "",
         GOOGLE_CLIENT_SECRET: "",

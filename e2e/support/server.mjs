@@ -22,9 +22,15 @@ const server = createServer(async (request, response) => {
         if (discoveryState.hold)
           await new Promise((resolve) => discoveryWaiters.push(resolve));
       }
-      const delay = collectionDelays.get(params?.[0]);
-      if (delay && sql.includes('from "journal_entry"'))
-        await new Promise((resolve) => setTimeout(resolve, delay));
+      const state = collectionDelays.get(params?.[0]);
+      if (state && sql.includes('from "journal_entry"')) {
+        if (state.fail)
+          throw new Error("Synthetic personal Journal read failure");
+        if (state.milliseconds)
+          await new Promise((resolve) =>
+            setTimeout(resolve, state.milliseconds),
+          );
+      }
       const result = await database.query(sql, params, {
         rowMode: "array",
         parsers: {
@@ -47,13 +53,13 @@ const server = createServer(async (request, response) => {
       request.url === "/collection-delay" &&
       request.method === "POST"
     ) {
-      const { email, milliseconds } = JSON.parse(body);
+      const { email, milliseconds = 0, fail = false } = JSON.parse(body);
       const { rows } = await database.query(
         'select id from "user" where email = $1',
         [email],
       );
       if (!rows.length) throw new Error("Unknown test user");
-      collectionDelays.set(rows[0].id, milliseconds);
+      collectionDelays.set(rows[0].id, { milliseconds, fail });
       response.end("{}");
     } else if (
       request.url === "/discovery-state" &&
@@ -77,4 +83,4 @@ const server = createServer(async (request, response) => {
     response.writeHead(500).end(JSON.stringify({ error: error.message }));
   }
 });
-server.listen(3101, "127.0.0.1");
+server.listen(Number(process.env.E2E_SUPPORT_PORT ?? 3101), "127.0.0.1");
