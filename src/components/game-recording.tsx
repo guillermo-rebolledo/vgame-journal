@@ -208,7 +208,12 @@ export function GameRecording({
             to record games and playthroughs.
           </p>
         ) : !playthroughs.length ? (
-          <p className="text-muted-foreground text-sm">No playthroughs yet.</p>
+          <div className="flex flex-col gap-1 border-t pt-3">
+            <h2 className="font-medium text-sm">Playthroughs</h2>
+            <p className="text-muted-foreground text-sm">
+              No playthroughs yet.
+            </p>
+          </div>
         ) : null}
       </section>
       {signedIn && (

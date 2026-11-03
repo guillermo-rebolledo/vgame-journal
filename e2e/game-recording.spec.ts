@@ -6,6 +6,38 @@ import { signUp } from "./support/sign-up";
 test.use({ video: "on", trace: "on" });
 test.describe.configure({ timeout: 90_000 });
 
+test("detail Status remains visible after each confirmed save with one game-specific success announcement", async ({
+  page,
+  request,
+}) => {
+  await signUp(page, request, `visible_status_${Date.now()}`);
+  await page.goto("/games/celeste");
+  const journal = page.getByRole("region", {
+    name: "Game journal",
+    exact: true,
+  });
+  for (const [status, label] of [
+    ["wishlist", "Wishlisted"],
+    ["backlog", "In backlog"],
+    ["playing", "Playing"],
+    ["played", "Played"],
+  ]) {
+    await chooseStatus(page, status);
+    await expect(journal.getByText(label, { exact: true })).toBeVisible();
+    await expect(journal.getByRole("status")).toHaveCount(1);
+    await expect(journal.getByRole("status")).toHaveText(`Celeste: ${label}.`);
+    await expect(journal.getByText("No playthroughs yet.")).toBeVisible();
+    await expect(
+      journal.getByRole("heading", { name: "Playthroughs" }),
+    ).toBeVisible();
+  }
+  await chooseStatus(page, "played");
+  await expect(journal.getByRole("status")).toBeEmpty();
+  await page.reload();
+  await expect(journal.getByText("Played", { exact: true })).toBeVisible();
+  await expect(journal.getByRole("status")).toBeEmpty();
+});
+
 test("journal choices, tags, errors and removal preserve saved state", async ({
   page,
   request,

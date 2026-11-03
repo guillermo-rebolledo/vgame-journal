@@ -38,6 +38,82 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(scroll).toBeLessThanOrEqual(width);
 }
 
+test("skip route moves focus into main on Home and details", async ({
+  page,
+}) => {
+  for (const path of ["/", "/games/celeste"]) {
+    await page.goto(path);
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeInViewport();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("main")).toBeFocused();
+    await page.keyboard.press("Tab");
+    expect(
+      await page
+        .getByRole("main")
+        .evaluate((main) => main.contains(document.activeElement)),
+    ).toBe(true);
+    if (path === "/")
+      await expect(
+        page.getByRole("searchbox", { name: "Search games" }),
+      ).toBeFocused();
+  }
+});
+
+test("header forward and reverse keyboard order matches visible rows at every breakpoint", async ({
+  page,
+  request,
+}) => {
+  const username = `header_${Date.now()}`;
+  await signUp(page, request, username);
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    const header = page.locator("header");
+    const targets = [
+      header.getByRole("link", { name: "shelve.games", exact: true }),
+      header.getByRole("button", { name: "Send feedback", exact: true }),
+      header.getByRole("button", {
+        name: `Account menu, @${username}`,
+        exact: true,
+      }),
+      ...["Find a game", "Library", "Wishlist", "Stats"].map((name) =>
+        header.getByRole("link", { name, exact: true }),
+      ),
+    ];
+    await page.getByRole("link", { name: "Skip to main content" }).focus();
+    let previous: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    } | null = null;
+    for (const target of targets) {
+      await page.keyboard.press("Tab");
+      await expect(target).toBeFocused();
+      const box = await target.boundingBox();
+      if (!box) throw new Error("Header control has no bounds");
+      if (previous)
+        expect(
+          box.y >= previous.y + previous.height - 1 ||
+            box.x >= previous.x + previous.width - 1,
+        ).toBe(true);
+      previous = box;
+    }
+    for (const target of targets.slice(0, -1).reverse()) {
+      await page.keyboard.press("Shift+Tab");
+      await expect(target).toBeFocused();
+    }
+    await page.keyboard.press("Shift+Tab");
+    await expect(
+      page.getByRole("link", { name: "Skip to main content" }),
+    ).toBeFocused();
+    await expectNoHorizontalOverflow(page);
+  }
+});
+
 test("populated collections keep Find a game reachable with comfortable phone controls", async ({
   page,
   request,
@@ -101,7 +177,11 @@ test("populated collections keep Find a game reachable with comfortable phone co
   );
   await snap(page, testInfo, "wishlist-mobile");
 
-  // Keyboard: the brand is the first stop and carries a visible focus ring.
+  // Keyboard: the skip route comes before the brand.
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("link", { name: "Skip to main content" }),
+  ).toBeFocused();
   await page.keyboard.press("Tab");
   const brand = page.getByRole("link", { name: "shelve.games" });
   await expect(brand).toBeFocused();

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Analytics } from "@/components/analytics";
 import { PageTransition } from "@/components/page-transition";
+import { SkipLink } from "@/components/skip-link";
 import { ThemeProvider } from "@/components/theme-provider";
 import { UserMenu } from "@/components/user-menu";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
@@ -56,6 +57,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         <ThemeProvider>
+          <SkipLink />
           <header className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 px-4 py-1.5">
             <Link
               href="/"
@@ -83,7 +85,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <UserMenu />
             </Suspense>
           </header>
-          <main className="flex flex-1 flex-col">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="flex flex-1 flex-col"
+          >
             <Suspense fallback={<div className="flex-1" />}>
               <PageTransition>{children}</PageTransition>
             </Suspense>
