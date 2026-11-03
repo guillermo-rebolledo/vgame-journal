@@ -29,7 +29,9 @@ export function GameCover({
           className={`${classes} flex flex-col items-center justify-center gap-3 border border-border/60 bg-muted text-muted-foreground`}
         >
           <ImageOff className="h-auto w-2/5 max-w-8" strokeWidth={1.5} />
-          {!size && <span className="text-xs">No cover art</span>}
+          {!size && (
+            <span className="text-foreground text-xs">No cover art</span>
+          )}
         </div>
       }
     />

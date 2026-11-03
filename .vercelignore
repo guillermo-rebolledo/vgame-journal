@@ -1,0 +1,6 @@
+# The component catalog is local/CI tooling, never a web deployment.
+.storybook/
+storybook-static/
+**/*.stories.*
+docs/ui-catalog.md
+vitest.config.mts

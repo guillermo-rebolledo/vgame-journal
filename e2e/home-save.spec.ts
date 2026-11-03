@@ -69,7 +69,7 @@ test("Home saves a search result without losing browsing context and opens filte
     .getByRole("listitem")
     .first();
   await result
-    .getByRole("button", { name: "Add Celeste to backlog", exact: true })
+    .getByRole("button", { name: "Add to backlog for Celeste", exact: true })
     .click();
   await expect(result.getByText("In backlog", { exact: true })).toBeVisible();
   await expect(
@@ -120,7 +120,10 @@ test("discovery saves coordinate repeated games, labels and counts across all Ho
     [popular, "Discovery Four", "wishlist"],
   ] as const) {
     await shelf
-      .getByRole("button", { name: `Add ${title} to ${status}`, exact: true })
+      .getByRole("button", {
+        name: `Add to ${status} for ${title}`,
+        exact: true,
+      })
       .click();
     await expect(
       shelf.getByRole("button", {
@@ -208,7 +211,7 @@ test("guest intent survives sign-in, restores filters and requires confirmation 
   await page.context().clearCookies();
   await page.goto("/?q=Celeste&year=2018&platform=PC&all=1&filters=1");
   await page
-    .getByRole("button", { name: "Add Celeste to wishlist", exact: true })
+    .getByRole("button", { name: "Add to wishlist for Celeste", exact: true })
     .click();
   const prompt = page.getByRole("region", {
     name: "Pending Journal save",
@@ -289,7 +292,7 @@ test("pending saves block duplicate occurrences; failures before and after persi
   const search = page.getByRole("list", { name: "Search results" });
   await expect(
     search.getByRole("button", {
-      name: "Add Discovery One to backlog",
+      name: "Add to backlog for Discovery One",
       exact: true,
     }),
   ).toBeVisible();
@@ -306,7 +309,10 @@ test("pending saves block duplicate occurrences; failures before and after persi
     await route.continue();
   });
   await search
-    .getByRole("button", { name: "Add Discovery One to backlog", exact: true })
+    .getByRole("button", {
+      name: "Add to backlog for Discovery One",
+      exact: true,
+    })
     .click();
   const popular = page.getByRole("region", {
     name: "Recently trending",
@@ -314,7 +320,7 @@ test("pending saves block duplicate occurrences; failures before and after persi
   });
   await expect(
     popular.getByRole("button", {
-      name: "Add Discovery One to wishlist",
+      name: "Add to wishlist for Discovery One",
       exact: true,
     }),
   ).toHaveAttribute("aria-disabled", "true");
@@ -322,7 +328,10 @@ test("pending saves block duplicate occurrences; failures before and after persi
     search.getByText("Saving Discovery One to Backlog…", { exact: true }),
   ).toBeVisible();
   await popular
-    .getByRole("button", { name: "Add Discovery One to wishlist", exact: true })
+    .getByRole("button", {
+      name: "Add to wishlist for Discovery One",
+      exact: true,
+    })
     .click({ force: true });
   release();
   await expect(search.getByText("In backlog", { exact: true })).toBeVisible();
@@ -332,7 +341,7 @@ test("pending saves block duplicate occurrences; failures before and after persi
     const title = afterPersistence ? "Celeste" : "Hades";
     await expect(
       search.getByRole("button", {
-        name: `Add ${title} to wishlist`,
+        name: `Add to wishlist for ${title}`,
         exact: true,
       }),
     ).toBeVisible();
@@ -345,7 +354,10 @@ test("pending saves block duplicate occurrences; failures before and after persi
       } else await route.continue();
     });
     await search
-      .getByRole("button", { name: `Add ${title} to wishlist`, exact: true })
+      .getByRole("button", {
+        name: `Add to wishlist for ${title}`,
+        exact: true,
+      })
       .click();
     if (afterPersistence) {
       await expect(
@@ -388,7 +400,7 @@ test("expired sessions offer sign-in recovery without a saved label", async ({
   await page.goto("/?q=Celeste");
   const results = page.getByRole("list", { name: "Search results" });
   const save = results.getByRole("button", {
-    name: "Add Celeste to backlog",
+    name: "Add to backlog for Celeste",
     exact: true,
   });
   await expect(save).toBeVisible();
@@ -422,7 +434,7 @@ test("personal state can load or fail without presenting a confirmed unsaved gam
   ).toBeVisible();
   await expect(
     results.getByRole("button", {
-      name: "Add Celeste to backlog",
+      name: "Add to backlog for Celeste",
       exact: true,
     }),
   ).toHaveAttribute("aria-disabled", "true");
@@ -439,7 +451,7 @@ test("personal state can load or fail without presenting a confirmed unsaved gam
   await expect(results.getByRole("link", { name: /^Celeste/ })).toBeVisible();
   await expect(
     results.getByRole("button", {
-      name: "Add Celeste to backlog",
+      name: "Add to backlog for Celeste",
       exact: true,
     }),
   ).toHaveAttribute("aria-disabled", "true");
@@ -451,12 +463,12 @@ test("personal state can load or fail without presenting a confirmed unsaved gam
     .click();
   await expect(
     results.getByRole("button", {
-      name: "Add Celeste to backlog",
+      name: "Add to backlog for Celeste",
       exact: true,
     }),
   ).toHaveAttribute("aria-disabled", "false");
   await results
-    .getByRole("button", { name: "Add Celeste to backlog", exact: true })
+    .getByRole("button", { name: "Add to backlog for Celeste", exact: true })
     .click();
   await expect(results.getByText("In backlog", { exact: true })).toBeVisible();
 });
@@ -540,7 +552,7 @@ test("four Status labels are owner scoped; unchanged Played and status changes p
     const otherResults = other.getByRole("list", { name: "Search results" });
     await otherResults
       .getByRole("button", {
-        name: "Add Discovery One to wishlist",
+        name: "Add to wishlist for Discovery One",
         exact: true,
       })
       .click();
@@ -571,7 +583,7 @@ test("signup and onboarding preserve Backlog intent; cancellation and repeated o
 }) => {
   await page.goto("/?q=Celeste&platform=PC&all=1");
   await page
-    .getByRole("button", { name: "Add Celeste to backlog", exact: true })
+    .getByRole("button", { name: "Add to backlog for Celeste", exact: true })
     .click();
   const prompt = page.getByRole("region", {
     name: "Pending Journal save",
@@ -661,7 +673,7 @@ test("keyboard saves retain focus, menus restore it, and focused indicators cont
   await page.goto("/?q=Discovery%20One");
   const results = page.getByRole("list", { name: "Search results" });
   const add = results.getByRole("button", {
-    name: "Add Discovery One to backlog",
+    name: "Add to backlog for Discovery One",
     exact: true,
   });
   await expect(add).not.toHaveAttribute("aria-haspopup");
@@ -765,7 +777,7 @@ test("Home controls reflow with long titles and missing art at phone, tablet, de
   await page.goto("/?q=Lantern");
   const results = page.getByRole("list", { name: "Search results" });
   await results
-    .getByRole("button", { name: /Add The Lantern Keeper.*to wishlist/ })
+    .getByRole("button", { name: /Add to wishlist for The Lantern Keeper/ })
     .click();
   await expect(results.getByText("Wishlisted", { exact: true })).toBeVisible();
   for (const width of [320, 390, 768, 1280]) {
@@ -819,7 +831,7 @@ test("saving the expanded eighth search match preserves filters, expansion and p
   await expect(results.getByRole("listitem")).toHaveCount(8);
   const row = results.getByRole("listitem").last();
   const save = row.getByRole("button", {
-    name: "Add Search Journey 8 to wishlist",
+    name: "Add to wishlist for Search Journey 8",
     exact: true,
   });
   await save.scrollIntoViewIfNeeded();

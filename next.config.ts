@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   reactCompiler: true,
+  typescript: { tsconfigPath: "tsconfig.build.json" },
   // Rating logos never change; a new logo gets a new filename.
   headers: async () => [
     {

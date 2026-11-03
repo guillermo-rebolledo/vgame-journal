@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/storybook-static/
 
 # next.js
 /.next/
@@ -48,4 +49,5 @@ next-env.d.ts
 /.next-e2e/
 
 # local agent tool caches
-/.impeccable/
+/.impeccable/*
+!/.impeccable/design.json

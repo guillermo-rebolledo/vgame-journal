@@ -23,7 +23,7 @@ export function Odometer({ text }: { text: string }) {
 
 function Digit({ value }: { value: number }) {
   return (
-    <span className="inline-block h-[1lh] overflow-hidden">
+    <span className="inline-block h-[1lh] overflow-hidden align-bottom">
       <span
         className="flex flex-col transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:animate-odometer-in motion-reduce:transition-none"
         style={{ transform: `translateY(-${value * 10}%)` }}

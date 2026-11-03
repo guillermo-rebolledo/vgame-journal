@@ -1,0 +1,359 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-03T22:03:57.754406+00:00",
+  "title": "Design System: shelve.games",
+  "extensions": {
+    "colorMeta": {
+      "graphite": {
+        "role": "primary",
+        "displayName": "Graphite",
+        "canonical": "oklch(0.205 0 0)",
+        "tonalRamp": [
+          "oklch(0.145 0 0)",
+          "oklch(0.205 0 0)",
+          "oklch(0.269 0 0)",
+          "oklch(0.371 0 0)",
+          "oklch(0.439 0 0)",
+          "oklch(0.556 0 0)",
+          "oklch(0.708 0 0)",
+          "oklch(0.922 0 0)"
+        ]
+      },
+      "bone": {
+        "role": "primary",
+        "displayName": "Bone (dark-theme primary)",
+        "canonical": "oklch(0.922 0 0)",
+        "tonalRamp": [
+          "oklch(0.556 0 0)",
+          "oklch(0.708 0 0)",
+          "oklch(0.87 0 0)",
+          "oklch(0.922 0 0)",
+          "oklch(0.97 0 0)",
+          "oklch(0.985 0 0)",
+          "oklch(1 0 0)",
+          "oklch(1 0 0)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "oklch(1 0 0)"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(0.145 0 0)"
+      },
+      "shelf-black": {
+        "role": "neutral",
+        "displayName": "Shelf Black",
+        "canonical": "oklch(0.145 0 0)"
+      },
+      "shelf-card": {
+        "role": "neutral",
+        "displayName": "Shelf Card",
+        "canonical": "oklch(0.205 0 0)"
+      },
+      "chalk": {
+        "role": "neutral",
+        "displayName": "Chalk",
+        "canonical": "oklch(0.985 0 0)"
+      },
+      "dust": {
+        "role": "neutral",
+        "displayName": "Dust",
+        "canonical": "oklch(0.97 0 0)"
+      },
+      "dust-dark": {
+        "role": "neutral",
+        "displayName": "Dust (dark)",
+        "canonical": "oklch(0.269 0 0)"
+      },
+      "pencil": {
+        "role": "neutral",
+        "displayName": "Pencil",
+        "canonical": "oklch(0.556 0 0)"
+      },
+      "pencil-dark": {
+        "role": "neutral",
+        "displayName": "Pencil (dark)",
+        "canonical": "oklch(0.708 0 0)"
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(0.922 0 0)"
+      },
+      "hairline-dark": {
+        "role": "neutral",
+        "displayName": "Hairline (dark)",
+        "canonical": "oklch(1 0 0 / 10%)"
+      },
+      "ring": {
+        "role": "neutral",
+        "displayName": "Focus Ring",
+        "canonical": "oklch(0.708 0 0)"
+      },
+      "ring-dark": {
+        "role": "neutral",
+        "displayName": "Focus Ring (dark)",
+        "canonical": "oklch(0.556 0 0)"
+      },
+      "ember": {
+        "role": "status",
+        "displayName": "Ember",
+        "canonical": "oklch(0.577 0.245 27.325)",
+        "tonalRamp": [
+          "oklch(0.3 0.12 27)",
+          "oklch(0.4 0.17 27)",
+          "oklch(0.5 0.21 27)",
+          "oklch(0.577 0.245 27.325)",
+          "oklch(0.704 0.191 22.216)",
+          "oklch(0.8 0.12 22)",
+          "oklch(0.9 0.06 22)",
+          "oklch(0.96 0.02 22)"
+        ]
+      },
+      "ember-dark": {
+        "role": "status",
+        "displayName": "Ember (dark)",
+        "canonical": "oklch(0.704 0.191 22.216)"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "One per page at most: guest hero and game detail title. 2.25rem on phones, 3rem from sm."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headings within a page."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default text. Inputs render at 1rem below md to prevent iOS zoom."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Metadata, captions under covers, badges."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Technical strings such as export tokens."
+      }
+    },
+    "shadows": [
+      {
+        "name": "cover-on-shelf",
+        "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+        "purpose": "Every cover in a grid or shelf (shadow-lg)."
+      },
+      {
+        "name": "hero-cover",
+        "value": "0 25px 50px -12px rgb(0 0 0 / 0.25)",
+        "purpose": "The single large cover on a game detail page (shadow-2xl)."
+      },
+      {
+        "name": "floating-layer",
+        "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1), 0 0 0 1px color-mix(in oklch, var(--foreground) 10%, transparent)",
+        "purpose": "Popovers, menus, selects, hover cards (shadow-md + ring-1 ring-foreground/10)."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-quiet-out",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Default curve for enter, disclosure, route-in and cover motion."
+      },
+      {
+        "name": "ease-celebrate",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Confetti burst only."
+      },
+      {
+        "name": "duration-exit",
+        "value": "140ms",
+        "purpose": "Route fade-out and other exits (ease-out)."
+      },
+      {
+        "name": "duration-enter",
+        "value": "200ms",
+        "purpose": "Disclosure content and inserted notices (.enter)."
+      },
+      {
+        "name": "duration-route",
+        "value": "220ms",
+        "purpose": "Route-in view transition and cover entry."
+      },
+      {
+        "name": "duration-morph",
+        "value": "280ms",
+        "purpose": "Cover morph view transition group."
+      },
+      {
+        "name": "duration-celebrate",
+        "value": "900ms",
+        "purpose": "Odometer roll-in and confetti burst. UI delight exception to the 300ms guideline."
+      },
+      {
+        "name": "duration-ambient",
+        "value": "40s",
+        "purpose": "Existing noninteractive game-detail backdrop drift; enabled only with motion-safe."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "40rem"
+      },
+      {
+        "name": "md",
+        "value": "48rem"
+      },
+      {
+        "name": "lg",
+        "value": "64rem"
+      },
+      {
+        "name": "xl",
+        "value": "80rem"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one filled action in a view.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Add to Journal</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 4px 10px; border-radius: 10px; border: 1px solid transparent; font: 500 14px/20px Geist, ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: color 150ms, background-color 150ms, border-color 150ms, translate 150ms; } .ds-btn:active { translate: 0 1px; } .ds-btn:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent); } .ds-btn-primary { background: var(--primary); color: var(--primary-foreground); } .ds-btn-primary:hover { background: color-mix(in oklch, var(--primary) 80%, transparent); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "The common secondary action.",
+      "html": "<button class=\"ds-btn ds-btn-outline\">Wishlist</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 4px 10px; border-radius: 10px; border: 1px solid transparent; font: 500 14px/20px Geist, ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: color 150ms, background-color 150ms, border-color 150ms, translate 150ms; } .ds-btn:active { translate: 0 1px; } .ds-btn:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent); } .ds-btn-outline { background: var(--background); color: var(--foreground); border-color: var(--border); } .ds-btn-outline:hover { background: var(--muted); }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Ember text on an Ember tint; never a solid red fill.",
+      "html": "<button class=\"ds-btn ds-btn-destructive\">Delete account</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 4px 10px; border-radius: 10px; border: 1px solid transparent; font: 500 14px/20px Geist, ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: background-color 150ms; } .ds-btn-destructive { background: color-mix(in oklch, var(--destructive) 10%, transparent); color: var(--destructive); } .ds-btn-destructive:hover { background: color-mix(in oklch, var(--destructive) 20%, transparent); } .ds-btn-destructive:focus-visible { outline: none; border-color: color-mix(in oklch, var(--destructive) 40%, transparent); box-shadow: 0 0 0 3px color-mix(in oklch, var(--destructive) 20%, transparent); }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Hairline stroke, ring on focus.",
+      "html": "<input class=\"ds-input\" type=\"search\" placeholder=\"Search games\u2026\" aria-label=\"Search games\">",
+      "css": ".ds-input { width: 100%; height: 32px; padding: 4px 10px; border-radius: 10px; border: 1px solid var(--input); background: transparent; color: var(--foreground); font: 400 14px/20px Geist, ui-sans-serif, system-ui, sans-serif; transition: border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: var(--muted-foreground); } .ds-input:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent); }"
+    },
+    {
+      "name": "Main Navigation",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Pencil links, Ink plus underline for the current page, 44px targets.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Main\"><a href=\"#\" aria-current=\"page\">Find a game</a><a href=\"#\">Library</a><a href=\"#\">Wishlist</a><a href=\"#\">Stats</a></nav>",
+      "css": ".ds-nav { display: flex; flex-wrap: wrap; align-items: center; } .ds-nav a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 8px; border-radius: 8px; color: var(--muted-foreground); font: 400 14px/20px Geist, ui-sans-serif, system-ui, sans-serif; text-decoration: none; text-underline-offset: 4px; } .ds-nav a:hover { color: var(--foreground); text-decoration: underline; } .ds-nav a[aria-current=page] { color: var(--foreground); font-weight: 500; text-decoration: underline; text-decoration-thickness: 2px; } .ds-nav a:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Hairline border, no shadow.",
+      "html": "<div class=\"ds-card\"><h3>Playing</h3><p>Celeste \u00b7 started 3 days ago</p></div>",
+      "css": ".ds-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--card-foreground); font: 400 14px/20px Geist, ui-sans-serif, system-ui, sans-serif; } .ds-card h3 { margin: 0; font-weight: 500; } .ds-card p { margin: 0; color: var(--muted-foreground); }"
+    },
+    {
+      "name": "Empty State",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Dashed border, one sentence, one action.",
+      "html": "<div class=\"ds-empty\"><p>Your wishlist is empty.</p><button class=\"ds-empty-btn\">Find a game</button></div>",
+      "css": ".ds-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 32px; border-radius: 10px; border: 1px dashed var(--border); font: 400 14px/20px Geist, ui-sans-serif, system-ui, sans-serif; color: var(--foreground); } .ds-empty p { margin: 0; } .ds-empty-btn { min-height: 32px; padding: 4px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); font: inherit; font-weight: 500; cursor: pointer; } .ds-empty-btn:hover { background: var(--muted); }"
+    },
+    {
+      "name": "Game Cover",
+      "kind": "custom",
+      "refersTo": "game-cover",
+      "description": "264:374 cover art with the cover-on-shelf shadow; Dust fallback when art is missing.",
+      "html": "<figure class=\"ds-cover\"><div class=\"ds-cover-art\" aria-hidden=\"true\"><svg width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"2\" x2=\"22\" y1=\"2\" y2=\"22\"/><path d=\"M10.41 10.41a2 2 0 1 1-2.83-2.83\"/><line x1=\"13.5\" x2=\"6\" y1=\"13.5\" y2=\"21\"/><line x1=\"18\" x2=\"21\" y1=\"12\" y2=\"15\"/><path d=\"M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59\"/><path d=\"M21 15V5a2 2 0 0 0-2-2H9\"/></svg><span>No cover art</span></div><figcaption>Celeste<small>Playing</small></figcaption></figure>",
+      "css": ".ds-cover { margin: 0; width: 160px; display: flex; flex-direction: column; gap: 8px; font: 400 14px/20px Geist, ui-sans-serif, system-ui, sans-serif; } .ds-cover-art { aspect-ratio: 264 / 374; border-radius: 10px; border: 1px solid color-mix(in oklch, var(--border) 60%, transparent); background: var(--muted); color: var(--muted-foreground); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); } .ds-cover-art span { font-size: 12px; } .ds-cover figcaption { display: flex; flex-direction: column; font-weight: 500; color: var(--foreground); } .ds-cover small { font-weight: 400; font-size: 12px; color: var(--muted-foreground); } .ds-cover-art span { color: var(--foreground); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Shelf",
+    "overview": "shelve.games is a shelf, not a storefront. The interface around the games is graphite, bone and paper. It recedes so that the cover art can be the loudest and most colorful thing on screen. A collection should look like a well-kept bookshelf: ordered, calm, and personal. It should not look like a marketing page competing with the games for attention.\n\nDensity is moderate. Text is small and precise (14px body), headings are tight and semibold, and the layout is a single centered column that widens into cover grids. Depth comes from hairline borders and slightly darker tonal panels. Shadows are reserved for physical objects, meaning covers and floating layers. Motion is short, decelerating and mostly invisible. The few moments of delight, such as confetti on finishing a game, rolling counters and covers that tilt, are kept for moments that mean something to the player.\n\nThe surfaces are Operate mode: a person is completing a task, such as finding a game, saving it, or logging a playthrough. Familiar patterns win over novelty. Brand shows in precise details, not in decoration.",
+    "keyCharacteristics": [
+      "Monochrome chrome; cover art supplies the color.",
+      "Geist throughout, semibold with tight tracking for headings and tabular figures for numbers.",
+      "Flat, bordered surfaces; shadows only on covers and floating layers.",
+      "One gentle radius family built from a 10px base.",
+      "Fast ease-out motion under 300ms, with a reduced-motion branch for every animation.",
+      "Delight saved for meaningful moments: finishing a game, saving one, watching a count change."
+    ],
+    "rules": [
+      {
+        "name": "The Covers Carry Color Rule",
+        "body": "Interface chrome stays achromatic. The only hues on screen come from cover art, Ember for destructive or error states, and celebration particles. A new accent color needs a deliberate decision and an update to this file. It never appears as a one-off.",
+        "section": "colors"
+      },
+      {
+        "name": "The Celebration Exception",
+        "body": "The finish-game confetti (burst-button.tsx) uses the raw Tailwind amber, emerald, sky, rose and violet 400 colors. It's the only place raw palette classes are allowed, because a celebration is a moment, not chrome.",
+        "section": "colors"
+      },
+      {
+        "name": "The Semantic Tokens Only Rule",
+        "body": "Components use semantic utilities such as bg-primary, text-muted-foreground and border-border. Never use raw palette classes like bg-zinc-800, and never hard-code an OKLCH value. Every token is defined in src/app/globals.css, in :root and .dark.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "body": "Any number that changes or sits in a column uses tabular-nums, including counts, stats, odometers and countdowns. Digits must not jitter.",
+        "section": "typography"
+      },
+      {
+        "name": "The Weight Ladder Rule",
+        "body": "Use only three weights: 400 for reading, 500 for labels and active states, and 600 for headings. Don't use 700.",
+        "section": "typography"
+      },
+      {
+        "name": "The Objects, Not Surfaces Rule",
+        "body": "Shadows belong to covers and floating layers. Cards, notices, inputs and empty states never get a shadow. They use a hairline border, or Dust at 40% opacity.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do let cover art be the color. Keep chrome in the gray tokens.",
+      "Do use semantic token utilities (bg-muted, text-muted-foreground, border-border).",
+      "Do use tabular-nums on changing or aligned numbers, and text-balance on headings.",
+      "Do keep primary navigation and touch targets at least 44px, and other controls at least 24px (WCAG 2.2 target size).",
+      "Do keep a visible focus indicator on every interactive element. Next to cover art, use the solid 3px Ink outline with a 3px offset (the .journal-action pattern), because a translucent ring disappears against artwork.",
+      "Do keep the link to a game and the actions on it, such as save and status, as separate targets. Never nest buttons inside links.",
+      "Do keep UI animations under 300ms with the ease-out curve, and give each one a reduced-motion branch.",
+      "Do make popovers grow from their trigger, and use CSS transitions rather than keyframes for anything a user can interrupt.",
+      "Do check both themes and widths of 320, 390, 768 and 1440px before shipping.",
+      "Do search Storybook before adding or extending reusable UI, read its stories and source, and document new capabilities with colocated stories and interaction tests."
+    ],
+    "donts": [
+      "Don't introduce a new hue, gradient or colored accent in chrome without updating this file first.",
+      "Don't put shadows on cards, notices, inputs or empty states.",
+      "Don't add new radius values or arbitrary pixel sizes. Use the scale.",
+      "Don't use ease-in for UI motion, animate from scale(0), or animate actions triggered by the keyboard or repeated often.",
+      "Don't add decorative motion, such as fade-ins on every section, staggered lists everywhere, or confetti for routine saves.",
+      "Don't use 700-weight text or more than one display-size heading per page.",
+      "Don't hand-roll a dialog, menu, select, tooltip or drawer. Use the Base UI primitives in src/components/ui/.",
+      "Don't communicate status with color alone. Pair it with a label or icon."
+    ]
+  }
+}

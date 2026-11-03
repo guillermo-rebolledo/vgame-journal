@@ -35,5 +35,40 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "src/**",
+        "!src/**/*.stories.*",
+        "!src/**/*.test.*",
+        "!src/test/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "storybook",
+                      "storybook/**",
+                      "@storybook/**",
+                      "@fontsource-variable/**",
+                      "**/*.stories",
+                      "**/*.stories.*",
+                      "**/.storybook/**"
+                    ],
+                    "message": "Storybook is development-only. Import production components directly; keep catalog dependencies in stories and .storybook/."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }
