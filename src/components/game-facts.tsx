@@ -8,6 +8,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   boardName,
   boardRegion,
@@ -20,13 +21,39 @@ import type { SourceAgeRating, SourceLanguage } from "@/lib/game-source";
 const CARD =
   "flex flex-col gap-1 rounded-lg border bg-background/60 p-4 backdrop-blur";
 
-/** A score-grid card without details: "–" and why. */
-export function EmptyFact({ label, note }: { label: string; note: string }) {
+/** A score-grid card without details; "–" when there's no value. */
+export function Fact({
+  label,
+  value = "–",
+  note,
+}: {
+  label: string;
+  value?: ReactNode;
+  note?: string | null;
+}) {
   return (
     <div className={CARD}>
       <dt className="text-muted-foreground text-sm">{label}</dt>
-      <dd className="font-semibold text-3xl">–</dd>
+      <dd className="font-semibold text-3xl tabular-nums">{value}</dd>
       <dd className="text-muted-foreground text-xs">{note}</dd>
+    </div>
+  );
+}
+
+/** Holds the age rating card's place while the user's Region streams in. */
+export function AgeRatingFactSkeleton() {
+  return (
+    <div className="flex">
+      <dt className="sr-only">Age rating</dt>
+      <dd className="flex flex-1">
+        <output aria-label="Loading age rating" className={cn(CARD, "flex-1")}>
+          <span aria-hidden className="text-muted-foreground text-sm">
+            Age rating
+          </span>
+          <Skeleton className="h-9 w-12" />
+          <Skeleton className="h-4 w-24" />
+        </output>
+      </dd>
     </div>
   );
 }
@@ -35,7 +62,7 @@ export function EmptyFact({ label, note }: { label: string; note: string }) {
  * A score-grid card that is itself the trigger of a hover card. Base UI's Preview Card ignores touch,
  * so a tap toggles it; a mouse click doesn't, or it would close the card that hover just opened.
  */
-function Fact({
+function HoverFact({
   label,
   summary,
   value,
@@ -69,7 +96,7 @@ function Fact({
             }}
             className={cn(
               CARD,
-              "flex-1 cursor-default text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+              "flex-1 cursor-default text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
             )}
           >
             <span aria-hidden className="text-muted-foreground text-sm">
@@ -95,7 +122,7 @@ function Logo({
   className: string;
 }) {
   const alt = `${boardName(rating.board)} ${rating.rating}`;
-  const src = ratingLogo(rating.board, rating.rating);
+  const src = ratingLogo(rating);
   if (!src)
     return (
       <span
@@ -120,10 +147,10 @@ export function AgeRatingFact({
   headline: SourceAgeRating;
   others: SourceAgeRating[];
 }) {
-  const meaning = ratingMeaning(headline.board, headline.rating);
+  const meaning = ratingMeaning(headline);
   const board = boardName(headline.board);
   return (
-    <Fact
+    <HoverFact
       label="Age rating"
       summary={`${meaning}, ${board}`}
       value={<Logo rating={headline} className="h-9 self-start" />}
@@ -157,7 +184,7 @@ export function AgeRatingFact({
             {others.map((r) => (
               <li
                 key={r.board}
-                title={`${ratingMeaning(r.board, r.rating)} · ${boardRegion(r.board)}`}
+                title={`${ratingMeaning(r)} · ${boardRegion(r.board)}`}
                 className="flex flex-col items-center gap-1 text-xs"
               >
                 <Logo rating={r} className="h-8" />
@@ -167,7 +194,7 @@ export function AgeRatingFact({
           </ul>
         </div>
       )}
-    </Fact>
+    </HoverFact>
   );
 }
 
@@ -192,7 +219,7 @@ export function LanguagesFact({ languages }: { languages: SourceLanguage[] }) {
         ? `${voiced[0].name} voices`
         : `Voiced in ${voiced.length}`;
   return (
-    <Fact
+    <HoverFact
       label="Languages"
       summary={`${languages.length}, ${voices}`}
       value={
@@ -234,6 +261,6 @@ export function LanguagesFact({ languages }: { languages: SourceLanguage[] }) {
           </tbody>
         </table>
       </div>
-    </Fact>
+    </HoverFact>
   );
 }

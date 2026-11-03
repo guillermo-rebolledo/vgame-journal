@@ -84,7 +84,10 @@ export type SourceGame = {
   languages: SourceLanguage[];
 };
 
-/** `board` is IGDB's organization name (ESRB, PEGI, CERO, USK, GRAC, CLASS_IND, ACB); `rating` its code, e.g. "T", "12", "MA 15+". */
+/**
+ * `board` is IGDB's organization name (ESRB, PEGI, CERO, USK, GRAC, CLASS_IND, ACB); `rating` its code, e.g. "T", "12", "MA 15+".
+ * `board` is a plain string, not a union, because IGDB may send boards we don't know yet.
+ */
 export type SourceAgeRating = {
   board: string;
   rating: string;

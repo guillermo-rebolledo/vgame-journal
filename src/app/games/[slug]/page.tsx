@@ -6,7 +6,8 @@ import { FallbackImage } from "@/components/fallback-image";
 import { GameCover } from "@/components/game-cover";
 import {
   AgeRatingFact,
-  EmptyFact,
+  AgeRatingFactSkeleton,
+  Fact,
   LanguagesFact,
 } from "@/components/game-facts";
 import { JsonLd } from "@/components/json-ld";
@@ -140,36 +141,15 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
             />
             {game.ageRatings &&
               (game.ageRatings.length === 0 ? (
-                <EmptyFact label="Age rating" note="Not rated yet" />
+                <Fact label="Age rating" note="Not rated yet" />
               ) : (
-                <Suspense
-                  fallback={
-                    <div className="flex">
-                      <dt className="sr-only">Age rating</dt>
-                      <dd className="flex flex-1">
-                        <output
-                          aria-label="Loading age rating"
-                          className="flex flex-1 flex-col gap-1 rounded-lg border bg-background/60 p-4 backdrop-blur"
-                        >
-                          <span
-                            aria-hidden
-                            className="text-muted-foreground text-sm"
-                          >
-                            Age rating
-                          </span>
-                          <Skeleton className="h-9 w-12" />
-                          <Skeleton className="h-4 w-24" />
-                        </output>
-                      </dd>
-                    </div>
-                  }
-                >
+                <Suspense fallback={<AgeRatingFactSkeleton />}>
                   <AgeRating ratings={game.ageRatings} />
                 </Suspense>
               ))}
             {game.languages &&
               (game.languages.length === 0 ? (
-                <EmptyFact label="Languages" note="Unknown" />
+                <Fact label="Languages" note="Unknown" />
               ) : (
                 <LanguagesFact languages={game.languages} />
               ))}
@@ -291,18 +271,16 @@ function Score({
   noun: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border bg-background/60 p-4 backdrop-blur">
-      <dt className="text-muted-foreground text-sm">{label}</dt>
-      <dd className="font-semibold text-3xl tabular-nums">
-        {score === null ? "–" : Math.round(score)}
-      </dd>
-      <dd className="text-muted-foreground text-xs">
-        {score === null
+    <Fact
+      label={label}
+      value={score === null ? undefined : Math.round(score)}
+      note={
+        score === null
           ? "Not enough ratings yet"
           : count
             ? `${count.toLocaleString("en-US")} ${noun}${count === 1 ? "" : "s"}`
-            : null}
-      </dd>
-    </div>
+            : null
+      }
+    />
   );
 }

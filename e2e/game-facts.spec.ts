@@ -127,7 +127,7 @@ test("the headline board follows the signed-in user's Region", async ({
   await expect(ageRating(page)).toHaveAccessibleName("Age rating: Teen, ESRB");
 
   await page.goto("/settings");
-  await page.getByLabel("Europe", { exact: false }).check();
+  await page.getByRole("radio", { name: /Europe European/ }).check();
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
 

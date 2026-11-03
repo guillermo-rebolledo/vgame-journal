@@ -2,7 +2,7 @@ import type { SourceAgeRating, SourceLanguage } from "@/lib/game-source";
 import type { Region } from "@/lib/release-dates";
 
 /** Each board's display name, region and IGDB rating codes (except GRAC "TESTING"). In fallback order. */
-const BOARDS: Record<
+export const BOARDS: Record<
   string,
   { name: string; region: string; codes: string[] }
 > = {
@@ -30,12 +30,7 @@ const BOARDS: Record<
     codes: ["L", "10", "12", "14", "16", "18"],
   },
 };
-const ORDER = Object.keys(BOARDS);
-
-/** Every board's rating codes that have a logo. */
-export const RATING_CODES = Object.fromEntries(
-  ORDER.map((b) => [b, BOARDS[b].codes]),
-);
+const BOARD_ORDER = Object.keys(BOARDS);
 
 const REGION_BOARD: Record<Region, string> = {
   earliest: "ESRB",
@@ -49,7 +44,9 @@ export function pickRatings<T extends SourceAgeRating>(
   ratings: readonly T[],
   region: Region | null,
 ) {
-  const sorted = ORDER.flatMap((b) => ratings.filter((r) => r.board === b));
+  const sorted = BOARD_ORDER.flatMap((b) =>
+    ratings.filter((r) => r.board === b),
+  );
   const board = REGION_BOARD[region ?? "north_america"];
   const headline = sorted.find((r) => r.board === board) ?? sorted[0] ?? null;
   return { headline, others: sorted.filter((r) => r !== headline) };
@@ -75,9 +72,9 @@ const MEANINGS: Record<string, Record<string, string>> = {
 };
 
 /** "Teen", "Ages 12+"; a code without an age ("PG", "ALL", "L") reads as itself. */
-export function ratingMeaning(board: string, code: string) {
-  const age = code.match(/\d+/)?.[0];
-  return MEANINGS[board]?.[code] ?? (age ? `Ages ${age}+` : code);
+export function ratingMeaning({ board, rating }: SourceAgeRating) {
+  const age = rating.match(/\d+/)?.[0];
+  return MEANINGS[board]?.[rating] ?? (age ? `Ages ${age}+` : rating);
 }
 
 /** "ClassInd" for IGDB's "CLASS_IND"; other boards keep their acronym. */
@@ -90,9 +87,9 @@ export const boardRegion = (board: string) => BOARDS[board]?.region ?? "";
  * The self-hosted logo for a rating, or null if there's none (show the code instead).
  * Logos are from Wikimedia Commons (public domain there; the boards' trademarks), optimised with svgo.
  */
-export function ratingLogo(board: string, code: string) {
-  if (!BOARDS[board]?.codes.includes(code)) return null;
-  const slug = `${board}-${code}`
+export function ratingLogo({ board, rating }: SourceAgeRating) {
+  if (!BOARDS[board]?.codes.includes(rating)) return null;
+  const slug = `${board}-${rating}`
     .toLowerCase()
     .replace(/\+/g, "plus")
     .replace(/[\s_]+/g, "-");

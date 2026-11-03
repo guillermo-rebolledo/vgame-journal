@@ -1,18 +1,18 @@
 import { readdirSync } from "node:fs";
 import { expect, test } from "vitest";
 import {
+  BOARDS,
   boardName,
   boardRegion,
   pickRatings,
-  RATING_CODES,
   ratingLogo,
   ratingMeaning,
   sortLanguages,
 } from "./age-ratings";
 
-const rating = (board: string, rating: string) => ({
+const rating = (board: string, code: string) => ({
   board,
-  rating,
+  rating: code,
   descriptors: [],
 });
 const all = [
@@ -93,7 +93,7 @@ test.each([
   ["GRAC", "ALL", "ALL"],
   ["CLASS_IND", "L", "L"],
 ])("%s %s means %s", (board, code, meaning) => {
-  expect(ratingMeaning(board, code)).toBe(meaning);
+  expect(ratingMeaning(rating(board, code))).toBe(meaning);
 });
 
 test.each([
@@ -116,15 +116,16 @@ test.each([
   ["GRAC", "TESTING", null],
   ["PEGI", "Unknown", null],
 ])("%s %s logo is %s", (board, code, path) => {
-  expect(ratingLogo(board, code)).toBe(path);
+  expect(ratingLogo(rating(board, code))).toBe(path);
 });
 
 test("every logo path points at a file in public/ratings", () => {
   const files = readdirSync("public/ratings");
   const paths = files.map((f) => `/ratings/${f}`);
   expect(files).toHaveLength(39);
-  for (const [board, codes] of Object.entries(RATING_CODES))
-    for (const code of codes) expect(paths).toContain(ratingLogo(board, code));
+  for (const [board, { codes }] of Object.entries(BOARDS))
+    for (const code of codes)
+      expect(paths).toContain(ratingLogo(rating(board, code)));
 });
 
 test("voiced languages come first, then alphabetical", () => {

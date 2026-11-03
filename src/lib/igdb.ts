@@ -3,6 +3,7 @@ import {
   type DatePrecision,
   GAME_TYPES,
   type GameSource,
+  type SourceAgeRating,
   type SourceGame,
   type SourceLanguage,
   type SourceReleaseDate,
@@ -246,6 +247,27 @@ function toLanguages(rows: IgdbGame["language_supports"] = []) {
   return [...byName.values()];
 }
 
+/** GRAC "TESTING" is an IGDB placeholder, not a rating; ClassInd's "Violência (Violence)" keeps the English. */
+function toAgeRatings(rows: IgdbGame["age_ratings"] = []): SourceAgeRating[] {
+  return rows.flatMap(
+    ({ organization, rating_category, rating_content_descriptions = [] }) =>
+      organization && rating_category && rating_category.rating !== "TESTING"
+        ? [
+            {
+              board: organization.name,
+              rating: rating_category.rating,
+              descriptors: rating_content_descriptions.map(
+                ({ description }) =>
+                  (organization.name === "CLASS_IND" &&
+                    description.match(/\(([^)]+)\)\s*$/)?.[1]) ||
+                  description,
+              ),
+            },
+          ]
+        : [],
+  );
+}
+
 const toGame = (g: IgdbGame): SourceGame => ({
   id: g.id,
   type: GAME_TYPES[g.game_type ?? 0] ?? "main_game",
@@ -283,26 +305,7 @@ const toGame = (g: IgdbGame): SourceGame => ({
   themes: g.themes ?? [],
   versionParent: g.version_parent ?? null,
   fanMade: g.keywords?.some((k) => FAN_KEYWORD_IDS.includes(k)) ?? false,
-  // GRAC "TESTING" is an IGDB placeholder, not a rating.
-  ageRatings: (g.age_ratings ?? []).flatMap((r) =>
-    r.organization &&
-    r.rating_category &&
-    r.rating_category.rating !== "TESTING"
-      ? [
-          {
-            board: r.organization.name,
-            rating: r.rating_category.rating,
-            descriptors: (r.rating_content_descriptions ?? []).map(
-              ({ description }) =>
-                // ClassInd sends "Violência (Violence)"; keep the English.
-                (r.organization?.name === "CLASS_IND" &&
-                  description.match(/\(([^)]+)\)\s*$/)?.[1]) ||
-                description,
-            ),
-          },
-        ]
-      : [],
-  ),
+  ageRatings: toAgeRatings(g.age_ratings),
   languages: toLanguages(g.language_supports),
 });
 

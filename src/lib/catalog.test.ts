@@ -674,7 +674,7 @@ test("age ratings and languages are saved, replaced on resync, and an empty list
   });
 });
 
-test("a catalog game synced before age ratings and languages existed reads them as not synced", async () => {
+test("a catalog game synced before age ratings and languages existed re-fetches them once", async () => {
   const db = await createTestDb();
   await db.insert(game).values({
     id: 902,
@@ -685,11 +685,26 @@ test("a catalog game synced before age ratings and languages existed reads them 
     platforms: [],
     syncedAt: new Date(),
   });
-  const catalog = createCatalog(db, createFakeGameSource([]));
+  const ageRatings = [{ board: "ESRB", rating: "E10+", descriptors: [] }];
+  const languages = [
+    { name: "English", voices: false, subtitles: true, interface: true },
+  ];
+  const source = createFakeGameSource([
+    sourceGame({
+      id: 902,
+      title: "Celeste",
+      slug: "celeste",
+      ageRatings,
+      languages,
+    }),
+  ]);
+  const fetchGame = vi.spyOn(source, "fetchGame");
+  const catalog = createCatalog(db, source);
 
   expect(await catalog.findBySlug("celeste")).toMatchObject({
-    title: "Celeste",
-    ageRatings: null,
-    languages: null,
+    ageRatings,
+    languages,
   });
+  await catalog.findBySlug("celeste");
+  expect(fetchGame).toHaveBeenCalledTimes(1);
 });
