@@ -26,7 +26,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Supplementary help on hover or focus. Keep essential instructions in visible text; name the trigger independently. TooltipProvider is installed in the catalog preview. Source: src/components/ui/tooltip.tsx.",
+          "Supplementary help on hover or focus. Keep essential instructions in visible text; name the trigger independently. TooltipProvider is installed in the catalog preview. Popup transitions retarget on reversal and keep only opacity under reduced motion. Source: src/components/ui/tooltip.tsx.",
       },
     },
   },

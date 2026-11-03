@@ -17,6 +17,7 @@ export function TagShelves({
   shelves: TagShelf[];
 }) {
   const [selected, select] = useState(shelves[0]?.tag.slug);
+  const [hasChangedTag, setHasChangedTag] = useState(false);
   const headingId = useId();
   const shelf = shelves.find((s) => s.tag.slug === selected) ?? shelves[0];
   if (!shelf) return null;
@@ -37,10 +38,13 @@ export function TagShelves({
             key={tag.slug}
             type="button"
             aria-pressed={shelf.tag.slug === tag.slug}
-            onClick={() => select(tag.slug)}
-            className="group inline-flex min-h-11 shrink-0 items-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50 motion-safe:active:scale-[0.97] motion-safe:transition-[background-color,color,border-color,transform] motion-safe:duration-150 motion-safe:ease-out"
+            onClick={() => {
+              select(tag.slug);
+              setHasChangedTag(true);
+            }}
+            className="group inline-flex min-h-11 shrink-0 items-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [-webkit-tap-highlight-color:transparent] motion-safe:active:scale-[0.96] motion-safe:transition-[background-color,color,border-color,scale] motion-safe:duration-150 motion-safe:ease-out"
           >
-            <span className="inline-flex h-8 items-center rounded-full border border-border/80 bg-background/50 px-3 text-sm transition-colors duration-150 ease-out group-hover:bg-accent group-aria-pressed:border-foreground group-aria-pressed:bg-foreground group-aria-pressed:text-background">
+            <span className="inline-flex h-8 items-center rounded-full border border-border/80 bg-background/50 px-3 text-sm transition-colors duration-150 ease-out [@media(hover:hover)_and_(pointer:fine)]:group-hover:bg-accent group-aria-pressed:border-foreground group-aria-pressed:bg-foreground group-aria-pressed:text-background">
               {tag.label}
             </span>
           </button>
@@ -57,7 +61,7 @@ export function TagShelves({
           {shelf.games.map((game, index) => (
             <li
               key={game.id}
-              className="cover-entry min-w-0"
+              className={`${hasChangedTag ? "" : "cover-entry"} min-w-0`}
               style={{ "--entry-delay": `${25 * index}ms` } as CSSProperties}
             >
               <HomeCoverLink

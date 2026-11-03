@@ -108,8 +108,8 @@ function HoverFact({
           >
             <span aria-hidden className="text-muted-foreground text-sm">
               {label}
-            </span>
-            {value}
+            </span>{" "}
+            {value}{" "}
             <span className="text-muted-foreground text-xs">{note}</span>
           </HoverCardTrigger>
           <HoverCardContent id={id} className={cn("w-72 p-3", className)}>
@@ -240,7 +240,7 @@ export function LanguagesFact({ languages }: { languages: SourceLanguage[] }) {
       <p className="pb-2 font-medium">
         {languages.length} languages · {voices}
       </p>
-      <div className="min-h-0 overflow-y-auto">
+      <div className="min-h-0 overflow-y-auto overscroll-contain">
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-popover text-muted-foreground">
             <tr>

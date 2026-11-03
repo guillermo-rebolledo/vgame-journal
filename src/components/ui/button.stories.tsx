@@ -42,7 +42,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Shared action control. Reuse a variant for emphasis; use a link for navigation. Icon-only buttons need an accessible name. Source: src/components/ui/button.tsx.",
+          "Shared action control. Enabled presses scale to 0.96 over 150ms with ease-out; reduced motion stays stationary. Use press=static for anchored triggers. Reuse a variant for emphasis; use a link for navigation. Icon-only buttons need an accessible name. Source: src/components/ui/button.tsx.",
       },
     },
   },
@@ -93,3 +93,17 @@ export const LongLabel: Story = {
   },
 };
 export const LightTheme: Story = { globals: { theme: "light" } };
+
+export const StaticTrigger: Story = {
+  args: { press: "static", children: "Open actions" },
+};
+export const FocusableDisabled: Story = {
+  args: { disabled: true, focusableWhenDisabled: true },
+  play: async ({ canvasElement, args }) => {
+    const button = within(canvasElement).getByRole("button");
+    button.focus();
+    await expect(button).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+    await expect(args.onClick).not.toHaveBeenCalled();
+  },
+};
