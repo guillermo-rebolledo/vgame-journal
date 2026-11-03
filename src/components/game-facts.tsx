@@ -79,12 +79,26 @@ function HoverFact({
 }) {
   const [open, setOpen] = useState(false);
   const openAtTouch = useRef<boolean>(undefined);
+  const pointerType = useRef("");
   const id = useId();
   return (
     <div className="flex">
       <dt className="sr-only">{label}</dt>
       <dd className="flex flex-1">
-        <HoverCard open={open} onOpenChange={setOpen}>
+        <HoverCard
+          open={open}
+          onOpenChange={(nextOpen, details) => {
+            // Touch browsers can emit mouse-leave after a tap; it must not undo the toggle.
+            if (
+              pointerType.current === "touch" &&
+              details.reason === "trigger-hover"
+            ) {
+              details.cancel();
+              return;
+            }
+            setOpen(nextOpen);
+          }}
+        >
           <HoverCardTrigger
             delay={200}
             render={<button type="button" />}
@@ -93,13 +107,18 @@ function HoverFact({
             aria-controls={open ? id : undefined}
             // A tap also focuses and "hovers" the trigger, which opens the card after `delay`; on a
             // slow device that can land before the click. Toggle from the state at touch-down instead.
+            onPointerEnter={(event) => {
+              pointerType.current = event.pointerType;
+            }}
             onPointerDown={(event) => {
+              pointerType.current = event.pointerType;
               openAtTouch.current =
                 event.pointerType === "touch" ? open : undefined;
             }}
             onClick={() => {
               if (openAtTouch.current !== undefined)
                 setOpen(!openAtTouch.current);
+              openAtTouch.current = undefined;
             }}
             className={cn(
               CARD,

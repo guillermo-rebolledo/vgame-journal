@@ -54,3 +54,25 @@ export const LongLanguages: Story = {
   },
 };
 export const LightTheme: Story = { globals: { theme: "light" } };
+
+export const TouchToggle: Story = {
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole("button", {
+      name: /^Languages:/,
+    });
+    await userEvent.pointer([
+      { keys: "[TouchA>]", target: trigger },
+      { keys: "[/TouchA]" },
+    ]);
+    await waitFor(() =>
+      expect(trigger).toHaveAttribute("aria-expanded", "true"),
+    );
+    await userEvent.pointer([
+      { keys: "[TouchA>]", target: trigger },
+      { keys: "[/TouchA]" },
+    ]);
+    await waitFor(() =>
+      expect(trigger).toHaveAttribute("aria-expanded", "false"),
+    );
+  },
+};
