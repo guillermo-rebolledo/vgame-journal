@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { GameCover } from "@/components/game-cover";
+import { GameIdentificationMetadata } from "@/components/game-identification-metadata";
 import { HomeCoverLink } from "@/components/home-cover-link";
 import { Button } from "@/components/ui/button";
 import type { catalog } from "@/lib/catalog";
@@ -95,6 +96,13 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
                       {game.title}
                     </span>
                   </HomeCoverLink>
+                  <div className="mt-2">
+                    <GameIdentificationMetadata
+                      title={game.title}
+                      year={game.year}
+                      platforms={game.platforms}
+                    />
+                  </div>
                 </li>
               ))}
             </ul>

@@ -32,6 +32,56 @@ test("successful empty discovery stays empty without a retry loop", () => {
   expect(router.refresh).not.toHaveBeenCalled();
 });
 
+test("discovery separates release metadata from freshness and reveals platforms outside game links", async () => {
+  render(
+    <DiscoveryContent
+      result={{
+        shelves: [
+          {
+            key: "popular",
+            refreshedAt: new Date("2026-11-03T12:00:00Z"),
+            games: [
+              {
+                id: 7,
+                title: "Old classic",
+                slug: "old-classic",
+                coverImageId: null,
+                year: 1998,
+                platforms: ["PC", "Super Nintendo Entertainment System"],
+              },
+              {
+                id: 8,
+                title: "Undocumented classic",
+                slug: "undocumented-classic",
+                coverImageId: null,
+                year: null,
+                platforms: [],
+              },
+            ],
+          },
+        ],
+      }}
+    />,
+  );
+  expect(screen.getByText("1998")).toBeTruthy();
+  expect(screen.getByText("Nov 3, 2026").getAttribute("datetime")).toBe(
+    "2026-11-03T12:00:00.000Z",
+  );
+  expect(screen.getByText("Year unavailable")).toBeTruthy();
+  expect(screen.getByText("Platform availability unknown")).toBeTruthy();
+  const disclosure = screen.getByLabelText("More platforms for Old classic");
+  expect(disclosure.closest("a")).toBeNull();
+  await userEvent.click(disclosure);
+  expect(
+    screen.getByRole("list", { name: "Additional platforms for Old classic" })
+      .textContent,
+  ).toBe("Super Nintendo Entertainment System");
+  expect(
+    screen.getByRole("link", { name: "Old classic", exact: true }),
+  ).toBeTruthy();
+  expect(screen.queryByText(/TBA|upcoming|announcement/i)).toBeNull();
+});
+
 test("a later read failure keeps successful picks and their honest Updated time", async () => {
   const result: DiscoveryResult = {
     shelves: [
