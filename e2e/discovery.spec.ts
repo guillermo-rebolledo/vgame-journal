@@ -160,6 +160,18 @@ test("pending and failed discovery leave search and personal shelves usable", as
     await expect(
       page.getByRole("status").filter({ hasText: "Loading discovery picks…" }),
     ).toBeVisible();
+    const viewport = page.viewportSize();
+    await page.setViewportSize({ width: 320, height: 740 });
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "32px";
+    });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(320);
+    await page.evaluate(() => {
+      document.documentElement.style.removeProperty("font-size");
+    });
+    if (viewport) await page.setViewportSize(viewport);
     await expect(
       page.getByRole("region", { name: "Playing", exact: true }),
     ).toBeVisible();

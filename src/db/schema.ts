@@ -275,3 +275,70 @@ export const feedback = pgTable(
     ),
   ],
 );
+
+/** Custom Lists curate Catalog games independently of the Journal. */
+export const customList = pgTable(
+  "custom_list",
+  {
+    id: uuid("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    visibility: text("visibility")
+      .$type<"private" | "public">()
+      .notNull()
+      .default("private"),
+    submissionId: uuid("submission_id").notNull(),
+    revision: integer("revision").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("custom_list_user_submission_idx").on(
+      table.userId,
+      table.submissionId,
+    ),
+    index("custom_list_user_updated_idx").on(
+      table.userId,
+      table.updatedAt,
+      table.id,
+    ),
+    check(
+      "custom_list_title_valid",
+      sql`char_length(btrim(${table.title})) between 1 and 100 and ${table.title} = btrim(${table.title})`,
+    ),
+    check(
+      "custom_list_description_valid",
+      sql`char_length(${table.description}) <= 2000`,
+    ),
+    check(
+      "custom_list_visibility_known",
+      sql`${table.visibility} in ('private', 'public')`,
+    ),
+    check("custom_list_revision_valid", sql`${table.revision} >= 0`),
+  ],
+);
+
+export const listEntry = pgTable(
+  "list_entry",
+  {
+    listId: uuid("list_id")
+      .notNull()
+      .references(() => customList.id, { onDelete: "cascade" }),
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => game.id),
+    position: integer("position").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.listId, table.gameId] }),
+    index("list_entry_order_idx").on(
+      table.listId,
+      table.position,
+      table.gameId,
+    ),
+    check("list_entry_position_valid", sql`${table.position} >= 0`),
+  ],
+);

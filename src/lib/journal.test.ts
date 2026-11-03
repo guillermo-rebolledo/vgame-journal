@@ -1100,3 +1100,65 @@ test("Home reads keep new Playing entries, stable addition order and owner-only 
     /notes|Private Home note|luigi|userId/,
   );
 });
+
+test("account export includes only the owner's public and private lists in saved Catalog order", async () => {
+  const { createLists } = await import("./lists");
+  const lists = createLists(db);
+  const ids: string[] = [];
+  for (const [actor, visibility] of [
+    ["mario", "private"],
+    ["mario", "public"],
+    ["luigi", "private"],
+  ] as const) {
+    const created = await lists.create(actor, {
+      title: `${actor} ${visibility}`,
+      visibility,
+      submissionId: randomUUID(),
+    });
+    if (!created.ok) throw new Error(created.message);
+    ids.push(created.value.id);
+    await lists.addGame(actor, created.value.id, 0, 1);
+    await lists.addGame(actor, created.value.id, 1, 2);
+    await lists.reorder(actor, created.value.id, 2, [2, 1]);
+  }
+  const exported = await journal.exportData("mario");
+  expect(exported.lists).toHaveLength(2);
+  expect(exported.lists).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: ids[0],
+        title: "mario private",
+        visibility: "private",
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date),
+        games: [
+          { gameId: 2, title: "Game 2", slug: "game-2", coverImageId: null },
+          { gameId: 1, title: "Game 1", slug: "game-1", coverImageId: null },
+        ],
+      }),
+      expect.objectContaining({
+        id: ids[1],
+        title: "mario public",
+        visibility: "public",
+      }),
+    ]),
+  );
+  expect(JSON.stringify(exported.lists)).not.toMatch(
+    /luigi|submissionId|feedToken/,
+  );
+  const survivor = await journal.exportData("luigi");
+  await journal.deleteAccount("mario", "DELETE");
+  expect(await lists.ownerCollection("mario")).toEqual([]);
+  expect(await lists.ownerDetail("mario", ids[0])).toBeNull();
+  expect(await journal.exportData("luigi")).toEqual(survivor);
+  const { listEntry } = await import("@/db/schema");
+  expect(
+    await db.select().from(listEntry).where(eq(listEntry.listId, ids[0])),
+  ).toEqual([]);
+  expect(
+    await db.select().from(listEntry).where(eq(listEntry.listId, ids[1])),
+  ).toEqual([]);
+  expect((await db.select().from(game)).map((g) => g.id).sort()).toEqual([
+    1, 2,
+  ]);
+});

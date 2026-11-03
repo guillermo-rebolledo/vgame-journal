@@ -21,6 +21,7 @@ import {
   STATUSES,
   type Status,
 } from "@/lib/library";
+import { createLists } from "@/lib/lists";
 import {
   compareWishlist,
   REGIONS,
@@ -218,7 +219,7 @@ export function createJournal(db: Db) {
         .from(user)
         .where(eq(user.id, userId));
       if (!profile) throw new JournalError("User not found.");
-      const [entries, statusHistory, playthroughs] = await Promise.all([
+      const [entries, statusHistory, playthroughs, lists] = await Promise.all([
         db
           .select({
             gameId: journalEntry.gameId,
@@ -243,8 +244,9 @@ export function createJournal(db: Db) {
           .from(playthrough)
           .where(eq(playthrough.userId, userId))
           .orderBy(playthrough.startedOn, playthrough.id),
+        createLists(db).ownerCollection(userId),
       ]);
-      return { profile, entries, statusHistory, playthroughs };
+      return { profile, entries, statusHistory, playthroughs, lists };
     },
 
     /** Fast route check before streaming, so unknown profiles get an HTTP 404. */
