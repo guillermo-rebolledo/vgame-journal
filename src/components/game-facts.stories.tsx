@@ -31,7 +31,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Game-fact details reuse HoverCard with keyboard, hover, and touch access. Languages owns its contained scroll area. Floating boundaries survive forced colors; reduced motion retains an opacity transition.",
+          "Available game-fact details extend HoverCard with a visible View details cue, pointer affordance, keyboard activation, hover, and touch access. Escape dismisses details; Enter or Space reopens them. Languages owns its contained scroll area. Floating boundaries survive forced colors; reduced motion retains an opacity transition.",
       },
     },
   },
@@ -74,5 +74,33 @@ export const TouchToggle: Story = {
     await waitFor(() =>
       expect(trigger).toHaveAttribute("aria-expanded", "false"),
     );
+  },
+};
+
+export const VisibleDisclosure: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const trigger = canvas.getByRole("button", {
+      name: /^Languages:.*View details/,
+    });
+    await expect(within(trigger).getByText("View details")).toBeVisible();
+    trigger.focus();
+    const body = within(canvasElement.ownerDocument.body);
+    await waitFor(() =>
+      expect(trigger).toHaveAttribute("aria-expanded", "true"),
+    );
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(trigger).toHaveAttribute("aria-expanded", "false"),
+    );
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => expect(body.getByRole("table")).toBeVisible());
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(trigger).toHaveAttribute("aria-expanded", "false"),
+    );
+    await userEvent.keyboard(" ");
+    await waitFor(() => expect(body.getByRole("table")).toBeVisible());
+    await userEvent.keyboard("{Escape}");
   },
 };
