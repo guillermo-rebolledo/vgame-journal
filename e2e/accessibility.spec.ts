@@ -14,6 +14,9 @@ async function scan(page: Page, testInfo: TestInfo, name: string) {
   ).toHaveCount(0);
   // Metadata can stream after a save refresh has restored the page controls.
   await expect(page).toHaveTitle(/\S/);
+  // Scan the settled menu, rather than intermediate fade-in text colors.
+  const menu = page.getByRole("menu");
+  if (await menu.count()) await expect(menu).toHaveCSS("opacity", "1");
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
@@ -120,6 +123,9 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page.getByRole("menu")).toBeVisible();
       await scan(page, testInfo, "journal-menu");
       await page.keyboard.press("Escape");
+      await expect(page.getByRole("menu", { includeHidden: true })).toHaveCount(
+        0,
+      );
 
       const add = page.getByRole("button", {
         name: "Add playthrough",

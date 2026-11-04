@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense, ViewTransition } from "react";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
-import { FallbackImage } from "@/components/fallback-image";
 import { GameCover } from "@/components/game-cover";
 import { AgeRatingFact, AgeRatingFactSkeleton } from "@/components/game-facts";
 import { GameFactsGrid } from "@/components/game-facts-grid";
@@ -60,59 +59,42 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
   return (
     <article className="relative isolate flex-1">
       <JsonLd data={videoGameSchema(game, cover)} />
-      {cover && (
-        <div
-          aria-hidden
-          className="-z-10 pointer-events-none absolute inset-0 overflow-hidden"
-        >
-          <FallbackImage
-            src={cover}
-            alt=""
-            className="size-full scale-150 object-cover opacity-50 blur-3xl motion-safe:animate-drift dark:opacity-45"
-          />
-          <div className="absolute inset-0 bg-linear-to-b from-transparent to-background" />
-        </div>
-      )}
+      <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 sm:grid-cols-[minmax(0,15rem)_1fr] sm:gap-x-8 sm:py-12 md:grid-cols-[minmax(0,17rem)_1fr]">
+        <header className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-4 sm:contents">
+          <ViewTransition
+            name={`game-cover-${game.id}`}
+            default="none"
+            share="cover-morph"
+          >
+            <GameCover
+              imageId={game.coverImageId}
+              className="w-20 self-start rounded-lg shadow-2xl sm:row-span-2 sm:w-full"
+            />
+          </ViewTransition>
 
-      <div className="mx-auto grid w-full max-w-5xl gap-8 px-4 py-8 sm:grid-cols-[minmax(0,15rem)_1fr] sm:py-12 md:grid-cols-[minmax(0,17rem)_1fr]">
-        <ViewTransition
-          name={`game-cover-${game.id}`}
-          default="none"
-          share="cover-morph"
-        >
-          <GameCover
-            imageId={game.coverImageId}
-            className="mx-auto w-48 self-start rounded-lg shadow-2xl sm:w-full"
-          />
-        </ViewTransition>
-
-        <div className="flex min-w-0 flex-col gap-6">
-          <header className="flex flex-col gap-2">
-            <h1 className="text-balance font-semibold text-3xl tracking-tight sm:text-5xl">
+          <div className="flex min-w-0 flex-col gap-2">
+            <h1 className="text-balance font-semibold text-3xl tracking-tight [overflow-wrap:anywhere] sm:text-5xl">
               {game.title}
             </h1>
             {game.genres.length > 0 && (
               <p className="text-muted-foreground">{game.genres.join(", ")}</p>
             )}
-          </header>
+          </div>
+        </header>
 
+        <div className="flex min-w-0 flex-col gap-6 sm:col-start-2">
           <Suspense
             fallback={
               <output
                 aria-label="Loading journal"
-                className="flex min-h-[calc(9rem+1px)] flex-col gap-4"
+                className="flex flex-col gap-2"
               >
-                <div className="flex flex-col gap-2">
-                  <div className="flex gap-3">
-                    <Skeleton className="size-11 rounded-full" />
-                    <Skeleton className="size-11 rounded-full" />
-                  </div>
-                  <Skeleton className="h-5 w-32" />
+                <div className="flex flex-wrap gap-3">
+                  <Skeleton className="h-11 w-40" />
+                  <Skeleton className="h-11 w-36" />
+                  <Skeleton className="h-11 w-28" />
                 </div>
-                <div className="flex flex-col gap-1 border-t pt-3">
-                  <Skeleton className="h-5 w-24" />
-                  <Skeleton className="h-5 w-48" />
-                </div>
+                <Skeleton className="h-5 w-32" />
               </output>
             }
           >
@@ -120,12 +102,13 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
               gameId={game.id}
               gameTitle={game.title}
               platforms={game.platforms}
-            />
-          </Suspense>
-
-          <Suspense fallback={<output>Loading list controls…</output>}>
-            <GameLists
-              game={{ id: game.id, slug: game.slug, title: game.title }}
+              listPicker={
+                <Suspense fallback={<output>Loading list controls…</output>}>
+                  <GameLists
+                    game={{ id: game.id, slug: game.slug, title: game.title }}
+                  />
+                </Suspense>
+              }
             />
           </Suspense>
 
