@@ -1,5 +1,6 @@
 "use client";
 
+import { ListPlus, Plus, RotateCw, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
@@ -7,6 +8,7 @@ import { changeOwnerList, readOwnerLists } from "@/app/lists/actions";
 import { ListSessionBoundary, useListSession } from "@/components/list-session";
 import { CreateListForm } from "@/components/owner-lists";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
+import { ActionFeedback, ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import { authPageHref } from "@/lib/auth-continuation";
 import type { OwnerList } from "@/lib/lists";
@@ -53,6 +55,7 @@ export function GameListPicker({
         aria-controls={id}
         onClick={toggle}
       >
+        {open ? <X aria-hidden="true" /> : <ListPlus aria-hidden="true" />}
         {open ? "Close list picker" : "Add to list"}
       </Button>
       {open && (
@@ -182,10 +185,13 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
           className="min-h-11 self-start"
           onClick={() => setAttempt((value) => value + 1)}
         >
+          <RotateCw aria-hidden="true" />
           Refresh lists
         </Button>
       )}
-      <output aria-live="polite">{message}</output>
+      <output aria-live="polite" aria-atomic="true">
+        {message && <ActionFeedback state="success">{message}</ActionFeedback>}
+      </output>
       {items !== null && (
         <>
           {items.length === 0 ? (
@@ -224,12 +230,16 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
                           className="min-h-11 self-start"
                           aria-label={
                             added
-                              ? `${game.title} already in ${list.title}`
-                              : `Add ${game.title} to ${list.title}`
+                              ? `Already in list: ${game.title} in ${list.title}`
+                              : `Add here: ${game.title} to ${list.title}`
                           }
                           disabled={pending || blocked || added}
                           onClick={() => add(list)}
                         >
+                          <ActionIcon
+                            icon={<Plus />}
+                            state={added ? "success" : "idle"}
+                          />
                           {added ? "Already in list" : "Add here"}
                         </Button>
                       </li>

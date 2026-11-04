@@ -26,7 +26,7 @@ test("lost membership and delete responses reconcile before another mutation", a
   await openListPanel(page, "Add games");
   await selectCatalogGame(page, "Celeste");
   const add = page.getByRole("button", {
-    name: "Add Celeste to list",
+    name: "Add to list: Celeste",
     exact: true,
   });
   await expect(add).toBeVisible();
@@ -74,7 +74,7 @@ test("lost membership and delete responses reconcile before another mutation", a
       await selectCatalogGame(page, "Celeste");
       await expect(
         page.getByRole("button", {
-          name: "Celeste already in list",
+          name: "Already in list: Celeste",
           exact: true,
         }),
       ).toBeDisabled();
@@ -154,7 +154,7 @@ test("owner routes and direct mutations reject another actor, and a switched-acc
   await page.getByRole("button", { name: "Save details", exact: true }).click();
   const action = await mutation;
   await expect(
-    page.getByRole("status").filter({ hasText: "Details saved" }),
+    page.getByRole("dialog", { name: "Details saved." }),
   ).toBeVisible();
   const otherContext = await browser.newContext();
   const other = await otherContext.newPage();
@@ -258,7 +258,7 @@ test("owner read and search failures stay distinct from empty states and can be 
   await page.getByRole("button", { name: "Try again", exact: true }).click();
   await page.getByRole("option", { name: /^Celeste/ }).click();
   await page
-    .getByRole("button", { name: "Add Celeste to list", exact: true })
+    .getByRole("button", { name: "Add to list: Celeste", exact: true })
     .click();
   await closeListPanel(page);
   await expect(
@@ -464,14 +464,14 @@ test("game-page picker retains the selected game through sign-in and no-lists cr
   ).toHaveCount(0);
   await expect(
     picker.getByRole("button", {
-      name: "Celeste already in From a game page",
+      name: "Already in list: Celeste in From a game page",
       exact: true,
     }),
   ).toBeDisabled();
   await page.reload();
   await expect(
     picker.getByRole("button", {
-      name: "Celeste already in From a game page",
+      name: "Already in list: Celeste in From a game page",
       exact: true,
     }),
   ).toBeDisabled();
@@ -624,11 +624,11 @@ test("stale metadata cannot republish a list and refresh keeps the local draft f
     await openListPanel(page, "Add games");
     await selectCatalogGame(page, title);
     await page
-      .getByRole("button", { name: `Add ${title} to list`, exact: true })
+      .getByRole("button", { name: `Add to list: ${title}`, exact: true })
       .click();
     await expect(
       page.getByRole("button", {
-        name: `${title} already in list`,
+        name: `Already in list: ${title}`,
         exact: true,
       }),
     ).toBeDisabled();
@@ -807,18 +807,18 @@ test("Catalog selection appends, deduplicates, moves and removes without recordi
   await openListPanel(page, "Add games");
   await selectCatalogGame(page, "Celeste");
   await search
-    .getByRole("button", { name: "Add Celeste to list", exact: true })
+    .getByRole("button", { name: "Add to list: Celeste", exact: true })
     .click();
   await expect(
     search.getByRole("button", {
-      name: "Celeste already in list",
+      name: "Already in list: Celeste",
       exact: true,
     }),
   ).toBeDisabled();
   await openListPanel(page, "Add games");
   await selectCatalogGame(page, "Hades");
   await search
-    .getByRole("button", { name: "Add Hades to list", exact: true })
+    .getByRole("button", { name: "Add to list: Hades", exact: true })
     .click();
   const games = page.getByRole("list", { name: "List games", exact: true });
   await closeListPanel(page);
@@ -885,8 +885,8 @@ test("owner creates an empty private list, saves metadata, and keeps duplicate t
   await openListPanel(page, "Edit list");
   await page.getByRole("button", { name: "Save details", exact: true }).click();
   await expect(
-    page.getByRole("status").filter({ visible: true }),
-  ).toContainText("Details saved");
+    page.getByRole("dialog", { name: "Details saved." }),
+  ).toBeVisible();
   await page.reload();
   await openListPanel(page, "Edit list");
   await expect(

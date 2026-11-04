@@ -36,10 +36,13 @@ async function addGame(page: Page, title: string) {
   await openListPanel(page, "Add games");
   await selectCatalogGame(page, title);
   await page
-    .getByRole("button", { name: `Add ${title} to list`, exact: true })
+    .getByRole("button", { name: `Add to list: ${title}`, exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: `${title} already in list`, exact: true }),
+    page.getByRole("button", {
+      name: `Already in list: ${title}`,
+      exact: true,
+    }),
   ).toBeDisabled();
 }
 
@@ -92,7 +95,7 @@ test("real Next actions recheck sessions and ownership for every list mutation f
   await page.getByRole("button", { name: "Save details", exact: true }).click();
   const edit = await editing;
   await expect(
-    page.getByRole("status").filter({ hasText: "Details saved" }),
+    page.getByRole("dialog", { name: "Details saved." }),
   ).toBeVisible();
   const changing = page.waitForRequest((r) => !!r.headers()["next-action"]);
   await addGame(page, "Celeste");
@@ -213,19 +216,19 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
   await openListPanel(page, "Edit list");
   await page.getByRole("button", { name: "Save details", exact: true }).click();
   await expect(
-    page.getByRole("status").filter({ hasText: "Details saved" }),
+    page.getByRole("dialog", { name: "Details saved." }),
   ).toBeVisible();
   await addGame(page, "Celeste");
   await page.goto("/games/hades--1?addToList=1");
   await page
     .getByRole("button", {
-      name: "Add Hades to LIFECYCLE_PRIVATE_88",
+      name: "Add here: Hades to LIFECYCLE_PRIVATE_88",
       exact: true,
     })
     .click();
   await expect(
     page.getByRole("button", {
-      name: "Hades already in LIFECYCLE_PRIVATE_88",
+      name: "Already in list: Hades in LIFECYCLE_PRIVATE_88",
       exact: true,
     }),
   ).toBeDisabled();
@@ -399,7 +402,9 @@ test("lists preserve Journal history and account export/deletion stays complete 
     .getByLabel("Notes (private, optional)", { exact: true })
     .fill("ACCOUNT_PRIVATE_NOTE_88");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toHaveCount(0);
   await page.goto("/games/silksong");
   await chooseStatus(page, "wishlist");
   await page.goto("/settings");

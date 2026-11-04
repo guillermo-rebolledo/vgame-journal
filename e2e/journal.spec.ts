@@ -34,8 +34,12 @@ test("F05/F16: Release region save stays local on transport failure and retries 
   });
   try {
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByRole("status")).toHaveText("Saving…");
-    await expect(page.getByRole("button", { name: "Saving…" })).toBeDisabled();
+    await expect(
+      page.getByRole("form", { name: "Release region" }).getByRole("status"),
+    ).toHaveText("Saving…");
+    await expect(
+      page.getByRole("button", { name: "Save", exact: true }),
+    ).toBeDisabled();
     for (const radio of await page.getByRole("radio").all())
       await expect(radio).toBeDisabled();
     await page.keyboard.press("Enter");
@@ -55,13 +59,19 @@ test("F05/F16: Release region save stays local on transport failure and retries 
     page.getByRole("button", { name: "Download JSON" }),
   ).toBeEnabled();
   await expect(page.getByLabel("Type DELETE to confirm")).toBeEnabled();
-  await expect(page.getByRole("status")).not.toHaveText("Saved");
+  await expect(
+    page.getByRole("form", { name: "Release region" }).getByRole("status"),
+  ).not.toHaveText("Saved");
   await page.unroute("**/settings");
   await page.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText("Saved");
+  await expect(
+    page.getByRole("form", { name: "Release region" }).getByRole("status"),
+  ).toHaveText("Saved");
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   await page.getByRole("radio", { name: /Europe European/ }).check();
-  await expect(page.getByRole("status")).toBeEmpty();
+  await expect(
+    page.getByRole("form", { name: "Release region" }).getByRole("status"),
+  ).toBeEmpty();
   await page.reload();
   await expect(japan).toBeChecked();
 });
@@ -85,12 +95,16 @@ test("F05/F16: invalid region and expired-session action failures stay in Settin
     "Could not save your release region",
   );
   await expect(japan).toBeChecked();
-  await expect(page.getByRole("status")).not.toHaveText("Saved");
+  await expect(
+    page.getByRole("form", { name: "Release region" }).getByRole("status"),
+  ).not.toHaveText("Saved");
   await japan.evaluate((input: HTMLInputElement) => {
     input.value = "japan";
   });
   await page.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText("Saved");
+  await expect(
+    page.getByRole("form", { name: "Release region" }).getByRole("status"),
+  ).toHaveText("Saved");
   await page.reload();
   await expect(japan).toBeChecked();
 
@@ -110,7 +124,9 @@ test("F05/F16: invalid region and expired-session action failures stay in Settin
   await expect(
     page.getByRole("button", { name: "Retry", exact: true }),
   ).toBeEnabled();
-  await expect(page.getByRole("status")).not.toHaveText("Saved");
+  await expect(
+    page.getByRole("form", { name: "Release region" }).getByRole("status"),
+  ).not.toHaveText("Saved");
   await expect(
     page.getByRole("heading", { name: "Calendar feed" }),
   ).toBeVisible();

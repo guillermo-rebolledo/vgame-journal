@@ -22,7 +22,9 @@ export async function selectCatalogGame(page: Page, title: string) {
   await expect(
     page.getByRole("button", { name: "Back to results" }),
   ).toBeFocused();
-  return page.getByRole("dialog");
+  return page
+    .getByRole("dialog")
+    .and(page.locator(':not([data-slot="toast"])'));
 }
 
 export async function viewCatalogGame(page: Page, title: string) {

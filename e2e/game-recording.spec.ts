@@ -99,7 +99,9 @@ test("Playthroughs stay between recording actions and Catalog information from e
     await page.getByLabel("Started", { exact: true }).fill("2026-02-02");
     await page.getByLabel("Notes (private, optional)").fill(note);
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(
+      page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+    ).toHaveCount(0);
     await expect(history.getByText(note, { exact: true })).toBeVisible();
     await expect(add).toBeFocused();
     await checkLocation();
@@ -164,7 +166,9 @@ for (const state of ["guest", "unsaved", "saved"] as const) {
     await expect(picker).toBeFocused();
     await expect(journal).toBeVisible();
     await expect(add).toBeVisible();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(
+      page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+    ).toHaveCount(0);
     const pickerBox = await picker.boundingBox();
     const addBox = await add.boundingBox();
     expect(pickerBox?.y).toBeGreaterThanOrEqual(
@@ -400,7 +404,9 @@ test("drawer drafts, validation, retry, outside-journal status, editing and dele
   await page
     .getByRole("button", { name: "Add playthrough", exact: true })
     .click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page
+    .getByRole("dialog")
+    .and(page.locator(':not([data-slot="toast"])'));
   await expect(dialog.getByText(/Save adds this game/)).toBeVisible();
   await page.getByLabel("Started", { exact: true }).fill("2026-02-02");
   await page.getByLabel("Finished (optional)").fill("2026-01-01");
@@ -594,7 +600,9 @@ for (const populated of [false, true]) {
         page.getByText("No playthroughs yet.", { exact: true }),
       ).toBeVisible();
     }
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(
+      page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+    ).toHaveCount(0);
     await expect(page.getByLabel("Started", { exact: true })).toHaveCount(0);
     await request.post(supportUrl("/collection-delay"), {
       data: { email, milliseconds: 0 },
@@ -669,7 +677,9 @@ test("F01: cancelling or dismissing Journal removal preserves saved Playthroughs
     .getByLabel("Notes (private, optional)")
     .fill("Summit route — keep this private note 🎮");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toHaveCount(0);
   const before = await (await page.request.get("/api/account/export")).json();
   let writes = 0;
   page.on("request", (request) => {
@@ -736,7 +746,9 @@ test("F01: confirmed removal waits for acknowledgement, recovers locally, and pe
     await page.getByLabel("Started", { exact: true }).fill("2026-01-02");
     await page.getByLabel("Notes (private, optional)").fill(note);
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(
+      page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+    ).toHaveCount(0);
   }
   const before = await (await page.request.get("/api/account/export")).json();
   await page
@@ -884,7 +896,11 @@ test.describe("F01: stale Journal removal on a touch screen", () => {
       await other.getByLabel("Started", { exact: true }).fill("2026-01-02");
       await other.getByLabel("Notes (private, optional)").fill(note);
       await other.getByRole("button", { name: "Save", exact: true }).tap();
-      await expect(other.getByRole("dialog")).toHaveCount(0);
+      await expect(
+        other
+          .getByRole("dialog")
+          .and(other.locator(':not([data-slot="toast"])')),
+      ).toHaveCount(0);
     }
     await addInOtherTab("Private note added in the other tab");
     const before = await (await page.request.get("/api/account/export")).json();
@@ -968,7 +984,9 @@ test.describe("enlarged-text touch editor", () => {
         exact: true,
       });
       await add.tap();
-      const dialog = page.getByRole("dialog");
+      const dialog = page
+        .getByRole("dialog")
+        .and(page.locator(':not([data-slot="toast"])'));
       await expect(dialog).toHaveAccessibleDescription(
         "The Lantern Keeper's Extraordinarily Long Voyage Across the Shattered Archipelago: Definitive Edition",
       );
@@ -1230,7 +1248,9 @@ test("F04: saved private notes wrap long URLs without changing their contents", 
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await notes.fill(fullNote);
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toHaveCount(0);
   await expect(
     page
       .getByRole("region", { name: "Playthroughs" })

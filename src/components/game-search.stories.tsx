@@ -532,9 +532,13 @@ export const ConfirmedSecondSaveSurvivesLateFirstSave: Story = {
       body.getByRole("button", { name: "Save to Wishlist" }),
     );
     const confirmation = `${games[1].title} saved to Wishlist.`;
-    await expect(
-      await body.findByText(confirmation, { selector: "p" }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        body
+          .getByRole("button", { name: "Save to Wishlist" })
+          .querySelector("[data-action-state]"),
+      ).toHaveAttribute("data-action-state", "success"),
+    );
     const updates = body.getByRole("status", { name: "Journal updates" });
     await expect(updates).toHaveTextContent(confirmation);
     finishFirst({
@@ -553,7 +557,11 @@ export const ConfirmedSecondSaveSurvivesLateFirstSave: Story = {
     // Wait for A's response to update the shared Journal, then inspect B's feedback.
     await within(canvasElement).findByText("Backlog (1)");
     await expect(body.getByText("Current status: Wishlist")).toBeVisible();
-    await expect(body.getByText(confirmation, { selector: "p" })).toBeVisible();
+    await expect(
+      body
+        .getByRole("button", { name: "Save to Wishlist" })
+        .querySelector("[data-action-state]"),
+    ).toHaveAttribute("data-action-state", "success");
     await expect(updates).toHaveTextContent(confirmation);
     await expect(
       body.getAllByRole("status", { name: "Journal updates" }),

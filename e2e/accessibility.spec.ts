@@ -93,6 +93,13 @@ async function scan(page: Page, testInfo: TestInfo, name: string) {
   // Scan the settled menu, rather than intermediate fade-in text colors.
   const menu = page.getByRole("menu");
   if (await menu.count()) await expect(menu).toHaveCSS("opacity", "1");
+  // Completion notifications may arrive after an editor's closing transition.
+  await expect(
+    page.locator('[data-slot="toast"][data-ending-style]'),
+  ).toHaveCount(0);
+  for (const notification of await page.locator('[data-slot="toast"]').all()) {
+    await expect(notification).toHaveCSS("opacity", "1");
+  }
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
@@ -207,11 +214,11 @@ for (const theme of ["light", "dark"] as const) {
       await scan(page, testInfo, "list-game-search");
       await selectCatalogGame(page, "Celeste");
       await page
-        .getByRole("button", { name: "Add Celeste to list", exact: true })
+        .getByRole("button", { name: "Add to list: Celeste", exact: true })
         .click();
       await expect(
         page.getByRole("button", {
-          name: "Celeste already in list",
+          name: "Already in list: Celeste",
           exact: true,
         }),
       ).toBeDisabled();
@@ -277,9 +284,12 @@ for (const theme of ["light", "dark"] as const) {
         route.fulfill({ status: 503 }),
       );
       await searchInput.fill("failed");
-      await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
-        "Search isn’t working",
-      );
+      await expect(
+        page
+          .getByRole("dialog")
+          .and(page.locator(':not([data-slot="toast"])'))
+          .getByRole("alert"),
+      ).toContainText("Search isn’t working");
       await scan(page, testInfo, "search-error");
       await searchInput.fill("Celeste");
       await expect(
@@ -336,16 +346,25 @@ for (const theme of ["light", "dark"] as const) {
         exact: true,
       });
       await add.click();
-      await expect(page.getByRole("dialog")).toBeVisible();
+      await expect(
+        page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+      ).toBeVisible();
       await scan(page, testInfo, "playthrough-editor");
       await page.getByLabel("Started", { exact: true }).fill("2026-02-02");
       await page.getByLabel("Finished (optional)").fill("2026-01-01");
       await page.getByRole("button", { name: "Save", exact: true }).click();
-      await expect(page.getByRole("dialog").getByRole("alert")).toBeVisible();
+      await expect(
+        page
+          .getByRole("dialog")
+          .and(page.locator(':not([data-slot="toast"])'))
+          .getByRole("alert"),
+      ).toBeVisible();
       await scan(page, testInfo, "playthrough-validation");
       await page.getByLabel("Finished (optional)").fill("");
       await page.getByRole("button", { name: "Save", exact: true }).click();
-      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await expect(
+        page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+      ).toHaveCount(0);
       await expect(add).toBeFocused();
       await scan(page, testInfo, "saved-playthrough");
 

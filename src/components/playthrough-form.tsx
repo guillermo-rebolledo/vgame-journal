@@ -1,6 +1,8 @@
 "use client";
 
+import { Save } from "lucide-react";
 import { useId, useRef, useState } from "react";
+import { ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -215,7 +217,12 @@ export function PlaythroughForm({
             type="submit"
             className="h-11 px-6"
             disabled={pending || !platforms.length}
+            aria-busy={pending}
           >
+            <ActionIcon
+              icon={<Save />}
+              state={pending ? "pending" : error ? "error" : "idle"}
+            />
             Save
           </Button>
         </div>

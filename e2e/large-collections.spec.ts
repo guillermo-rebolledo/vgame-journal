@@ -526,7 +526,9 @@ test("large collections bound rendered rows and retain navigation, search and ed
     await page
       .getByRole("button", { name: "Delete playthrough", exact: true })
       .click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(
+      page.getByRole("dialog", { name: "Edit playthrough", exact: true }),
+    ).toHaveCount(0);
   }
   await expect(history.getByRole("listitem")).toHaveCount(48);
   await expect(page).toHaveURL(/playthroughPage=2&outPage=2&marker=keep$/);

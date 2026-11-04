@@ -1,14 +1,14 @@
+import { Download } from "lucide-react";
 import type { Metadata } from "next";
 import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { TrackClicks } from "@/components/analytics";
-import { CopyButton } from "@/components/copy-button";
+import { CalendarFeedForm } from "@/components/calendar-feed-form";
 import { DeleteAccountForm } from "@/components/delete-account-form";
 import { RegionForm } from "@/components/region-form";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { auth, ownerId, signedInUserId } from "@/lib/auth";
 import { JournalError, journal } from "@/lib/journal";
 import type { Region } from "@/lib/release-dates";
@@ -74,6 +74,7 @@ async function AccountDataSetting() {
             nativeButton={false}
             render={
               <a href="/api/account/export" download>
+                <Download aria-hidden="true" />
                 Download JSON
               </a>
             }
@@ -118,48 +119,16 @@ async function CalendarFeedSetting() {
 
   async function regenerate() {
     "use server";
-    await journal.regenerateFeedToken(await ownerId());
+    try {
+      await journal.regenerateFeedToken(await ownerId());
+    } catch {
+      return {
+        error: "Could not regenerate your Calendar feed URL. Please try again.",
+      };
+    }
     refresh();
+    return { saved: true as const };
   }
 
-  return (
-    <form action={regenerate} className="flex flex-col gap-3 border-t pt-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="font-medium">Calendar feed</h2>
-        <p className="text-muted-foreground text-sm">
-          Subscribe in your calendar app to see wishlisted games on their
-          release day. Only games with an exact date are included. Keep this URL
-          private: anyone with it can see your Wishlist.
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Input
-          id="calendar-feed-url"
-          readOnly
-          value={url}
-          aria-label="Calendar feed URL"
-          className="min-w-0 flex-1 basis-48 font-mono text-xs md:text-xs"
-        />
-        <CopyButton text={url} inputId="calendar-feed-url" target="calendar" />
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <TrackClicks event={["calendar_feed_subscribed"]}>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<a href={`webcal://${path}`}>Subscribe</a>}
-          />
-        </TrackClicks>
-        <TrackClicks event={["calendar_feed_regenerated"]}>
-          <Button type="submit" variant="ghost">
-            Regenerate URL
-          </Button>
-        </TrackClicks>
-      </div>
-      <p className="text-muted-foreground text-xs">
-        Regenerating stops the old URL working. Subscribe again with the new
-        one.
-      </p>
-    </form>
-  );
+  return <CalendarFeedForm url={url} onRegenerate={regenerate} />;
 }
