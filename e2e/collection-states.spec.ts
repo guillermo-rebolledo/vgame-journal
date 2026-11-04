@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openCatalog } from "./support/catalog";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
@@ -79,16 +80,12 @@ for (const viewport of [
       await visit("Library", true);
       await visit("Wishlist", true);
       await page.goto("/");
-      await page
-        .getByRole("searchbox", { name: "Search games" })
-        .fill("Moss Cartographer");
+      await (await openCatalog(page)).fill("Moss Cartographer");
       const result = page
-        .getByRole("list", { name: "Search results" })
-        .getByRole("link");
-      await expect(result).toHaveAccessibleName("Moss Cartographer");
-      await expect(
-        result.locator("..").getByText("Year unavailable"),
-      ).toBeVisible();
+        .getByRole("listbox", { name: "Search results" })
+        .getByRole("option");
+      await expect(result).toHaveAccessibleName(/Moss Cartographer/);
+      await expect(result.getByText("Year unavailable")).toBeVisible();
       await expect(result.locator('[aria-hidden="true"] svg')).toHaveCount(1);
       await snap(
         page,
@@ -96,6 +93,12 @@ for (const viewport of [
         `search-missing-cover-${viewport.name}-${theme}`,
       );
       await result.click();
+      await page
+        .getByRole("link", {
+          name: "View game: Moss Cartographer",
+          exact: true,
+        })
+        .click();
       await chooseStatus(page, "wishlist");
 
       await visit("Library", false);
@@ -134,10 +137,10 @@ test("an unreachable cover keeps the game's title and cover proportions", async 
     await route.abort();
   });
   await page.goto("/");
-  await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
+  await (await openCatalog(page)).fill("Celeste");
   const result = page
-    .getByRole("list", { name: "Search results" })
-    .getByRole("link");
+    .getByRole("listbox", { name: "Search results" })
+    .getByRole("option");
   const cover = result.locator("img");
   await expect(cover).toBeVisible();
   const before = await cover.boundingBox();
@@ -149,10 +152,10 @@ test("an unreachable cover keeps the game's title and cover proportions", async 
   const after = await fallback.boundingBox();
   expect(after?.width).toBe(before?.width);
   expect(after?.height).toBeCloseTo(before?.height ?? 0, 0);
-  await expect(result).toHaveAccessibleName("Celeste");
+  await expect(result).toHaveAccessibleName(/Celeste/);
   const row = page
-    .getByRole("list", { name: "Search results" })
-    .getByRole("listitem");
+    .getByRole("listbox", { name: "Search results" })
+    .getByRole("option");
   await expect(row.getByText("2018", { exact: true })).toBeVisible();
   await expect(row.getByText("PC", { exact: true })).toBeVisible();
 });

@@ -1,4 +1,9 @@
 import { expect, test } from "@playwright/test";
+import {
+  closeCatalog,
+  openCatalog,
+  selectCatalogGame,
+} from "./support/catalog";
 import { chooseStatus } from "./support/journal";
 import { seedSql } from "./support/seed-sql";
 import { signUp } from "./support/sign-up";
@@ -50,7 +55,7 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
   if (!recentHandle) throw new Error("Recently released shelf is missing");
   expect(
     await page
-      .getByRole("searchbox", { name: "Search games" })
+      .getByRole("button", { name: "Search games…", exact: true })
       .evaluate((node, shelf) => {
         return Boolean(
           node.compareDocumentPosition(shelf) &
@@ -71,7 +76,9 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
   expect(await columns()).toBe(4);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await columns()).toBe(2);
-  await page.getByRole("searchbox", { name: "Search games" }).focus();
+  await page
+    .getByRole("button", { name: "Search games…", exact: true })
+    .focus();
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("link", { name: "Sign up to start a Journal" }),
@@ -104,7 +111,13 @@ test("empty and saved Journals retain priority; duplicate covers navigate from e
   await signUp(page, request, `discovery_${Date.now()}`);
   await expect(page.getByText(/Your Journal is empty/)).toBeVisible();
   await expect(
-    page.getByRole("region", { name: "Recently released", exact: true }),
+    page
+      .getByRole("region", {
+        name: "Recently released",
+        exact: true,
+        includeHidden: true,
+      })
+      .filter({ visible: true }),
   ).toBeVisible();
   await page
     .getByRole("region", { name: "Recently trending", exact: true })
@@ -125,20 +138,27 @@ test("empty and saved Journals retain priority; duplicate covers navigate from e
     exact: true,
   });
   await expect(library).toBeVisible();
-  const personal = page.getByRole("region", { name: "Playing", exact: true });
+  const personal = page.getByRole("region", {
+    name: "Playing",
+    exact: true,
+    includeHidden: true,
+  });
   await personal.getByRole("link", { name: /Discovery One/ }).click();
   await expect(page).toHaveURL(/\/games\/discovery-one$/);
   await page.goto("/");
+  await selectCatalogGame(page, "Discovery One");
   await page
-    .getByRole("searchbox", { name: "Search games" })
-    .fill("Discovery One");
+    .getByRole("link", { name: "View game: Discovery One", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/games\/discovery-one$/);
+  // The Command action and all four shelf occurrences navigate independently.
+  await page.goto("/");
   const links = page.getByRole("link", { name: /^Discovery One/ });
-  await expect(links).toHaveCount(5);
-  // Search, Playing, Recently added and both discovery shelves share the game.
-  for (const index of [0, 1, 2, 3, 4]) {
+  await expect(links).toHaveCount(4);
+  for (const index of [0, 1, 2, 3]) {
     await links.nth(index).click();
     await expect(page).toHaveURL(/\/games\/discovery-one$/);
-    await page.goto("/?q=Discovery%20One");
+    await page.goto("/");
   }
   expect(
     errors.filter((message) => /transition|duplicate/i.test(message)),
@@ -158,7 +178,10 @@ test("pending and failed discovery leave search and personal shelves usable", as
   try {
     await page.goto("/", { waitUntil: "commit" });
     await expect(
-      page.getByRole("status").filter({ hasText: "Loading discovery picks…" }),
+      page
+        .getByRole("status", { includeHidden: true })
+        .filter({ visible: true })
+        .filter({ hasText: "Loading discovery picks…" }),
     ).toBeVisible();
     const viewport = page.viewportSize();
     await page.setViewportSize({ width: 320, height: 740 });
@@ -173,72 +196,125 @@ test("pending and failed discovery leave search and personal shelves usable", as
     });
     if (viewport) await page.setViewportSize(viewport);
     await expect(
-      page.getByRole("region", { name: "Playing", exact: true }),
+      page.getByRole("region", {
+        name: "Playing",
+        exact: true,
+        includeHidden: true,
+      }),
     ).toBeVisible();
-    await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
-    await expect(page.getByRole("link", { name: /Celeste/ })).toBeVisible();
+    await (await openCatalog(page)).fill("Celeste");
+    await expect(page.getByRole("option", { name: /^Celeste/ })).toBeVisible();
     await expect(
-      page.getByRole("region", { name: "Recently released", exact: true }),
+      page
+        .getByRole("region", {
+          name: "Recently released",
+          exact: true,
+          includeHidden: true,
+        })
+        .filter({ visible: true }),
     ).toHaveCount(0);
     await request.post(supportUrl("/discovery-state"), {
       data: { hold: false },
     });
     await expect(
-      page.getByRole("region", { name: "Recently released", exact: true }),
+      page
+        .getByRole("region", {
+          name: "Recently released",
+          exact: true,
+          includeHidden: true,
+        })
+        .filter({ visible: true }),
     ).toBeVisible();
     await request.post(supportUrl("/discovery-state"), {
       data: { fail: true },
     });
     await page.goto("/?q=Celeste&year=2018&platform=PC&all=1&filters=1");
     await expect(
-      page.getByRole("region", { name: "Playing", exact: true }),
+      page.getByRole("region", {
+        name: "Playing",
+        exact: true,
+        includeHidden: true,
+      }),
     ).toBeVisible();
     await expect(
-      page.getByRole("region", { name: "Recently released", exact: true }),
+      page
+        .getByRole("region", {
+          name: "Recently released",
+          exact: true,
+          includeHidden: true,
+        })
+        .filter({ visible: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("status").filter({ hasText: "Discovery is unavailable." }),
+      page
+        .getByRole("status", { includeHidden: true })
+        .filter({ visible: true })
+        .filter({ hasText: "Discovery is unavailable." }),
     ).toBeVisible();
-    await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
+    await (await openCatalog(page)).fill("Celeste");
     const location = page.url();
     await request.post(supportUrl("/discovery-state"), {
       data: { fail: false, hold: true },
     });
-    await page.getByRole("button", { name: "Retry discovery" }).click();
+    await closeCatalog(page);
+    await page
+      .getByRole("button", { name: "Retry discovery", includeHidden: true })
+      .filter({ visible: true })
+      .click();
+    await openCatalog(page);
     await expect(
-      page.getByRole("status").filter({ hasText: "Retrying discovery…" }),
+      page
+        .getByRole("status", { includeHidden: true })
+        .filter({ visible: true })
+        .filter({ hasText: "Retrying discovery…" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Retry discovery" }),
+      page
+        .getByRole("button", {
+          name: "Retry discovery",
+          includeHidden: true,
+        })
+        .filter({ visible: true }),
     ).toBeDisabled();
     await expect(
-      page.getByRole("searchbox", { name: "Search games" }),
+      page.getByRole("combobox", { name: "Search games", exact: true }),
     ).toHaveValue("Celeste");
     await request.post(supportUrl("/discovery-state"), {
       data: { hold: false },
     });
     await expect(
-      page.getByRole("button", { name: "Retry discovery" }),
+      page.getByRole("button", {
+        name: "Retry discovery",
+        includeHidden: true,
+      }),
     ).toHaveCount(0);
     await expect(
       page
-        .getByRole("region", { name: "Recently released", exact: true })
+        .getByRole("region", {
+          name: "Recently released",
+          exact: true,
+          includeHidden: true,
+        })
+        .filter({ visible: true })
         .getByRole("link"),
     ).toHaveCount(4);
     await expect(page).toHaveURL(location);
     await expect(
-      page.getByRole("searchbox", { name: "Search games" }),
+      page.getByRole("combobox", { name: "Search games", exact: true }),
     ).toHaveValue("Celeste");
-    await expect(page.getByRole("searchbox")).toHaveAccessibleName(
-      "Search games",
-    );
+    await expect(
+      page.getByRole("combobox", { name: "Search games", exact: true }),
+    ).toHaveAccessibleName("Search games");
     await expect(
       page.getByRole("combobox", { name: "Release year" }),
     ).toHaveAccessibleName("Release year");
     await expect(
       page.getByRole("combobox", { name: "Platform", exact: true }),
     ).toHaveAccessibleName("Platform");
-    await page.getByRole("link", { name: /Celeste/ }).click();
+    await selectCatalogGame(page, "Celeste");
+    await page
+      .getByRole("link", { name: "View game: Celeste", exact: true })
+      .click();
     await expect(page).toHaveURL(/\/games\/celeste$/);
   } finally {
     await request.post(supportUrl("/discovery-state"), {
@@ -267,12 +343,15 @@ test("successful empty discovery offers search without an error or retry loop", 
       page.getByText("No discovery picks yet—search for a game."),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Retry discovery" }),
+      page.getByRole("button", {
+        name: "Retry discovery",
+        includeHidden: true,
+      }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("searchbox", { name: "Search games" }),
+      page.getByRole("combobox", { name: "Search games", exact: true }),
     ).toHaveValue("Celeste");
-    await expect(page.getByRole("link", { name: /Celeste/ })).toBeVisible();
+    await expect(page.getByRole("option", { name: /^Celeste/ })).toBeVisible();
   } finally {
     // Cron's refresh lease can skip an immediate retry; restore the fixture exactly.
     for (const [key, gameIds] of rows)

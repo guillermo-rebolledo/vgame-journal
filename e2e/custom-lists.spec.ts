@@ -6,6 +6,7 @@ import {
   type Request,
   test,
 } from "@playwright/test";
+import { selectCatalogGame } from "./support/catalog";
 import { chooseStatus } from "./support/journal";
 import {
   closeListPanel,
@@ -33,9 +34,7 @@ async function createList(page: Page, title: string) {
 
 async function addGame(page: Page, title: string) {
   await openListPanel(page, "Add games");
-  await page
-    .getByRole("searchbox", { name: "Search games", exact: true })
-    .fill(title);
+  await selectCatalogGame(page, title);
   await page
     .getByRole("button", { name: `Add ${title} to list`, exact: true })
     .click();

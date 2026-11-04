@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { openCatalog, viewCatalogGame } from "./support/catalog";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
@@ -14,11 +15,7 @@ const LONG_TITLE =
 
 async function wishlist(page: Page, title: string) {
   await page.goto("/");
-  await page.getByRole("searchbox", { name: "Search games" }).fill(title);
-  await page
-    .getByRole("list", { name: "Search results" })
-    .getByRole("link", { name: new RegExp(title.slice(0, 20)) })
-    .click();
+  await viewCatalogGame(page, title);
   await chooseStatus(page, "wishlist");
 }
 
@@ -39,16 +36,20 @@ test("Home guides new users, and search survives slow, stale and failed requests
       name: "Track what you’re playing, build your backlog, and save games you want",
     }),
   ).toBeVisible();
+  await openCatalog(page);
   await expect(
-    page.getByRole("searchbox", { name: "Search games" }),
+    page.getByRole("combobox", { name: "Search games" }),
   ).toHaveAccessibleDescription(
     /Find a game, then save it to Backlog or Wishlist/,
   );
   await expect(
-    page.getByRole("link", { name: "Sign up to start a Journal" }),
+    page.getByRole("link", {
+      name: "Sign up to start a Journal",
+      includeHidden: true,
+    }),
   ).toHaveAttribute("href", "/sign-up");
   await expect(
-    page.getByRole("searchbox", { name: "Search games" }),
+    page.getByRole("combobox", { name: "Search games" }),
   ).toBeVisible();
   await snap(page, testInfo, "home-signed-out", true);
 
@@ -86,15 +87,10 @@ test("Home guides new users, and search survives slow, stale and failed requests
     name: "Search games",
     exact: true,
   });
-  const box = search.getByRole("searchbox", { name: "Search games" });
+  const box = search.getByRole("combobox", { name: "Search games" });
   const updates = search.getByRole("status", {
     name: "Search updates",
     exact: true,
-  });
-  const emptyUpdates = search.getByRole("status", {
-    name: "Search updates",
-    exact: true,
-    includeHidden: true,
   });
   await page.emulateMedia({ reducedMotion: "reduce" });
   const catalogQueries: string[] = [];
@@ -102,35 +98,33 @@ test("Home guides new users, and search survives slow, stale and failed requests
     if (request.url().includes("/api/games/search?"))
       catalogQueries.push(new URL(request.url()).searchParams.get("q") ?? "");
   });
-  await expect(emptyUpdates).toBeEmpty();
-  await expect(updates).toHaveCount(0);
+  await expect(updates).toContainText("Enter at least 2 characters");
   await box.fill("   ");
-  await expect(emptyUpdates).toBeEmpty();
-  await expect(updates).toHaveCount(0);
+  await expect(updates).toContainText("Enter at least 2 characters");
   await box.fill(" c ");
-  await expect(updates).toHaveText("Enter at least 2 characters");
+  await expect(updates).toContainText("Enter at least 2 characters");
   await expect(
-    search.getByRole("list", { name: "Search results" }),
-  ).toHaveCount(0);
+    search.getByRole("listbox", { name: "Search results" }),
+  ).toBeAttached();
 
   await box.fill("ce");
   await expect(updates).toHaveText("Searching…");
   await staleRequested;
   await box.fill("c");
-  await expect(updates).toHaveText("Enter at least 2 characters");
+  await expect(updates).toContainText("Enter at least 2 characters");
   await expect(
-    search.getByRole("list", { name: "Search results" }),
-  ).toHaveCount(0);
+    search.getByRole("listbox", { name: "Search results" }),
+  ).toBeAttached();
   await box.fill("celeste");
-  const results = search.getByRole("list", { name: "Search results" });
-  await expect(results.getByRole("link", { name: /Celeste/ })).toBeVisible();
+  const results = search.getByRole("listbox", { name: "Search results" });
+  await expect(results.getByRole("option", { name: /^Celeste/ })).toBeVisible();
   releaseStale();
   await staleFinished;
   await expect(page.getByText("Stale result")).toHaveCount(0);
   await expect(updates).toHaveText("1 returned match for “celeste”.");
   await box.fill("c");
-  await expect(updates).toHaveText("Enter at least 2 characters");
-  await expect(results).toHaveCount(0);
+  await expect(updates).toContainText("Enter at least 2 characters");
+  await expect(results.getByRole("option")).toHaveCount(0);
 
   await box.fill("nothing like this");
   await expect(updates).toContainText(
@@ -142,23 +136,23 @@ test("Home guides new users, and search survives slow, stale and failed requests
     route.fulfill({ status: 500, json: {} }),
   );
   await box.fill("hollow");
-  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+  await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
     "Search isn’t working right now.",
   );
   await snap(page, testInfo, "search-failed");
   await box.fill("h");
-  await expect(updates).toHaveText("Enter at least 2 characters");
-  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await expect(updates).toContainText("Enter at least 2 characters");
+  await expect(page.getByRole("dialog").getByRole("alert")).toHaveCount(0);
   await box.fill("hollow");
-  await expect(page.getByRole("main").getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("alert")).toBeVisible();
 
   await page.unroute("**/api/games/search?q=hollow");
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(updates).toContainText("No matches returned");
   await expect(box).toHaveValue("hollow");
   await box.fill("h");
-  await expect(updates).toHaveText("Enter at least 2 characters");
-  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await expect(updates).toContainText("Enter at least 2 characters");
+  await expect(page.getByRole("dialog").getByRole("alert")).toHaveCount(0);
   for (const theme of ["light", "dark"] as const) {
     if (!(await page.locator("html").getAttribute("class"))?.includes(theme))
       await chooseTheme(page, theme);
@@ -171,8 +165,7 @@ test("Home guides new users, and search survives slow, stale and failed requests
   expect(catalogQueries.length).toBeGreaterThan(0);
   expect(catalogQueries.every((query) => query.trim().length >= 2)).toBe(true);
   await box.clear();
-  await expect(emptyUpdates).toBeEmpty();
-  await expect(updates).toHaveCount(0);
+  await expect(updates).toContainText("Enter at least 2 characters");
 });
 
 test("Search filters keep keyboard focus and long platform names readable at 320 pixels", async ({
@@ -213,7 +206,7 @@ test("Search filters keep keyboard focus and long platform names readable at 320
   });
   const filters = page.getByRole("button", { name: "Filters", exact: true });
   await expect(filters).toBeVisible();
-  await page.getByRole("searchbox", { name: "Search games" }).focus();
+  await page.getByRole("combobox", { name: "Search games" }).focus();
   await page.keyboard.press("Tab");
   await expect(filters).toBeFocused();
   await page.keyboard.press("Enter");
@@ -233,15 +226,17 @@ test("Search filters keep keyboard focus and long platform names readable at 320
   expect(
     await visibleValue.evaluate((node) => node.scrollWidth <= node.clientWidth),
   ).toBe(true);
-  const result = page.getByRole("listitem").filter({
-    has: page.getByRole("link", { name: "Platform test", exact: true }),
-  });
-  await expect(result.getByText(longPlatform, { exact: true })).toBeVisible();
+  const result = page.getByRole("option", { name: /^Platform test/ });
+  await expect(result.getByText(new RegExp(longPlatform))).toBeVisible();
   const controlBounds = await platform.boundingBox();
   const clearBounds = await page
     .getByRole("button", { name: "Clear filters" })
     .boundingBox();
-  expect(controlBounds?.width).toBeGreaterThan(250);
+  expect(controlBounds?.width).toBeGreaterThanOrEqual(44);
+  expect(controlBounds?.x).toBeGreaterThanOrEqual(16);
+  expect(
+    (controlBounds?.x ?? 0) + (controlBounds?.width ?? 0),
+  ).toBeLessThanOrEqual(304);
   expect(clearBounds?.y).toBeLessThan(controlBounds?.y ?? 0);
   await expectNoHorizontalOverflow(page);
   await page.locator("html").evaluate((node) => {
@@ -253,12 +248,14 @@ test("Search filters keep keyboard focus and long platform names readable at 320
   });
   await page.getByRole("button", { name: "Clear filters" }).click();
   await expect(platform).toHaveValue("");
-  const availability = result.getByLabel("More platforms for Platform test");
+  await result.click();
+  const actions = page.getByRole("dialog");
+  const availability = actions.getByLabel("More platforms for Platform test");
   await expect(availability).toContainText("+2 platforms");
   await availability.focus();
   await page.keyboard.press("Enter");
   await expect(
-    result
+    actions
       .getByRole("list", {
         name: "Additional platforms for Platform test",
       })
@@ -266,7 +263,7 @@ test("Search filters keep keyboard focus and long platform names readable at 320
   ).toBeVisible();
   await page.keyboard.press("Space");
   await expect(
-    result.getByRole("list", {
+    actions.getByRole("list", {
       name: "Additional platforms for Platform test",
     }),
   ).toBeHidden();

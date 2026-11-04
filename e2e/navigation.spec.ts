@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { closeCatalog, openCatalog, viewCatalogGame } from "./support/catalog";
 import { chooseAccountMenuItem } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { seedSql } from "./support/seed-sql";
@@ -65,6 +66,71 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(scroll).toBeLessThanOrEqual(width);
 }
 
+for (const destination of ["Library", "Wishlist"] as const) {
+  test(`Find a game from ${destination} returns focus to its initiating navigation link`, async ({
+    page,
+    request,
+  }) => {
+    await signUp(
+      page,
+      request,
+      `find_${destination.toLowerCase()}_${Date.now()}`,
+    );
+    const nav = page.getByRole("navigation", { name: "Main", exact: true });
+    const find = nav.getByRole("link", { name: "Find a game", exact: true });
+    // Exercise a fresh Home mount as well as the retained Home navigation path.
+    await page.goto(`/${destination.toLowerCase()}`);
+    for (const dismiss of ["close", "escape"] as const) {
+      await find.focus();
+      await page.keyboard.press("Enter");
+      await expect(
+        page.getByRole("combobox", { name: "Search games", exact: true }),
+      ).toBeFocused();
+      await page
+        .getByRole("combobox", { name: "Search games", exact: true })
+        .fill("Celeste");
+      await expect(
+        page.getByRole("option", { name: /^Celeste/ }),
+      ).toBeVisible();
+      if (dismiss === "close") await closeCatalog(page);
+      else await page.keyboard.press("Escape");
+      await expect(find).toBeFocused();
+      await nav.getByRole("link", { name: destination, exact: true }).click();
+      await expect(
+        page.getByRole("heading", { name: destination, exact: true, level: 1 }),
+      ).toBeVisible();
+    }
+  });
+}
+
+test("Find a game preserves native modifier and middle-click navigation", async ({
+  page,
+  request,
+  context,
+}) => {
+  await signUp(page, request, `find_native_${Date.now()}`);
+  const nav = page.getByRole("navigation", { name: "Main", exact: true });
+  for (const path of ["/", "/library"]) {
+    await page.goto(path);
+    const find = nav.getByRole("link", { name: "Find a game", exact: true });
+    for (const options of [
+      { modifiers: ["ControlOrMeta" as const] },
+      { button: "middle" as const },
+    ]) {
+      const opened = context.waitForEvent("page");
+      await find.click(options);
+      const tab = await opened;
+      await expect(tab).toHaveURL(/\/\?search=1$/);
+      await expect(
+        tab.getByRole("dialog", { name: "Find a game", exact: true }),
+      ).toBeVisible();
+      await tab.close();
+      await expect(page).toHaveURL(new RegExp(`${path === "/" ? "/" : path}$`));
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+    }
+  }
+});
+
 test("skip route moves focus into main on Home and details", async ({
   page,
 }) => {
@@ -73,7 +139,7 @@ test("skip route moves focus into main on Home and details", async ({
     // Main can still be an empty streamed fallback after navigation commits.
     await expect(
       path === "/"
-        ? page.getByRole("searchbox", { name: "Search games" })
+        ? page.getByRole("button", { name: "Search games…", exact: true })
         : page.getByRole("link", {
             name: "Add to Journal for Celeste",
             exact: true,
@@ -93,7 +159,7 @@ test("skip route moves focus into main on Home and details", async ({
     ).toBe(true);
     if (path === "/")
       await expect(
-        page.getByRole("searchbox", { name: "Search games" }),
+        page.getByRole("button", { name: "Search games…", exact: true }),
       ).toBeFocused();
   }
 });
@@ -175,12 +241,9 @@ for (const colorScheme of ["light", "dark"] as const) {
       }),
     );
     await page.goto("/?q=Celeste");
-    const search = page.getByRole("search", {
-      name: "Search games",
-      exact: true,
-    });
+    await page.getByRole("option", { name: /^Celeste/ }).click();
+    const search = page.getByRole("dialog");
     const more = search.getByLabel(/More platforms for Celeste$/);
-    await search.getByRole("link", { name: "Celeste", exact: true }).focus();
     await page.keyboard.press("Tab");
     await expect(more).toBeFocused();
     const indicator = await more.evaluate((node) => {
@@ -226,9 +289,9 @@ for (const colorScheme of ["light", "dark"] as const) {
         offset: parseFloat(style.outlineOffset),
       };
     });
-    expect(indicator.width).toBeGreaterThanOrEqual(3);
+    expect(indicator.width).toBeGreaterThanOrEqual(2);
     expect(indicator.style).toBe("solid");
-    expect(indicator.offset).toBeGreaterThanOrEqual(3);
+    expect(indicator.offset).toBeGreaterThanOrEqual(2);
     expect(indicator.ratio).toBeGreaterThanOrEqual(3);
     await page.keyboard.press("Enter");
     await expect(
@@ -270,14 +333,8 @@ for (const colorScheme of ["light", "dark"] as const) {
     const filters = page.getByRole("button", { name: "Filters", exact: true });
     await expect(filters).toBeVisible();
 
-    await page.keyboard.press("Tab");
     await expectForcedColorsFocus(
-      page.getByRole("link", { name: "Skip to main content" }),
-    );
-    await page.keyboard.press("Enter");
-    await page.keyboard.press("Tab");
-    await expectForcedColorsFocus(
-      page.getByRole("searchbox", { name: "Search games" }),
+      page.getByRole("combobox", { name: "Search games", exact: true }),
     );
     await page.keyboard.press("Tab");
     await expectForcedColorsFocus(filters);
@@ -291,12 +348,14 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expectForcedColorsFocus(
       page.getByRole("combobox", { name: "Platform", exact: true }),
     );
+    const input = page.getByRole("combobox", {
+      name: "Search games",
+      exact: true,
+    });
+    await input.focus();
+    await input.press("ArrowDown");
+    await input.press("Enter");
     const more = page.getByLabel("More platforms for Celeste");
-    // Native platform details remain reachable after the result link.
-    await page.keyboard.press("Tab");
-    await expectForcedColorsFocus(
-      page.getByRole("link", { name: "Celeste", exact: true }),
-    );
     await page.keyboard.press("Tab");
     await expectForcedColorsFocus(more);
     await page.keyboard.press("Enter");
@@ -326,8 +385,7 @@ test("populated collections keep Find a game reachable with comfortable phone co
   // Released Celeste on the wishlist offers moves; upcoming Silksong counts down.
   for (const title of ["Celeste", "Silksong"]) {
     await page.goto("/");
-    await page.getByRole("searchbox", { name: "Search games" }).fill(title);
-    await page.getByRole("link", { name: new RegExp(title) }).click();
+    await viewCatalogGame(page, title);
     await chooseStatus(page, "wishlist");
   }
 
@@ -380,16 +438,13 @@ test("populated collections keep Find a game reachable with comfortable phone co
   await expect(brand).not.toHaveCSS("box-shadow", "none");
 
   await nav.getByRole("link", { name: "Find a game" }).click();
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL("/?search=1");
+  await closeCatalog(page);
   await expect(nav.getByRole("link", { name: "Find a game" })).toHaveAttribute(
     "aria-current",
     "page",
   );
-  await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
-  await page
-    .getByRole("list", { name: "Search results" })
-    .getByRole("link", { name: /Celeste/ })
-    .click();
+  await viewCatalogGame(page, "Celeste");
   await expect(page).toHaveURL(/\/games\/celeste/);
   await expect(nav.locator('[aria-current="page"]')).toHaveCount(0);
   await brand.click();
@@ -451,12 +506,10 @@ for (const theme of ["light", "dark"] as const) {
         await page.goto("/games/celeste");
         await chooseStatus(page, "wishlist");
         await page.goto("/");
+        await (await openCatalog(page)).fill("The Lantern Keeper");
+        await page.getByRole("option", { name: /^The Lantern Keeper/ }).click();
         await page
-          .getByRole("searchbox", { name: "Search games" })
-          .fill("The Lantern Keeper");
-        await page
-          .getByRole("list", { name: "Search results" })
-          .getByRole("link")
+          .getByRole("link", { name: /^View game: The Lantern Keeper/ })
           .click();
         await chooseStatus(page, "wishlist");
         await seedSql(
@@ -481,13 +534,14 @@ for (const theme of ["light", "dark"] as const) {
           page.getByRole("heading", { name: "Your Journal", exact: true }),
         ).toBeVisible();
         await checkWidth(`Home ${populated} ${font}`, font);
-        await page
-          .getByRole("searchbox", { name: "Search games" })
-          .fill("Celeste");
+        await (await openCatalog(page)).fill("Celeste");
         await expect(
-          page.getByRole("list", { name: "Search results" }).getByRole("link"),
+          page
+            .getByRole("listbox", { name: "Search results" })
+            .getByRole("option"),
         ).toBeVisible({ timeout: 30_000 });
         await checkWidth("Home search results", font);
+        await closeCatalog(page);
         for (const name of ["Library", "Wishlist", "Stats"] as const) {
           await nav.getByRole("link", { name, exact: true }).click();
           await expect(

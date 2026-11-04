@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { closeCatalog, openCatalog } from "./catalog";
 
 /** Opens the header account menu (signed in) or guest menu, then picks an item. */
 export async function chooseAccountMenuItem(page: Page, name: string) {
@@ -13,6 +14,10 @@ export async function chooseTheme(
   page: Page,
   theme: "light" | "dark" | "system",
 ) {
+  const searchOpen = await page
+    .getByRole("button", { name: "Close search", exact: true })
+    .isVisible();
+  if (searchOpen) await closeCatalog(page);
   await chooseAccountMenuItem(page, "Theme");
   const choice = page.getByRole("menuitemradio", {
     name: { light: "Light", dark: "Dark", system: "System" }[theme],
@@ -30,4 +35,5 @@ export async function chooseTheme(
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("menu")).toHaveCount(0);
+  if (searchOpen) await openCatalog(page);
 }

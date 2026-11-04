@@ -13,12 +13,9 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     await chooseTheme(page, theme);
-    const search = page.getByRole("search", {
-      name: "Search games",
-      exact: true,
-    });
+    const search = page;
     await expect(
-      search.getByLabel("Search games", { exact: true }),
+      search.getByRole("button", { name: "Search games…", exact: true }),
     ).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       "Track",

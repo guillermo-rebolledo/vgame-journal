@@ -17,6 +17,9 @@ test("detail Status remains visible after each confirmed save with one game-spec
     name: "Game journal",
     exact: true,
   });
+  const updates = journal
+    .getByRole("status")
+    .filter({ hasNotText: "Loading list controls…" });
   for (const [status, label] of [
     ["wishlist", "Wishlisted"],
     ["backlog", "In backlog"],
@@ -25,18 +28,18 @@ test("detail Status remains visible after each confirmed save with one game-spec
   ]) {
     await chooseStatus(page, status);
     await expect(journal.getByText(label, { exact: true })).toBeVisible();
-    await expect(journal.getByRole("status")).toHaveCount(1);
-    await expect(journal.getByRole("status")).toHaveText(`Celeste: ${label}.`);
+    await expect(updates).toHaveCount(1);
+    await expect(updates).toHaveText(`Celeste: ${label}.`);
     await expect(journal.getByText("No playthroughs yet.")).toBeVisible();
     await expect(
       journal.getByRole("heading", { name: "Playthroughs" }),
     ).toBeVisible();
   }
   await chooseStatus(page, "played");
-  await expect(journal.getByRole("status")).toBeEmpty();
+  await expect(updates).toBeEmpty();
   await page.reload();
   await expect(journal.getByText("Played", { exact: true })).toBeVisible();
-  await expect(journal.getByRole("status")).toBeEmpty();
+  await expect(updates).toBeEmpty();
 });
 
 test("Playthroughs stay between recording actions and Catalog information from empty through multiple records", async ({

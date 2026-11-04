@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openCatalog, selectCatalogGame } from "./support/catalog";
 import {
   closeListPanel,
   openListOptions,
@@ -23,9 +24,7 @@ test("lost membership and delete responses reconcile before another mutation", a
     .fill("Ambiguous operations");
   await page.getByRole("button", { name: "Create list", exact: true }).click();
   await openListPanel(page, "Add games");
-  await page
-    .getByRole("searchbox", { name: "Search games", exact: true })
-    .fill("Celeste");
+  await selectCatalogGame(page, "Celeste");
   const add = page.getByRole("button", {
     name: "Add Celeste to list",
     exact: true,
@@ -72,6 +71,7 @@ test("lost membership and delete responses reconcile before another mutation", a
       .click();
     if (kind === "add") {
       await openListPanel(page, "Add games");
+      await selectCatalogGame(page, "Celeste");
       await expect(
         page.getByRole("button", {
           name: "Celeste already in list",
@@ -244,20 +244,19 @@ test("owner read and search failures stay distinct from empty states and can be 
   await page.setViewportSize({ width: 320, height: 760 });
   await openListPanel(page, "Add games");
   await expect(
-    page.getByRole("searchbox", { name: "Search games", exact: true }),
+    page.getByRole("combobox", { name: "Search games", exact: true }),
   ).toBeVisible();
   await page.route("**/api/games/search?**", (route) =>
     route.fulfill({ status: 503 }),
   );
   await openListPanel(page, "Add games");
-  await page
-    .getByRole("searchbox", { name: "Search games", exact: true })
-    .fill("Celeste");
+  await (await openCatalog(page)).fill("Celeste");
   await expect(
     page.getByRole("alert").filter({ hasText: "Search isn’t working" }),
   ).toBeVisible();
   await page.unrouteAll({ behavior: "wait" });
   await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await page.getByRole("option", { name: /^Celeste/ }).click();
   await page
     .getByRole("button", { name: "Add Celeste to list", exact: true })
     .click();
@@ -623,9 +622,7 @@ test("stale metadata cannot republish a list and refresh keeps the local draft f
   await page.getByRole("button", { name: "Create list", exact: true }).click();
   for (const title of ["Celeste", "Hades"]) {
     await openListPanel(page, "Add games");
-    await page
-      .getByRole("searchbox", { name: "Search games", exact: true })
-      .fill(title);
+    await selectCatalogGame(page, title);
     await page
       .getByRole("button", { name: `Add ${title} to list`, exact: true })
       .click();
@@ -803,17 +800,12 @@ test("Catalog selection appends, deduplicates, moves and removes without recordi
   await page.getByRole("button", { name: "Create list", exact: true }).click();
   await openListPanel(page, "Add games");
   await expect(
-    page.getByRole("searchbox", { name: "Search games", exact: true }),
+    page.getByRole("combobox", { name: "Search games", exact: true }),
   ).toBeVisible();
   const url = page.url();
-  const search = page.getByRole("list", {
-    name: "Search results",
-    exact: true,
-  });
+  const search = page.getByRole("dialog", { name: "Add games", exact: true });
   await openListPanel(page, "Add games");
-  await page
-    .getByRole("searchbox", { name: "Search games", exact: true })
-    .fill("Celeste");
+  await selectCatalogGame(page, "Celeste");
   await search
     .getByRole("button", { name: "Add Celeste to list", exact: true })
     .click();
@@ -824,9 +816,7 @@ test("Catalog selection appends, deduplicates, moves and removes without recordi
     }),
   ).toBeDisabled();
   await openListPanel(page, "Add games");
-  await page
-    .getByRole("searchbox", { name: "Search games", exact: true })
-    .fill("Hades");
+  await selectCatalogGame(page, "Hades");
   await search
     .getByRole("button", { name: "Add Hades to list", exact: true })
     .click();

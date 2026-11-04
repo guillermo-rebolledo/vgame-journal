@@ -2,15 +2,14 @@ import { Suspense } from "react";
 import { readHomeJournal } from "@/app/home-actions";
 import { Discovery, DiscoveryLoading } from "@/components/discovery";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
-import { GameSearch } from "@/components/game-search";
 import { HomeAuthActions } from "@/components/home-auth-actions";
 import { HomeCoverTransitions } from "@/components/home-cover-link";
 import { HomeIntroduction, JournalExample } from "@/components/home-guest";
 import {
   HomeCollections,
   HomeJournalProvider,
-  HomePendingSave,
 } from "@/components/home-journal";
+import { HomeSearch } from "@/components/home-search";
 import { JsonLd } from "@/components/json-ld";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import { signedInUserId } from "@/lib/auth";
@@ -75,7 +74,7 @@ async function HomeContent() {
           <HomeIntroduction />
         )}
         <Suspense fallback={<output>Loading game search…</output>}>
-          <GameSearch
+          <HomeSearch
             guidance={`Find a game, then save it to Backlog or Wishlist.${!userId ? " Sign in to save its Status in your Journal." : ""}`}
           />
         </Suspense>
@@ -87,7 +86,6 @@ async function HomeContent() {
             <JournalExample />
           </div>
         )}
-        <HomePendingSave />
         <HomeCollections />
         <DiscoveryBoundary>
           <Suspense fallback={<DiscoveryLoading />}>

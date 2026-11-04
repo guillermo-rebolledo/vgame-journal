@@ -1,11 +1,15 @@
 "use client";
 
+import { Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   createContext,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
   startTransition,
+  useCallback,
   useContext,
   useEffect,
   useId,
@@ -44,11 +48,15 @@ type Game = { gameId: number; slug: string; title: string };
 type Intent = Game & { status: Status };
 type SaveState = {
   status: Status;
+  feedback?: { message: string; confirmed: boolean };
   pending?: boolean;
   error?: string;
   authRequired?: boolean;
 };
 type HomeState = {
+  notice: string;
+  clearFeedback: () => void;
+  setFeedbackHosts: Dispatch<SetStateAction<number>>;
   snapshot: HomeSnapshot;
   loaded: boolean;
   byGame: Map<number, HomeEntry>;
@@ -85,8 +93,8 @@ function focusHomeGame(gameId?: number) {
   (
     control ??
     Array.from(
-      document.querySelectorAll<HTMLInputElement>(
-        '.home-journal search input[type="search"]',
+      document.querySelectorAll<HTMLElement>(
+        '[role="dialog"] input[type="search"], .home-journal [data-catalog-trigger], .home-journal search input[type="search"]',
       ),
     ).find(visible)
   )?.focus({ preventScroll: true });
@@ -127,6 +135,7 @@ export function HomeJournalProvider({
   const [loaded, setLoaded] = useState(!owner);
   const [saves, setSaves] = useState<Record<number, SaveState>>({});
   const [notice, setNotice] = useState("");
+  const [feedbackHosts, setFeedbackHosts] = useState(0);
   const [intent, setIntent] = useState<Intent | null>(null);
   const [focusAfterSave, setFocusAfterSave] = useState<Intent | null>(null);
   const [intentFailed, setIntentFailed] = useState(false);
@@ -134,11 +143,28 @@ export function HomeJournalProvider({
   const focusIntent = useRef(false);
   const locks = useRef(new Set<number>());
   const version = useRef(0);
+  const activeOwner = useRef(snapshot.owner);
+  activeOwner.current = snapshot.owner;
+  const clearFeedback = useCallback(() => {
+    setNotice("");
+    setSaves((old) =>
+      Object.fromEntries(
+        Object.entries(old).map(([id, state]) => [
+          id,
+          { ...state, feedback: undefined },
+        ]),
+      ),
+    );
+  }, []);
   const saveGame = params.get("saveGame");
   const saveSlug = params.get("saveSlug");
   const saveStatus = params.get("saveStatus");
 
   if (source !== initial) {
+    if (snapshot.owner !== owner) {
+      setSaves({});
+      setNotice("");
+    }
     setSource(initial);
     setSnapshot({ owner, entries: owner ? null : [] });
     setLoaded(!owner);
@@ -185,6 +211,7 @@ export function HomeJournalProvider({
   }, [saveGame, saveSlug, saveStatus]);
 
   function accept(value: HomeSnapshot) {
+    activeOwner.current = value.owner;
     setSnapshot(value);
     setLoaded(true);
     if (value.owner !== owner) {
@@ -217,11 +244,21 @@ export function HomeJournalProvider({
       return false;
     }
     if (!snapshot.entries) return false;
+    function report(message: string, confirmed = false) {
+      setNotice(message);
+      setSaves((old) => ({
+        ...old,
+        [game.gameId]: {
+          ...old[game.gameId],
+          feedback: { message, confirmed },
+        },
+      }));
+    }
     const expectedOwner = snapshot.owner;
     locks.current.add(game.gameId);
     ++version.current;
     setSaves((old) => ({ ...old, [game.gameId]: { status, pending: true } }));
-    setNotice(`Saving ${game.title} to ${capitalize(status)}…`);
+    report(`Saving ${game.title} to ${capitalize(status)}…`);
     try {
       let result: Awaited<ReturnType<typeof saveHomeStatus>>;
       try {
@@ -236,6 +273,7 @@ export function HomeJournalProvider({
             "The connection was interrupted. Check the confirmed status below, then retry if needed.",
         };
       }
+      if (activeOwner.current !== expectedOwner) return false;
       if (
         result.snapshot.owner !== snapshot.owner ||
         ("authRequired" in result && result.authRequired)
@@ -250,7 +288,7 @@ export function HomeJournalProvider({
               "Your session changed. Sign in to continue; nothing is confirmed saved.",
           },
         }));
-        setNotice(`${game.title}: sign in to continue saving.`);
+        report(`${game.title}: sign in to continue saving.`);
         replaceHomeUrl({ ...game, status });
         return false;
       }
@@ -278,7 +316,7 @@ export function HomeJournalProvider({
           ?.status === status;
       if (confirmed) {
         setSaves((old) => ({ ...old, [game.gameId]: { status } }));
-        setNotice(`${game.title} saved to ${capitalize(status)}.`);
+        report(`${game.title} saved to ${capitalize(status)}.`, true);
         return true;
       }
       setSaves((old) => ({
@@ -297,7 +335,7 @@ export function HomeJournalProvider({
             : {}),
         },
       }));
-      setNotice(`${game.title}: save not confirmed.`);
+      report(`${game.title}: save not confirmed.`);
       return false;
     } finally {
       locks.current.delete(game.gameId);
@@ -418,6 +456,9 @@ export function HomeJournalProvider({
     </section>
   );
   const context: HomeState = {
+    notice,
+    clearFeedback,
+    setFeedbackHosts,
     snapshot,
     loaded,
     byGame: new Map(snapshot.entries?.map((entry) => [entry.gameId, entry])),
@@ -431,6 +472,7 @@ export function HomeJournalProvider({
       <div className="home-journal contents">
         {children}
         <output
+          hidden={feedbackHosts > 0}
           aria-label="Journal updates"
           aria-live="polite"
           className="sr-only"
@@ -442,14 +484,60 @@ export function HomeJournalProvider({
   );
 }
 
-export function HomePendingSave() {
-  return useContext(HomeContext)?.continuation;
+export function HomePendingSave({
+  children,
+}: {
+  children?: (continuation: ReactNode) => ReactNode;
+}) {
+  const continuation = useContext(HomeContext)?.continuation;
+  return children ? children(continuation) : continuation;
 }
 
-export function HomeSaveControls({ game }: { game: Game }) {
+/** The active search stage owns announcements; background shelves stay silent. */
+export function HomeJournalFeedback({ gameId }: { gameId?: number }) {
+  const home = useContext(HomeContext);
+  const setHosts = home?.setFeedbackHosts;
+  const clear = home?.clearFeedback;
+  useEffect(() => {
+    setHosts?.((count) => count + 1);
+    clear?.();
+    return () => {
+      setHosts?.((count) => count - 1);
+      clear?.();
+    };
+  }, [setHosts, clear]);
+  return (
+    <output
+      aria-label="Journal updates"
+      aria-live="polite"
+      aria-atomic="true"
+      className="sr-only"
+    >
+      {gameId === undefined
+        ? home?.notice
+        : home?.saves[gameId]?.feedback?.message}
+    </output>
+  );
+}
+
+export function HomeSaveControls({
+  game,
+  presentation = "compact",
+  announce = true,
+}: {
+  game: Game;
+  announce?: boolean;
+  presentation?: "compact" | "direct";
+}) {
   const home = useContext(HomeContext);
   const trigger = useRef<HTMLButtonElement | null>(null);
   const errorId = useId();
+  const clear = home?.clearFeedback;
+  useEffect(() => {
+    if (presentation !== "direct" || announce) return;
+    clear?.();
+    return () => clear?.();
+  }, [clear, presentation, announce]);
   if (!home) return null;
   const { snapshot, saves } = home;
   const entry = home.byGame.get(game.gameId);
@@ -459,8 +547,15 @@ export function HomeSaveControls({ game }: { game: Game }) {
   const loading = unavailable;
   async function choose(status: Status) {
     const focused = document.activeElement;
-    const done = await home?.save(game, status);
-    if (done) {
+    const result = home?.save(game, status);
+    if (presentation === "direct") {
+      requestAnimationFrame(() => {
+        if (!focused?.isConnected && document.activeElement === document.body)
+          trigger.current?.focus({ preventScroll: true });
+      });
+    }
+    const done = await result;
+    if (done && presentation === "compact") {
       // Shelf membership can remove the old trigger; restore focus after that DOM update.
       requestAnimationFrame(() => {
         const active = document.activeElement;
@@ -480,81 +575,134 @@ export function HomeSaveControls({ game }: { game: Game }) {
   return (
     <div
       data-home-game={game.gameId}
-      className="mt-2 flex min-w-0 flex-col gap-2 text-sm [overflow-wrap:anywhere]"
+      className={`mt-2 flex min-w-0 flex-col gap-2 text-sm [overflow-wrap:anywhere]${presentation === "direct" ? " w-full max-w-xl" : ""}`}
     >
-      {entry && <p>{SAVED_LABELS[entry.status]}</p>}
-      <div className="flex flex-wrap gap-2">
-        <DropdownMenu
-          onOpenChange={(open, event) => {
-            if (open && (!entry || busy || loading)) event.cancel();
-          }}
-        >
-          <DropdownMenuTrigger
-            {...(!entry
-              ? { "aria-haspopup": undefined, "aria-expanded": undefined }
-              : {})}
-            render={
-              <Button
-                ref={trigger}
-                press={entry ? "static" : "scale"}
-                variant="outline"
-                className="min-h-11 max-w-full"
-                aria-label={
-                  entry
-                    ? `Change status for ${game.title}`
-                    : `Add to backlog for ${game.title}`
+      {presentation === "direct" && announce && (
+        <HomeJournalFeedback gameId={game.gameId} />
+      )}
+      {presentation === "direct" ? (
+        <fieldset className="flex min-w-0 flex-col gap-2">
+          <legend className="mb-2 font-medium">Journal status</legend>
+          <p className="flex items-start gap-2">
+            {entry && <Check aria-hidden className="mt-0.5 size-4 shrink-0" />}
+            {unavailable
+              ? "Current status unavailable"
+              : entry
+                ? `Current status: ${capitalize(entry.status)}`
+                : "Not in your Journal"}
+          </p>
+          {!snapshot.owner && (
+            <p>Sign in to save. You’ll confirm your choice after signing in.</p>
+          )}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-2">
+            {(["backlog", "wishlist", "playing", "played"] as const).map(
+              (status) => (
+                <Button
+                  key={status}
+                  ref={state?.status === status ? trigger : undefined}
+                  variant="outline"
+                  press="static"
+                  className="min-h-11 transition-none"
+                  aria-disabled={busy || loading}
+                  aria-busy={!!busy}
+                  aria-describedby={state?.error ? errorId : undefined}
+                  onClick={() => {
+                    if (!busy && !loading) choose(status);
+                  }}
+                >
+                  Save to {capitalize(status)}
+                </Button>
+              ),
+            )}
+          </div>
+        </fieldset>
+      ) : (
+        <>
+          {entry && <p>{SAVED_LABELS[entry.status]}</p>}
+          <div className="flex flex-wrap gap-2">
+            <DropdownMenu
+              onOpenChange={(open, event) => {
+                if (open && (!entry || busy || loading)) event.cancel();
+              }}
+            >
+              <DropdownMenuTrigger
+                {...(!entry
+                  ? { "aria-haspopup": undefined, "aria-expanded": undefined }
+                  : {})}
+                render={
+                  <Button
+                    ref={trigger}
+                    press={entry ? "static" : "scale"}
+                    variant="outline"
+                    className="min-h-11 max-w-full"
+                    aria-label={
+                      entry
+                        ? `Change status for ${game.title}`
+                        : `Add to backlog for ${game.title}`
+                    }
+                    aria-disabled={busy || loading}
+                    aria-busy={!!busy}
+                    aria-describedby={state?.error ? errorId : undefined}
+                    onClick={() => {
+                      if (!entry && !busy && !loading) choose("backlog");
+                    }}
+                  />
                 }
-                aria-disabled={busy || loading}
-                aria-busy={!!busy}
+              >
+                {entry ? "Change status" : "Add to backlog"}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="home-journal-menu w-60 max-w-[calc(100vw-2rem)] [overflow-wrap:anywhere]">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Status for {game.title}</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup value={entry?.status ?? ""}>
+                    {STATUSES.map((status) => (
+                      <DropdownMenuRadioItem
+                        key={status}
+                        value={status}
+                        closeOnClick
+                        className="min-h-11"
+                        disabled={busy}
+                        onClick={() => choose(status)}
+                      >
+                        {capitalize(status)}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {!entry && (
+              <Button
+                variant="outline"
+                className="min-h-11"
+                aria-label={`Add to wishlist for ${game.title}`}
                 aria-describedby={state?.error ? errorId : undefined}
+                aria-disabled={busy || loading}
                 onClick={() => {
-                  if (!entry && !busy && !loading) choose("backlog");
+                  if (!busy && !loading) choose("wishlist");
                 }}
-              />
-            }
-          >
-            {entry ? "Change status" : "Add to backlog"}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="home-journal-menu w-60 max-w-[calc(100vw-2rem)] [overflow-wrap:anywhere]">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Status for {game.title}</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={entry?.status ?? ""}>
-                {STATUSES.map((status) => (
-                  <DropdownMenuRadioItem
-                    key={status}
-                    value={status}
-                    closeOnClick
-                    className="min-h-11"
-                    disabled={busy}
-                    onClick={() => choose(status)}
-                  >
-                    {capitalize(status)}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        {!entry && (
-          <Button
-            variant="outline"
-            className="min-h-11"
-            aria-label={`Add to wishlist for ${game.title}`}
-            aria-describedby={state?.error ? errorId : undefined}
-            aria-disabled={busy || loading}
-            onClick={() => {
-              if (!busy && !loading) choose("wishlist");
-            }}
-          >
-            Add to wishlist
-          </Button>
-        )}
-      </div>
+              >
+                Add to wishlist
+              </Button>
+            )}
+          </div>
+        </>
+      )}
       {busy && (
         <p>
           Saving {game.title} to {capitalize(state.status)}…
         </p>
       )}
+      {presentation === "direct" &&
+        state &&
+        !busy &&
+        !state.error &&
+        state.feedback?.confirmed &&
+        state.status === entry?.status && (
+          <p>
+            {game.title} saved to {capitalize(state.status)}.
+          </p>
+        )}
       {unavailable && (
         <>
           <p>

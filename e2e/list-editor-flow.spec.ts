@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { selectCatalogGame } from "./support/catalog";
 import { chooseTheme } from "./support/header";
 import { closeListPanel, openListPanel } from "./support/list-editor";
 import { signUp, uniqueUsername } from "./support/sign-up";
@@ -40,13 +41,14 @@ test("adding games stays at the top and the search drawer supports repeated addi
   await page
     .getByRole("button", { name: "Add games", exact: true })
     .press("Enter");
-  const search = page.getByRole("searchbox", {
+  const search = page.getByRole("combobox", {
     name: "Search games",
     exact: true,
   });
   await expect(search).toBeFocused();
   for (const title of ["Celeste", "Hades"]) {
-    await search.fill(title);
+    await selectCatalogGame(page, title);
+    await expect(page.getByRole("dialog")).toHaveCount(1);
     await page
       .getByRole("button", { name: `Add ${title} to list`, exact: true })
       .click();
@@ -59,11 +61,24 @@ test("adding games stays at the top and the search drawer supports repeated addi
     await expect(
       page.getByRole("dialog", { name: "Add games", exact: true }),
     ).toBeVisible();
+    if (title === "Celeste") {
+      await page.getByRole("button", { name: "Back to results" }).click();
+      await expect(search).toHaveValue(title);
+    }
   }
+  expect(
+    (await (await page.request.get("/api/account/export")).json()).entries,
+  ).toEqual([]);
   await closeListPanel(page);
   await expect(
     page.getByRole("button", { name: "Add games", exact: true }),
   ).toBeFocused();
+  await openListPanel(page, "Add games");
+  await expect(search).toBeFocused();
+  await expect(search).toHaveValue("Hades");
+  await expect(page.getByRole("option", { name: /^Hades/ })).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await closeListPanel(page);
   await expect(
     page
       .getByRole("list", { name: "List games", exact: true })
@@ -168,4 +183,138 @@ test("list drawers and the game-page picker reflow with narrow screens and enlar
     .poll(() => picker.evaluate((el) => el.getBoundingClientRect().width))
     .toBeGreaterThan(500);
   await snap(page, testInfo, "picker-200-percent-text", true);
+});
+
+test("embedded additions retain failure, pending-close and stale-version recovery in one editor", async ({
+  page,
+  request,
+  context,
+}) => {
+  await signUp(page, request, uniqueUsername("list_contracts"));
+  await page.goto("/lists");
+  await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "List title", exact: true })
+    .fill("Command contracts");
+  await page.getByRole("button", { name: "Create list", exact: true }).click();
+  await openListPanel(page, "Add games");
+  const editor = await selectCatalogGame(page, "Celeste");
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  let failed = false;
+  await page.route("**/*", async (route) => {
+    if (!failed && route.request().headers()["next-action"]) {
+      failed = true;
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await editor
+    .getByRole("button", { name: "Add Celeste to list", exact: true })
+    .click();
+  await expect(editor.getByRole("alert")).toContainText(
+    "Couldn’t confirm the save",
+  );
+  await expect(
+    editor.getByRole("button", { name: "Add Celeste to list", exact: true }),
+  ).toBeDisabled();
+  await page.unrouteAll({ behavior: "wait" });
+  await editor
+    .getByRole("button", { name: "Refresh saved list", exact: true })
+    .click();
+  await expect(
+    editor.getByRole("button", { name: "Add Celeste to list", exact: true }),
+  ).toBeEnabled();
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let pending = false;
+  await page.route("**/*", async (route) => {
+    if (!pending && route.request().headers()["next-action"]) {
+      pending = true;
+      await held;
+    }
+    await route.continue();
+  });
+  try {
+    await editor
+      .getByRole("button", { name: "Add Celeste to list", exact: true })
+      .click();
+    await expect(
+      editor.getByRole("button", { name: "Close", exact: true }),
+    ).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(editor).toBeVisible();
+    await expect(
+      editor.getByRole("button", { name: "Add Celeste to list", exact: true }),
+    ).toBeDisabled();
+  } finally {
+    release();
+  }
+  await expect(
+    editor.getByRole("button", {
+      name: "Celeste already in list",
+      exact: true,
+    }),
+  ).toBeDisabled();
+  await page.unrouteAll({ behavior: "wait" });
+  await page.keyboard.press("Control+k");
+  const input = editor.getByRole("combobox", {
+    name: "Search games",
+    exact: true,
+  });
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue("Celeste");
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  const other = await context.newPage();
+  try {
+    await other.goto(page.url());
+    await openListPanel(other, "Edit list");
+    await other
+      .getByRole("textbox", { name: "List title", exact: true })
+      .fill("Changed elsewhere");
+    await other
+      .getByRole("button", { name: "Save details", exact: true })
+      .click();
+    await expect(other.getByRole("dialog")).toHaveCount(0);
+    await selectCatalogGame(page, "Hades");
+    await editor
+      .getByRole("button", { name: "Add Hades to list", exact: true })
+      .click();
+    await expect(editor.getByRole("alert")).toContainText("This list changed");
+    await editor
+      .getByRole("button", { name: "Refresh saved list", exact: true })
+      .click();
+    await expect(
+      editor.getByRole("button", { name: "Add Hades to list", exact: true }),
+    ).toBeEnabled();
+    await editor
+      .getByRole("button", { name: "Add Hades to list", exact: true })
+      .click();
+    await expect(
+      editor.getByRole("button", {
+        name: "Hades already in list",
+        exact: true,
+      }),
+    ).toBeDisabled();
+  } finally {
+    await other.close();
+  }
+  await closeListPanel(page);
+  await openListPanel(page, "Edit list");
+  await page.keyboard.press("Control+k");
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(
+    page.getByRole("combobox", { name: "Search games", exact: true }),
+  ).toHaveCount(0);
+  await closeListPanel(page);
+  await expect(
+    page
+      .getByRole("list", { name: "List games", exact: true })
+      .getByRole("link"),
+  ).toHaveText(["Celeste", "Hades"]);
+  const exported = await (await page.request.get("/api/account/export")).json();
+  expect(exported.entries).toEqual([]);
+  expect(exported.playthroughs).toEqual([]);
 });

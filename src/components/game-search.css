@@ -1,0 +1,63 @@
+.game-search-viewport {
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(
+    var(--editor-bottom, 0px) +
+    max(1rem, env(safe-area-inset-bottom))
+  );
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: min(
+    var(--editor-height, calc(100dvh - 2rem)),
+    calc(
+      var(--editor-viewport-height, 100dvh) -
+      max(1rem, env(safe-area-inset-top)) -
+      max(1rem, env(safe-area-inset-bottom))
+    )
+  );
+  padding-inline: max(
+    1rem,
+    env(safe-area-inset-left),
+    env(safe-area-inset-right)
+  );
+  overscroll-behavior: contain;
+}
+
+.game-search-surface {
+  height: min(36rem, 100%);
+}
+
+.game-search :is(button, input, a, summary):focus-visible,
+.game-search .game-search-filter:focus-within {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.game-search .game-search-input,
+.game-search .game-search-filter {
+  border-color: color-mix(in oklch, var(--foreground) 60%, var(--popover));
+}
+
+.game-search-result[data-highlighted] {
+  outline: 2px solid var(--foreground);
+  outline-offset: -2px;
+}
+
+.game-search-result[data-highlighted] .text-muted-foreground {
+  color: var(--foreground);
+}
+
+@media (forced-colors: active) {
+  .game-search-result[data-highlighted],
+  .game-search :is(button, input, a, summary):focus-visible,
+  .game-search .game-search-filter:focus-within {
+    outline-color: Highlight;
+  }
+
+  .game-search .game-search-input,
+  .game-search .game-search-filter {
+    border-color: ButtonText;
+  }
+}

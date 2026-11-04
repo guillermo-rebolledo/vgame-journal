@@ -1,13 +1,16 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { Combobox } from "@base-ui/react/combobox";
+import { Dialog } from "@base-ui/react/dialog";
+import { ArrowLeft, ChevronDown, Search, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import {
-  type CSSProperties,
   type ReactNode,
   type Ref,
   useEffect,
   useId,
+  useLayoutEffect,
+  useRef,
   useState,
 } from "react";
 import {
@@ -19,14 +22,15 @@ import { GameCover } from "@/components/game-cover";
 import { GameIdentificationMetadata } from "@/components/game-identification-metadata";
 import { HomeCoverLink } from "@/components/home-cover-link";
 import { HomeSaveControls } from "@/components/home-journal";
-import { TiltCover } from "@/components/tilt-cover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useEditorViewport } from "@/components/use-editor-viewport";
+import "./game-search.css";
 import type { SearchResult } from "@/lib/catalog";
+import { takeCatalogSearchInitiator } from "@/lib/catalog-search-navigation";
 import { cn } from "@/lib/utils";
 
 const MIN_QUERY = 2;
-const INITIAL_RESULTS = 6;
 
 /** What came back for one query and attempt; null results mean the search failed. */
 type Answer = { q: string; attempt: number; results: SearchResult[] | null };
@@ -34,23 +38,155 @@ type Answer = { q: string; attempt: number; results: SearchResult[] | null };
 export function GameSearch({
   guidance,
   renderAction,
+  renderFeedback,
   inputRef,
+  presentation = "dialog",
+  continuation,
 }: {
+  continuation?: ReactNode;
   guidance?: string;
   renderAction?: (game: SearchResult) => ReactNode;
+  renderFeedback?: (game: SearchResult | null) => ReactNode;
   inputRef?: Ref<HTMLInputElement>;
+  presentation?: "dialog" | "embedded";
 }) {
   const id = useId();
   const searchParams = useSearchParams();
-  const query = searchParams.get("q") ?? "";
+  const query = (searchParams.get("q") ?? "").slice(0, 100);
   const year = searchParams.get("year") ?? "";
   const platform = searchParams.get("platform") ?? "";
-  const expanded = searchParams.get("all") === "1";
   const filtersOpen = searchParams.get("filters") === "1";
   const activeFilters = Number(Boolean(year)) + Number(Boolean(platform));
+  const [open, setOpen] = useState(false);
+  const pendingBody = useRef<HTMLDivElement>(null);
+  const hasContinuation = !!continuation;
+  useEffect(() => {
+    if (hasContinuation && isVisible(owner.current)) {
+      setSelected(null);
+      setOpen(true);
+    }
+  }, [hasContinuation]);
+  const input = useRef<HTMLInputElement>(null);
+  const owner = useRef<HTMLDivElement>(null);
+  const restoredContext = useRef<string | null>(null);
+  const initiator = useRef<HTMLElement | null>(null);
+  const body = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const [scrollable, setScrollable] = useState(false);
+  const back = useRef<HTMLButtonElement>(null);
+  const scroll = useRef(0);
+  const [selected, setSelected] = useState<{
+    game: SearchResult;
+    position: number;
+  } | null>(null);
+  useLayoutEffect(() => {
+    if (presentation === "dialog" && !open) return;
+    if (hasContinuation)
+      pendingBody.current
+        ?.querySelector<HTMLElement>("a, button")
+        ?.focus({ preventScroll: true });
+    else if (selected) back.current?.focus({ preventScroll: true });
+    else {
+      input.current?.focus({ preventScroll: true });
+      if (body.current) body.current.scrollTop = scroll.current;
+    }
+  }, [open, presentation, selected, hasContinuation]);
+  useEditorViewport(presentation === "dialog" && open);
   const [attempt, setAttempt] = useState(0);
   const [answer, setAnswer] = useState<Answer | null>(null);
   const q = query.trim();
+
+  const context = JSON.stringify([
+    query,
+    year,
+    platform,
+    filtersOpen,
+    searchParams.get("search"),
+  ]);
+  const pendingIntent = searchParams.has("saveGame");
+  useEffect(() => {
+    function restore() {
+      const params = new URLSearchParams(window.location.search);
+      if (
+        presentation !== "dialog" ||
+        pendingIntent ||
+        params.has("saveGame") ||
+        !isVisible(owner.current)
+      )
+        return;
+      if (
+        (params.get("q") ?? "").trim().length >= MIN_QUERY ||
+        params.get("search") === "1"
+      ) {
+        if (params.get("search") === "1") {
+          const control = takeCatalogSearchInitiator();
+          if (control) initiator.current = control;
+        }
+        setSelected(null);
+        setOpen(true);
+      }
+    }
+    if (restoredContext.current !== context) restore();
+    restoredContext.current = context;
+    window.addEventListener("popstate", restore);
+    return () => {
+      window.removeEventListener("popstate", restore);
+      // React's retained Home view resumes effects when navigation makes it visible again.
+      restoredContext.current = null;
+    };
+  }, [context, pendingIntent, presentation]);
+
+  useEffect(() => {
+    function activate() {
+      if (presentation !== "dialog" || !isVisible(owner.current)) return;
+      initiator.current =
+        takeCatalogSearchInitiator() ??
+        (document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null);
+      setSelected(null);
+      setOpen(true);
+      input.current?.focus({ preventScroll: true });
+    }
+    window.addEventListener("catalog-search-open", activate);
+    return () => window.removeEventListener("catalog-search-open", activate);
+  }, [presentation]);
+
+  useEffect(() => {
+    function shortcut(event: KeyboardEvent) {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.altKey ||
+        !(event.metaKey || event.ctrlKey) ||
+        event.key.toLowerCase() !== "k" ||
+        (!isVisible(owner.current) && !isVisible(body.current))
+      )
+        return;
+      const modal = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          '[role="dialog"], [role="alertdialog"]',
+        ),
+      )
+        .filter(isVisible)
+        .at(-1);
+      // Only the search in the active editor may claim its shortcut.
+      if (modal && !modal.contains(input.current)) return;
+      event.preventDefault();
+      setSelected(null);
+      if (presentation === "dialog") {
+        if (!open)
+          initiator.current =
+            document.activeElement instanceof HTMLElement
+              ? document.activeElement
+              : null;
+        setOpen(true);
+      }
+      input.current?.focus({ preventScroll: true });
+    }
+    document.addEventListener("keydown", shortcut);
+    return () => document.removeEventListener("keydown", shortcut);
+  }, [presentation, open]);
 
   function updateSearch(values: Record<string, string>) {
     const url = new URL(window.location.href);
@@ -66,7 +202,15 @@ export function GameSearch({
   }
 
   useEffect(() => {
-    if (q.length < MIN_QUERY) return;
+    // Embedded content mounts with its active host, before drawer visibility settles.
+    if (
+      hasContinuation ||
+      q.length < MIN_QUERY ||
+      (presentation === "dialog" &&
+        (!open || (!isVisible(owner.current) && !isVisible(body.current))))
+    )
+      return;
+    if (answer?.q === q && answer.attempt === attempt) return;
     const controller = new AbortController();
     const debounce = setTimeout(async () => {
       let results: SearchResult[] | null = null;
@@ -85,7 +229,7 @@ export function GameSearch({
       clearTimeout(debounce);
       controller.abort();
     };
-  }, [q, attempt]);
+  }, [q, attempt, open, presentation, answer, hasContinuation]);
 
   // Only the answer to exactly this query and attempt counts; anything else is still loading.
   const idle = q.length < MIN_QUERY;
@@ -100,7 +244,13 @@ export function GameSearch({
   ].sort((a, b) => b - a);
   const platforms = [
     ...new Set(results?.flatMap((game) => game.platforms) ?? []),
-  ].sort();
+  ]
+    .filter(
+      (name) =>
+        name === platform ||
+        results?.some((game) => !game.platforms.includes(name)),
+    )
+    .sort();
   const showYear =
     Boolean(year) ||
     (years.length > 0 &&
@@ -118,6 +268,26 @@ export function GameSearch({
   );
 
   const matched = matches?.length;
+  useLayoutEffect(() => {
+    const element = list.current;
+    if (
+      !element ||
+      selected ||
+      !matched ||
+      !current ||
+      (presentation === "dialog" && !open) ||
+      typeof ResizeObserver === "undefined"
+    ) {
+      setScrollable(false);
+      return;
+    }
+    const measure = () =>
+      setScrollable(element.scrollHeight > element.clientHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [matched, current, open, selected, presentation]);
 
   // Once per settled answer or filter change; the query itself never leaves the browser.
   useEffect(() => {
@@ -128,217 +298,392 @@ export function GameSearch({
     });
   }, [current, matched, year, platform]);
 
-  return (
-    <div className="flex flex-col gap-4">
+  function changeOpen(next: boolean) {
+    if (next && !open)
+      initiator.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+    setSelected(null);
+    setOpen(next);
+  }
+
+  const content = (
+    <div
+      ref={body}
+      className="game-search-content min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 [scrollbar-gutter:stable]"
+    >
       {guidance && (
         <p id={`${id}-guidance`} className="text-muted-foreground text-sm">
           {guidance}
         </p>
       )}
-      <search aria-labelledby={`${id}-label`} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <label
-            id={`${id}-label`}
-            htmlFor={`${id}-input`}
-            className="font-medium"
-          >
-            Search games
-          </label>
-          <Input
-            ref={inputRef}
-            id={`${id}-input`}
-            type="search"
-            aria-describedby={guidance ? `${id}-guidance` : undefined}
-            placeholder="Search games…"
-            value={query}
-            onChange={(e) => {
-              updateSearch({
-                q: e.target.value,
-                all: "",
-                year: "",
-                platform: "",
-                filters: e.target.value && filtersOpen ? "1" : "",
-              });
-            }}
-            className="h-11"
-          />
-        </div>
-        <output
-          aria-label="Search updates"
-          aria-live="polite"
-          className="text-muted-foreground text-sm empty:hidden"
+      <Combobox.Root<SearchResult>
+        inline
+        open
+        items={matches ?? []}
+        filter={null}
+        inputValue={query}
+        itemToStringLabel={(game) => game.title}
+        onValueChange={(game, event) => {
+          event.cancel();
+          if (!game) return;
+          scroll.current = body.current?.scrollTop ?? 0;
+          setSelected({
+            game,
+            position:
+              (matches?.findIndex((item) => item.id === game.id) ?? 0) + 1,
+          });
+        }}
+        onInputValueChange={(value) =>
+          updateSearch({
+            q: value.slice(0, 100),
+            all: "",
+            year: "",
+            platform: "",
+            filters: value && filtersOpen ? "1" : "",
+          })
+        }
+      >
+        <search
+          hidden={!!selected}
+          aria-labelledby={`${id}-label`}
+          className="flex flex-col gap-3"
         >
-          {q.length === 1
-            ? "Enter at least 2 characters"
-            : idle || failed
-              ? ""
-              : !current
-                ? "Searching…"
-                : (year || platform) && matches?.length === 0
-                  ? "No matches in these results. Clear filters or search for a more specific title."
-                  : results?.length === 0
-                    ? `No matches returned for “${q}”. Check the spelling or try different words from the title.`
-                    : year || platform
-                      ? `${matches?.length} of ${results?.length} returned matches ${matches?.length === 1 ? "fits" : "fit"} your filters.`
-                      : `${results?.length} returned ${results?.length === 1 ? "match" : "matches"} for “${q}”.`}
-        </output>
-        {failed && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm"
-          >
-            <p>Search isn’t working right now. Your search is kept.</p>
-            <Button
-              variant="outline"
-              className="h-11 sm:pointer-fine:h-8"
-              onClick={() => setAttempt(attempt + 1)}
+          <div className="flex flex-col gap-2">
+            <label
+              id={`${id}-label`}
+              htmlFor={`${id}-input`}
+              className="font-medium"
             >
-              Try again
-            </Button>
+              Search games
+            </label>
+            <Combobox.Input
+              ref={(element) => {
+                input.current = element;
+                if (typeof inputRef === "function") inputRef(element);
+                else if (inputRef) inputRef.current = element;
+              }}
+              render={<Input />}
+              type="search"
+              id={`${id}-input`}
+              aria-describedby={guidance ? `${id}-guidance` : `${id}-help`}
+              placeholder="Search games…"
+              maxLength={100}
+              className="game-search-input h-11 transition-none"
+            />
+            {!guidance && (
+              <p id={`${id}-help`} className="text-muted-foreground text-xs">
+                Choose a game to see its actions. Use arrow keys to browse and
+                Enter to choose.
+              </p>
+            )}
           </div>
-        )}
-        {(showYear || showPlatform) && (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+          <output
+            aria-label="Search updates"
+            aria-live="polite"
+            aria-atomic="true"
+            className="text-muted-foreground text-sm empty:hidden"
+          >
+            {q.length < MIN_QUERY
+              ? "Enter at least 2 characters to search the Catalog."
+              : idle || failed
+                ? ""
+                : !current
+                  ? "Searching…"
+                  : (year || platform) && matches?.length === 0
+                    ? "No matches in these results. Clear filters or search for a more specific title."
+                    : results?.length === 0
+                      ? `No matches returned for “${q}”. Check the spelling or try different words from the title.`
+                      : year || platform
+                        ? `${matches?.length} of ${results?.length} returned matches ${matches?.length === 1 ? "fits" : "fit"} your filters.`
+                        : `${results?.length} returned ${results?.length === 1 ? "match" : "matches"} for “${q}”.`}
+          </output>
+          {failed && (
+            <div
+              role="alert"
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm"
+            >
+              <p>Search isn’t working right now. Your search is kept.</p>
               <Button
                 variant="outline"
-                className="min-h-11 sm:hidden"
-                aria-expanded={filtersOpen}
-                aria-controls={`${id}-filters`}
-                onClick={() =>
-                  updateSearch({ filters: filtersOpen ? "" : "1" })
-                }
+                className="min-h-11"
+                onClick={() => {
+                  setAttempt(attempt + 1);
+                  input.current?.focus({ preventScroll: true });
+                }}
               >
-                Filters{activeFilters > 0 ? ` (${activeFilters} active)` : ""}
-                <ChevronDown aria-hidden="true" />
+                Try again
               </Button>
-              {activeFilters > 0 && (
+            </div>
+          )}
+          {(showYear || showPlatform) && (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   className="min-h-11"
+                  aria-expanded={filtersOpen}
+                  aria-controls={`${id}-filters`}
                   onClick={() =>
-                    updateSearch({ year: "", platform: "", all: "" })
+                    updateSearch({ filters: filtersOpen ? "" : "1" })
                   }
                 >
-                  Clear filters
+                  Filters{activeFilters > 0 ? ` (${activeFilters} active)` : ""}
+                  <ChevronDown aria-hidden="true" />
                 </Button>
-              )}
+                {activeFilters > 0 && (
+                  <Button
+                    variant="ghost"
+                    className="min-h-11"
+                    onClick={() => {
+                      updateSearch({ year: "", platform: "", all: "" });
+                      input.current?.focus({ preventScroll: true });
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+              <div
+                id={`${id}-filters`}
+                className={cn(
+                  "grid-cols-1 items-end gap-3 sm:grid-cols-2",
+                  filtersOpen ? "grid" : "hidden",
+                )}
+              >
+                {showYear && (
+                  <SearchFilter
+                    id={`${id}-year`}
+                    descriptionId={`${id}-filter-help`}
+                    label="Release year"
+                    value={year}
+                    emptyLabel="All years"
+                    options={years.map(String)}
+                    onChange={(year) => updateSearch({ year, all: "" })}
+                  />
+                )}
+                {showPlatform && (
+                  <SearchFilter
+                    id={`${id}-platform`}
+                    descriptionId={`${id}-filter-help`}
+                    label="Platform"
+                    value={platform}
+                    emptyLabel="All platforms"
+                    options={platforms}
+                    onChange={(platform) => updateSearch({ platform, all: "" })}
+                  />
+                )}
+              </div>
             </div>
-            <div
-              id={`${id}-filters`}
-              className={cn(
-                "grid-cols-1 items-end gap-3 sm:grid sm:grid-cols-2",
-                filtersOpen ? "grid" : "hidden",
-              )}
+          )}
+          {(results || year || platform) && (
+            <p
+              id={`${id}-filter-help`}
+              className="text-muted-foreground text-xs"
             >
-              {showYear && (
-                <SearchFilter
-                  id={`${id}-year`}
-                  descriptionId={`${id}-filter-help`}
-                  label="Release year"
-                  value={year}
-                  emptyLabel="All years"
-                  options={years.map(String)}
-                  onChange={(year) => updateSearch({ year, all: "" })}
+              Search returns up to 50 candidates. Filters narrow these returned
+              results only. Use a more specific title to find other games.
+            </p>
+          )}
+          {scrollable && (
+            <p aria-hidden="true" className="text-muted-foreground text-xs">
+              Scroll to browse all returned matches.
+            </p>
+          )}
+          <Combobox.List
+            ref={list}
+            aria-label="Search results"
+            aria-busy={!idle && !current}
+            className="max-h-72 overflow-y-auto overscroll-contain"
+          >
+            {(game: SearchResult) => (
+              <Combobox.Item
+                key={game.id}
+                value={game}
+                className="game-search-result flex min-h-20 cursor-default items-center gap-3 rounded-lg p-2 outline-none data-highlighted:bg-muted"
+              >
+                <GameCover
+                  imageId={game.coverImageId}
+                  size="cover_small"
+                  className="w-12 rounded"
                 />
-              )}
-              {showPlatform && (
-                <SearchFilter
-                  id={`${id}-platform`}
-                  descriptionId={`${id}-filter-help`}
-                  label="Platform"
-                  value={platform}
-                  emptyLabel="All platforms"
-                  options={platforms}
-                  onChange={(platform) => updateSearch({ platform, all: "" })}
-                />
-              )}
+                <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                  <p className="font-medium">
+                    <bdi>{game.title}</bdi>
+                  </p>
+                  <div className="text-muted-foreground text-xs">
+                    <p className="tabular-nums">
+                      {game.year ?? "Year unavailable"}
+                    </p>
+                    <p>
+                      {game.platforms.join(", ") ||
+                        "Platform availability unknown"}
+                    </p>
+                  </div>
+                </div>
+              </Combobox.Item>
+            )}
+          </Combobox.List>
+        </search>
+      </Combobox.Root>
+      {selected && (
+        <div className="flex flex-col gap-4">
+          <Button
+            ref={back}
+            variant="ghost"
+            press="static"
+            className="min-h-11 self-start"
+            onClick={() => setSelected(null)}
+          >
+            <ArrowLeft aria-hidden="true" />
+            Back to results
+          </Button>
+          <div className="flex items-start gap-3">
+            <GameCover
+              imageId={selected.game.coverImageId}
+              className="w-16 rounded"
+            />
+            <div className="min-w-0 [overflow-wrap:anywhere]">
+              <h3 className="font-medium">
+                <bdi>{selected.game.title}</bdi>
+              </h3>
+              <GameIdentificationMetadata
+                title={selected.game.title}
+                year={selected.game.year}
+                platforms={selected.game.platforms}
+                selectedPlatform={platform}
+              />
             </div>
           </div>
-        )}
-        {(results || year || platform) && (
-          <p id={`${id}-filter-help`} className="text-muted-foreground text-xs">
-            Search returns up to 50 candidates. Filters narrow these returned
-            results only. Use a more specific title to find other games.
-          </p>
-        )}
-        {matches && matches.length > 0 && (
-          <ul
-            id={`${id}-results`}
-            aria-label="Search results"
-            className="flex flex-col gap-2"
-          >
-            {(expanded ? matches : matches.slice(0, INITIAL_RESULTS)).map(
-              (game, index) => (
-                <li key={game.id} className="relative min-h-20 pl-[57px]">
-                  <HomeCoverLink
-                    gameId={game.id}
-                    source="search"
-                    event={[
-                      "search_result_opened",
-                      { position: positionBucket(index + 1) },
-                    ]}
-                    href={`/games/${game.slug}`}
-                    title={game.title}
-                    prefetch={true}
-                    className="-mx-2 block min-h-11 rounded-md p-2 hover:bg-muted focus-visible:bg-muted"
-                    cover={
-                      <div
-                        className="cover-entry absolute top-2 left-0"
-                        style={
-                          {
-                            "--entry-delay": `${Math.min(index, 8) * 35}ms`,
-                          } as CSSProperties
-                        }
-                      >
-                        <TiltCover>
-                          <GameCover
-                            imageId={game.coverImageId}
-                            size="cover_small"
-                            className="w-[45px] rounded"
-                          />
-                        </TiltCover>
-                      </div>
-                    }
-                  >
-                    <div className="min-w-0">
-                      <p className="line-clamp-2 break-words font-medium leading-snug">
-                        {game.title}
-                      </p>
-                    </div>
-                  </HomeCoverLink>
-                  <div className="pb-2">
-                    <GameIdentificationMetadata
-                      title={game.title}
-                      year={game.year}
-                      platforms={game.platforms}
-                      selectedPlatform={platform}
-                    />
-                  </div>
-                  {renderAction ? (
-                    renderAction(game)
-                  ) : (
-                    <HomeSaveControls game={{ ...game, gameId: game.id }} />
-                  )}
-                </li>
-              ),
+          <div key={selected.game.id}>
+            {renderAction ? (
+              renderAction(selected.game)
+            ) : (
+              <HomeSaveControls
+                game={{ ...selected.game, gameId: selected.game.id }}
+              />
             )}
-          </ul>
-        )}
-        {matches && matches.length > INITIAL_RESULTS && (
-          <Button
-            variant="outline"
-            className="h-11 self-start"
-            aria-expanded={expanded}
-            aria-controls={`${id}-results`}
-            onClick={() => updateSearch({ all: expanded ? "" : "1" })}
+          </div>
+          <HomeCoverLink
+            gameId={selected.game.id}
+            source="search"
+            cover={null}
+            href={`/games/${selected.game.slug}`}
+            aria-label={`View game: ${selected.game.title}`}
+            event={[
+              "search_result_opened",
+              { position: positionBucket(selected.position) },
+            ]}
+            onClick={(event) => {
+              if (
+                event.button === 0 &&
+                !event.metaKey &&
+                !event.ctrlKey &&
+                !event.shiftKey &&
+                !event.altKey
+              )
+                changeOpen(false);
+            }}
+            onAuxClick={(event) => {
+              if (event.button === 1)
+                trackEvent("search_result_opened", {
+                  position: positionBucket(selected.position),
+                });
+            }}
+            className="flex min-h-11 items-center self-start rounded-lg px-2 underline underline-offset-4"
           >
-            {expanded
-              ? "Show fewer matches"
-              : `Show ${matches.length - INITIAL_RESULTS} more ${matches.length - INITIAL_RESULTS === 1 ? "match" : "matches"}`}
-          </Button>
-        )}
-      </search>
+            View game<span className="sr-only">: {selected.game.title}</span>
+          </HomeCoverLink>
+        </div>
+      )}
+    </div>
+  );
+  if (presentation === "embedded")
+    return (
+      <div ref={owner} className="game-search flex min-h-0 flex-1 flex-col">
+        {content}
+      </div>
+    );
+  return (
+    <div ref={owner}>
+      <Dialog.Root open={open} onOpenChange={changeOpen}>
+        <Dialog.Trigger
+          render={
+            <Button
+              data-catalog-trigger
+              variant="outline"
+              press="static"
+              className="min-h-12 w-full justify-start gap-3"
+            />
+          }
+        >
+          <Search aria-hidden="true" />
+          <span className="flex-1 text-start">Search games…</span>
+          <span aria-hidden="true" className="text-xs">
+            ⌘ / Ctrl K
+          </span>
+        </Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-40 bg-background/80" />
+          <Dialog.Viewport className="game-search-viewport">
+            <Dialog.Popup
+              className="game-search game-search-surface flex w-full max-w-xl flex-col overflow-hidden rounded-xl border border-transparent bg-popover text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none"
+              initialFocus={() =>
+                hasContinuation
+                  ? (pendingBody.current?.querySelector<HTMLElement>(
+                      "a, button",
+                    ) ?? false)
+                  : (input.current ?? false)
+              }
+              finalFocus={() =>
+                // Base UI resolves the target before removing background inertness.
+                initiator.current?.isConnected &&
+                !initiator.current.closest("[hidden]") &&
+                (initiator.current.checkVisibility?.() ?? true) &&
+                initiator.current !== document.body
+                  ? initiator.current
+                  : (owner.current?.querySelector("button") ?? false)
+              }
+            >
+              <header className="flex shrink-0 items-center justify-between gap-3 px-4 py-2">
+                <Dialog.Title className="font-medium">
+                  {hasContinuation
+                    ? "Continue Journal save"
+                    : selected
+                      ? "Game actions"
+                      : "Find a game"}
+                </Dialog.Title>
+                <Dialog.Close
+                  render={
+                    <Button
+                      variant="ghost"
+                      className="size-11"
+                      aria-label="Close search"
+                    />
+                  }
+                >
+                  <X aria-hidden="true" />
+                </Dialog.Close>
+              </header>
+              <Dialog.Description className="sr-only">
+                Search the Catalog and choose a game to see its actions.
+              </Dialog.Description>
+              {renderFeedback?.(selected?.game ?? null)}
+              {hasContinuation ? (
+                <div
+                  ref={pendingBody}
+                  className="min-h-0 overflow-y-auto overscroll-contain p-4"
+                >
+                  {continuation}
+                </div>
+              ) : (
+                content
+              )}
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }
@@ -367,7 +712,7 @@ function SearchFilter({
   return (
     <div className="flex min-w-0 flex-col gap-1.5 text-sm">
       <label htmlFor={id}>{label}</label>
-      <div className="relative rounded-lg border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+      <div className="game-search-filter relative rounded-lg border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
         <div
           aria-hidden="true"
           className="pointer-events-none flex min-h-11 items-center gap-2 px-2 py-2 text-base"
@@ -395,5 +740,13 @@ function SearchFilter({
         </select>
       </div>
     </div>
+  );
+}
+
+function isVisible(element: HTMLElement | null): element is HTMLElement {
+  return (
+    !!element &&
+    !element.closest('[hidden], [inert], [aria-hidden="true"]') &&
+    (element.checkVisibility?.() ?? true)
   );
 }

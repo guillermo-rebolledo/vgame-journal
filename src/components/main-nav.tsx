@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { requestCatalogSearch } from "@/lib/catalog-search-navigation";
 
 const DESTINATIONS = [
-  ["/", "Find a game"],
+  ["/?search=1", "Find a game"],
   ["/library", "Library"],
   ["/wishlist", "Wishlist"],
   ["/lists", "Lists"],
@@ -21,8 +22,22 @@ export function MainNav({ className }: { className?: string }) {
           <li key={href}>
             <Link
               href={href}
+              onClick={(event) => {
+                if (
+                  href === "/?search=1" &&
+                  event.button === 0 &&
+                  !event.defaultPrevented &&
+                  !event.metaKey &&
+                  !event.ctrlKey &&
+                  !event.shiftKey &&
+                  !event.altKey
+                ) {
+                  requestCatalogSearch(event.currentTarget);
+                  if (pathname === "/") event.preventDefault();
+                }
+              }}
               aria-current={
-                pathname === href ||
+                pathname === href.split("?")[0] ||
                 (href === "/lists" && pathname.startsWith("/lists/"))
                   ? "page"
                   : undefined

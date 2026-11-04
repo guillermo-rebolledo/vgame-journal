@@ -1,4 +1,9 @@
 import { expect, type Page, test } from "@playwright/test";
+import {
+  closeCatalog,
+  openCatalog,
+  selectCatalogGame,
+} from "./support/catalog";
 import { expectContainedScroll } from "./support/contained-scroll";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
@@ -323,7 +328,8 @@ test("pending Journal actions stay understandable and disabled controls cannot p
     await expect(trigger.locator("svg")).toHaveCSS("animation-name", "none");
     const status = page
       .getByRole("region", { name: "Game journal", exact: true })
-      .getByRole("status");
+      .getByRole("status")
+      .filter({ hasText: "Saving journal status…" });
     await expect(status).toHaveText("Saving journal status…");
     expect((await status.boundingBox())?.width).toBeGreaterThan(1);
     await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -570,34 +576,23 @@ declare global {
   }
 }
 
-test("covers tilt toward the pointer and spring back", async ({ page }) => {
+test("Command result covers stay still while the pointer moves", async ({
+  page,
+}) => {
   await page.goto("/");
-  await page.getByRole("searchbox").fill("Celeste");
-  const cover = page.locator("[data-tilt-cover]");
+  await (await openCatalog(page)).fill("Celeste");
+  const option = page.getByRole("option", { name: /^Celeste/ });
+  const cover = option.locator("img");
   await expect(cover).toBeVisible();
-  await cover.scrollIntoViewIfNeeded();
-  const box = await cover.boundingBox();
-  if (!box) throw new Error("Cover has no bounds");
-  await page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.2);
-  await expect(cover).not.toHaveCSS("transform", "none");
-  await expect(page.locator("[data-cover-glare]")).toHaveCSS("opacity", "1");
-  const texture = page.locator("[data-cover-glare] > span");
-  const background = await texture.evaluate(
-    (element) => getComputedStyle(element).backgroundImage,
-  );
-  const transform = await texture.evaluate(
-    (element) => getComputedStyle(element).transform,
-  );
-  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.8);
-  await expect
-    .poll(() =>
-      texture.evaluate((element) => getComputedStyle(element).transform),
-    )
-    .not.toBe(transform);
-  await expect(texture).toHaveCSS("background-image", background);
-  await page.mouse.move(0, 0);
+  const before = await cover.boundingBox();
+  await option.hover();
   await expect(cover).toHaveCSS("transform", "none");
-  await expect(page.locator("[data-cover-glare]")).toHaveCSS("opacity", "0");
+  await expect(cover).toHaveCSS("animation-name", "none");
+  expect(await cover.boundingBox()).toEqual(before);
+  await option.click();
+  await expect(
+    page.getByRole("button", { name: "Back to results" }),
+  ).toBeFocused();
 });
 
 test("playthrough drawer keeps the page stationary and dismisses its select first", async ({
@@ -646,7 +641,7 @@ test("playthrough drawer keeps the page stationary and dismisses its select firs
   ).toBeVisible();
 });
 
-test("new search covers stagger in without replaying on pointer movement", async ({
+test("Command results appear immediately without stagger or pointer motion", async ({
   page,
 }) => {
   await page.route("**/api/games/search?*", (route) =>
@@ -672,15 +667,17 @@ test("new search covers stagger in without replaying on pointer movement", async
     }),
   );
   await page.goto("/");
-  await page.getByRole("searchbox").fill("games");
-  const entries = page.locator(".cover-entry");
+  await (await openCatalog(page)).fill("games");
+  const entries = page
+    .getByRole("listbox", { name: "Search results" })
+    .getByRole("option");
   await expect(entries).toHaveCount(2);
-  await expect(entries.first()).toHaveCSS("animation-name", "cover-in");
-  await expect(entries.nth(1)).toHaveCSS("animation-delay", "0.035s");
+  await expect(entries.first()).toHaveCSS("animation-name", "none");
+  await expect(entries.nth(1)).toHaveCSS("animation-delay", "0s");
   await expect(entries.first()).toHaveCSS("opacity", "1");
 });
 
-test("search cover morphs into the hero with a route fade and upward slide", async ({
+test("View game navigates from Command actions with the existing route transition", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -703,8 +700,11 @@ test("search cover morphs into the hero with a route fade and upward slide", asy
     await route.continue();
   });
   await page.goto("/");
-  await page.getByRole("searchbox").fill("Celeste");
-  const link = page.getByRole("link", { name: /Celeste/ });
+  await selectCatalogGame(page, "Celeste");
+  const link = page.getByRole("link", {
+    name: "View game: Celeste",
+    exact: true,
+  });
   await expect(link).toBeVisible();
   await link.click();
   await expect(
@@ -713,9 +713,9 @@ test("search cover morphs into the hero with a route fade and upward slide", asy
   await expect
     .poll(() => page.evaluate(() => window.motionAnimations.join("\n")))
     .toContain("route-in");
-  expect(
-    await page.evaluate(() => window.motionAnimations.join("\n")),
-  ).toContain("game-cover-1");
+  await expect(
+    page.getByRole("button", { name: "Back to results" }),
+  ).toHaveCount(0);
   expect(
     await page.evaluate(() => window.motionAnimations.join("\n")),
   ).toContain("route-out");
@@ -762,7 +762,7 @@ for (const view of ["Grid", "List"] as const) {
 }
 
 for (const source of ["search", "shelf"] as const) {
-  test(`Home ${source} morph starts from the clicked cover when search overlaps a shelf`, async ({
+  test(`Home ${source} navigation uses its own game occurrence after Command selection`, async ({
     page,
     request,
   }) => {
@@ -787,16 +787,26 @@ for (const source of ["search", "shelf"] as const) {
     });
 
     await page.goto("/");
-    await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
-    const search = page
-      .getByRole("list", { name: "Search results" })
-      .getByRole("link");
+    await selectCatalogGame(page, "Celeste");
+    const search = page.getByRole("link", {
+      name: "View game: Celeste",
+      exact: true,
+    });
     await expect(search).toBeVisible();
     const shelf = page
       .getByRole("region", { name: "Recently added" })
       .getByRole("link", { name: "Celeste", exact: true });
+    if (source === "shelf") await closeCatalog(page);
+    else {
+      await expect(search).toHaveAttribute("href", "/games/celeste");
+      await search.click();
+      await expect(
+        page.getByRole("heading", { name: "Celeste", exact: true }),
+      ).toBeVisible();
+      return;
+    }
     await expect(shelf).toBeVisible();
-    const link = source === "search" ? search : shelf;
+    const link = shelf;
     const cover = link.locator("img");
     const width = (await cover.boundingBox())?.width;
     expect(width).toBeGreaterThan(0);
@@ -863,7 +873,7 @@ test("filtering the library never animates covers", async ({
   ).not.toContain("game-cover-");
 });
 
-test("touch presses scale covers without tilt or glare", async ({
+test("touch selects Command results without cover movement", async ({
   browser,
 }) => {
   const context = await browser.newContext({
@@ -873,40 +883,14 @@ test("touch presses scale covers without tilt or glare", async ({
   });
   const page = await context.newPage();
   await page.goto("/");
-  await page.getByRole("searchbox").fill("Celeste");
-  const cover = page.locator("[data-tilt-cover]");
-  await expect(cover).toBeVisible();
-  await cover.scrollIntoViewIfNeeded();
-  const box = await cover.boundingBox();
-  if (!box) throw new Error("Cover has no bounds");
-  const cdp = await context.newCDPSession(page);
-  await cdp.send("Input.dispatchTouchEvent", {
-    type: "touchStart",
-    touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
-  });
-  await expect(cover).toHaveCSS("scale", "0.96");
-  await expect(cover).toHaveCSS("transform", "none");
-  await expect(page.locator("[data-cover-glare]")).toHaveCSS("opacity", "0");
-  await cdp.send("Input.dispatchTouchEvent", {
-    type: "touchCancel",
-    touchPoints: [],
-  });
-  await expect(cover).toHaveCSS("scale", "none");
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await cdp.send("Input.dispatchTouchEvent", {
-    type: "touchStart",
-    touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
-  });
-  await expect(cover).toHaveCSS("scale", "none");
-  await expect(cover).toHaveCSS("transform", "none");
-  await cdp.send("Input.dispatchTouchEvent", {
-    type: "touchCancel",
-    touchPoints: [],
-  });
-  await page.getByRole("link", { name: /Celeste/ }).tap();
+  await (await openCatalog(page)).fill("Celeste");
+  const option = page.getByRole("option", { name: /^Celeste/ });
+  await expect(option).toHaveCSS("transform", "none");
+  await option.tap();
   await expect(
-    page.getByRole("heading", { name: "Celeste", exact: true }),
+    page.getByRole("button", { name: "Back to results" }),
   ).toBeVisible();
+  await expect(page).toHaveURL(/q=Celeste/);
   await context.close();
 });
 
@@ -922,19 +906,19 @@ for (const reduced of [false, true]) {
         });
       });
     await page.goto("/");
-    await page.getByRole("searchbox").fill("Celeste");
-    const cover = page.locator("[data-tilt-cover]");
+    await (await openCatalog(page)).fill("Celeste");
+    const cover = page.getByRole("option", { name: /^Celeste/ });
     await expect(cover).toBeVisible();
     if (reduced) {
       await cover.hover();
       await expect(cover).toHaveCSS("transform", "none");
-      await expect(page.locator(".cover-entry")).toHaveCSS(
-        "animation-name",
-        "none",
-      );
+      await expect(cover).toHaveCSS("animation-name", "none");
       await expect(page.locator("[data-cover-glare]")).toBeHidden();
     }
-    await page.getByRole("link", { name: /Celeste/ }).click();
+    await cover.click();
+    await page
+      .getByRole("link", { name: "View game: Celeste", exact: true })
+      .click();
     await expect(
       page.getByRole("heading", { name: "Celeste", exact: true }),
     ).toBeVisible();
@@ -952,37 +936,33 @@ for (const reduced of [false, true]) {
         ),
       ).toBe(0);
     await page.goBack();
-    await expect(page.getByRole("searchbox")).toBeVisible();
+    await expect(
+      page.getByRole("combobox", { name: "Search games", exact: true }),
+    ).toBeVisible();
   });
 }
 
-test("touch on a desktop with a fine primary pointer still presses the cover", async ({
+test("Command selection works when touch follows a fine pointer", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("searchbox").fill("Celeste");
-  const cover = page.locator("[data-tilt-cover]");
-  await expect(cover).toBeVisible();
-  await cover.scrollIntoViewIfNeeded();
-  expect(await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(
-    true,
-  );
-  const box = await cover.boundingBox();
-  if (!box) throw new Error("Cover has no bounds");
-  await page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.2);
-  await expect(cover).not.toHaveCSS("transform", "none");
-  await expect(page.locator("[data-cover-glare]")).toHaveCSS("opacity", "1");
+  await (await openCatalog(page)).fill("Celeste");
+  const option = page.getByRole("option", { name: /^Celeste/ });
+  await option.hover();
+  await expect(option).toHaveCSS("transform", "none");
+  const box = await option.boundingBox();
+  if (!box) throw new Error("Result has no bounds");
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchStart",
     touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
   });
-  await expect(cover).toHaveCSS("scale", "0.96");
-  await expect(cover).toHaveCSS("transform", "none");
-  await expect(page.locator("[data-cover-glare]")).toHaveCSS("opacity", "0");
+  await expect(option).toHaveCSS("transform", "none");
   await cdp.send("Input.dispatchTouchEvent", {
-    type: "touchCancel",
+    type: "touchEnd",
     touchPoints: [],
   });
-  await expect(cover).toHaveCSS("scale", "none");
+  await expect(
+    page.getByRole("button", { name: "Back to results" }),
+  ).toBeVisible();
 });
