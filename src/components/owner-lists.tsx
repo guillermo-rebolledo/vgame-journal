@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowDown, ArrowUp, ChevronDown, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
@@ -13,12 +14,21 @@ import {
 import { CopyButton } from "@/components/copy-button";
 import { GameCover } from "@/components/game-cover";
 import { GameSearch } from "@/components/game-search";
-import { ListCreationDrawer } from "@/components/list-creation-drawer";
+import {
+  ListCreationDrawer,
+  ListEditorDrawer,
+} from "@/components/list-creation-drawer";
 import { useListDraft } from "@/components/list-draft";
 import { ListFields, ListVisibilityFields } from "@/components/list-form";
 import { useListSession } from "@/components/list-session";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { SITE_URL } from "@/config/site";
 import type { OwnerList } from "@/lib/lists";
@@ -30,6 +40,7 @@ export function CreateListForm({
   disabled = false,
   onCancel,
   onPendingChange,
+  game,
 }: {
   actor: string;
   onCreated?: (list: OwnerList) => void;
@@ -37,6 +48,7 @@ export function CreateListForm({
   disabled?: boolean;
   onCancel?: () => void;
   onPendingChange?: (pending: boolean) => void;
+  game?: { id: number; title: string };
 }) {
   const access = useListSession();
   const router = useRouter();
@@ -80,6 +92,7 @@ export function CreateListForm({
               description,
               visibility,
               submissionId,
+              gameId: game?.id,
             });
             if (!result.ok) {
               if (result.code === "authentication") {
@@ -104,7 +117,9 @@ export function CreateListForm({
         });
       }}
     >
-      {!onCancel && <h2 className="font-semibold text-xl">Create a list</h2>}
+      {!onCancel && !game && (
+        <h2 className="font-semibold text-xl">Create a list</h2>
+      )}
       <ListFields
         title={title}
         description={description}
@@ -143,7 +158,11 @@ export function CreateListForm({
           disabled={pending || !ready || disabled}
           className="min-h-11 self-start"
         >
-          {pending ? "Creating…" : "Create list"}
+          {pending
+            ? "Creating…"
+            : game
+              ? `Create list and add ${game.title}`
+              : "Create list"}
         </Button>
       </div>
     </form>
@@ -274,6 +293,11 @@ export function OwnerListEditor({
   const [pending, start] = useTransition();
   const [needsRefresh, setNeedsRefresh] = useState(false);
   const [gone, setGone] = useState(false);
+  const [panel, setPanel] = useState<"games" | "details" | "sharing" | null>(
+    null,
+  );
+  const searchInput = useRef<HTMLInputElement>(null);
+  const optionsTrigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (
       ready &&
@@ -400,149 +424,213 @@ export function OwnerListEditor({
       }
     });
   }
+  const feedback = (
+    <>
+      {error && (
+        <div role="alert" className="flex flex-col items-start gap-3 text-sm">
+          <p>{error}</p>
+          <Button
+            variant="outline"
+            className="min-h-11"
+            disabled={pending}
+            onClick={reloadSaved}
+          >
+            Refresh saved list
+          </Button>
+        </div>
+      )}
+      <output aria-live="polite" className="text-sm empty:hidden">
+        {message}
+      </output>
+    </>
+  );
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="break-words font-semibold text-3xl">{list.title}</h1>
-      <p>
-        {list.visibility === "private"
-          ? "Private — only you can read this list."
-          : "Public — anyone can read this list."}
-      </p>
-      <p>
-        {list.gameCount} {list.gameCount === 1 ? "game" : "games"}
-      </p>
-      <p className="text-muted-foreground text-sm">
-        Updated {new Date(list.updatedAt).toLocaleDateString("en-US")}
-      </p>
-      <form
-        aria-label="List details"
-        noValidate
-        className="flex max-w-2xl flex-col gap-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (pending || needsRefresh || !ready) return;
-          if (!title.trim()) {
-            setTitleError("Enter a list title.");
-            event.currentTarget
-              .querySelector<HTMLInputElement>('[name="title"]')
-              ?.focus();
-            return;
-          }
-          setTitleError("");
-          start(async () => {
-            try {
-              const result = await editOwnerList(
-                actor,
-                list.id,
-                list.revision,
-                { title, description },
-              );
-              if (!result.ok) {
-                if (result.code === "authentication") {
-                  access.deny();
-                  return;
-                }
-                setError(result.message);
-                setNeedsRefresh(result.code !== "validation");
-                return;
-              }
-              if (!(await access.confirm())) return;
-              update({
-                title: result.value.title,
-                description: result.value.description,
-                revision: result.value.revision,
-              });
-              setList(result.value);
-              setError("");
-              setMessage("Details saved.");
-            } catch {
-              setError(
-                "Couldn’t confirm the save. Your input is kept. Refresh the saved list before retrying.",
-              );
-              setNeedsRefresh(true);
+    <div className="flex min-w-0 flex-col gap-6">
+      <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-2">
+          <h1 className="break-words text-balance font-semibold text-3xl tracking-tight">
+            {list.title}
+          </h1>
+          <p className="text-muted-foreground text-sm tabular-nums">
+            {list.visibility === "private" ? "Private" : "Public"} ·{" "}
+            <span>
+              {list.gameCount} {list.gameCount === 1 ? "game" : "games"}
+            </span>{" "}
+            · Updated {new Date(list.updatedAt).toLocaleDateString("en-US")}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <ListEditorDrawer
+            title="Add games"
+            description="Search the Catalog and add games to this list. Your Journal stays unchanged."
+            open={panel === "games"}
+            onOpenChange={(open) => setPanel(open ? "games" : null)}
+            pending={pending}
+            initialFocus={searchInput}
+            trigger={
+              <Button className="min-h-11" disabled={!ready}>
+                <Plus aria-hidden="true" />
+                Add games
+              </Button>
             }
-          });
-        }}
-      >
-        <ListFields
-          title={title}
-          description={description}
-          titleError={titleError}
-          onTitle={(title) => {
-            update({ title });
-            setTitleError("");
-          }}
-          onDescription={(description) => update({ description })}
-          disabled={pending || !ready || needsRefresh}
-        />
-        <Button
-          type="submit"
-          disabled={pending || !ready || needsRefresh}
-          className="min-h-11 self-start"
-        >
-          {pending ? "Saving…" : "Save details"}
-        </Button>
-      </form>
-      {error && <p role="alert">{error}</p>}
-      <Button
-        variant="outline"
-        className="min-h-11 self-start"
-        disabled={pending}
-        onClick={reloadSaved}
-      >
-        Refresh saved list
-      </Button>
-      <output aria-live="polite">{message}</output>
-      <section
-        aria-label="List visibility"
-        className="flex max-w-2xl flex-col gap-3"
-      >
-        <h2 className="font-semibold text-xl">Visibility and sharing</h2>
-        <p>
-          Private lists are visible only to you. Public lists can be read by
-          anyone, including signed-out visitors, and appear on your public
-          profile.
-        </p>
-        <Button
-          variant="outline"
-          disabled={pending || !ready || needsRefresh}
-          className="min-h-11 self-start"
-          onClick={() =>
-            change({
-              kind: "visibility",
-              visibility: list.visibility === "private" ? "public" : "private",
-            })
-          }
-        >
-          {list.visibility === "private" ? "Publish list" : "Make private"}
-        </Button>
-        {list.visibility === "public" && list.creator.username && (
-          <>
-            <label htmlFor={shareId}>Public list URL</label>
-            <div className="flex flex-wrap gap-2">
-              <Input
-                id={shareId}
-                readOnly
-                className="min-h-11 flex-1"
-                value={`${SITE_URL}/u/${list.creator.username}/lists/${list.id}`}
-              />
-              <CopyButton
-                key={list.id}
-                text={`${SITE_URL}/u/${list.creator.username}/lists/${list.id}`}
-                inputId={shareId}
-                target="list"
-              />
+          >
+            <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
+              {panel === "games" && feedback}
+              <section className="max-w-2xl">
+                <GameSearch
+                  inputRef={searchInput}
+                  guidance="Adding games here changes only this list."
+                  renderAction={(game) => {
+                    const added = list.games.some(
+                      (item) => item.gameId === game.id,
+                    );
+                    return (
+                      <Button
+                        variant="outline"
+                        className="min-h-11"
+                        disabled={pending || !ready || needsRefresh || added}
+                        aria-label={
+                          added
+                            ? `${game.title} already in list`
+                            : `Add ${game.title} to list`
+                        }
+                        onClick={() => change({ kind: "add", gameId: game.id })}
+                      >
+                        {added ? "Already in list" : "Add to list"}
+                      </Button>
+                    );
+                  }}
+                />
+              </section>
             </div>
-            <Link
-              href={`/u/${list.creator.username}/lists/${list.id}`}
-              prefetch={false}
-              className="underline"
+          </ListEditorDrawer>
+          <ListEditorDrawer
+            title="Edit list"
+            description="Update the title and description. Closing keeps your draft."
+            open={panel === "details"}
+            onOpenChange={(open) => setPanel(open ? "details" : null)}
+            pending={pending}
+            trigger={
+              <Button variant="outline" className="min-h-11">
+                Edit details
+              </Button>
+            }
+          >
+            <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
+              <form
+                aria-label="List details"
+                noValidate
+                className="flex max-w-2xl flex-col gap-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (pending || needsRefresh || !ready) return;
+                  if (!title.trim()) {
+                    setTitleError("Enter a list title.");
+                    event.currentTarget
+                      .querySelector<HTMLInputElement>('[name="title"]')
+                      ?.focus();
+                    return;
+                  }
+                  setTitleError("");
+                  start(async () => {
+                    try {
+                      const result = await editOwnerList(
+                        actor,
+                        list.id,
+                        list.revision,
+                        { title, description },
+                      );
+                      if (!result.ok) {
+                        if (result.code === "authentication") {
+                          access.deny();
+                          return;
+                        }
+                        setError(result.message);
+                        setNeedsRefresh(result.code !== "validation");
+                        return;
+                      }
+                      if (!(await access.confirm())) return;
+                      update({
+                        title: result.value.title,
+                        description: result.value.description,
+                        revision: result.value.revision,
+                      });
+                      setList(result.value);
+                      setError("");
+                      setMessage("Details saved.");
+                      setPanel(null);
+                    } catch {
+                      setError(
+                        "Couldn’t confirm the save. Your input is kept. Refresh the saved list before retrying.",
+                      );
+                      setNeedsRefresh(true);
+                    }
+                  });
+                }}
+              >
+                <ListFields
+                  title={title}
+                  description={description}
+                  titleError={titleError}
+                  onTitle={(title) => {
+                    update({ title });
+                    setTitleError("");
+                  }}
+                  onDescription={(description) => update({ description })}
+                  disabled={pending || !ready || needsRefresh}
+                />
+                <Button
+                  type="submit"
+                  disabled={pending || !ready || needsRefresh}
+                  className="min-h-11 self-start"
+                >
+                  {pending ? "Saving…" : "Save details"}
+                </Button>
+              </form>
+              {panel === "details" && feedback}
+            </div>
+          </ListEditorDrawer>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              ref={optionsTrigger}
+              render={<Button variant="ghost" className="min-h-11" />}
             >
-              View public list
-            </Link>
-          </>
-        )}
-      </section>
+              List options
+              <ChevronDown aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setPanel("sharing")}>
+                Sharing
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={pending || !ready || needsRefresh}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Delete this list and all of its entries? This cannot be undone. Your Journal and other lists are kept.",
+                    )
+                  )
+                    change({ kind: "delete" });
+                }}
+              >
+                Delete list
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      {list.description && (
+        <details className="text-sm">
+          <summary className="min-h-11 cursor-pointer py-3 font-medium">
+            About this list
+          </summary>
+          <p className="max-w-prose whitespace-pre-wrap break-words">
+            {list.description}
+          </p>
+        </details>
+      )}
+      {panel === null && feedback}
       <section className="flex flex-col gap-4">
         <h2
           ref={emptyFocus}
@@ -552,7 +640,7 @@ export function OwnerListEditor({
           List games
         </h2>
         {list.games.length === 0 ? (
-          <p>No games yet. Search the Catalog below.</p>
+          <p>No games yet. Choose Add games to start this list.</p>
         ) : (
           <PagedList
             items={list.games}
@@ -588,18 +676,18 @@ export function OwnerListEditor({
                         <div className="flex flex-wrap gap-2">
                           <Button
                             variant="outline"
-                            className="min-h-11"
+                            className="size-11"
                             aria-label={`Move ${game.title} up`}
                             disabled={
                               pending || !ready || needsRefresh || index === 0
                             }
                             onClick={() => move(index, -1)}
                           >
-                            Move up
+                            <ArrowUp aria-hidden="true" />
                           </Button>
                           <Button
                             variant="outline"
-                            className="min-h-11"
+                            className="size-11"
                             aria-label={`Move ${game.title} down`}
                             disabled={
                               pending ||
@@ -609,10 +697,10 @@ export function OwnerListEditor({
                             }
                             onClick={() => move(index, 1)}
                           >
-                            Move down
+                            <ArrowDown aria-hidden="true" />
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="destructive"
                             className="min-h-11"
                             aria-label={`Remove ${game.title} from list`}
                             disabled={pending || !ready || needsRefresh}
@@ -638,44 +726,68 @@ export function OwnerListEditor({
           </PagedList>
         )}
       </section>
-      <Button
-        variant="destructive"
-        disabled={pending || !ready || needsRefresh}
-        className="min-h-11 self-start"
-        onClick={() => {
-          if (
-            window.confirm(
-              "Delete this list and all of its entries? This cannot be undone. Your Journal and other lists are kept.",
-            )
-          )
-            change({ kind: "delete" });
-        }}
+      <ListEditorDrawer
+        title="Visibility and sharing"
+        description="Choose who can read your list. Visibility changes save immediately."
+        open={panel === "sharing"}
+        onOpenChange={(open) => setPanel(open ? "sharing" : null)}
+        pending={pending}
+        finalFocus={optionsTrigger}
       >
-        Delete list
-      </Button>
-      <section className="max-w-2xl">
-        <GameSearch
-          guidance="Adding games here changes only this list."
-          renderAction={(game) => {
-            const added = list.games.some((item) => item.gameId === game.id);
-            return (
-              <Button
-                variant="outline"
-                className="min-h-11"
-                disabled={pending || !ready || needsRefresh || added}
-                aria-label={
-                  added
-                    ? `${game.title} already in list`
-                    : `Add ${game.title} to list`
-                }
-                onClick={() => change({ kind: "add", gameId: game.id })}
-              >
-                {added ? "Already in list" : "Add to list"}
-              </Button>
-            );
-          }}
-        />
-      </section>
+        <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
+          <section
+            aria-label="List visibility"
+            className="flex max-w-2xl flex-col gap-3"
+          >
+            <p>
+              Private lists are visible only to you. Public lists can be read by
+              anyone, including signed-out visitors, and appear on your public
+              profile.
+            </p>
+            <Button
+              variant="outline"
+              disabled={pending || !ready || needsRefresh}
+              className="min-h-11 self-start"
+              onClick={() =>
+                change({
+                  kind: "visibility",
+                  visibility:
+                    list.visibility === "private" ? "public" : "private",
+                })
+              }
+            >
+              {list.visibility === "private" ? "Publish list" : "Make private"}
+            </Button>
+            {list.visibility === "public" && list.creator.username && (
+              <>
+                <label htmlFor={shareId}>Public list URL</label>
+                <div className="flex flex-wrap gap-2">
+                  <Input
+                    id={shareId}
+                    readOnly
+                    className="min-h-11 flex-1"
+                    value={`${SITE_URL}/u/${list.creator.username}/lists/${list.id}`}
+                  />
+                  <CopyButton
+                    key={list.id}
+                    text={`${SITE_URL}/u/${list.creator.username}/lists/${list.id}`}
+                    inputId={shareId}
+                    target="list"
+                  />
+                </div>
+                <Link
+                  href={`/u/${list.creator.username}/lists/${list.id}`}
+                  prefetch={false}
+                  className="underline"
+                >
+                  View public list
+                </Link>
+              </>
+            )}
+          </section>
+          {panel === "sharing" && feedback}
+        </div>
+      </ListEditorDrawer>
     </div>
   );
 }

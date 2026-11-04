@@ -99,6 +99,7 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
   const [blocked, setBlocked] = useState(false);
   const pagination = useUrlPagination("pickerPage", items?.length);
   const heading = useRef<HTMLParagraphElement>(null);
+  const creation = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     let cancelled = false;
     setMessage(attempt ? "Checking your saved lists…" : "");
@@ -174,14 +175,16 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
       </p>
       {items === null && !error && <output>Loading your lists…</output>}
       {error && <p role="alert">{error}</p>}
-      <Button
-        variant="outline"
-        disabled={pending}
-        className="min-h-11 self-start"
-        onClick={() => setAttempt((value) => value + 1)}
-      >
-        Refresh lists
-      </Button>
+      {error && (
+        <Button
+          variant="outline"
+          disabled={pending}
+          className="min-h-11 self-start"
+          onClick={() => setAttempt((value) => value + 1)}
+        >
+          Refresh lists
+        </Button>
+      )}
       <output aria-live="polite">{message}</output>
       {items !== null && (
         <>
@@ -202,14 +205,20 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
                     return (
                       <li
                         key={list.id}
-                        className="flex min-w-0 flex-col gap-2 rounded-lg border p-3"
+                        className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
                       >
-                        <p className="break-words font-medium">{list.title}</p>
-                        <p className="text-muted-foreground text-sm">
-                          {list.visibility === "private" ? "Private" : "Public"}{" "}
-                          · {list.gameCount}{" "}
-                          {list.gameCount === 1 ? "game" : "games"}
-                        </p>
+                        <div className="min-w-0 flex-1">
+                          <p className="break-words font-medium">
+                            {list.title}
+                          </p>
+                          <p className="text-muted-foreground text-sm">
+                            {list.visibility === "private"
+                              ? "Private"
+                              : "Public"}{" "}
+                            · {list.gameCount}{" "}
+                            {list.gameCount === 1 ? "game" : "games"}
+                          </p>
+                        </div>
                         <Button
                           variant="outline"
                           className="min-h-11 self-start"
@@ -230,12 +239,13 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
               )}
             </PagedList>
           )}
-          <details open={items.length === 0}>
+          <details ref={creation} open={items.length === 0}>
             <summary className="min-h-11 cursor-pointer py-3 underline">
               Create a new list for {game.title}
             </summary>
             <CreateListForm
               actor={actor}
+              game={game}
               scope={`picker:${game.id}`}
               disabled={pending || blocked}
               onCreated={(list) => {
@@ -244,9 +254,8 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
                   ...(current ?? []).filter((item) => item.id !== list.id),
                 ]);
                 pagination.onPageChange(1);
-                setMessage(
-                  `List created. Choose Add here to add ${game.title}.`,
-                );
+                setMessage(`${game.title} added to ${list.title}.`);
+                if (creation.current) creation.current.open = false;
                 heading.current?.focus();
               }}
             />

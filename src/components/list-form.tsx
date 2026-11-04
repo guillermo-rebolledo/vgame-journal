@@ -74,7 +74,7 @@ export function ListVisibilityFields({
 }) {
   const id = useId();
   return (
-    <fieldset className="flex flex-col gap-2">
+    <fieldset className="flex min-w-0 flex-col gap-2">
       <legend className="mb-2 font-medium">Visibility</legend>
       <label className="flex min-h-11 items-center gap-2">
         <input
@@ -94,7 +94,7 @@ export function ListVisibilityFields({
           checked={value === "public"}
           onChange={() => onChange("public")}
         />
-        Public — anyone with the link, including signed-out visitors
+        Public — visible to anyone and listed on your profile
       </label>
     </fieldset>
   );

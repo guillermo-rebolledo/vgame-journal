@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import {
   type CSSProperties,
   type ReactNode,
+  type Ref,
   useEffect,
   useId,
   useState,
@@ -33,9 +34,11 @@ type Answer = { q: string; attempt: number; results: SearchResult[] | null };
 export function GameSearch({
   guidance,
   renderAction,
+  inputRef,
 }: {
   guidance?: string;
   renderAction?: (game: SearchResult) => ReactNode;
+  inputRef?: Ref<HTMLInputElement>;
 }) {
   const id = useId();
   const searchParams = useSearchParams();
@@ -142,6 +145,7 @@ export function GameSearch({
             Search games
           </label>
           <Input
+            ref={inputRef}
             id={`${id}-input`}
             type="search"
             aria-describedby={guidance ? `${id}-guidance` : undefined}

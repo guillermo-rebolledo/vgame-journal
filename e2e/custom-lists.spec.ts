@@ -7,6 +7,11 @@ import {
   test,
 } from "@playwright/test";
 import { chooseStatus } from "./support/journal";
+import {
+  closeListPanel,
+  openListOptions,
+  openListPanel,
+} from "./support/list-editor";
 import { signUp, uniqueUsername } from "./support/sign-up";
 import { snap } from "./support/snap";
 
@@ -19,6 +24,7 @@ async function createList(page: Page, title: string) {
     .getByRole("textbox", { name: "List title", exact: true })
     .fill(title);
   await page.getByRole("button", { name: "Create list", exact: true }).click();
+  await openListPanel(page, "Edit list");
   await expect(
     page.getByRole("button", { name: "Save details", exact: true }),
   ).toBeEnabled();
@@ -26,6 +32,7 @@ async function createList(page: Page, title: string) {
 }
 
 async function addGame(page: Page, title: string) {
+  await openListPanel(page, "Add games");
   await page
     .getByRole("searchbox", { name: "Search games", exact: true })
     .fill(title);
@@ -77,10 +84,12 @@ test("real Next actions recheck sessions and ownership for every list mutation f
   const creating = page.waitForRequest((r) => !!r.headers()["next-action"]);
   await page.getByRole("button", { name: "Create list", exact: true }).click();
   const create = await creating;
+  await openListPanel(page, "Edit list");
   await expect(
     page.getByRole("button", { name: "Save details", exact: true }),
   ).toBeEnabled();
   const editing = page.waitForRequest((r) => !!r.headers()["next-action"]);
+  await openListPanel(page, "Edit list");
   await page.getByRole("button", { name: "Save details", exact: true }).click();
   const edit = await editing;
   await expect(
@@ -198,9 +207,11 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
   const username = uniqueUsername("lists_accept_lifecycle");
   await signUp(page, request, username);
   const ownerPath = await createList(page, "LIFECYCLE_PRIVATE_88");
+  await openListPanel(page, "Edit list");
   await page
     .getByRole("textbox", { name: "Description (optional)", exact: true })
     .fill("LIFECYCLE_DESCRIPTION_88\n<em>Plain text</em>");
+  await openListPanel(page, "Edit list");
   await page.getByRole("button", { name: "Save details", exact: true }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Details saved" }),
@@ -224,12 +235,14 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
     .getByRole("button", { name: "Refresh saved list", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Save details", exact: true }),
+    page.getByRole("button", { name: "Edit details", exact: true }),
   ).toBeEnabled();
+  await closeListPanel(page);
   await page
     .getByRole("button", { name: "Move Hades up", exact: true })
     .click();
   const games = page.getByRole("list", { name: "List games", exact: true });
+  await closeListPanel(page);
   await expect(games.getByRole("link")).toHaveText(["Hades", "Celeste"]);
   await snap(page, testInfo, "owner-desktop", true);
   const path = `/u/${username}${ownerPath}`;
@@ -255,13 +268,16 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
     await expect(
       guest.getByRole("main").getByText("0 public lists", { exact: true }),
     ).toBeVisible();
+    await openListPanel(page, "Visibility and sharing");
     await page
       .getByRole("button", { name: "Publish list", exact: true })
       .click();
+    await openListPanel(page, "Visibility and sharing");
     const sharing = page.getByRole("textbox", {
       name: "Public list URL",
       exact: true,
     });
+    await openListPanel(page, "Visibility and sharing");
     await expect(sharing).toHaveValue(`https://shelve.games${path}`);
     await guest.reload();
     await expect(
@@ -274,15 +290,18 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
     await expect(guest).toHaveTitle(
       `LIFECYCLE_PRIVATE_88 by ${username} · shelve.games`,
     );
+    await openListPanel(page, "Edit list");
     await page
       .getByRole("textbox", { name: "List title", exact: true })
       .fill("LIFECYCLE_RENAMED_88");
+    await openListPanel(page, "Edit list");
     await page
       .getByRole("button", { name: "Save details", exact: true })
       .click();
     await expect(
       page.getByRole("heading", { name: "LIFECYCLE_RENAMED_88", exact: true }),
     ).toBeVisible();
+    await openListPanel(page, "Visibility and sharing");
     await expect(sharing).toHaveValue(`https://shelve.games${path}`);
     await guest.reload();
     await expect(
@@ -295,6 +314,7 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
     await guest.setViewportSize({ width: 320, height: 760 });
     await snap(guest, testInfo, "public-mobile", true);
     expect((await stranger.request.get(path)).status()).toBe(200);
+    await openListPanel(page, "Visibility and sharing");
     await page
       .getByRole("button", { name: "Make private", exact: true })
       .click();
@@ -320,9 +340,11 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
         .getByText("No public lists yet.", { exact: true }),
     ).toBeVisible();
     await snap(guest, testInfo, "unpublished-profile-mobile", true);
+    await openListPanel(page, "Visibility and sharing");
     await page
       .getByRole("button", { name: "Publish list", exact: true })
       .click();
+    await openListPanel(page, "Visibility and sharing");
     await expect(sharing).toHaveValue(`https://shelve.games${path}`);
     await guest.reload();
     await expect(
@@ -333,8 +355,9 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
       guest.getByRole("list", { name: "List games" }).getByRole("link"),
     ).toHaveText(["Hades", "Celeste"]);
     page.once("dialog", (dialog) => dialog.accept());
+    await openListOptions(page);
     await page
-      .getByRole("button", { name: "Delete list", exact: true })
+      .getByRole("menuitem", { name: "Delete list", exact: true })
       .click();
     await expect(page).toHaveURL(/\/lists$/);
     await deniedList(visitor.request, path, [
@@ -392,6 +415,7 @@ test("lists preserve Journal history and account export/deletion stays complete 
   const privatePath = await createList(page, "ACCOUNT_PRIVATE_LIST_88");
   await addGame(page, "Celeste");
   await addGame(page, "Hades");
+  await closeListPanel(page);
   await page
     .getByRole("button", { name: "Move Hades up", exact: true })
     .click();
@@ -400,7 +424,9 @@ test("lists preserve Journal history and account export/deletion stays complete 
   ).toHaveText(["Hades", "Celeste"]);
   const publicPath = await createList(page, "Account public list");
   await addGame(page, "Celeste");
+  await openListPanel(page, "Visibility and sharing");
   await page.getByRole("button", { name: "Publish list", exact: true }).click();
+  await openListPanel(page, "Visibility and sharing");
   await expect(
     page.getByRole("textbox", { name: "Public list URL", exact: true }),
   ).toBeVisible();
@@ -452,6 +478,7 @@ test("lists preserve Journal history and account export/deletion stays complete 
       exact: true,
     })
     .click();
+  await closeListPanel(page);
   await page
     .getByRole("menuitem", { name: "Remove from journal", exact: true })
     .click();

@@ -17,7 +17,7 @@ colors:
   hairline-dark: "oklch(1 0 0 / 10%)"
   ring: "oklch(0.708 0 0)"
   ring-dark: "oklch(0.556 0 0)"
-  ember: "oklch(0.577 0.245 27.325)"
+  ember: "oklch(0.5 0.2 27.325)"
   ember-dark: "oklch(0.704 0.191 22.216)"
 typography:
   display:
@@ -158,7 +158,7 @@ The palette is a strictly achromatic gray ramp in OKLCH, with zero chroma. It's 
 - **Ring** / **Ring Dark**: focus rings, used at 50% opacity in the standard 3px ring.
 
 ### Status
-- **Ember** (light) / **Ember Dark**: destructive actions and validation errors only. It appears as a tint behind red text (10–20% fill), never as a solid red button.
+- **Ember** (light) / **Ember Dark**: destructive actions and validation errors only. It appears as a tint behind red text (10–20% fill), never as a solid red button. The light-theme Ember is dark enough for normal-size text to retain AA contrast over both tint strengths.
 
 ### Named Rules
 **The Covers Carry Color Rule.** Interface chrome stays achromatic. The only hues on screen come from cover art, Ember for destructive or error states, and celebration particles. A new accent color needs a deliberate decision and an update to this file. It never appears as a one-off.
@@ -237,7 +237,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | Home game rows | `home-journal.tsx`, `discovery-content.tsx` | Grid shelves share cover, wrapping title, metadata and action rows through CSS subgrid so long titles and expanded platforms keep neighboring actions aligned. Compact personal shelves retain their list layout. |
 | Search and discovery | `game-search.tsx`, `discovery-content.tsx`, `tag-shelves.tsx` | Preserve result, retry, and empty states. |
 | Collections | `library.tsx`, `wishlist.tsx`, `paged-list.tsx`, `collection-loading.tsx` | Reuse filtering, pagination, and collection loading patterns. |
-| List creation | `list-creation-drawer.tsx`, `list-form.tsx` | Open the shared list fields on demand; keep drafts on dismissal, associate title errors, and block dismissal while saving. |
+| List creation and editing | `list-creation-drawer.tsx` (`ListCreationDrawer`, `ListEditorDrawer`), `list-form.tsx` | Reuse the editor shell for creation, details, game search and sharing; keep drafts on dismissal, associate title errors, and block dismissal while saving. Search receives initial focus; menu-launched sharing returns focus to List options. |
 | Modal editor viewport | `use-editor-viewport.ts` and `.editor-drawer` | Shared by Playthrough and list creation drawers; keep the editor above the software keyboard with a scrollable body. |
 | Header and navigation | `main-nav.tsx`, `account-menu.tsx`, `skip-link.tsx` | Maintain current-page state and keyboard access to main content. |
 | Copying and feedback | `copy-button.tsx`, `feedback.tsx` | Reuse success, failure, and manual-copy recovery. |
@@ -245,7 +245,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 
 ### Game details
 - Order the page as identity, grouped actions, Journal feedback and Playthroughs, overview and facts, platforms and release dates, then similar games. Visual order and document order stay aligned.
-- Below `sm`, place an 80px-wide cover beside the complete wrapping title. Actions follow the identity row. Retain the larger desktop cover column and the missing-art fallback.
+- Use font-relative container breakpoints for the game identity grid so text enlargement restores its stacked layout before the action column becomes too narrow. Below the expanded layout, place an 80px-wide cover beside the complete wrapping title. Actions follow the identity row. Retain the larger desktop cover column and the missing-art fallback.
 - Text sits on the ordinary opaque page background. Do not place blurred cover art or an ambient image behind text; its changing colors undermine contrast.
 - Keep Journal status, Add playthrough, and Add to list in one wrapping action zone. The list picker opens beneath that zone and retains its own state, authorization, and URL continuation.
 - Show confirmed Status and saving/success/error feedback beneath the actions. Empty and populated Playthroughs share one section before Catalog information; saving the first Playthrough must not relocate it below release dates.
@@ -273,6 +273,8 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 - **Notice:** a hairline border on Dust at 40%, with 12–16px padding. It enters with the `.enter` class.
 - **Empty state:** a dashed border with 16px padding (32px from `sm`), left-aligned. It has one sentence and one action.
 - **List collection:** align the page with the 72rem frame. Group the heading and explanation with 8px spacing and place “Create a list” beside them on wider screens. Cards are one link with cover previews, a wrapping title, and quiet 14px metadata; changing counts use tabular figures. Empty cards retain the preview area with “No games added yet”.
+- **List editor:** games lead the page. Group title, visibility, game count and update date closely. Keep Add games at the top as the primary action, with Edit details and List options as secondary controls. Add games opens the shared editor drawer with focused Catalog search; keep it open for multiple additions. Keep long descriptions behind “About this list” so they cannot push Add games down the page. Details and sharing open on demand. Keep the Add games trigger enabled during stale-save recovery so dismissal can return focus; block mutations inside the drawer instead. Show refresh actions only beside errors or stale-save recovery. Removal uses the destructive button treatment; list deletion remains confirmed from List options.
+- **Creating from a game:** the action explicitly says “Create list and add [game]”. Save the list and initial entry atomically, preserve the submission key for retries, then collapse creation and announce the addition. Public visibility says that the list is visible to anyone and listed on the profile.
 - **List creation drawer:** reuse the Playthrough editor's bottom-sheet shape and viewport handling. Keep the form in a 36rem column with optional description guidance. Closing keeps the draft; successful creation opens the new list to add games. Editor entry is 220ms and exit is 140ms, with the shared reduced-motion override.
 
 ### Navigation
