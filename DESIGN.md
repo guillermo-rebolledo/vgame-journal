@@ -231,8 +231,8 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | Menus and floating layers | `ui/dropdown-menu.tsx`, `ui/tooltip.tsx`, `ui/hover-card.tsx`, `ui/drawer.tsx` | Preserve Base UI keyboard handling, names, and focus management. |
 | Avatars, dividers, placeholders | `ui/avatar.tsx`, `ui/separator.tsx`, `ui/skeleton.tsx` | Shared visual primitives. |
 | Covers and failed media | `game-cover.tsx`, `fallback-image.tsx`, `tilt-cover.tsx` | Reuse the cover ratio, missing-art fallback, and reduced-motion behavior. |
-| Game identity | `game-identification-metadata.tsx`, `platform.tsx`, `game-facts.tsx` | Facts reuse HoverCard; Languages owns its scroll containment. Keep game titles and platform labels consistent. |
-| Save or change Status | `journal-status.tsx`, `game-recording.tsx`, `home-cover-link.tsx` | Separate the game link from its recording actions. |
+| Game identity and facts | `game-identification-metadata.tsx`, `platform.tsx`, `game-facts.tsx`, `game-facts-grid.tsx` | GameFactsGrid composes known cards and compact unavailable metadata, with a server-rendered regional age-rating slot. Facts reuse HoverCard with a visible disclosure cue; Languages owns its scroll containment. |
+| Save or change Status | `journal-status.tsx`, `game-recording.tsx`, `home-cover-link.tsx` | Separate the game link from its recording actions. Detail pages compose list controls through GameRecording; JournalStatus groups additional actions before its feedback. |
 | Playthrough recording | `game-recording.tsx`, `playthrough-form.tsx`, `playthrough-history.tsx` | Reuse validation, draft retention, and editor dismissal behavior. Deleting a Playthrough returns focus to Add playthrough even when refreshed history arrives later. |
 | Search and discovery | `game-search.tsx`, `discovery-content.tsx`, `tag-shelves.tsx` | Preserve result, retry, and empty states. |
 | Collections | `library.tsx`, `wishlist.tsx`, `paged-list.tsx`, `collection-loading.tsx` | Reuse filtering, pagination, and collection loading patterns. |
