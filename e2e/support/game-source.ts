@@ -31,6 +31,22 @@ export const igdbGameSource = createFakeGameSource([
       ...Array.from({ length: 40 }, (_, index) => `Test platform ${index + 1}`),
     ],
   }),
+  // Synthetic scores exercise partial pairs, rounding, counts, and a genuine zero.
+  sourceGame({
+    id: 930100,
+    title: "Critic Score Fixture",
+    slug: "critic-score-fixture",
+    criticScore: 94.5,
+    criticScoreCount: 1234,
+  }),
+  sourceGame({
+    id: 930101,
+    title: "User Score Fixture",
+    slug: "user-score-fixture",
+    coverImageId: "co3byy",
+    userScore: 0,
+    userScoreCount: 1,
+  }),
   // Real cover IDs; deterministic tags and ranks exercise the shelf independently of IGDB.
   sourceGame({
     id: 113112,
@@ -51,6 +67,11 @@ export const igdbGameSource = createFakeGameSource([
     genres: ["Role-playing (RPG)", "Hack and slash/Beat 'em up"],
     summary:
       "Battle out of the Underworld in this rogue-like dungeon crawler, combining the best aspects of Supergiant\u2019s critically acclaimed titles.",
+    // Synthetic scores; known values and counts must survive the facts cleanup.
+    criticScore: 94.5,
+    criticScoreCount: 1234,
+    userScore: 91.3,
+    userScoreCount: 5678,
     // Rated by every board, as the adapter maps IGDB's shape.
     ageRatings: [
       {

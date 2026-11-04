@@ -90,6 +90,37 @@ export const FailedSave: Story = {
 };
 export const LightTheme: Story = { globals: { theme: "light" } };
 
+export const RemovalKeepsBackgroundHelpClosed: Story = {
+  args: {
+    entry: { status: "played", completionTag: null },
+    playthroughCount: 2,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    const trigger = canvas.getByRole("button", {
+      name: "Change Journal status for Celeste",
+    });
+    await userEvent.click(trigger);
+    await userEvent.click(
+      await body.findByRole("menuitem", { name: "Remove from journal" }),
+    );
+    await expect(
+      await body.findByRole("dialog", { name: "Remove Celeste from journal?" }),
+    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        body.queryByRole("menu", { hidden: true }),
+      ).not.toBeInTheDocument(),
+    );
+    // A late hover can arrive when the window regains focus after another tab closes.
+    await userEvent.hover(trigger);
+    await expect(
+      body.queryByText("Journal status", { exact: true }),
+    ).not.toBeInTheDocument();
+  },
+};
+
 export const Pending: Story = {
   args: {
     onSave: fn<SaveJournalStatus>(() => new Promise<undefined>(() => {})),

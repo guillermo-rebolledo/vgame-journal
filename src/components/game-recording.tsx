@@ -3,7 +3,7 @@
 import { BookMarked, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { trackEvent } from "@/components/analytics";
 import {
   type JournalSelection,
@@ -45,8 +45,10 @@ export function GameRecording({
   onAdd,
   onUpdate,
   onRemove,
+  listPicker,
 }: {
   signedIn: boolean;
+  listPicker?: ReactNode;
   entry: JournalSelection;
   playthroughs: Playthrough[];
   gameTitle: string;
@@ -102,31 +104,56 @@ export function GameRecording({
       setPending(false);
     }
   }
+  const additionalActions = (
+    <>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              ref={addTrigger}
+              aria-label="Add playthrough"
+              variant="outline"
+              disabled={pending}
+              className="journal-action min-h-11"
+              render={signedIn ? undefined : <Link href={signInHref} />}
+              onClick={signedIn ? () => open("add") : undefined}
+            />
+          }
+        >
+          <Plus />
+          Add playthrough
+        </TooltipTrigger>
+        <TooltipContent>Add playthrough</TooltipContent>
+      </Tooltip>
+      {listPicker}
+    </>
+  );
   return (
     <TooltipProvider delay={300}>
-      <section
-        aria-label="Game journal"
-        className="flex min-h-[calc(9rem+1px)] flex-col gap-4"
-      >
-        <div className="flex flex-wrap items-start gap-3">
-          {signedIn ? (
-            <JournalStatus
-              entry={entry}
-              gameTitle={gameTitle}
-              playthroughCount={playthroughs.length}
-              disabled={pending}
-              onSave={async (status, tag, acknowledged) => {
-                busy.current = true;
-                setPending(true);
-                try {
-                  return await onStatus(status, tag, acknowledged);
-                } finally {
-                  busy.current = false;
-                  setPending(false);
-                }
-              }}
-            />
-          ) : (
+      <section aria-label="Game journal" className="flex flex-col gap-4">
+        {signedIn ? (
+          <JournalStatus
+            actions={additionalActions}
+            entry={entry}
+            gameTitle={gameTitle}
+            playthroughCount={playthroughs.length}
+            disabled={pending}
+            onSave={async (status, tag, acknowledged) => {
+              busy.current = true;
+              setPending(true);
+              try {
+                return await onStatus(status, tag, acknowledged);
+              } finally {
+                busy.current = false;
+                setPending(false);
+              }
+            }}
+          />
+        ) : (
+          <fieldset
+            aria-label="Game actions"
+            className="flex min-w-0 flex-wrap items-start gap-3"
+          >
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -143,27 +170,9 @@ export function GameRecording({
               </TooltipTrigger>
               <TooltipContent>Journal status</TooltipContent>
             </Tooltip>
-          )}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  ref={addTrigger}
-                  aria-label="Add playthrough"
-                  variant="outline"
-                  disabled={pending}
-                  className="journal-action min-h-11"
-                  render={signedIn ? undefined : <Link href={signInHref} />}
-                  onClick={signedIn ? () => open("add") : undefined}
-                />
-              }
-            >
-              <Plus />
-              Add playthrough
-            </TooltipTrigger>
-            <TooltipContent>Add playthrough</TooltipContent>
-          </Tooltip>
-        </div>
+            {additionalActions}
+          </fieldset>
+        )}
         {!signedIn ? (
           <p className="text-muted-foreground text-sm">
             <Link href={signInHref} className="underline underline-offset-4">
@@ -171,18 +180,11 @@ export function GameRecording({
             </Link>{" "}
             to record games and playthroughs.
           </p>
-        ) : !playthroughs.length ? (
-          <div className="flex flex-col gap-1 border-t pt-3">
-            <h2 className="font-medium text-sm">Playthroughs</h2>
-            <p className="text-muted-foreground text-sm">
-              No playthroughs yet.
-            </p>
-          </div>
         ) : null}
+        {signedIn && (
+          <PlaythroughHistory playthroughs={playthroughs} onEdit={open} />
+        )}
       </section>
-      {signedIn && (
-        <PlaythroughHistory playthroughs={playthroughs} onEdit={open} />
-      )}
 
       <Drawer
         showSwipeHandle

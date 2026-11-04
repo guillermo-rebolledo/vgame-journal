@@ -44,11 +44,11 @@ export function GameListPicker({
     if (!next) trigger.current?.focus();
   }
   return (
-    <div className="flex flex-col gap-3">
+    <div className="contents">
       <Button
         ref={trigger}
         variant="outline"
-        className="min-h-11 self-start"
+        className="journal-action min-h-11 self-start"
         aria-expanded={open}
         aria-controls={id}
         onClick={toggle}
@@ -61,7 +61,7 @@ export function GameListPicker({
           ref={section}
           tabIndex={-1}
           aria-label={`Add ${game.title} to a list`}
-          className="flex min-w-0 flex-col gap-4 rounded-lg border bg-background p-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="flex w-full min-w-0 basis-full flex-col gap-4 rounded-lg border bg-background p-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <h2 className="break-words font-semibold text-xl">
             Add {game.title} to a list

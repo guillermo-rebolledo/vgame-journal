@@ -2,7 +2,7 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { BookMarked, LoaderCircle } from "lucide-react";
-import { startTransition, useRef, useState } from "react";
+import { type ReactNode, startTransition, useRef, useState } from "react";
 import { trackEvent } from "@/components/analytics";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,12 +46,14 @@ export function JournalStatus({
   playthroughCount,
   disabled,
   onSave,
+  actions,
 }: {
   entry: JournalSelection;
   gameTitle: string;
   playthroughCount: number;
   disabled: boolean;
   onSave: SaveJournalStatus;
+  actions?: ReactNode;
 }) {
   const [confirmed, setConfirmed] = useState(entry);
   const [previousEntry, setPreviousEntry] = useState(entry);
@@ -124,122 +126,130 @@ export function JournalStatus({
   }
   return (
     <div>
-      <DropdownMenu
-        onOpenChange={(open, event) => {
-          if (open && (disabled || pending)) event.cancel();
-        }}
+      <fieldset
+        aria-label="Game actions"
+        className="flex min-w-0 flex-wrap items-start gap-3"
       >
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    ref={trigger}
-                    press="static"
-                    aria-label={`${confirmed ? "Change Journal status" : "Add to Journal"} for ${gameTitle}`}
-                    aria-description={
-                      confirmed
-                        ? `In your journal: ${confirmed.status}${confirmed.completionTag ? `, ${confirmed.completionTag}` : ""}`
-                        : "Not in your journal"
-                    }
-                    aria-busy={pending}
-                    aria-disabled={disabled || pending}
-                    variant={confirmed ? "secondary" : "outline"}
-                    className="journal-action min-h-11"
-                  >
-                    {pending ? (
-                      <LoaderCircle
-                        aria-hidden
-                        className="motion-safe:animate-spin"
-                      />
-                    ) : (
-                      <BookMarked fill={confirmed ? "currentColor" : "none"} />
-                    )}
-                    {confirmed ? "Change Journal status" : "Add to Journal"}
-                  </Button>
-                }
-              />
-            }
-          />
-          <TooltipContent>Journal status</TooltipContent>
-        </Tooltip>
-        <DropdownMenuContent className="journal-status-menu w-60">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Journal status</DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={confirmed?.status ?? ""}>
-              {STATUSES.map((status) => (
-                <DropdownMenuRadioItem
-                  closeOnClick
-                  key={status}
-                  value={status}
-                  className="min-h-11 capitalize"
-                  disabled={pending}
-                  onClick={() =>
-                    save(
-                      status,
-                      status === "played"
-                        ? (confirmed?.completionTag ?? null)
-                        : null,
-                    )
-                  }
-                >
-                  {status}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuGroup>
-          {confirmed?.status === "played" && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Completion tag</DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  value={confirmed.completionTag ?? "none"}
-                >
-                  {["none", ...COMPLETION_TAGS].map((tag) => (
-                    <DropdownMenuRadioItem
-                      closeOnClick
-                      key={tag}
-                      value={tag}
-                      className="min-h-11 capitalize"
-                      disabled={pending}
-                      onClick={() =>
-                        save(
-                          "played",
-                          tag === "none" ? null : (tag as CompletionTag),
-                        )
+        <DropdownMenu
+          onOpenChange={(open, event) => {
+            if (open && (disabled || pending)) event.cancel();
+          }}
+        >
+          <Tooltip disabled={confirmationCount !== null}>
+            <TooltipTrigger
+              render={
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      ref={trigger}
+                      press="static"
+                      aria-label={`${confirmed ? "Change Journal status" : "Add to Journal"} for ${gameTitle}`}
+                      aria-description={
+                        confirmed
+                          ? `In your journal: ${confirmed.status}${confirmed.completionTag ? `, ${confirmed.completionTag}` : ""}`
+                          : "Not in your journal"
                       }
+                      aria-busy={pending}
+                      aria-disabled={disabled || pending}
+                      variant={confirmed ? "secondary" : "outline"}
+                      className="journal-action min-h-11"
                     >
-                      {tag === "none" ? "No tag" : tag}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuGroup>
-            </>
-          )}
-          {confirmed && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  variant="destructive"
-                  className="min-h-10"
-                  onClick={() => {
-                    setError(undefined);
-                    setNotice(undefined);
-                    if (playthroughCount > 0)
-                      setConfirmationCount(playthroughCount);
-                    else save(null, null);
-                  }}
-                >
-                  Remove from journal
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+                      {pending ? (
+                        <LoaderCircle
+                          aria-hidden
+                          className="motion-safe:animate-spin"
+                        />
+                      ) : (
+                        <BookMarked
+                          fill={confirmed ? "currentColor" : "none"}
+                        />
+                      )}
+                      {confirmed ? "Change Journal status" : "Add to Journal"}
+                    </Button>
+                  }
+                />
+              }
+            />
+            <TooltipContent>Journal status</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent className="journal-status-menu w-60">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Journal status</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={confirmed?.status ?? ""}>
+                {STATUSES.map((status) => (
+                  <DropdownMenuRadioItem
+                    closeOnClick
+                    key={status}
+                    value={status}
+                    className="min-h-11 capitalize"
+                    disabled={pending}
+                    onClick={() =>
+                      save(
+                        status,
+                        status === "played"
+                          ? (confirmed?.completionTag ?? null)
+                          : null,
+                      )
+                    }
+                  >
+                    {status}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+            {confirmed?.status === "played" && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Completion tag</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={confirmed.completionTag ?? "none"}
+                  >
+                    {["none", ...COMPLETION_TAGS].map((tag) => (
+                      <DropdownMenuRadioItem
+                        closeOnClick
+                        key={tag}
+                        value={tag}
+                        className="min-h-11 capitalize"
+                        disabled={pending}
+                        onClick={() =>
+                          save(
+                            "played",
+                            tag === "none" ? null : (tag as CompletionTag),
+                          )
+                        }
+                      >
+                        {tag === "none" ? "No tag" : tag}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuGroup>
+              </>
+            )}
+            {confirmed && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    className="min-h-10"
+                    onClick={() => {
+                      setError(undefined);
+                      setNotice(undefined);
+                      if (playthroughCount > 0)
+                        setConfirmationCount(playthroughCount);
+                      else save(null, null);
+                    }}
+                  >
+                    Remove from journal
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {actions}
+      </fieldset>
       <Dialog.Root
         open={confirmationCount !== null}
         onOpenChange={(open, event) => {

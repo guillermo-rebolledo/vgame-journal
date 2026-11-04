@@ -231,8 +231,8 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | Menus and floating layers | `ui/dropdown-menu.tsx`, `ui/tooltip.tsx`, `ui/hover-card.tsx`, `ui/drawer.tsx` | Preserve Base UI keyboard handling, names, and focus management. |
 | Avatars, dividers, placeholders | `ui/avatar.tsx`, `ui/separator.tsx`, `ui/skeleton.tsx` | Shared visual primitives. |
 | Covers and failed media | `game-cover.tsx`, `fallback-image.tsx`, `tilt-cover.tsx` | Reuse the cover ratio, missing-art fallback, and reduced-motion behavior. |
-| Game identity | `game-identification-metadata.tsx`, `platform.tsx`, `game-facts.tsx` | Facts reuse HoverCard; Languages owns its scroll containment. Keep game titles and platform labels consistent. |
-| Save or change Status | `journal-status.tsx`, `game-recording.tsx`, `home-cover-link.tsx` | Separate the game link from its recording actions. |
+| Game identity and facts | `game-identification-metadata.tsx`, `platform.tsx`, `game-facts.tsx`, `game-facts-grid.tsx` | GameFactsGrid composes known cards and compact unavailable metadata, with a server-rendered regional age-rating slot. Facts reuse HoverCard with a visible disclosure cue; Languages owns its scroll containment. |
+| Save or change Status | `journal-status.tsx`, `game-recording.tsx`, `home-cover-link.tsx` | Separate the game link from its recording actions. Detail pages compose list controls through GameRecording; JournalStatus groups additional actions before its feedback. |
 | Playthrough recording | `game-recording.tsx`, `playthrough-form.tsx`, `playthrough-history.tsx` | Reuse validation, draft retention, and editor dismissal behavior. Deleting a Playthrough returns focus to Add playthrough even when refreshed history arrives later. |
 | Search and discovery | `game-search.tsx`, `discovery-content.tsx`, `tag-shelves.tsx` | Preserve result, retry, and empty states. |
 | Collections | `library.tsx`, `wishlist.tsx`, `paged-list.tsx`, `collection-loading.tsx` | Reuse filtering, pagination, and collection loading patterns. |
@@ -241,6 +241,18 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | Header and navigation | `main-nav.tsx`, `account-menu.tsx`, `skip-link.tsx` | Maintain current-page state and keyboard access to main content. |
 | Copying and feedback | `copy-button.tsx`, `feedback.tsx` | Reuse success, failure, and manual-copy recovery. |
 | Meaningful motion | `burst-button.tsx`, `odometer.tsx`, `page-transition.tsx` | Use only for the purposes defined below. |
+
+### Game details
+- Order the page as identity, grouped actions, Journal feedback and Playthroughs, overview and facts, platforms and release dates, then similar games. Visual order and document order stay aligned.
+- Below `sm`, place an 80px-wide cover beside the complete wrapping title. Actions follow the identity row. Retain the larger desktop cover column and the missing-art fallback.
+- Text sits on the ordinary opaque page background. Do not place blurred cover art or an ambient image behind text; its changing colors undermine contrast.
+- Keep Journal status, Add playthrough, and Add to list in one wrapping action zone. The list picker opens beneath that zone and retains its own state, authorization, and URL continuation.
+- Show confirmed Status and saving/success/error feedback beneath the actions. Empty and populated Playthroughs share one section before Catalog information; saving the first Playthrough must not relocate it below release dates.
+- Disable Journal-status help while removal confirmation is open, so late hover or restored window focus cannot place background help over the modal's controls.
+- Loading placeholders reserve the control/status footprint, not a permanent empty history area. Populated history grows in normal flow, so later Catalog content may move when it arrives.
+- Available Age rating and Languages details have a visible disclosure cue, meaningful accessible names, and keyboard, pointer, and touch access. Unknown values stay explicit and noninteractive.
+- Fact details stay beside their trigger in DOM order. The Languages table's named scroll region is reachable with Tab and shows a visible focus outline, so keyboard users can scroll every language. Escape returns focus to the fact trigger.
+- Both missing scores share one compact “Scores unavailable” message. If only one score is missing, name that score as unavailable. Unknown age and language values use compact labeled metadata; reserve large value cards for known facts.
 
 ### Buttons
 - **Shape:** 10px radius, 32px minimum height and 10px side padding. `lg` is 36px. Icon-only buttons are square (`icon` is 32px).
@@ -282,7 +294,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 ### Delight components (signature)
 - **BurstButton:** confetti when a toggle switches on, never when it switches off. It renders nothing under reduced motion.
 - **Odometer:** rolling digits for counts that change. It provides a screen-reader-only text value with `aria-hidden` digits.
-- These use 900ms motion. The existing game-detail backdrop also has a 40s ambient drift, gated by `motion-safe`; keep that exception confined to the noninteractive backdrop. Add new delight only for moments that matter to the player.
+- These use 900ms motion. Add new delight only for moments that matter to the player; game-detail text has no ambient image backdrop.
 
 ### Motion
 Motion is implemented in `globals.css` and the components; `.impeccable/design.json` records the reference values.
