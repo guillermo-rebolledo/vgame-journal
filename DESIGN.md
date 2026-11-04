@@ -233,7 +233,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | Covers and failed media | `game-cover.tsx`, `fallback-image.tsx`, `tilt-cover.tsx` | Reuse the cover ratio, missing-art fallback, and reduced-motion behavior. |
 | Game identity | `game-identification-metadata.tsx`, `platform.tsx`, `game-facts.tsx` | Facts reuse HoverCard; Languages owns its scroll containment. Keep game titles and platform labels consistent. |
 | Save or change Status | `journal-status.tsx`, `game-recording.tsx`, `home-cover-link.tsx` | Separate the game link from its recording actions. |
-| Playthrough recording | `playthrough-form.tsx`, `playthrough-history.tsx` | Reuse validation, draft retention, and editor dismissal behavior. |
+| Playthrough recording | `game-recording.tsx`, `playthrough-form.tsx`, `playthrough-history.tsx` | Reuse validation, draft retention, and editor dismissal behavior. Deleting a Playthrough returns focus to Add playthrough even when refreshed history arrives later. |
 | Search and discovery | `game-search.tsx`, `discovery-content.tsx`, `tag-shelves.tsx` | Preserve result, retry, and empty states. |
 | Collections | `library.tsx`, `wishlist.tsx`, `paged-list.tsx`, `collection-loading.tsx` | Reuse filtering, pagination, and collection loading patterns. |
 | List creation | `list-creation-drawer.tsx`, `list-form.tsx` | Open the shared list fields on demand; keep drafts on dismissal, associate title errors, and block dismissal while saving. |
