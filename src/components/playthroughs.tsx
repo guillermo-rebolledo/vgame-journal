@@ -1,4 +1,5 @@
 import { refresh } from "next/cache";
+import type { ReactNode } from "react";
 import { GameRecording } from "@/components/game-recording";
 import { ownerId, signedInUserId } from "@/lib/auth";
 import {
@@ -36,8 +37,10 @@ export async function Playthroughs({
   gameId,
   gameTitle,
   platforms,
+  listPicker,
 }: {
   gameId: number;
+  listPicker?: ReactNode;
   gameTitle: string;
   platforms: string[];
 }) {
@@ -98,6 +101,7 @@ export async function Playthroughs({
   }
   return (
     <GameRecording
+      listPicker={listPicker}
       signedIn={!!userId}
       entry={entry}
       playthroughs={playthroughs}

@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { StorybookConfig } from "@storybook/nextjs-vite";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -18,6 +19,30 @@ const config: StorybookConfig = {
   viteFinal: (config) => ({
     ...config,
     plugins: [...(config.plugins ?? []), tailwindcss()],
+    resolve: {
+      ...config.resolve,
+      alias: [
+        {
+          find: "@/app/lists/actions",
+          replacement: path.resolve(
+            import.meta.dirname,
+            "list-actions.mock.ts",
+          ),
+        },
+        {
+          find: "@/app/home-actions",
+          replacement: path.resolve(
+            import.meta.dirname,
+            "home-actions.mock.ts",
+          ),
+        },
+        ...(Array.isArray(config.resolve?.alias)
+          ? config.resolve.alias
+          : Object.entries(config.resolve?.alias ?? {}).map(
+              ([find, replacement]) => ({ find, replacement }),
+            )),
+      ],
+    },
     optimizeDeps: {
       ...config.optimizeDeps,
       include: [...(config.optimizeDeps?.include ?? []), "next/link"],

@@ -39,6 +39,216 @@ test("detail Status remains visible after each confirmed save with one game-spec
   await expect(journal.getByRole("status")).toBeEmpty();
 });
 
+test("Playthroughs stay between recording actions and Catalog information from empty through multiple records", async ({
+  page,
+  request,
+}) => {
+  await signUp(page, request, `history_location_${Date.now()}`);
+  await page.goto("/games/celeste");
+  const history = page.getByRole("region", {
+    name: "Playthroughs",
+    exact: true,
+  });
+  const add = page.getByRole("button", {
+    name: "Add playthrough",
+    exact: true,
+  });
+  const catalog = page
+    .getByText("Critic score", { exact: true })
+    .filter({ visible: true });
+  async function checkLocation() {
+    await expect(history).toBeVisible();
+    expect(
+      await add.evaluate(
+        (element, section) =>
+          Boolean(
+            element.compareDocumentPosition(section as Node) &
+              Node.DOCUMENT_POSITION_FOLLOWING,
+          ),
+        await history.elementHandle(),
+      ),
+    ).toBe(true);
+    expect(
+      await history.evaluate(
+        (element, fact) =>
+          Boolean(
+            element.compareDocumentPosition(fact as Node) &
+              Node.DOCUMENT_POSITION_FOLLOWING,
+          ),
+        await catalog.elementHandle(),
+      ),
+    ).toBe(true);
+    const actionsBox = await add.boundingBox();
+    const historyBox = await history.boundingBox();
+    const catalogBox = await catalog.boundingBox();
+    expect(historyBox?.y).toBeGreaterThanOrEqual(
+      (actionsBox?.y ?? 0) + (actionsBox?.height ?? 0),
+    );
+    expect(catalogBox?.y).toBeGreaterThanOrEqual(
+      (historyBox?.y ?? 0) + (historyBox?.height ?? 0),
+    );
+  }
+  await expect(history).toContainText("No playthroughs yet.");
+  await checkLocation();
+  for (const note of ["First climb", "Second climb"]) {
+    await add.click();
+    await page.getByLabel("Started", { exact: true }).fill("2026-02-02");
+    await page.getByLabel("Notes (private, optional)").fill(note);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(history.getByText(note, { exact: true })).toBeVisible();
+    await expect(add).toBeFocused();
+    await checkLocation();
+  }
+  await page.reload();
+  await expect(
+    history.getByRole("button", { name: "Edit", exact: true }),
+  ).toHaveCount(2);
+  await checkLocation();
+});
+
+for (const state of ["guest", "unsaved", "saved"] as const) {
+  test(`grouped game actions keep keyboard order and list picker focus (${state})`, async ({
+    page,
+    request,
+  }) => {
+    if (state !== "guest")
+      await signUp(page, request, `grouped_${state}_${Date.now()}`);
+    await page.goto("/games/celeste");
+    if (state === "saved") await chooseStatus(page, "playing");
+    const actions = page.getByRole("group", {
+      name: "Game actions",
+      exact: true,
+    });
+    await expect(actions).toBeVisible();
+    const journal = actions.getByRole(state === "guest" ? "link" : "button", {
+      name: /^(Add to Journal|Change Journal status) for Celeste$/,
+    });
+    const add = actions.getByRole(state === "guest" ? "link" : "button", {
+      name: "Add playthrough",
+      exact: true,
+    });
+    const lists = actions.getByRole("button", {
+      name: "Add to list",
+      exact: true,
+    });
+    await expect(journal).toHaveCount(1);
+    await expect(add).toHaveCount(1);
+    await expect(lists).toHaveCount(1);
+    await journal.focus();
+    await page.keyboard.press("Tab");
+    await expect(add).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(lists).toBeFocused();
+    if (state !== "guest") {
+      const status = page
+        .getByRole("region", { name: "Game journal", exact: true })
+        .getByText(state === "saved" ? "Playing" : "Not in your Journal", {
+          exact: true,
+        });
+      const statusBox = await status.boundingBox();
+      const listsBox = await lists.boundingBox();
+      expect(statusBox?.y).toBeGreaterThanOrEqual(
+        (listsBox?.y ?? 0) + (listsBox?.height ?? 0),
+      );
+    }
+    await page.keyboard.press("Enter");
+    const picker = page.getByRole("region", {
+      name: "Add Celeste to a list",
+      exact: true,
+    });
+    await expect(picker).toBeFocused();
+    await expect(journal).toBeVisible();
+    await expect(add).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    const pickerBox = await picker.boundingBox();
+    const addBox = await add.boundingBox();
+    expect(pickerBox?.y).toBeGreaterThanOrEqual(
+      (addBox?.y ?? 0) + (addBox?.height ?? 0),
+    );
+    if (state === "guest")
+      await expect(picker.getByRole("link")).toHaveAttribute(
+        "href",
+        "/sign-in?returnTo=%2Fgames%2Fceleste%3FaddToList%3D1",
+      );
+    await actions
+      .getByRole("button", { name: "Close list picker", exact: true })
+      .click();
+    await expect(picker).toHaveCount(0);
+    await expect(lists).toBeFocused();
+  });
+}
+
+for (const theme of ["light", "dark"] as const) {
+  test(`game identity and grouped actions reflow with cover art and a complete long title (${theme})`, async ({
+    page,
+    request,
+  }, testInfo) => {
+    await request.post(supportUrl("/query"), {
+      data: {
+        sql: "insert into game (id, title, slug, genres, platforms, synced_at) values (8891, 'The Extraordinary Adventures of a Very Determined Player Across the Entire Uncharted Universe', 'layout-long-title', '{}', '{}', now()) on conflict do nothing",
+        params: [],
+      },
+    });
+    await page.goto("/games/celeste");
+    await chooseTheme(page, theme);
+    for (const slug of ["celeste", "layout-long-title"]) {
+      await page.goto(`/games/${slug}`);
+      for (const width of [320, 390, 768, 1440]) {
+        await page.setViewportSize({ width, height: 900 });
+        const heading = page.getByRole("heading", { level: 1 });
+        await expect(heading).toBeVisible();
+        const identity = page.locator("article header");
+        const cover = identity.locator('img, [aria-hidden="true"]').first();
+        await expect(cover).toBeVisible();
+        if (width < 640) {
+          const art = await cover.boundingBox();
+          const title = await heading.boundingBox();
+          expect(title?.x).toBeGreaterThan((art?.x ?? 0) + (art?.width ?? 0));
+          expect(title?.y).toBeLessThan((art?.y ?? 0) + (art?.height ?? 0));
+        }
+        for (const label of [
+          "Add to Journal for",
+          "Add playthrough",
+          "Add to list",
+        ]) {
+          await expect(
+            page.getByRole(label === "Add to list" ? "button" : "link", {
+              name: new RegExp(`^${label}`),
+            }),
+          ).toBeVisible();
+        }
+        expect(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= window.innerWidth,
+          ),
+        ).toBe(true);
+        if (width === 320 || width === 1440)
+          await page.screenshot({
+            path: testInfo.outputPath(`${slug}-${theme}-${width}.png`),
+            fullPage: true,
+            animations: "disabled",
+          });
+      }
+      await page.setViewportSize({ width: 320, height: 900 });
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "200%";
+      });
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () => document.documentElement.scrollWidth <= window.innerWidth,
+          ),
+        )
+        .toBe(true);
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "";
+      });
+    }
+  });
+}
+
 test("journal choices, tags, errors and removal preserve saved state", async ({
   page,
   request,
@@ -323,16 +533,28 @@ for (const populated of [false, true]) {
     await expect(
       page.getByRole("status", { name: "Loading journal" }),
     ).toBeVisible();
-    const scores = page
-      .getByText("Critic score", { exact: true })
-      .filter({ visible: true });
-    const before = await scores.boundingBox();
+    await expect(
+      page.getByRole("group", { name: "Game actions", exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Add playthrough", exact: true }),
     ).toBeVisible();
-    expect(
-      Math.abs(((await scores.boundingBox())?.y ?? 0) - (before?.y ?? 0)),
-    ).toBeLessThan(2);
+    await expect(
+      page.getByRole("button", { name: "Add to list", exact: true }),
+    ).toBeVisible();
+    const historySection = page.getByRole("region", {
+      name: "Playthroughs",
+      exact: true,
+    });
+    await expect(historySection).toBeVisible();
+    const catalog = page
+      .getByText("Critic score", { exact: true })
+      .filter({ visible: true });
+    const historyBox = await historySection.boundingBox();
+    const catalogBox = await catalog.boundingBox();
+    expect(catalogBox?.y).toBeGreaterThanOrEqual(
+      (historyBox?.y ?? 0) + (historyBox?.height ?? 0),
+    );
     if (populated) {
       await expect(
         page.getByRole("region", { name: "Game journal" }),
