@@ -64,7 +64,7 @@ test("signed-out readers get the ordered public list, canonical sharing metadata
       guest.getByRole("heading", { level: 1, name: "Weekend discoveries" }),
     ).toBeVisible();
     await expect(
-      guest.getByText("First line <em>Plain text</em>"),
+      guest.getByRole("main").getByText("First line <em>Plain text</em>"),
     ).toBeVisible();
     await expect(
       guest.getByRole("link", { name: `@${username}` }),
