@@ -17,6 +17,11 @@ export default function SignInPage() {
     <AuthForm
       title="Sign in"
       submitLabel="Sign in with email"
+      notice={
+        searchParams.get("passwordReset") === "success"
+          ? "Password updated. Sign in with your new password."
+          : undefined
+      }
       fields={[
         { name: "email", label: "Email", type: "email", autoComplete: "email" },
         {
@@ -42,11 +47,6 @@ export default function SignInPage() {
         router.refresh();
       }}
     >
-      {searchParams.get("passwordReset") === "success" && (
-        <output aria-live="polite">
-          Password updated. Sign in with your new password.
-        </output>
-      )}
       <Button
         variant="outline"
         onClick={() =>

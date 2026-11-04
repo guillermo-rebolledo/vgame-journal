@@ -25,12 +25,15 @@ export function AuthForm({
   fields,
   submitLabel,
   onSubmit,
+  notice,
   children,
 }: {
   title: string;
   fields: Field[];
   submitLabel: string;
   onSubmit: Submit;
+  /** Page confirmation that keeps the form available, such as a completed password reset. */
+  notice?: string;
   children?: ReactNode;
 }) {
   const [state, action, pending] = useActionState(
@@ -46,6 +49,7 @@ export function AuthForm({
     },
     undefined,
   );
+  const message = state?.message ?? notice;
 
   return (
     <section className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-16">
@@ -54,13 +58,13 @@ export function AuthForm({
         aria-live="polite"
         aria-atomic="true"
         className={
-          state?.message ? "flex items-start gap-2 text-sm" : "sr-only"
+          !pending && message ? "flex items-start gap-2 text-sm" : "sr-only"
         }
       >
-        {state?.message && (
+        {!pending && message && (
           <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
         )}
-        {pending ? "Submitting…" : state?.message}
+        {pending ? "Submitting…" : message}
       </output>
       {!state?.message && (
         <form action={action} className="flex flex-col gap-4">

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn, mocked, userEvent, within } from "storybook/test";
+import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 import { AuthForm, type Submit } from "./auth-form";
 
 const meta = {
@@ -20,7 +20,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Authentication form with retained non-password inputs, an unchanged action label while pending, a decorative spinner and a stable polite status region. Catalog callbacks never contact the authentication service.",
+          "Authentication form with retained non-password inputs, an unchanged action label while pending, a decorative spinner and a stable polite status region. Page confirmations use notice so they share the region and keep the form available. Catalog callbacks never contact the authentication service.",
       },
     },
   },
@@ -70,5 +70,47 @@ export const Pending: Story = {
     await expect(button).toHaveAttribute("aria-busy", "true");
     await expect(args.onSubmit).toHaveBeenCalledOnce();
     await expect(canvas.getByRole("status")).toHaveTextContent("Submitting…");
+  },
+};
+
+export const SignInAfterPasswordReset: Story = {
+  args: {
+    title: "Sign in",
+    submitLabel: "Sign in with email",
+    notice: "Password updated. Sign in with your new password.",
+    fields: [
+      { name: "email", label: "Email", type: "email", autoComplete: "email" },
+      {
+        name: "password",
+        label: "Password",
+        type: "password",
+        autoComplete: "current-password",
+      },
+    ],
+    onSubmit: fn<Submit>(async () => ({
+      error: "Check your email and password and try again.",
+    })),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const status = canvas.getByRole("status");
+    await expect(status).toHaveTextContent(args.notice ?? "");
+    await expect(status).toBeVisible();
+    await userEvent.type(
+      canvas.getByRole("textbox", { name: "Email" }),
+      "player@example.com",
+    );
+    await userEvent.type(canvas.getByLabelText("Password"), "wrong-password");
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Sign in with email" }),
+    );
+    await expect(await canvas.findByRole("alert")).toHaveTextContent(
+      "Check your email and password and try again.",
+    );
+    await waitFor(() => expect(status).toHaveTextContent(args.notice ?? ""));
+    await expect(canvas.getAllByRole("status")).toEqual([status]);
+    await expect(canvas.getByRole("textbox", { name: "Email" })).toHaveValue(
+      "player@example.com",
+    );
   },
 };
