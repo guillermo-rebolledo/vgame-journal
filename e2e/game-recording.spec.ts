@@ -53,7 +53,10 @@ test("Playthroughs stay between recording actions and Catalog information from e
     name: "Add playthrough",
     exact: true,
   });
-  const catalog = page.locator('dl[aria-label="Game facts"]');
+  const catalog = page
+    .getByRole("main")
+    .locator('dl[aria-label="Game facts"]')
+    .filter({ visible: true });
   async function checkLocation() {
     await expect(history).toBeVisible();
     expect(
@@ -190,7 +193,7 @@ for (const theme of ["light", "dark"] as const) {
     });
     await page.goto("/games/celeste");
     await chooseTheme(page, theme);
-    for (const slug of ["celeste", "layout-long-title"]) {
+    for (const slug of ["celeste", "layout-long-title", "hades--1"]) {
       await page.goto(`/games/${slug}`);
       for (const width of [320, 390, 768, 1440]) {
         await page.setViewportSize({ width, height: 900 });
@@ -233,6 +236,17 @@ for (const theme of ["light", "dark"] as const) {
         document.documentElement.style.fontSize = "200%";
       });
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      if (slug === "hades--1") {
+        const genres = page.locator("article header p");
+        await expect(genres).toHaveText(
+          "Role-playing (RPG), Hack and slash/Beat 'em up",
+        );
+        expect(
+          await genres.evaluate(
+            (element) => element.scrollWidth <= element.clientWidth,
+          ),
+        ).toBe(true);
+      }
       await expect
         .poll(() =>
           page.evaluate(
@@ -240,6 +254,12 @@ for (const theme of ["light", "dark"] as const) {
           ),
         )
         .toBe(true);
+      if (slug === "hades--1")
+        await page.screenshot({
+          path: testInfo.outputPath(`hades-${theme}-320-enlarged.png`),
+          fullPage: true,
+          animations: "disabled",
+        });
       await page.evaluate(() => {
         document.documentElement.style.fontSize = "";
       });
@@ -545,7 +565,10 @@ for (const populated of [false, true]) {
       exact: true,
     });
     await expect(historySection).toBeVisible();
-    const catalog = page.locator('dl[aria-label="Game facts"]');
+    const catalog = page
+      .getByRole("main")
+      .locator('dl[aria-label="Game facts"]')
+      .filter({ visible: true });
     const historyBox = await historySection.boundingBox();
     const catalogBox = await catalog.boundingBox();
     expect(catalogBox?.y).toBeGreaterThanOrEqual(
