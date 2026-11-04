@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type SetStateAction,
   startTransition,
+  useCallback,
   useContext,
   useEffect,
   useId,
@@ -47,14 +48,14 @@ type Game = { gameId: number; slug: string; title: string };
 type Intent = Game & { status: Status };
 type SaveState = {
   status: Status;
+  feedback?: { message: string; confirmed: boolean };
   pending?: boolean;
   error?: string;
   authRequired?: boolean;
 };
 type HomeState = {
   notice: string;
-  noticeGame: number | null;
-  setNotice: Dispatch<SetStateAction<string>>;
+  clearFeedback: () => void;
   setFeedbackHosts: Dispatch<SetStateAction<number>>;
   snapshot: HomeSnapshot;
   loaded: boolean;
@@ -134,7 +135,6 @@ export function HomeJournalProvider({
   const [loaded, setLoaded] = useState(!owner);
   const [saves, setSaves] = useState<Record<number, SaveState>>({});
   const [notice, setNotice] = useState("");
-  const [noticeGame, setNoticeGame] = useState<number | null>(null);
   const [feedbackHosts, setFeedbackHosts] = useState(0);
   const [intent, setIntent] = useState<Intent | null>(null);
   const [focusAfterSave, setFocusAfterSave] = useState<Intent | null>(null);
@@ -143,11 +143,28 @@ export function HomeJournalProvider({
   const focusIntent = useRef(false);
   const locks = useRef(new Set<number>());
   const version = useRef(0);
+  const activeOwner = useRef(snapshot.owner);
+  activeOwner.current = snapshot.owner;
+  const clearFeedback = useCallback(() => {
+    setNotice("");
+    setSaves((old) =>
+      Object.fromEntries(
+        Object.entries(old).map(([id, state]) => [
+          id,
+          { ...state, feedback: undefined },
+        ]),
+      ),
+    );
+  }, []);
   const saveGame = params.get("saveGame");
   const saveSlug = params.get("saveSlug");
   const saveStatus = params.get("saveStatus");
 
   if (source !== initial) {
+    if (snapshot.owner !== owner) {
+      setSaves({});
+      setNotice("");
+    }
     setSource(initial);
     setSnapshot({ owner, entries: owner ? null : [] });
     setLoaded(!owner);
@@ -194,6 +211,7 @@ export function HomeJournalProvider({
   }, [saveGame, saveSlug, saveStatus]);
 
   function accept(value: HomeSnapshot) {
+    activeOwner.current = value.owner;
     setSnapshot(value);
     setLoaded(true);
     if (value.owner !== owner) {
@@ -226,9 +244,15 @@ export function HomeJournalProvider({
       return false;
     }
     if (!snapshot.entries) return false;
-    function report(message: string) {
-      setNoticeGame(game.gameId);
+    function report(message: string, confirmed = false) {
       setNotice(message);
+      setSaves((old) => ({
+        ...old,
+        [game.gameId]: {
+          ...old[game.gameId],
+          feedback: { message, confirmed },
+        },
+      }));
     }
     const expectedOwner = snapshot.owner;
     locks.current.add(game.gameId);
@@ -249,6 +273,7 @@ export function HomeJournalProvider({
             "The connection was interrupted. Check the confirmed status below, then retry if needed.",
         };
       }
+      if (activeOwner.current !== expectedOwner) return false;
       if (
         result.snapshot.owner !== snapshot.owner ||
         ("authRequired" in result && result.authRequired)
@@ -291,7 +316,7 @@ export function HomeJournalProvider({
           ?.status === status;
       if (confirmed) {
         setSaves((old) => ({ ...old, [game.gameId]: { status } }));
-        report(`${game.title} saved to ${capitalize(status)}.`);
+        report(`${game.title} saved to ${capitalize(status)}.`, true);
         return true;
       }
       setSaves((old) => ({
@@ -432,8 +457,7 @@ export function HomeJournalProvider({
   );
   const context: HomeState = {
     notice,
-    noticeGame,
-    setNotice,
+    clearFeedback,
     setFeedbackHosts,
     snapshot,
     loaded,
@@ -473,13 +497,13 @@ export function HomePendingSave({
 export function HomeJournalFeedback({ gameId }: { gameId?: number }) {
   const home = useContext(HomeContext);
   const setHosts = home?.setFeedbackHosts;
-  const clear = home?.setNotice;
+  const clear = home?.clearFeedback;
   useEffect(() => {
     setHosts?.((count) => count + 1);
-    clear?.("");
+    clear?.();
     return () => {
       setHosts?.((count) => count - 1);
-      clear?.("");
+      clear?.();
     };
   }, [setHosts, clear]);
   return (
@@ -489,7 +513,9 @@ export function HomeJournalFeedback({ gameId }: { gameId?: number }) {
       aria-atomic="true"
       className="sr-only"
     >
-      {gameId === undefined || home?.noticeGame === gameId ? home?.notice : ""}
+      {gameId === undefined
+        ? home?.notice
+        : home?.saves[gameId]?.feedback?.message}
     </output>
   );
 }
@@ -506,11 +532,11 @@ export function HomeSaveControls({
   const home = useContext(HomeContext);
   const trigger = useRef<HTMLButtonElement | null>(null);
   const errorId = useId();
-  const clear = home?.setNotice;
+  const clear = home?.clearFeedback;
   useEffect(() => {
     if (presentation !== "direct" || announce) return;
-    clear?.("");
-    return () => clear?.("");
+    clear?.();
+    return () => clear?.();
   }, [clear, presentation, announce]);
   if (!home) return null;
   const { snapshot, saves } = home;
@@ -671,8 +697,7 @@ export function HomeSaveControls({
         state &&
         !busy &&
         !state.error &&
-        home.noticeGame === game.gameId &&
-        home.notice === `${game.title} saved to ${capitalize(state.status)}.` &&
+        state.feedback?.confirmed &&
         state.status === entry?.status && (
           <p>
             {game.title} saved to {capitalize(state.status)}.

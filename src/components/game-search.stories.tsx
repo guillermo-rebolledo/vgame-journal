@@ -6,7 +6,8 @@ import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import type { SearchResult } from "@/lib/catalog";
 import { saveHomeStatus } from "../../.storybook/home-actions.mock";
 import { GameSearch } from "./game-search";
-import { HomeJournalProvider } from "./home-journal";
+import { HomeCoverTransitions } from "./home-cover-link";
+import { HomeCollections, HomeJournalProvider } from "./home-journal";
 import { HomeSearch } from "./home-search";
 import { ListEditorDrawer } from "./list-creation-drawer";
 import { Button } from "./ui/button";
@@ -459,7 +460,7 @@ export const LateSaveCannotAnnounceForAnotherGame: Story = {
     await waitFor(() =>
       expect(
         body.getByRole("status", { name: "Journal updates" }),
-      ).toBeEmptyDOMElement(),
+      ).toHaveTextContent(`Saving ${games[1].title} to Wishlist…`),
     );
     await expect(
       body.getByRole("status", { name: "Journal updates" }),
@@ -478,5 +479,91 @@ export const LateSaveCannotAnnounceForAnotherGame: Story = {
     await expect(
       body.getAllByRole("status", { name: "Journal updates" }),
     ).toHaveLength(1);
+  },
+};
+
+export const ConfirmedSecondSaveSurvivesLateFirstSave: Story = {
+  render: () => (
+    <HomeCoverTransitions>
+      <HomeJournalProvider owner="search-player" initial={journal}>
+        <HomeSearch guidance="Search the Catalog, then choose a Journal Status." />
+        <HomeCollections />
+      </HomeJournalProvider>
+    </HomeCoverTransitions>
+  ),
+  play: async ({ canvasElement }) => {
+    let finishFirst!: (
+      value: Awaited<ReturnType<typeof saveHomeStatus>>,
+    ) => void;
+    saveHomeStatus
+      .mockReset()
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({
+        snapshot: {
+          owner: "search-player",
+          entries: [
+            {
+              ...games[1],
+              gameId: games[1].id,
+              status: "wishlist",
+              addedAt: new Date("2026-11-01"),
+            },
+          ],
+        },
+      });
+    const { body, input } = await open(canvasElement);
+    await userEvent.type(input, "games");
+    await userEvent.click(
+      await body.findByRole("option", { name: /^Celeste/ }),
+    );
+    await userEvent.click(
+      body.getByRole("button", { name: "Save to Backlog" }),
+    );
+    await userEvent.click(
+      body.getByRole("button", { name: "Back to results" }),
+    );
+    await userEvent.click(body.getByRole("option", { name: /^The Legend/ }));
+    await userEvent.click(
+      body.getByRole("button", { name: "Save to Wishlist" }),
+    );
+    const confirmation = `${games[1].title} saved to Wishlist.`;
+    await expect(
+      await body.findByText(confirmation, { selector: "p" }),
+    ).toBeVisible();
+    const updates = body.getByRole("status", { name: "Journal updates" });
+    await expect(updates).toHaveTextContent(confirmation);
+    finishFirst({
+      snapshot: {
+        owner: "search-player",
+        entries: [
+          {
+            ...games[0],
+            gameId: games[0].id,
+            status: "backlog",
+            addedAt: new Date("2026-11-01"),
+          },
+        ],
+      },
+    });
+    // Wait for A's response to update the shared Journal, then inspect B's feedback.
+    await within(canvasElement).findByText("Backlog (1)");
+    await expect(body.getByText("Current status: Wishlist")).toBeVisible();
+    await expect(body.getByText(confirmation, { selector: "p" })).toBeVisible();
+    await expect(updates).toHaveTextContent(confirmation);
+    await expect(
+      body.getAllByRole("status", { name: "Journal updates" }),
+    ).toHaveLength(1);
+    await userEvent.click(
+      body.getByRole("button", { name: "Back to results" }),
+    );
+    await expect(updates).toBeEmptyDOMElement();
+    await userEvent.click(body.getByRole("option", { name: /^The Legend/ }));
+    await expect(body.getByText("Current status: Wishlist")).toBeVisible();
+    await expect(body.queryByText(confirmation)).not.toBeInTheDocument();
   },
 };

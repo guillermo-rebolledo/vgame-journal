@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { requestCatalogSearch } from "@/lib/catalog-search-navigation";
 
 const DESTINATIONS = [
   ["/?search=1", "Find a game"],
@@ -24,14 +25,15 @@ export function MainNav({ className }: { className?: string }) {
               onClick={(event) => {
                 if (
                   href === "/?search=1" &&
-                  pathname === "/" &&
+                  event.button === 0 &&
+                  !event.defaultPrevented &&
                   !event.metaKey &&
                   !event.ctrlKey &&
                   !event.shiftKey &&
                   !event.altKey
                 ) {
-                  event.preventDefault();
-                  window.dispatchEvent(new Event("catalog-search-open"));
+                  requestCatalogSearch(event.currentTarget);
+                  if (pathname === "/") event.preventDefault();
                 }
               }}
               aria-current={

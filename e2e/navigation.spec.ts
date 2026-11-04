@@ -66,6 +66,71 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(scroll).toBeLessThanOrEqual(width);
 }
 
+for (const destination of ["Library", "Wishlist"] as const) {
+  test(`Find a game from ${destination} returns focus to its initiating navigation link`, async ({
+    page,
+    request,
+  }) => {
+    await signUp(
+      page,
+      request,
+      `find_${destination.toLowerCase()}_${Date.now()}`,
+    );
+    const nav = page.getByRole("navigation", { name: "Main", exact: true });
+    const find = nav.getByRole("link", { name: "Find a game", exact: true });
+    // Exercise a fresh Home mount as well as the retained Home navigation path.
+    await page.goto(`/${destination.toLowerCase()}`);
+    for (const dismiss of ["close", "escape"] as const) {
+      await find.focus();
+      await page.keyboard.press("Enter");
+      await expect(
+        page.getByRole("combobox", { name: "Search games", exact: true }),
+      ).toBeFocused();
+      await page
+        .getByRole("combobox", { name: "Search games", exact: true })
+        .fill("Celeste");
+      await expect(
+        page.getByRole("option", { name: /^Celeste/ }),
+      ).toBeVisible();
+      if (dismiss === "close") await closeCatalog(page);
+      else await page.keyboard.press("Escape");
+      await expect(find).toBeFocused();
+      await nav.getByRole("link", { name: destination, exact: true }).click();
+      await expect(
+        page.getByRole("heading", { name: destination, exact: true, level: 1 }),
+      ).toBeVisible();
+    }
+  });
+}
+
+test("Find a game preserves native modifier and middle-click navigation", async ({
+  page,
+  request,
+  context,
+}) => {
+  await signUp(page, request, `find_native_${Date.now()}`);
+  const nav = page.getByRole("navigation", { name: "Main", exact: true });
+  for (const path of ["/", "/library"]) {
+    await page.goto(path);
+    const find = nav.getByRole("link", { name: "Find a game", exact: true });
+    for (const options of [
+      { modifiers: ["ControlOrMeta" as const] },
+      { button: "middle" as const },
+    ]) {
+      const opened = context.waitForEvent("page");
+      await find.click(options);
+      const tab = await opened;
+      await expect(tab).toHaveURL(/\/\?search=1$/);
+      await expect(
+        tab.getByRole("dialog", { name: "Find a game", exact: true }),
+      ).toBeVisible();
+      await tab.close();
+      await expect(page).toHaveURL(new RegExp(`${path === "/" ? "/" : path}$`));
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+    }
+  }
+});
+
 test("skip route moves focus into main on Home and details", async ({
   page,
 }) => {

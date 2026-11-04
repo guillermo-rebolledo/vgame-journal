@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { useEditorViewport } from "@/components/use-editor-viewport";
 import "./game-search.css";
 import type { SearchResult } from "@/lib/catalog";
+import { takeCatalogSearchInitiator } from "@/lib/catalog-search-navigation";
 import { cn } from "@/lib/utils";
 
 const MIN_QUERY = 2;
@@ -117,6 +118,10 @@ export function GameSearch({
         (params.get("q") ?? "").trim().length >= MIN_QUERY ||
         params.get("search") === "1"
       ) {
+        if (params.get("search") === "1") {
+          const control = takeCatalogSearchInitiator();
+          if (control) initiator.current = control;
+        }
         setSelected(null);
         setOpen(true);
       }
@@ -135,9 +140,10 @@ export function GameSearch({
     function activate() {
       if (presentation !== "dialog" || !isVisible(owner.current)) return;
       initiator.current =
-        document.activeElement instanceof HTMLElement
+        takeCatalogSearchInitiator() ??
+        (document.activeElement instanceof HTMLElement
           ? document.activeElement
-          : null;
+          : null);
       setSelected(null);
       setOpen(true);
       input.current?.focus({ preventScroll: true });

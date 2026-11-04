@@ -15,6 +15,67 @@ const current = (page: import("@playwright/test").Page, status: string) =>
     .getByRole("dialog")
     .getByText(`Current status: ${status}`, { exact: true });
 
+test("switching games during a pending save keeps feedback scoped and persists both statuses", async ({
+  page,
+  request,
+}) => {
+  await signUp(page, request, `save_scope_${Date.now()}`);
+  await page.goto("/?q=ce");
+  await page.getByRole("option", { name: /^Celeste/ }).click();
+  const actions = page.getByRole("dialog");
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let held = false;
+  await page.route("**/*", async (route) => {
+    if (route.request().headers()["next-action"] && !held) {
+      held = true;
+      await gate;
+    }
+    await route.continue();
+  });
+  try {
+    await actions
+      .getByRole("button", { name: "Save to Backlog", exact: true })
+      .click();
+    await expect(
+      actions
+        .getByRole("paragraph")
+        .filter({ hasText: "Saving Celeste to Backlog…" }),
+    ).toBeVisible();
+    await actions.getByRole("button", { name: "Back to results" }).click();
+    await page.getByRole("option", { name: /^Dead Cells/ }).click();
+    await actions
+      .getByRole("button", { name: "Save to Wishlist", exact: true })
+      .click();
+    await expect(updates(page)).toHaveText("Saving Dead Cells to Wishlist…");
+    release();
+    await expect(current(page, "Wishlist")).toBeVisible();
+    await expect(
+      actions
+        .getByRole("paragraph")
+        .filter({ hasText: "Dead Cells saved to Wishlist." }),
+    ).toBeVisible();
+    await expect(updates(page)).toHaveText("Dead Cells saved to Wishlist.");
+    await expect(updates(page)).toHaveCount(1);
+    await expect(count(page, "Backlog (1)")).toBeVisible();
+    await expect(count(page, "Wishlist (1)")).toBeVisible();
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+  await actions.getByRole("button", { name: "Back to results" }).click();
+  await expect(updates(page)).toBeEmpty();
+  await page.reload();
+  await selectCatalogGame(page, "Celeste");
+  await expect(current(page, "Backlog")).toBeVisible();
+  await expect(updates(page)).toBeEmpty();
+  await selectCatalogGame(page, "Dead Cells");
+  await expect(current(page, "Wishlist")).toBeVisible();
+  await expect(updates(page)).toBeEmpty();
+});
+
 test("an unconfirmed status change cannot make the retained status a false local no-op", async ({
   page,
   request,

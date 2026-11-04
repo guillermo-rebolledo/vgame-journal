@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { useState } from "react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { HomeEntry, HomeSnapshot } from "@/lib/home-journal";
 import {
@@ -12,6 +13,7 @@ import {
   HomeJournalProvider,
   HomeSaveControls,
 } from "./home-journal";
+import { Button } from "./ui/button";
 
 const celeste: HomeEntry = {
   gameId: 1,
@@ -132,6 +134,96 @@ export const PendingThenConfirmed: Story = {
       "celeste",
       "playing",
     );
+  },
+};
+
+export const ConfirmationSurvivesCatalogTitleRefresh: Story = {
+  render: function RefreshedTitle(args) {
+    const [title, setTitle] = useState(celeste.title);
+    return (
+      <HomeJournalProvider owner="storybook-player" initial={initial}>
+        <HomeSaveControls {...args} game={{ ...args.game, title }} />
+        <Button onClick={() => setTitle("Celeste: refreshed Catalog title")}>
+          Refresh Catalog title
+        </Button>
+      </HomeJournalProvider>
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Current status: Backlog");
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Save to Played" }),
+    );
+    await expect(
+      await canvas.findByText("Celeste saved to Played.", { selector: "p" }),
+    ).toBeVisible();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Refresh Catalog title" }),
+    );
+    await expect(
+      canvas.getByText("Celeste: refreshed Catalog title saved to Played.", {
+        selector: "p",
+      }),
+    ).toBeVisible();
+    await expect(canvas.getByText("Current status: Played")).toBeVisible();
+    await expect(
+      canvas.getByRole("status", { name: "Journal updates" }),
+    ).toHaveTextContent("Celeste saved to Played.");
+  },
+};
+
+const otherPlayer: Promise<HomeSnapshot> = Promise.resolve({
+  owner: "another-player",
+  entries: [{ ...celeste, status: "played" }],
+});
+export const PendingSaveCannotConfirmForAnotherOwner: Story = {
+  render: function AccountChange(args) {
+    const [switched, setSwitched] = useState(false);
+    return (
+      <>
+        <HomeJournalProvider
+          owner={switched ? "another-player" : "storybook-player"}
+          initial={switched ? otherPlayer : initial}
+        >
+          <HomeSaveControls {...args} />
+        </HomeJournalProvider>
+        <Button onClick={() => setSwitched(true)}>Switch account</Button>
+      </>
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    let finish!: (value: Awaited<ReturnType<typeof saveHomeStatus>>) => void;
+    saveHomeStatus.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await canvas.findByText("Current status: Backlog");
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Save to Played" }),
+    );
+    await canvas.findByText("Saving Celeste to Played…", { selector: "p" });
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Switch account" }),
+    );
+    await canvas.findByText("Current status: Played");
+    finish({
+      snapshot: {
+        owner: "storybook-player",
+        entries: [{ ...celeste, status: "played" }],
+      },
+    });
+    await userEvent.tab();
+    await expect(canvas.getByText("Current status: Played")).toBeVisible();
+    await expect(
+      canvas.queryByText("Celeste saved to Played."),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.getByRole("status", { name: "Journal updates" }),
+    ).toBeEmptyDOMElement();
   },
 };
 
