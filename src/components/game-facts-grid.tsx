@@ -22,10 +22,11 @@ export function GameFactsGrid({
   > & { languages: SourceGame["languages"] | null };
   ageRating?: ReactNode;
 }) {
+  // At most two cards per row; stack when enlarged text needs more room.
   return (
     <dl
       aria-label="Game facts"
-      className="@container grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-4 sm:max-w-md"
+      className="@container grid grid-cols-[repeat(auto-fit,minmax(min(100%,max(8rem,calc(50%_-_0.5rem))),1fr))] gap-4 max-w-[calc(100vw-2rem)] sm:max-w-md"
     >
       {game.criticScore === null && game.userScore === null ? (
         <div className="col-span-full text-muted-foreground text-sm">

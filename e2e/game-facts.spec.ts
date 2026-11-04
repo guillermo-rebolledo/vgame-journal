@@ -344,7 +344,11 @@ for (const theme of ["light", "dark"] as const) {
         "Unknown",
       ]);
       expect(
-        await facts.evaluate((el) => el.scrollWidth <= el.clientWidth),
+        await facts.evaluate(
+          (el) =>
+            el.scrollWidth <= el.clientWidth &&
+            el.getBoundingClientRect().right <= innerWidth,
+        ),
       ).toBe(true);
       await expect(facts.getByRole("button")).toHaveCount(0);
       await testInfo.attach(`sparse-facts-${theme}-${slug}`, {
