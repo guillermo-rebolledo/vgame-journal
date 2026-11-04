@@ -1,0 +1,49 @@
+.command-viewport {
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(var(--editor-bottom, 0px) + 1rem);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: min(var(--editor-height, calc(100dvh - 2rem)), calc(100dvh - 2rem));
+  padding-inline: max(
+    1rem,
+    env(safe-area-inset-left),
+    env(safe-area-inset-right)
+  );
+  overscroll-behavior: contain;
+}
+
+.command-surface {
+  height: min(36rem, 100%);
+}
+
+.command-surface :is(button, input, a):focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.command-surface .command-input {
+  border-color: color-mix(in oklch, var(--foreground) 60%, var(--popover));
+}
+
+.command-result[data-highlighted] {
+  outline: 2px solid var(--foreground);
+  outline-offset: -2px;
+}
+
+.command-result[data-highlighted] .text-muted-foreground {
+  color: var(--foreground);
+}
+
+@media (forced-colors: active) {
+  .command-result[data-highlighted],
+  .command-surface :is(button, input, a):focus-visible {
+    outline-color: Highlight;
+  }
+
+  .command-surface .command-input {
+    border-color: ButtonText;
+  }
+}
