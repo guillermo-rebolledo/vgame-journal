@@ -113,5 +113,9 @@ export const KeepMountedDraft: Story = {
       await body.findByRole("textbox", { name: "Draft title" }),
     ).toHaveValue("Keep this draft");
     await userEvent.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(body.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    await expect(trigger).toHaveFocus();
   },
 };

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-03T23:09:55.146025+00:00",
+  "generatedAt": "2026-11-03T23:17:45.902836+00:00",
   "title": "Design System: shelve.games",
   "extensions": {
     "colorMeta": {
@@ -118,6 +118,16 @@
         "role": "status",
         "displayName": "Ember (dark)",
         "canonical": "oklch(0.704 0.191 22.216)"
+      },
+      "image-outline-light": {
+        "role": "neutral",
+        "displayName": "Content-image outline (Light)",
+        "canonical": "oklch(0 0 0 / 0.1)"
+      },
+      "image-outline-dark": {
+        "role": "neutral",
+        "displayName": "Content-image outline (Dark)",
+        "canonical": "oklch(1 0 0 / 0.1)"
       }
     },
     "typographyMeta": {
@@ -203,6 +213,21 @@
         "name": "duration-ambient",
         "value": "40s",
         "purpose": "Existing noninteractive game-detail backdrop drift; enabled only with motion-safe."
+      },
+      {
+        "name": "press",
+        "value": "scale(0.96) 150ms ease-out",
+        "purpose": "Enabled buttons and tags only; no movement under reduced motion. Anchored triggers opt out with press=static."
+      },
+      {
+        "name": "copy-success",
+        "value": "300ms cubic-bezier(0.2, 0, 0, 1)",
+        "purpose": "Mounted icons cross-fade with scale 0.25 to 1 and blur 4px to 0; opacity alone under reduced motion."
+      },
+      {
+        "name": "popup-transition",
+        "value": "opacity, transform; 200ms enter / 140ms exit",
+        "purpose": "Base UI starting/ending states retarget from current rendered values. Tooltips use 125ms; reduced motion and aligned selects use opacity alone."
       },
       {
         "name": "duration-editor-enter",
@@ -319,7 +344,7 @@
       },
       {
         "name": "The Semantic Tokens Only Rule",
-        "body": "Components use semantic utilities such as bg-primary, text-muted-foreground and border-border. Never use raw palette classes like bg-zinc-800, and never hard-code an OKLCH value. Every token is defined in src/app/globals.css, in :root and .dark.",
+        "body": "Components use semantic utilities and token-defined OKLCH values. Content-image edges use pure black/white --image-outline at 10%, rather than palette grays.",
         "section": "colors"
       },
       {

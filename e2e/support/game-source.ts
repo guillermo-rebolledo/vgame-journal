@@ -22,6 +22,15 @@ const synthetic = (
   });
 
 export const igdbGameSource = createFakeGameSource([
+  sourceGame({
+    id: 930093,
+    title: "Overlay Scroll Fixture",
+    slug: "overlay-scroll-fixture",
+    platforms: [
+      "PC",
+      ...Array.from({ length: 40 }, (_, index) => `Test platform ${index + 1}`),
+    ],
+  }),
   // Real cover IDs; deterministic tags and ranks exercise the shelf independently of IGDB.
   sourceGame({
     id: 113112,

@@ -136,6 +136,7 @@ export function JournalStatus({
                 render={
                   <Button
                     ref={trigger}
+                    press="static"
                     aria-label={`${confirmed ? "Change Journal status" : "Add to Journal"} for ${gameTitle}`}
                     aria-description={
                       confirmed
@@ -148,7 +149,10 @@ export function JournalStatus({
                     className="journal-action min-h-11"
                   >
                     {pending ? (
-                      <LoaderCircle className="animate-spin" />
+                      <LoaderCircle
+                        aria-hidden
+                        className="motion-safe:animate-spin"
+                      />
                     ) : (
                       <BookMarked fill={confirmed ? "currentColor" : "none"} />
                     )}
@@ -251,7 +255,7 @@ export function JournalStatus({
           <Dialog.Popup
             initialFocus={cancel}
             finalFocus={trigger}
-            className="fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-xl border bg-background p-6 text-foreground shadow-lg"
+            className="fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto overscroll-contain rounded-xl border bg-background p-6 text-foreground shadow-lg"
           >
             <Dialog.Title className="font-heading text-lg font-medium">
               Remove {gameTitle} from journal?
@@ -300,7 +304,7 @@ export function JournalStatus({
         {confirmed ? SAVED_LABELS[confirmed.status] : "Not in your Journal"}
       </p>
       <output
-        className={notice ? "mt-2 block text-sm" : "sr-only"}
+        className={pending || notice ? "mt-2 block text-sm" : "sr-only"}
         aria-live="polite"
         aria-atomic="true"
       >

@@ -57,3 +57,21 @@ export const Group: Story = {
     </AvatarGroup>
   ),
 };
+
+export const Photo: Story = {
+  render: (args) => (
+    <Avatar {...args} role="img" aria-label="Player photo">
+      <AvatarImage
+        alt=""
+        src={
+          "data:image/svg+xml," +
+          encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="white"/><path d="M32 0h32v64H32z" fill="black"/></svg>',
+          )
+        }
+      />
+      <AvatarFallback>P</AvatarFallback>
+    </Avatar>
+  ),
+};
+export const PhotoLight: Story = { ...Photo, globals: { theme: "light" } };
