@@ -6,6 +6,74 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+test.each([
+  "pokemon emerald",
+  "pokemon soul silver",
+])("search finds %s through the eligible provider query", async (query) => {
+  const bodies: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      const body = String(init?.body);
+      bodies.push(body);
+      expect(body).toContain("version_parent = null");
+      expect(body).toContain("keywords != (2004,24124,27216,25522)");
+      // Live IGDB classifies Emerald as expanded_game and matches SoulSilver as one word.
+      return Response.json(
+        query.includes("emerald")
+          ? body.includes("game_type = (0,4,8,10)")
+            ? [
+                {
+                  id: 1517,
+                  name: "Pokémon Emerald Version",
+                  slug: "pokemon-emerald-version",
+                  game_type: 10,
+                },
+              ]
+            : []
+          : body.includes('search "pokemon soulsilver";')
+            ? [
+                {
+                  id: 1520,
+                  name: "Pokémon SoulSilver Version",
+                  slug: "pokemon-soulsilver-version",
+                  game_type: 8,
+                },
+              ]
+            : [],
+      );
+    }),
+  );
+  expect(await igdbGameSource.search(query)).toEqual([
+    expect.objectContaining({ id: query.includes("emerald") ? 1517 : 1520 }),
+  ]);
+  expect(bodies).toHaveLength(query.includes("emerald") ? 1 : 2);
+});
+
+test("spacing fallback tries at most three adjacent joins, from the end", async () => {
+  const bodies: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      bodies.push(String(init?.body));
+      return Response.json([]);
+    }),
+  );
+  expect(await igdbGameSource.search("one two three four five six")).toEqual(
+    [],
+  );
+  expect(bodies.map((body) => body.match(/^search "([^"]*)";/)?.[1])).toEqual([
+    "one two three four five six",
+    "one two three four fivesix",
+    "one two three fourfive six",
+    "one two threefour five six",
+  ]);
+});
+
 test("a game's platforms include those of its remasters and ports, once each", async () => {
   vi.stubGlobal(
     "fetch",
@@ -381,7 +449,7 @@ test("recent candidate pages query the inclusive release window and eligibility 
         !body.includes("first_release_date >= 1000") ||
         !body.includes("first_release_date <= 2000") ||
         /rating_count\s*>=/.test(body) ||
-        !body.includes("game_type = (0,4,8)") ||
+        !body.includes("game_type = (0,4,8,10)") ||
         !body.includes("cover != null") ||
         !body.includes("version_parent = null") ||
         !body.includes("keywords != (2004,24124,27216,25522)") ||
@@ -580,7 +648,7 @@ test("tag games query merged keywords and source eligibility, ranked by rating c
   expect(games.map((g) => g.popularity)).toEqual([30, 20, 20]);
   expect(bodies[0]).toContain("keywords = (416,17292)");
   for (const filter of [
-    "game_type = (0,4,8)",
+    "game_type = (0,4,8,10)",
     "version_parent = null",
     "keywords != (2004,24124,27216,25522)",
     "themes != (42)",

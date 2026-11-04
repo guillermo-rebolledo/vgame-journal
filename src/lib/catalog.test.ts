@@ -178,10 +178,11 @@ test("discovery projects the same earliest known year and platform availability 
   expect(await catalog.search("old quest")).toEqual(shelf.games);
 });
 
-test("only main games, standalone expansions and remakes are kept", async () => {
+test("standalone expanded games are kept while editions and other excluded types are left out", async () => {
   const source = createFakeGameSource([
     sourceGame({ title: "Resident Evil 2", type: "main_game" }),
     sourceGame({ title: "Resident Evil 2", type: "remake" }),
+    sourceGame({ title: "Resident Evil 2 Expanded", type: "expanded_game" }),
     sourceGame({
       title: "Resident Evil 2: Ghost Survivors",
       type: "dlc_addon",
@@ -191,6 +192,7 @@ test("only main games, standalone expansions and remakes are kept", async () => 
     sourceGame({
       title: "Resident Evil 2 Deluxe Edition",
       type: "expanded_game",
+      versionParent: 1,
     }),
     sourceGame({ title: "Resident Evil 2 + 3 Bundle", type: "bundle" }),
     sourceGame({
@@ -205,8 +207,43 @@ test("only main games, standalone expansions and remakes are kept", async () => 
   expect(titles).toEqual([
     "Resident Evil 2",
     "Resident Evil 2",
+    "Resident Evil 2 Expanded",
     "Resident Evil 2: Extra Chapter",
   ]);
+});
+
+test("old search caches cannot hide expanded games and expanded game links resolve", async () => {
+  const db = await createTestDb();
+  await db
+    .insert(searchCache)
+    .values({ query: "v2:emerald", gameIds: [], fetchedAt: new Date() });
+  const source = createFakeGameSource([
+    sourceGame({
+      id: 1517,
+      title: "Pokémon Emerald Version",
+      slug: "pokemon-emerald-version",
+      type: "expanded_game",
+    }),
+    sourceGame({
+      id: 2,
+      slug: "deluxe-edition",
+      type: "expanded_game",
+      versionParent: 1517,
+    }),
+  ]);
+  const catalog = createCatalog(db, source);
+  expect(await catalog.search("emerald")).toEqual([
+    expect.objectContaining({ id: 1517 }),
+  ]);
+  expect(await catalog.search("emerald")).toEqual([
+    expect.objectContaining({ id: 1517 }),
+  ]);
+  expect(source.searches).toBe(1);
+  const fresh = createCatalog(await createTestDb(), source);
+  expect(await fresh.findBySlug("pokemon-emerald-version")).toMatchObject({
+    id: 1517,
+  });
+  expect(await fresh.findBySlug("deluxe-edition")).toBeNull();
 });
 
 test("fan-made games are left out", async () => {

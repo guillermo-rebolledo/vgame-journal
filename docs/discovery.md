@@ -24,6 +24,9 @@ and positive finite IGDB Visits. DLC, remasters, ports, editions, fan games, and
 adult games remain excluded. Four games are selected per row, with canonical IDs
 breaking score ties. There is no review gate or genre quota.
 
+Standalone expanded games (such as Pokémon Emerald or Persona 5 Royal) are
+eligible; IGDB's `version_parent` distinguishes editions that remain excluded.
+
 **Recently trending** (the existing `popular` snapshot) includes games of any
 release date, including unknown dates and upcoming releases. Score is:
 
