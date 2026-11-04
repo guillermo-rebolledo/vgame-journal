@@ -769,16 +769,21 @@ function PersonalShelf({
         className={
           compact
             ? "flex flex-col gap-3"
-            : "grid grid-cols-2 gap-4 sm:grid-cols-4"
+            : "grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4"
         }
       >
         {games.map((entry) => (
-          <li key={entry.gameId} className="min-w-0">
+          <li
+            key={entry.gameId}
+            className={
+              compact ? "min-w-0" : "row-span-3 grid min-w-0 grid-rows-subgrid"
+            }
+          >
             <HomeCoverLink
               gameId={entry.gameId}
               source="shelf"
               href={`/games/${entry.slug}`}
-              className={`home-details group flex gap-3 rounded-lg outline-none ${compact ? "items-center" : "flex-col"}`}
+              className={`home-details group gap-3 rounded-lg outline-none ${compact ? "flex items-center" : "row-span-2 grid grid-rows-subgrid"}`}
               cover={
                 <GameCover
                   imageId={entry.coverImageId}

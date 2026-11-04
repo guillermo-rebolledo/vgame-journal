@@ -179,9 +179,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       name: "Search games",
       exact: true,
     });
-    const more = search.getByLabel("More platforms for Celeste", {
-      exact: true,
-    });
+    const more = search.getByLabel(/More platforms for Celeste$/);
     await search.getByRole("link", { name: "Celeste", exact: true }).focus();
     await page.keyboard.press("Tab");
     await expect(more).toBeFocused();

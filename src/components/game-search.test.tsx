@@ -374,7 +374,7 @@ test("reveals full platform availability outside the game link and prioritizes t
       { ...game(3, "Game port"), platforms: ["PC", longPlatform] },
     ]),
   );
-  const details = screen.getByLabelText("More platforms for Game collection");
+  const details = screen.getByLabelText(/More platforms for Game collection$/);
   expect(details.closest("a")).toBeNull();
   await user.click(details);
   expect(details.parentElement?.hasAttribute("open")).toBe(true);

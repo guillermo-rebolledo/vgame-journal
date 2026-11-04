@@ -30,7 +30,7 @@ export function GameIdentificationMetadata({
       {remaining.length > 0 && (
         <details>
           <summary
-            aria-label={`More platforms for ${title}`}
+            aria-label={`+${remaining.length} ${remaining.length === 1 ? "platform" : "platforms"} — More platforms for ${title}`}
             className="min-h-11 cursor-pointer content-center rounded-md py-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             +{remaining.length}{" "}
@@ -41,7 +41,7 @@ export function GameIdentificationMetadata({
             className="flex flex-wrap gap-x-3 gap-y-2 pb-2"
           >
             {remaining.map((platform) => (
-              <li key={platform}>
+              <li key={platform} className="min-w-0 max-w-full">
                 <PlatformName platform={platform} />
               </li>
             ))}

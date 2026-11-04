@@ -80,7 +80,7 @@ test("discovery separates release metadata from freshness and reveals platforms 
   );
   expect(screen.getByText("Year unavailable")).toBeTruthy();
   expect(screen.getByText("Platform availability unknown")).toBeTruthy();
-  const disclosure = screen.getByLabelText("More platforms for Old classic");
+  const disclosure = screen.getByLabelText(/More platforms for Old classic$/);
   expect(disclosure.closest("a")).toBeNull();
   await userEvent.click(disclosure);
   expect(
