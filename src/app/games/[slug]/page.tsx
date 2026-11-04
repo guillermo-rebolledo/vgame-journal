@@ -4,12 +4,8 @@ import { Suspense, ViewTransition } from "react";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
 import { FallbackImage } from "@/components/fallback-image";
 import { GameCover } from "@/components/game-cover";
-import {
-  AgeRatingFact,
-  AgeRatingFactSkeleton,
-  Fact,
-  LanguagesFact,
-} from "@/components/game-facts";
+import { AgeRatingFact, AgeRatingFactSkeleton } from "@/components/game-facts";
+import { GameFactsGrid } from "@/components/game-facts-grid";
 import { GameLists } from "@/components/game-lists";
 import { JsonLd } from "@/components/json-ld";
 import { PlatformName, PlatformNames } from "@/components/platform";
@@ -133,34 +129,16 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
             />
           </Suspense>
 
-          <dl className="grid grid-cols-2 gap-4 sm:max-w-md">
-            <Score
-              label="Critic score"
-              score={game.criticScore}
-              count={game.criticScoreCount}
-              noun="review"
-            />
-            <Score
-              label="User score"
-              score={game.userScore}
-              count={game.userScoreCount}
-              noun="rating"
-            />
-            {game.ageRatings &&
-              (game.ageRatings.length === 0 ? (
-                <Fact label="Age rating" note="Not rated yet" />
-              ) : (
+          <GameFactsGrid
+            game={game}
+            ageRating={
+              game.ageRatings?.length ? (
                 <Suspense fallback={<AgeRatingFactSkeleton />}>
                   <AgeRating ratings={game.ageRatings} />
                 </Suspense>
-              ))}
-            {game.languages &&
-              (game.languages.length === 0 ? (
-                <Fact label="Languages" note="Unknown" />
-              ) : (
-                <LanguagesFact languages={game.languages} />
-              ))}
-          </dl>
+              ) : undefined
+            }
+          />
 
           {game.summary && (
             <p className="max-w-prose text-pretty leading-relaxed">
@@ -264,30 +242,4 @@ function videoGameSchema(
         },
       }),
   };
-}
-
-function Score({
-  label,
-  score,
-  count,
-  noun,
-}: {
-  label: string;
-  score: number | null;
-  count: number | null;
-  noun: string;
-}) {
-  return (
-    <Fact
-      label={label}
-      value={score === null ? undefined : Math.round(score)}
-      note={
-        score === null
-          ? "Not enough ratings yet"
-          : count
-            ? `${count.toLocaleString("en-US")} ${noun}${count === 1 ? "" : "s"}`
-            : null
-      }
-    />
-  );
 }

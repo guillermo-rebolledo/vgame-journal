@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "cn";
-import { CheckIcon, MinusIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, MinusIcon } from "lucide-react";
 import { type ReactNode, useId, useRef, useState } from "react";
 import {
   HoverCard,
@@ -19,23 +19,23 @@ import {
 import type { SourceAgeRating, SourceLanguage } from "@/lib/game-source";
 
 const CARD =
-  "flex flex-col gap-1 rounded-lg border bg-background/60 p-4 backdrop-blur";
+  "flex min-w-0 flex-col gap-1 rounded-lg border bg-background p-4 wrap-anywhere @max-[12rem]:p-2";
 
-/** A score-grid card without details; "–" when there's no value. */
+/** A score-grid card for a known value without details. */
 export function Fact({
   label,
-  value = "–",
+  value,
   note,
 }: {
   label: string;
-  value?: ReactNode;
+  value: ReactNode;
   note?: string | null;
 }) {
   return (
     <div className={CARD}>
       <dt className="text-muted-foreground text-sm">{label}</dt>
       <dd className="font-semibold text-3xl tabular-nums">{value}</dd>
-      <dd className="text-muted-foreground text-xs">{note}</dd>
+      {note && <dd className="text-muted-foreground text-xs">{note}</dd>}
     </div>
   );
 }
@@ -43,9 +43,9 @@ export function Fact({
 /** Holds the age rating card's place while the user's Region streams in. */
 export function AgeRatingFactSkeleton() {
   return (
-    <div className="flex">
+    <div className="flex min-w-0">
       <dt className="sr-only">Age rating</dt>
-      <dd className="flex flex-1">
+      <dd className="flex min-w-0 flex-1">
         <output aria-label="Loading age rating" className={cn(CARD, "flex-1")}>
           <span aria-hidden className="text-muted-foreground text-sm">
             Age rating
@@ -82,9 +82,9 @@ function HoverFact({
   const pointerType = useRef("");
   const id = useId();
   return (
-    <div className="flex">
+    <div className="flex min-w-0">
       <dt className="sr-only">{label}</dt>
-      <dd className="flex flex-1">
+      <dd className="flex min-w-0 flex-1">
         <HoverCard
           open={open}
           onOpenChange={(nextOpen, details) => {
@@ -102,7 +102,7 @@ function HoverFact({
           <HoverCardTrigger
             delay={200}
             render={<button type="button" />}
-            aria-label={`${label}: ${summary}`}
+            aria-label={`${label}: ${summary} View details`}
             aria-expanded={open}
             aria-controls={open ? id : undefined}
             // A tap also focuses and "hovers" the trigger, which opens the card after `delay`; on a
@@ -118,20 +118,30 @@ function HoverFact({
             onClick={() => {
               if (openAtTouch.current !== undefined)
                 setOpen(!openAtTouch.current);
+              else setOpen(true);
               openAtTouch.current = undefined;
             }}
             className={cn(
               CARD,
-              "flex-1 cursor-default text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "flex-1 cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
             )}
           >
             <span aria-hidden className="text-muted-foreground text-sm">
               {label}
             </span>{" "}
             {value}{" "}
-            <span className="text-muted-foreground text-xs">{note}</span>
+            <span className="text-muted-foreground text-xs">{note}</span>{" "}
+            <span className="mt-1 flex flex-wrap items-center gap-1 text-xs">
+              View details <ChevronDownIcon aria-hidden className="size-3" />
+            </span>
           </HoverCardTrigger>
-          <HoverCardContent id={id} className={cn("w-72 p-3", className)}>
+          <HoverCardContent
+            id={id}
+            className={cn(
+              "w-72 max-w-[calc(100vw-2rem)] break-words p-3",
+              className,
+            )}
+          >
             {children}
           </HoverCardContent>
         </HoverCard>
@@ -178,13 +188,13 @@ export function AgeRatingFact({
   return (
     <HoverFact
       label="Age rating"
-      summary={`${meaning}, ${board}`}
+      summary={`${meaning} · ${board}`}
       value={<Logo rating={headline} className="h-9 self-start" />}
       note={`${meaning} · ${board}`}
     >
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <Logo rating={headline} className="h-16 shrink-0" />
-        <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-[min(100%,8rem)] flex-1 flex-col gap-1">
           <p className="font-medium">{meaning}</p>
           <p className="text-muted-foreground text-xs">
             {board} · {boardRegion(headline.board)}
@@ -247,7 +257,7 @@ export function LanguagesFact({ languages }: { languages: SourceLanguage[] }) {
   return (
     <HoverFact
       label="Languages"
-      summary={`${languages.length}, ${voices}`}
+      summary={`${languages.length} ${voices}`}
       value={
         <span className="font-semibold text-3xl tabular-nums">
           {languages.length}
