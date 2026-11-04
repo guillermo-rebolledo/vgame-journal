@@ -47,3 +47,11 @@ CI run 41873110779 exposed two pointer-action failures on the slower Linux runne
 JournalStatus now uses the existing Tooltip disabled state while removal confirmation is open. Its regression story failed before the fix and passed afterward when a late background hover arrived. The recording E2E also checks that Journal-status help stays absent across the confirmation and a second-tab round trip. The theme helper waits for its actual submenu to become fully opaque before clicking; clicks remain subject to normal Playwright hit testing. No forced clicks, arbitrary sleeps, or increased timeouts were added.
 
 Validation: both previously failing scenarios passed four consecutive runs (8 cases total); all 32 broader accessibility/theme/recording E2E cases, 16 recording/Status unit tests, and all 81 Storybook tests passed. Lint, typecheck, and the static catalog build passed.
+
+## CI Languages keyboard follow-up
+
+Run 41878484829 stopped in Storybook's accessibility scan: the long Languages table's scroll region had no keyboard focus target. The LongLanguages story reproduced Tab skipping the region before the fix. Giving the region a name, tab stop, and focus outline resolved that regression, but a real browser test then exposed the body's portal placement: Tab left the trigger before reaching the table.
+
+HoverCardContent now forwards Base UI's existing portal-container option. HoverFact uses its existing definition element as the container, preserving DOM order without replacing the shared primitive. Escape restores focus to the fact trigger. The existing long-language browser case now verifies Tab entry, End-key scrolling, contained pointer scrolling, and Escape dismissal with focus restoration.
+
+Validation: all 20 game-facts/accessibility E2E cases and all 81 Storybook tests passed. Lint, typecheck, and the static catalog build passed. The manual-check limits above still apply.

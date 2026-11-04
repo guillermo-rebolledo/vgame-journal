@@ -251,6 +251,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 - Disable Journal-status help while removal confirmation is open, so late hover or restored window focus cannot place background help over the modal's controls.
 - Loading placeholders reserve the control/status footprint, not a permanent empty history area. Populated history grows in normal flow, so later Catalog content may move when it arrives.
 - Available Age rating and Languages details have a visible disclosure cue, meaningful accessible names, and keyboard, pointer, and touch access. Unknown values stay explicit and noninteractive.
+- Fact details stay beside their trigger in DOM order. The Languages table's named scroll region is reachable with Tab and shows a visible focus outline, so keyboard users can scroll every language. Escape returns focus to the fact trigger.
 - Both missing scores share one compact “Scores unavailable” message. If only one score is missing, name that score as unavailable. Unknown age and language values use compact labeled metadata; reserve large value cards for known facts.
 
 ### Buttons

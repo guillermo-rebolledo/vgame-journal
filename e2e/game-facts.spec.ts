@@ -79,16 +79,25 @@ test("a game the guest board hasn't rated falls back, and many languages scroll"
   await expect(languages(page)).toHaveAccessibleName(
     "Languages: 28 English voices View details",
   );
-  await languages(page).hover();
+  await languages(page).focus();
   const table = page.getByRole("table");
   await expect(table.getByRole("row")).toHaveCount(29);
-  const scroller = table.locator("..");
+  const scroller = page.getByRole("region", { name: "Language support" });
   await expect(table.locator("../..")).toHaveCSS("opacity", "1");
   await expect(table.locator("../..")).toHaveCSS(
     "transform",
     "matrix(1, 0, 0, 1, 0, 0)",
   );
+  await page.keyboard.press("Tab");
+  await expect(scroller).toBeFocused();
+  await page.keyboard.press("End");
+  await expect
+    .poll(() => scroller.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(0);
   await expectContainedScroll(page, scroller);
+  await page.keyboard.press("Escape");
+  await expect(table).toHaveCount(0);
+  await expect(languages(page)).toBeFocused();
 });
 
 test("structured data carries the guest rating and languages", async ({

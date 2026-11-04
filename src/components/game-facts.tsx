@@ -80,11 +80,13 @@ function HoverFact({
   const [open, setOpen] = useState(false);
   const openAtTouch = useRef<boolean>(undefined);
   const pointerType = useRef("");
+  const container = useRef<HTMLElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const id = useId();
   return (
     <div className="flex min-w-0">
       <dt className="sr-only">{label}</dt>
-      <dd className="flex min-w-0 flex-1">
+      <dd ref={container} className="flex min-w-0 flex-1">
         <HoverCard
           open={open}
           onOpenChange={(nextOpen, details) => {
@@ -96,12 +98,14 @@ function HoverFact({
               details.cancel();
               return;
             }
+            if (!nextOpen && details.reason === "escape-key")
+              trigger.current?.focus();
             setOpen(nextOpen);
           }}
         >
           <HoverCardTrigger
             delay={200}
-            render={<button type="button" />}
+            render={<button ref={trigger} type="button" />}
             aria-label={`${label}: ${summary} View details`}
             aria-expanded={open}
             aria-controls={open ? id : undefined}
@@ -136,6 +140,7 @@ function HoverFact({
             </span>
           </HoverCardTrigger>
           <HoverCardContent
+            container={container}
             id={id}
             className={cn(
               "w-72 max-w-[calc(100vw-2rem)] break-words p-3",
@@ -269,7 +274,12 @@ export function LanguagesFact({ languages }: { languages: SourceLanguage[] }) {
       <p className="pb-2 font-medium">
         {languages.length} languages · {voices}
       </p>
-      <div className="min-h-0 overflow-y-auto overscroll-contain">
+      <section
+        aria-label="Language support"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: keyboard users must be able to scroll the language table.
+        tabIndex={0}
+        className="min-h-0 overflow-y-auto overscroll-contain rounded-sm focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+      >
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-popover text-muted-foreground">
             <tr>
@@ -296,7 +306,7 @@ export function LanguagesFact({ languages }: { languages: SourceLanguage[] }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </section>
     </HoverFact>
   );
 }
