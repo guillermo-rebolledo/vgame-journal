@@ -210,11 +210,6 @@
         "purpose": "Odometer roll-in and confetti burst. UI delight exception to the 300ms guideline."
       },
       {
-        "name": "duration-ambient",
-        "value": "40s",
-        "purpose": "Existing noninteractive game-detail backdrop drift; enabled only with motion-safe."
-      },
-      {
         "name": "press",
         "value": "scale(0.96) 150ms ease-out",
         "purpose": "Enabled buttons and tags only; no movement under reduced motion. Anchored triggers opt out with press=static."
