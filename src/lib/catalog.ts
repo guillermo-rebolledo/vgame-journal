@@ -431,7 +431,12 @@ export function createCatalog(db: Db, source: GameSource) {
         return local;
       }
       const fetched = await source.fetchBySlug(slug);
-      if (!fetched || !STANDALONE_TYPES.has(fetched.type) || fetched.fanMade)
+      if (
+        !fetched ||
+        !STANDALONE_TYPES.has(fetched.type) ||
+        fetched.fanMade ||
+        fetched.versionParent
+      )
         return null;
       await save([fetched]);
       return loadBySlug(slug);
@@ -477,8 +482,8 @@ export function createCatalog(db: Db, source: GameSource) {
     async search(rawQuery: string) {
       const query = rawQuery.trim().toLowerCase().replace(/\s+/g, " ");
       if (query.length < 2) return [];
-      // Older entries discarded eligible candidates after the first 20.
-      const cacheKey = `v2:${query}`;
+      // Older caches excluded expanded games and lacked the spacing fallback.
+      const cacheKey = `v3:${query}`;
       const now = new Date();
       const [cached] = await db
         .select()
@@ -495,7 +500,10 @@ export function createCatalog(db: Db, source: GameSource) {
         query,
         (await source.search(query))
           .slice(0, MAX_SEARCH_CANDIDATES)
-          .filter((g) => STANDALONE_TYPES.has(g.type) && !g.fanMade),
+          .filter(
+            (g) =>
+              STANDALONE_TYPES.has(g.type) && !g.fanMade && !g.versionParent,
+          ),
       );
       await save(games);
       const gameIds = games.map((g) => g.id);

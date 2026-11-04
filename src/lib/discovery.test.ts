@@ -184,7 +184,7 @@ test("discovery pages past excluded records and duplicate IDs, breaking tied ran
     { type: "port" },
     { type: "remaster" },
     { type: "bundle" },
-    { type: "expanded_game" },
+    { type: "expanded_game", versionParent: 99 },
     { type: "dlc_addon" },
     { fanMade: true },
     { themes: [42] },

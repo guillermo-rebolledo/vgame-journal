@@ -51,11 +51,12 @@ export const GAME_TYPES = [
 
 export type GameType = (typeof GAME_TYPES)[number];
 
-/** Only these become Catalog games; DLC, remasters, ports, editions etc. never do. */
+/** Standalone releases, including expanded games; versionParent separately excludes editions. */
 export const STANDALONE_TYPES: ReadonlySet<GameType> = new Set([
   "main_game",
   "standalone_expansion",
   "remake",
+  "expanded_game",
 ]);
 
 export type SourceGame = {

@@ -400,12 +400,28 @@ export const igdbGameSource: GameSource = {
     return games;
   },
   async search(query) {
-    const q = query.replace(/["\\]/g, "");
-    const games = await igdb<IgdbGame>(
-      "games",
-      `search "${q}"; fields ${GAME_FIELDS}; where game_type = (${STANDALONE_TYPE_IDS}) & version_parent = null & keywords != (${FAN_KEYWORD_IDS}); limit 50;`,
-    );
-    return games.map(toGame);
+    const q = query.replace(/["\\]/g, "").trim().replace(/\s+/g, " ");
+    if (!q) return [];
+    const words = q.split(" ");
+    const queries = [q];
+    // Bound fallback traffic; IGDB misses split compounds such as "Soul Silver".
+    for (let i = words.length - 2; i >= 0 && queries.length < 4; i--) {
+      queries.push(
+        [
+          ...words.slice(0, i),
+          words[i] + words[i + 1],
+          ...words.slice(i + 2),
+        ].join(" "),
+      );
+    }
+    for (const variant of queries) {
+      const games = await igdb<IgdbGame>(
+        "games",
+        `search "${variant}"; fields ${GAME_FIELDS}; where game_type = (${STANDALONE_TYPE_IDS}) & version_parent = null & keywords != (${FAN_KEYWORD_IDS}); limit 50;`,
+      );
+      if (games.length) return games.map(toGame);
+    }
+    return [];
   },
 
   async fetchGame(id) {
