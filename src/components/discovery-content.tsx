@@ -70,9 +70,12 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
             <h2 id={id} className="font-semibold text-xl">
               {title}
             </h2>
-            <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
               {shelf.games.map((game) => (
-                <li key={game.id}>
+                <li
+                  key={game.id}
+                  className="row-span-4 grid min-w-0 grid-rows-subgrid"
+                >
                   <HomeCoverLink
                     gameId={game.id}
                     source="shelf"
@@ -86,7 +89,7 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
                       },
                     ]}
                     href={`/games/${game.slug}`}
-                    className="group flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                    className="group row-span-2 grid grid-rows-subgrid gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                     cover={
                       <GameCover
                         imageId={game.coverImageId}
@@ -94,11 +97,11 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
                       />
                     }
                   >
-                    <span className="line-clamp-2 font-medium text-sm leading-snug group-hover:underline group-hover:underline-offset-4">
+                    <span className="break-words font-medium text-sm leading-snug group-hover:underline group-hover:underline-offset-4">
                       {game.title}
                     </span>
                   </HomeCoverLink>
-                  <div className="mt-2">
+                  <div className="min-w-0">
                     <GameIdentificationMetadata
                       title={game.title}
                       year={game.year}
