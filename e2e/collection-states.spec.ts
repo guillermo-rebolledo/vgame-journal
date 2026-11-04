@@ -159,7 +159,7 @@ test("an unreachable cover keeps the game's title and cover proportions", async 
 
 for (const signedIn of [false, true]) {
   for (const theme of ["dark", "light"]) {
-    test(`R08: ${signedIn ? "owner" : "guest"} phone ${theme} hero and decorative covers fall back and recover`, async ({
+    test(`R08: ${signedIn ? "owner" : "guest"} phone ${theme} compact cover falls back and recovers`, async ({
       page,
       request,
     }) => {
@@ -186,7 +186,7 @@ for (const signedIn of [false, true]) {
       expect(failedRequests).toBeGreaterThan(0);
       await expect(article.locator('img[src*="/cob9kr.jpg"]')).toHaveCount(0);
       const box = await fallback.locator("..").boundingBox();
-      expect(box?.width).toBe(192);
+      expect(box?.width).toBe(80);
       expect((box?.width ?? 0) / (box?.height ?? 1)).toBeCloseTo(264 / 374, 2);
       await expect(
         page.getByRole("heading", { level: 1, name: "Hades" }),
@@ -204,7 +204,7 @@ for (const signedIn of [false, true]) {
         page.getByRole("heading", { level: 1, name: "Dead Cells" }),
       ).toBeVisible();
       const images = article.locator('img[src*="/co7jfv.jpg"]');
-      await expect(images).toHaveCount(2);
+      await expect(images).toHaveCount(1);
       await expect
         .poll(() =>
           images.evaluateAll((nodes) =>
@@ -220,7 +220,7 @@ for (const signedIn of [false, true]) {
       const recovered = await article
         .locator('img[src*="/co7jfv.jpg"][width="264"]')
         .boundingBox();
-      expect(recovered?.width).toBe(192);
+      expect(recovered?.width).toBe(80);
       expect((recovered?.width ?? 0) / (recovered?.height ?? 1)).toBeCloseTo(
         264 / 374,
         2,

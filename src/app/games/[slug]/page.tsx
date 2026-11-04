@@ -77,7 +77,9 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
               {game.title}
             </h1>
             {game.genres.length > 0 && (
-              <p className="text-muted-foreground">{game.genres.join(", ")}</p>
+              <p className="wrap-anywhere text-muted-foreground">
+                {game.genres.join(", ")}
+              </p>
             )}
           </div>
         </header>
