@@ -18,7 +18,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Decorative cover art with a 264:374 ratio and missing-art fallback. The adjacent title supplies the accessible link name. These examples use missing art to stay deterministic and offline; imageId can be edited to preview a real IGDB cover. Source: src/components/game-cover.tsx.",
+          "Decorative cover art with a neutral 10% inset outline following its radius, a 264:374 ratio and missing-art fallback. The adjacent title supplies the accessible link name. These examples use missing art to stay deterministic and offline; imageId can be edited to preview a real IGDB cover. Source: src/components/game-cover.tsx.",
       },
     },
   },

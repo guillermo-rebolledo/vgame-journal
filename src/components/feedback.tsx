@@ -70,6 +70,7 @@ export function Feedback({
         render={
           <Button
             variant="outline"
+            press="static"
             size="sm"
             aria-label="Send feedback"
             className="min-h-11 min-w-11"

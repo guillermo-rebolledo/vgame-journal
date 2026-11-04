@@ -7,7 +7,7 @@ import { trackEvent } from "@/components/analytics";
 import { Button } from "@/components/ui/button";
 
 const icon =
-  "transition-[opacity,scale] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:scale-100";
+  "scale-100 blur-none transition-[opacity,scale,filter] duration-300 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-opacity motion-reduce:scale-100 motion-reduce:blur-none";
 
 export function CopyButton({
   text,
@@ -59,8 +59,12 @@ export function CopyButton({
         }}
       >
         <span aria-hidden className="grid *:col-start-1 *:row-start-1">
-          <Copy className={cn(icon, copied && "scale-50 opacity-0")} />
-          <Check className={cn(icon, !copied && "scale-50 opacity-0")} />
+          <Copy
+            className={cn(icon, copied && "scale-25 opacity-0 blur-[4px]")}
+          />
+          <Check
+            className={cn(icon, !copied && "scale-25 opacity-0 blur-[4px]")}
+          />
         </span>
         <span aria-live="polite">
           {copied ? "Copied" : state === "copying" ? "Copying…" : "Copy"}

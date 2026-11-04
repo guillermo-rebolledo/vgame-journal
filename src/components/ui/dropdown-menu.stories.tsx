@@ -9,6 +9,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "./dropdown-menu";
 
@@ -24,7 +27,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Actions and mutually exclusive choices anchored to a trigger. Reuse JournalStatus for game recording rather than rebuilding its persistence and confirmation behavior. Source: src/components/ui/dropdown-menu.tsx.",
+          "Actions and mutually exclusive choices anchored to a trigger. Reuse JournalStatus for game recording rather than rebuilding its persistence and confirmation behavior. Popup transitions retarget on reversal and keep only opacity under reduced motion. Source: src/components/ui/dropdown-menu.tsx.",
       },
     },
   },
@@ -33,7 +36,9 @@ const meta = {
     return (
       <div className="grid gap-4">
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="outline" />}>
+          <DropdownMenuTrigger
+            render={<Button variant="outline" press="static" />}
+          >
             Journal actions
           </DropdownMenuTrigger>
           <DropdownMenuContent>
@@ -63,7 +68,8 @@ export const KeyboardAndSelection: Story = {
     trigger.focus();
     await userEvent.keyboard("{Enter}");
     const body = within(canvasElement.ownerDocument.body);
-    await expect(await body.findByRole("menu")).toBeVisible();
+    const menu = await body.findByRole("menu");
+    await waitFor(() => expect(menu).toBeVisible());
     await userEvent.click(body.getByRole("menuitemradio", { name: "Playing" }));
     await expect(canvas.getByText("Selected Status: Playing")).toBeVisible();
     await waitFor(() => expect(trigger).toHaveFocus());
@@ -72,5 +78,47 @@ export const KeyboardAndSelection: Story = {
         body.queryByRole("menu", { hidden: true }),
       ).not.toBeInTheDocument(),
     );
+  },
+};
+
+export const NestedTheme: Story = {
+  render: () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="outline" press="static" />}>
+        Appearance
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>Theme</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup defaultValue="dark">
+              {["Light", "Dark", "System"].map((theme) => (
+                <DropdownMenuRadioItem key={theme} value={theme.toLowerCase()}>
+                  {theme}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ),
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole("button", {
+      name: "Appearance",
+    });
+    await userEvent.click(trigger);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.hover(await body.findByRole("menuitem", { name: "Theme" }));
+    await expect(
+      await body.findByRole("menuitemradio", { name: "Dark" }),
+    ).toHaveAttribute("aria-checked", "true");
+    await userEvent.keyboard("{Escape}{Escape}");
+    await waitFor(() =>
+      expect(
+        body.queryByRole("menu", { hidden: true }),
+      ).not.toBeInTheDocument(),
+    );
+    await expect(trigger).toHaveFocus();
   },
 };

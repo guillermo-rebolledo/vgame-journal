@@ -496,6 +496,7 @@ export function HomeSaveControls({ game }: { game: Game }) {
             render={
               <Button
                 ref={trigger}
+                press={entry ? "static" : "scale"}
                 variant="outline"
                 className="min-h-11 max-w-full"
                 aria-label={

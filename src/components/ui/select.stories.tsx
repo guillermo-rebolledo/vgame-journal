@@ -44,7 +44,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Base UI single-choice control. Supply items so the selected value has a readable label; associate the trigger with FieldLabel. Popup content is portaled. Source: src/components/ui/select.tsx.",
+          "Base UI single-choice control. Supply items so the selected value has a readable label; associate the trigger with FieldLabel. Popup content is portaled. Popup transitions retarget on reversal and keep only opacity under reduced motion. Source: src/components/ui/select.tsx.",
       },
     },
   },
