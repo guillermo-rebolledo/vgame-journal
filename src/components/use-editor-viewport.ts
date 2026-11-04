@@ -25,6 +25,7 @@ export function useEditorViewport(open: boolean) {
       // The popup mounts in a portal, so publish sizing before its ref is available.
       const root = document.documentElement.style;
       root.setProperty("--editor-height", `${editorHeight}px`);
+      root.setProperty("--editor-viewport-height", `${viewport.height}px`);
       root.setProperty(
         "--editor-bottom",
         `${Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)}px`,
@@ -36,11 +37,14 @@ export function useEditorViewport(open: boolean) {
     resize();
     viewport.addEventListener("resize", resize);
     viewport.addEventListener("scroll", resize);
+    window.addEventListener("orientationchange", resize);
     return () => {
       observer.disconnect();
       viewport.removeEventListener("resize", resize);
       viewport.removeEventListener("scroll", resize);
+      window.removeEventListener("orientationchange", resize);
       document.documentElement.style.removeProperty("--editor-height");
+      document.documentElement.style.removeProperty("--editor-viewport-height");
       document.documentElement.style.removeProperty("--editor-bottom");
     };
   }, [open]);
