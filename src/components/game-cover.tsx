@@ -22,7 +22,7 @@ export function GameCover({
       width={264}
       height={374}
       loading="lazy"
-      className={classes}
+      className={`content-image ${classes}`}
       fallback={
         <div
           aria-hidden="true"

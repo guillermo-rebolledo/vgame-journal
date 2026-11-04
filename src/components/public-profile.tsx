@@ -52,7 +52,7 @@ export function PublicProfile({
           src={profile.image}
           alt=""
           referrerPolicy="no-referrer"
-          className="size-16 shrink-0 rounded-full object-cover"
+          className="content-image size-16 shrink-0 rounded-full object-cover"
           width={64}
           height={64}
           fallback={

@@ -165,7 +165,7 @@ The palette is a strictly achromatic gray ramp in OKLCH, with zero chroma. It's 
 
 **The Celebration Exception.** The finish-game confetti (`burst-button.tsx`) uses the raw Tailwind amber, emerald, sky, rose and violet `400` colors. It's the only place raw palette classes are allowed, because a celebration is a moment, not chrome.
 
-**The Semantic Tokens Only Rule.** Components use semantic utilities such as `bg-primary`, `text-muted-foreground` and `border-border`. Never use raw palette classes like `bg-zinc-800`, and never hard-code an OKLCH value. Every token is defined in `src/app/globals.css`, in `:root` and `.dark`.
+**The Semantic Tokens Only Rule.** Components use semantic utilities such as `bg-primary`, `text-muted-foreground` and `border-border`. Never use raw palette classes like `bg-zinc-800`, and define OKLCH values as tokens. Content-image edges use the deliberately pure black/white `--image-outline` token, rather than a palette gray. Every token is defined in `src/app/globals.css`, in `:root` and `.dark`.
 
 ## Typography
 
@@ -201,7 +201,7 @@ The system is flat. Hairline borders and Dust panels separate surfaces, and shad
 ### Shadow Vocabulary
 - **Cover on the shelf** (`shadow-lg`): every cover in a grid or shelf. It makes the art read as a physical box.
 - **Hero cover** (`shadow-2xl`): the single large cover on a game's detail page.
-- **Floating layer** (`shadow-md` or `shadow-lg` plus `ring-1 ring-foreground/10`): popovers, menus, selects and hover cards. The ring keeps the edge visible in dark mode, where shadows disappear.
+- **Floating layer** (`shadow-md` or `shadow-lg` plus `ring-1 ring-foreground/10`): popovers, menus, selects and hover cards. The ring keeps the edge visible in dark mode. A solid transparent 1px border supplies the edge in forced colors, where shadows disappear.
 
 ### Named Rules
 **The Objects, Not Surfaces Rule.** Shadows belong to covers and floating layers. Cards, notices, inputs and empty states never get a shadow. They use a hairline border, or Dust at 40% opacity.
@@ -231,9 +231,9 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | Menus and floating layers | `ui/dropdown-menu.tsx`, `ui/tooltip.tsx`, `ui/hover-card.tsx`, `ui/drawer.tsx` | Preserve Base UI keyboard handling, names, and focus management. |
 | Avatars, dividers, placeholders | `ui/avatar.tsx`, `ui/separator.tsx`, `ui/skeleton.tsx` | Shared visual primitives. |
 | Covers and failed media | `game-cover.tsx`, `fallback-image.tsx`, `tilt-cover.tsx` | Reuse the cover ratio, missing-art fallback, and reduced-motion behavior. |
-| Game identity | `game-identification-metadata.tsx`, `platform.tsx`, `game-facts.tsx` | Keep game titles and platform labels consistent. |
+| Game identity | `game-identification-metadata.tsx`, `platform.tsx`, `game-facts.tsx` | Facts reuse HoverCard; Languages owns its scroll containment. Keep game titles and platform labels consistent. |
 | Save or change Status | `journal-status.tsx`, `game-recording.tsx`, `home-cover-link.tsx` | Separate the game link from its recording actions. |
-| Playthrough recording | `playthrough-form.tsx`, `playthrough-history.tsx` | Reuse validation, draft retention, and editor dismissal behavior. |
+| Playthrough recording | `game-recording.tsx`, `playthrough-form.tsx`, `playthrough-history.tsx` | Reuse validation, draft retention, and editor dismissal behavior. Deleting a Playthrough returns focus to Add playthrough even when refreshed history arrives later. |
 | Search and discovery | `game-search.tsx`, `discovery-content.tsx`, `tag-shelves.tsx` | Preserve result, retry, and empty states. |
 | Collections | `library.tsx`, `wishlist.tsx`, `paged-list.tsx`, `collection-loading.tsx` | Reuse filtering, pagination, and collection loading patterns. |
 | List creation | `list-creation-drawer.tsx`, `list-form.tsx` | Open the shared list fields on demand; keep drafts on dismissal, associate title errors, and block dismissal while saving. |
@@ -248,7 +248,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 - **Outline:** a hairline border on Paper; the common secondary action.
 - **Ghost:** no fill until hover. Use for toolbars and menu triggers.
 - **Destructive:** Ember text on a 10% Ember tint. It's never a solid red fill.
-- **States:** hover darkens the fill to 80% or adds a Dust fill. Pressing nudges the button down 1px. Focus shows the standard 3px ring at 50% opacity. Disabled is 50% opacity with no pointer events.
+- **States:** hover darkens the fill to 80% or adds a Dust fill. Enabled presses scale to exactly 0.96 over 150ms with ease-out, only under no preference for reduced motion. Use the shared `press="static"` variant for anchored triggers where scaling distracts. Native, Base UI, and ARIA-disabled controls never scale or activate. Controls supplying their own press feedback suppress the browser tap highlight. Focus shows the standard 3px ring at 50% opacity. Disabled is 50% opacity with no pointer events.
 
 ### Inputs / Fields
 - **Style:** a hairline stroke, transparent fill (`input/30` in dark mode), 10px radius and 32px height. The search field wraps its input and controls in one focus-within container.
@@ -268,13 +268,14 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 
 ### Floating layers (menus, selects, tooltips, hover cards, dialogs)
 - Use the Base UI primitives in `src/components/ui/` and don't hand-roll these.
-- Popovers scale from their trigger with `origin-(--transform-origin)`. Dialogs stay centered.
-- They use the floating-layer shadow, with 4–10px internal padding.
+- Popovers transition opacity and scale from their trigger with `origin-(--transform-origin)` using Base UI starting/ending states. Interactive layers use retargetable transitions, never open/close keyframes; Base UI retains exit mounting and focus/dismissal behavior. Reduced motion keeps opacity alone. Trigger-aligned selects keep opacity alone to preserve alignment. Dialogs stay centered.
+- They use the floating-layer shadow plus a 1px solid transparent border so forced colors retains a visible edge, with 4–10px internal padding. Apply overscroll containment to the actual scroller: menu/submenu popups, select popup and list, Languages table, and removal confirmation. Preserve the Playthrough drawer’s existing containment and nested-select Escape behavior.
 
 ### Game cover (signature)
 - Use `GameCover`, which applies the 264:374 aspect ratio, `object-cover` and lazy loading.
 - The cover is decorative (`alt=""`); the adjacent title names the link.
 - It uses the cover-on-shelf shadow and 10px radius in grids. Compact rows use 48px-wide thumbnails with a smaller radius and no shadow.
+- Content images (game covers, public-profile photos, and account-avatar photos) use a 1px solid outline inset by 1px, following their radius without changing size. `--image-outline` is `oklch(0 0 0 / 0.1)` in Light and `oklch(1 0 0 / 0.1)` in Dark. Skip transparent logos, rating-board art, and image fallbacks.
 - Missing art shows a Dust tile with an ImageOff icon and "No cover art". Never leave an empty box.
 - `TiltCover` adds pointer tilt and glare, and scales to 0.96 when pressed. Both are disabled under reduced motion.
 
@@ -287,6 +288,11 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 Motion is implemented in `globals.css` and the components; `.impeccable/design.json` records the reference values.
 - **Curve:** `cubic-bezier(0.22, 1, 0.36, 1)`, a strong ease-out, for entering, disclosure, routes and covers. Use plain `ease-out` for exits.
 - **Durations:** exits 140ms, disclosure and inserted content 200ms, routes and cover entry 220ms, cover morph 280ms.
+- **Popup feedback:** 200ms entering with the existing ease-out curve, 140ms exiting with ease-out; tooltips use 125ms and skip transitions for instant handoff. Reduced motion retains only opacity.
+- **Copy feedback:** both icons stay in one grid cell and cross-fade in both directions for exactly 300ms with `cubic-bezier(0.2, 0, 0, 1)`, scale 0.25 ↔ 1 and blur 4px ↔ 0. Reduced motion uses opacity alone. The default icon starts settled; preserve Copying/Copied, disablement, the two-second reset, success-only analytics, and manual-copy recovery.
+- **Theme:** the existing provider suppresses transitions through its theme style flush for explicit choices and System appearance updates, then promptly restores them. Preserve the Dark default and persisted selection.
+- **Journal pending:** the pending icon rotates only with no reduced-motion preference; visible “Saving journal status…” and live output provide stationary progress feedback. Keep the action’s static label.
+- **Tag selection:** press feedback uses the same 0.96 / 150ms ease-out scale contract; name `scale` in transition properties. Selection and shelf replacement are immediate, without routine cover-entry sequences. Gate hover feedback to hover-capable fine pointers.
 - **Route changes** use view transitions: the old page fades out and the new one fades up 6px.
 - **Inserted content** uses `.enter`: CSS transitions with `@starting-style` and a 4px rise, so it can be interrupted.
 - Every animation has a `prefers-reduced-motion: reduce` branch that removes movement and keeps opacity only where it helps.

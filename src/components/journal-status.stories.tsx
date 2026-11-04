@@ -89,3 +89,34 @@ export const FailedSave: Story = {
   },
 };
 export const LightTheme: Story = { globals: { theme: "light" } };
+
+export const Pending: Story = {
+  args: {
+    onSave: fn<SaveJournalStatus>(() => new Promise<undefined>(() => {})),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const trigger = canvas.getByRole("button", {
+      name: "Add to Journal for Celeste",
+    });
+    await userEvent.click(trigger);
+    await userEvent.click(
+      await within(canvasElement.ownerDocument.body).findByRole(
+        "menuitemradio",
+        { name: "backlog" },
+      ),
+    );
+    await expect(trigger).toHaveAttribute("aria-busy", "true");
+    await expect(trigger).toHaveAttribute("aria-disabled", "true");
+    await expect(canvas.getByRole("status")).toHaveTextContent(
+      "Saving journal status…",
+    );
+    await waitFor(() =>
+      expect(
+        within(canvasElement.ownerDocument.body).queryByRole("menu", {
+          hidden: true,
+        }),
+      ).not.toBeInTheDocument(),
+    );
+  },
+};

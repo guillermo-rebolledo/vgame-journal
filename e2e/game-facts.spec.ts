@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { expectContainedScroll } from "./support/contained-scroll";
 import { signUp } from "./support/sign-up";
 
 const ageRating = (page: Page) =>
@@ -79,9 +80,12 @@ test("a game the guest board hasn't rated falls back, and many languages scroll"
   const table = page.getByRole("table");
   await expect(table.getByRole("row")).toHaveCount(29);
   const scroller = table.locator("..");
-  expect(
-    await scroller.evaluate((el) => el.scrollHeight > el.clientHeight),
-  ).toBe(true);
+  await expect(table.locator("../..")).toHaveCSS("opacity", "1");
+  await expect(table.locator("../..")).toHaveCSS(
+    "transform",
+    "matrix(1, 0, 0, 1, 0, 0)",
+  );
+  await expectContainedScroll(page, scroller);
 });
 
 test("structured data carries the guest rating and languages", async ({
@@ -109,15 +113,23 @@ test.describe("on a phone", () => {
     page,
   }) => {
     await page.goto("/games/hades--1");
-    // The card streams in after the page; a tap that lands before it hydrates does nothing, so retry.
-    await expect(async () => {
-      await ageRating(page).tap();
-      await expect(ageRating(page)).toHaveAttribute("aria-expanded", "true", {
-        timeout: 1000,
-      });
-    }).toPass();
+    await ageRating(page).tap();
+    await expect(ageRating(page)).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByText("Other regions")).toBeVisible();
+    await ageRating(page).tap();
+    await expect(ageRating(page)).toHaveAttribute("aria-expanded", "false");
+    await ageRating(page).tap();
     await expect(page.getByText("Other regions")).toBeVisible();
     await page.getByRole("heading", { level: 1 }).tap();
+    await expect(page.getByText("Other regions")).toHaveCount(0);
+    await languages(page).tap();
+    await expect(page.getByRole("table")).toBeVisible();
+    await page.getByRole("heading", { level: 1 }).tap();
+    await expect(page.getByRole("table")).toHaveCount(0);
+    // Hybrid devices can switch back to a mouse after using touch.
+    await ageRating(page).hover();
+    await expect(page.getByText("Other regions")).toBeVisible();
+    await page.mouse.move(0, 0);
     await expect(page.getByText("Other regions")).toHaveCount(0);
   });
 });

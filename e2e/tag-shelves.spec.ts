@@ -23,9 +23,20 @@ test("tag shelves switch instantly, support keyboard navigation and open recomme
     if (request.resourceType() === "fetch" && !headerPrefetch)
       requests.push(request.url());
   });
-  await section
-    .getByRole("button", { name: "Dungeon crawler", exact: true })
-    .click();
+  const tag = section.getByRole("button", {
+    name: "Dungeon crawler",
+    exact: true,
+  });
+  await tag.hover();
+  await page.mouse.down();
+  await expect(tag).toHaveCSS("scale", "0.96");
+  expect(
+    await tag.evaluate((el) =>
+      getComputedStyle(el).transitionProperty.split(", "),
+    ),
+  ).toContain("scale");
+  await page.mouse.up();
+  await expect(tag).toHaveCSS("scale", "none");
   await expect(pills.first()).toHaveAttribute("aria-pressed", "false");
   await expect(
     section.getByRole("button", { name: "Dungeon crawler", exact: true }),
@@ -34,6 +45,10 @@ test("tag shelves switch instantly, support keyboard navigation and open recomme
     "Most rated games tagged Dungeon crawler",
   );
   await expect(section.getByRole("link").first()).toHaveText("Diablo II");
+  await expect(section.locator("li").first()).toHaveCSS(
+    "animation-name",
+    "none",
+  );
   expect(requests).toEqual([]);
   await pills.first().focus();
   for (let i = 1; i < (await pills.count()); i++) {

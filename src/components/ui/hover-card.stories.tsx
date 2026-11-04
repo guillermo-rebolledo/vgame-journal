@@ -26,7 +26,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Optional preview attached to a link. Information needed to complete a task must also be available at the destination. Source: src/components/ui/hover-card.tsx.",
+          "Optional preview attached to a link. Information needed to complete a task must also be available at the destination. Popup transitions retarget on reversal and keep only opacity under reduced motion. Source: src/components/ui/hover-card.tsx.",
       },
     },
   },

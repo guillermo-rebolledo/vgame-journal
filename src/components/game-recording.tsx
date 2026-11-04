@@ -90,6 +90,8 @@ export function GameRecording({
       if (result) setError(result.error);
       else {
         drafts.current.delete(editor.id);
+        // The deleted row's Edit button can outlive dismissal until history refreshes.
+        initiator.current = addTrigger.current;
         setEditor(null);
         trackEvent("playthrough_removed");
       }

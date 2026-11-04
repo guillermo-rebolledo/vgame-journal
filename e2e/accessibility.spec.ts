@@ -12,6 +12,8 @@ async function scan(page: Page, testInfo: TestInfo, name: string) {
         /^(Loading .*|Opening your Journal|Checking Journal status)…$/,
       ),
   ).toHaveCount(0);
+  // Metadata can stream after a save refresh has restored the page controls.
+  await expect(page).toHaveTitle(/\S/);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
