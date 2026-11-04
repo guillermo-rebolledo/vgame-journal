@@ -39,3 +39,11 @@ The two review axes found no other concrete issues. Both findings and the integr
 ## Checks not performed
 
 VoiceOver/screen-reader speech, physical-device software keyboards, and native browser zoom were not manually tested. Enlarged-text and reduced-viewport automation are distinct checks, not substitutes for those manual tests. The collaborative browser snapshot timed out twice, so the documented Playwright workflow was used for visual evidence.
+
+## CI overlay follow-up
+
+CI run 41873110779 exposed two pointer-action failures on the slower Linux runner: Journal-status help reopened above the removal confirmation and intercepted Retry removal, and the theme helper clicked while its nested menu was entering and repositioning.
+
+JournalStatus now uses the existing Tooltip disabled state while removal confirmation is open. Its regression story failed before the fix and passed afterward when a late background hover arrived. The recording E2E also checks that Journal-status help stays absent across the confirmation and a second-tab round trip. The theme helper waits for its actual submenu to become fully opaque before clicking; clicks remain subject to normal Playwright hit testing. No forced clicks, arbitrary sleeps, or increased timeouts were added.
+
+Validation: both previously failing scenarios passed four consecutive runs (8 cases total); all 32 broader accessibility/theme/recording E2E cases, 16 recording/Status unit tests, and all 81 Storybook tests passed. Lint, typecheck, and the static catalog build passed.

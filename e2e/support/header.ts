@@ -14,12 +14,16 @@ export async function chooseTheme(
   theme: "light" | "dark" | "system",
 ) {
   await chooseAccountMenuItem(page, "Theme");
-  await page
-    .getByRole("menuitemradio", {
-      name: { light: "Light", dark: "Dark", system: "System" }[theme],
-      exact: true,
-    })
-    .click();
+  const choice = page.getByRole("menuitemradio", {
+    name: { light: "Light", dark: "Dark", system: "System" }[theme],
+    exact: true,
+  });
+  // The submenu can flip at the viewport edge while its entrance settles.
+  await expect(page.getByRole("menu").filter({ has: choice })).toHaveCSS(
+    "opacity",
+    "1",
+  );
+  await choice.click();
   if (theme !== "system")
     await expect(page.locator("html")).toHaveClass(new RegExp(theme));
   // Escape closes the Theme sub-menu first, then the account menu.

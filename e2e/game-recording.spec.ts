@@ -747,6 +747,10 @@ test("F01: confirmed removal waits for acknowledgement, recovers locally, and pe
     name: "Remove Celeste from journal?",
   });
   await expect(dialog).toContainText("2 Playthroughs");
+  const journalHelp = page
+    .locator('[data-slot="tooltip-content"]')
+    .filter({ hasText: "Journal status" });
+  await expect(journalHelp).toHaveCount(0);
   let release = () => {};
   const held = new Promise<void>((resolve) => {
     release = resolve;
@@ -799,6 +803,7 @@ test("F01: confirmed removal waits for acknowledgement, recovers locally, and pe
     before,
   );
   await check.close();
+  await expect(journalHelp).toHaveCount(0);
   await page.setViewportSize({ width: 320, height: 740 });
   await page.evaluate(() => {
     document.documentElement.style.fontSize = "32px";

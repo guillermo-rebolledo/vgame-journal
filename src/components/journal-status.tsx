@@ -135,7 +135,7 @@ export function JournalStatus({
             if (open && (disabled || pending)) event.cancel();
           }}
         >
-          <Tooltip>
+          <Tooltip disabled={confirmationCount !== null}>
             <TooltipTrigger
               render={
                 <DropdownMenuTrigger

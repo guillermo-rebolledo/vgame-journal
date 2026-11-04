@@ -248,6 +248,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 - Text sits on the ordinary opaque page background. Do not place blurred cover art or an ambient image behind text; its changing colors undermine contrast.
 - Keep Journal status, Add playthrough, and Add to list in one wrapping action zone. The list picker opens beneath that zone and retains its own state, authorization, and URL continuation.
 - Show confirmed Status and saving/success/error feedback beneath the actions. Empty and populated Playthroughs share one section before Catalog information; saving the first Playthrough must not relocate it below release dates.
+- Disable Journal-status help while removal confirmation is open, so late hover or restored window focus cannot place background help over the modal's controls.
 - Loading placeholders reserve the control/status footprint, not a permanent empty history area. Populated history grows in normal flow, so later Catalog content may move when it arrives.
 - Available Age rating and Languages details have a visible disclosure cue, meaningful accessible names, and keyboard, pointer, and touch access. Unknown values stay explicit and noninteractive.
 - Both missing scores share one compact “Scores unavailable” message. If only one score is missing, name that score as unavailable. Unknown age and language values use compact labeled metadata; reserve large value cards for known facts.
