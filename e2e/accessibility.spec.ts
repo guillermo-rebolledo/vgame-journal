@@ -6,6 +6,7 @@ import {
   type TestInfo,
   test,
 } from "@playwright/test";
+import { openCatalog, selectCatalogGame } from "./support/catalog";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { closeListPanel, openListPanel } from "./support/list-editor";
@@ -204,9 +205,7 @@ for (const theme of ["light", "dark"] as const) {
       await scan(page, testInfo, "list-editor");
       await openListPanel(page, "Add games");
       await scan(page, testInfo, "list-game-search");
-      await page
-        .getByRole("searchbox", { name: "Search games", exact: true })
-        .fill("Celeste");
+      await selectCatalogGame(page, "Celeste");
       await page
         .getByRole("button", { name: "Add Celeste to list", exact: true })
         .click();
@@ -254,11 +253,48 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       await scan(page, testInfo, "guest-home");
 
-      await page.getByRole("searchbox").fill("Celeste");
+      const searchInput = await openCatalog(page);
+      await scan(page, testInfo, "search-idle");
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await page.route("**/api/games/search?q=missing", async (route) => {
+        await held;
+        await route.fulfill({ json: [] });
+      });
+      await searchInput.fill("missing");
       await expect(
-        page.getByRole("link", { name: "Celeste", exact: true }),
+        page.getByRole("status", { name: "Search updates" }),
+      ).toHaveText("Searching…");
+      await scan(page, testInfo, "search-loading");
+      release();
+      await expect(
+        page.getByRole("status", { name: "Search updates" }),
+      ).toContainText("No matches returned");
+      await scan(page, testInfo, "search-empty");
+      await page.route("**/api/games/search?q=failed", (route) =>
+        route.fulfill({ status: 503 }),
+      );
+      await searchInput.fill("failed");
+      await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
+        "Search isn’t working",
+      );
+      await scan(page, testInfo, "search-error");
+      await searchInput.fill("Celeste");
+      await expect(
+        page.getByRole("option", { name: /^Celeste/ }),
       ).toBeVisible();
       await scan(page, testInfo, "search-results");
+      await page.getByRole("option", { name: /^Celeste/ }).click();
+      await scan(page, testInfo, "search-actions");
+      await page
+        .getByRole("button", { name: "Save to Wishlist", exact: true })
+        .click();
+      await expect(
+        page.getByRole("region", { name: "Pending Journal save" }),
+      ).toBeVisible();
+      await scan(page, testInfo, "search-auth-continuation");
 
       for (const path of [
         "/games/celeste",

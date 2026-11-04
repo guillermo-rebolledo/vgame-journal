@@ -11,7 +11,7 @@ Run `pnpm storybook` and open `http://127.0.0.1:6006`. Use the sidebar search to
 3. Extend an existing component when the new capability belongs to the same purpose and preserves current callers. Add a focused prop or variant and a story showing the additional behavior.
 4. Create a new component when its semantics or responsibilities are distinct, or an extension would introduce unrelated modes and flags. Check the shadcn Base UI registry first. Explain the choice in the change description, including the closest existing component considered.
 
-A missing story does not mean a component is missing: search `src/components/` and its call sites before creating one. The initial catalog covers every module in `src/components/ui/` plus GameCover, JournalStatus, PlaythroughForm, and Odometer. Page orchestration, authentication, and server-side persistence remain covered by the existing unit and E2E suites.
+A missing story does not mean a component is missing: search `src/components/` and its call sites before creating one. The initial catalog covers every module in `src/components/ui/` plus GameCover, JournalStatus, PlaythroughForm, and Odometer. Command Catalog states and its Home save composition are in `game-search.stories.tsx`; direct and compact Status actions are in `home-journal.stories.tsx`. Authentication and server-side persistence remain covered by the existing unit and E2E suites.
 
 `DESIGN.md` owns visual direction and UX/accessibility requirements. `GLOSSARY.md` owns product vocabulary. Stories demonstrate these decisions; they do not define a separate theme or component implementation.
 

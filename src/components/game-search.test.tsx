@@ -739,3 +739,84 @@ test("browser navigation to an auth continuation never reopens an ordinary query
   );
   expect(screen.queryByRole("dialog")).toBeNull();
 });
+
+test("pending continuation is the single primary search stage, independent of filtered candidates", async () => {
+  window.history.replaceState(null, "", "/?q=Other&year=1999&saveGame=1");
+  const view = render(
+    <GameSearch
+      continuation={
+        <section aria-label="Pending Journal save">
+          <button type="button">Confirm Celeste to Wishlist</button>
+        </section>
+      }
+    />,
+  );
+  const dialog = await screen.findByRole("dialog");
+  expect(
+    within(dialog).getAllByRole("region", { name: "Pending Journal save" }),
+  ).toHaveLength(1);
+  await vi.waitFor(() =>
+    expect(
+      within(dialog).getByRole("button", {
+        name: "Confirm Celeste to Wishlist",
+      }),
+    ).toBe(document.activeElement),
+  );
+  expect(screen.queryByRole("combobox", { name: "Search games" })).toBeNull();
+  expect(requests).toHaveLength(0);
+  view.rerender(<GameSearch />);
+  await vi.waitFor(() =>
+    expect(screen.getByRole("combobox", { name: "Search games" })).toBe(
+      document.activeElement,
+    ),
+  );
+});
+
+test("explicit Find a game destination opens once without a query and can reopen the retained owner", async () => {
+  window.history.replaceState(null, "", "/?search=1");
+  render(
+    <>
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event("catalog-search-open"))}
+      >
+        Find a game
+      </button>
+      <GameSearch />
+    </>,
+  );
+  await vi.waitFor(() =>
+    expect(screen.getByRole("combobox", { name: "Search games" })).toBe(
+      document.activeElement,
+    ),
+  );
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Close search" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Find a game" }));
+  await vi.waitFor(() =>
+    expect(screen.getByRole("combobox", { name: "Search games" })).toBe(
+      document.activeElement,
+    ),
+  );
+  await user.click(screen.getByRole("button", { name: "Close search" }));
+  await vi.waitFor(() =>
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Find a game" }),
+    ),
+  );
+});
+
+test("a retained hidden continuation cannot open a second dialog", async () => {
+  render(
+    <div hidden>
+      <GameSearch
+        continuation={
+          <button type="button">Confirm Celeste to Wishlist</button>
+        }
+      />
+    </div>,
+  );
+  await act(async () => {});
+  expect(screen.queryByRole("dialog")).toBeNull();
+});

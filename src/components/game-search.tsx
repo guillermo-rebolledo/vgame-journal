@@ -37,11 +37,15 @@ type Answer = { q: string; attempt: number; results: SearchResult[] | null };
 export function GameSearch({
   guidance,
   renderAction,
+  renderFeedback,
   inputRef,
   presentation = "dialog",
+  continuation,
 }: {
+  continuation?: ReactNode;
   guidance?: string;
   renderAction?: (game: SearchResult) => ReactNode;
+  renderFeedback?: (game: SearchResult | null) => ReactNode;
   inputRef?: Ref<HTMLInputElement>;
   presentation?: "dialog" | "embedded";
 }) {
@@ -53,6 +57,14 @@ export function GameSearch({
   const filtersOpen = searchParams.get("filters") === "1";
   const activeFilters = Number(Boolean(year)) + Number(Boolean(platform));
   const [open, setOpen] = useState(false);
+  const pendingBody = useRef<HTMLDivElement>(null);
+  const hasContinuation = !!continuation;
+  useEffect(() => {
+    if (hasContinuation && isVisible(owner.current)) {
+      setSelected(null);
+      setOpen(true);
+    }
+  }, [hasContinuation]);
   const input = useRef<HTMLInputElement>(null);
   const owner = useRef<HTMLDivElement>(null);
   const restoredContext = useRef<string | null>(null);
@@ -68,18 +80,28 @@ export function GameSearch({
   } | null>(null);
   useLayoutEffect(() => {
     if (presentation === "dialog" && !open) return;
-    if (selected) back.current?.focus({ preventScroll: true });
+    if (hasContinuation)
+      pendingBody.current
+        ?.querySelector<HTMLElement>("a, button")
+        ?.focus({ preventScroll: true });
+    else if (selected) back.current?.focus({ preventScroll: true });
     else {
       input.current?.focus({ preventScroll: true });
       if (body.current) body.current.scrollTop = scroll.current;
     }
-  }, [open, presentation, selected]);
+  }, [open, presentation, selected, hasContinuation]);
   useEditorViewport(presentation === "dialog" && open);
   const [attempt, setAttempt] = useState(0);
   const [answer, setAnswer] = useState<Answer | null>(null);
   const q = query.trim();
 
-  const context = JSON.stringify([query, year, platform, filtersOpen]);
+  const context = JSON.stringify([
+    query,
+    year,
+    platform,
+    filtersOpen,
+    searchParams.get("search"),
+  ]);
   const pendingIntent = searchParams.has("saveGame");
   useEffect(() => {
     function restore() {
@@ -91,7 +113,10 @@ export function GameSearch({
         !isVisible(owner.current)
       )
         return;
-      if ((params.get("q") ?? "").trim().length >= MIN_QUERY) {
+      if (
+        (params.get("q") ?? "").trim().length >= MIN_QUERY ||
+        params.get("search") === "1"
+      ) {
         setSelected(null);
         setOpen(true);
       }
@@ -105,6 +130,21 @@ export function GameSearch({
       restoredContext.current = null;
     };
   }, [context, pendingIntent, presentation]);
+
+  useEffect(() => {
+    function activate() {
+      if (presentation !== "dialog" || !isVisible(owner.current)) return;
+      initiator.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+      setSelected(null);
+      setOpen(true);
+      input.current?.focus({ preventScroll: true });
+    }
+    window.addEventListener("catalog-search-open", activate);
+    return () => window.removeEventListener("catalog-search-open", activate);
+  }, [presentation]);
 
   useEffect(() => {
     function shortcut(event: KeyboardEvent) {
@@ -156,10 +196,12 @@ export function GameSearch({
   }
 
   useEffect(() => {
+    // Embedded content mounts with its active host, before drawer visibility settles.
     if (
+      hasContinuation ||
       q.length < MIN_QUERY ||
-      (presentation === "dialog" && !open) ||
-      (!isVisible(owner.current) && !isVisible(body.current))
+      (presentation === "dialog" &&
+        (!open || (!isVisible(owner.current) && !isVisible(body.current))))
     )
       return;
     if (answer?.q === q && answer.attempt === attempt) return;
@@ -181,7 +223,7 @@ export function GameSearch({
       clearTimeout(debounce);
       controller.abort();
     };
-  }, [q, attempt, open, presentation, answer]);
+  }, [q, attempt, open, presentation, answer, hasContinuation]);
 
   // Only the answer to exactly this query and attempt counts; anything else is still loading.
   const idle = q.length < MIN_QUERY;
@@ -563,6 +605,7 @@ export function GameSearch({
         <Dialog.Trigger
           render={
             <Button
+              data-catalog-trigger
               variant="outline"
               press="static"
               className="min-h-12 w-full justify-start gap-3"
@@ -580,10 +623,18 @@ export function GameSearch({
           <Dialog.Viewport className="game-search-viewport">
             <Dialog.Popup
               className="game-search game-search-surface flex w-full max-w-xl flex-col overflow-hidden rounded-xl border border-transparent bg-popover text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none"
-              initialFocus={() => input.current ?? false}
+              initialFocus={() =>
+                hasContinuation
+                  ? (pendingBody.current?.querySelector<HTMLElement>(
+                      "a, button",
+                    ) ?? false)
+                  : (input.current ?? false)
+              }
               finalFocus={() =>
+                // Base UI resolves the target before removing background inertness.
                 initiator.current?.isConnected &&
-                isVisible(initiator.current) &&
+                !initiator.current.closest("[hidden]") &&
+                (initiator.current.checkVisibility?.() ?? true) &&
                 initiator.current !== document.body
                   ? initiator.current
                   : (owner.current?.querySelector("button") ?? false)
@@ -591,7 +642,11 @@ export function GameSearch({
             >
               <header className="flex shrink-0 items-center justify-between gap-3 px-4 py-2">
                 <Dialog.Title className="font-medium">
-                  {selected ? "Game actions" : "Find a game"}
+                  {hasContinuation
+                    ? "Continue Journal save"
+                    : selected
+                      ? "Game actions"
+                      : "Find a game"}
                 </Dialog.Title>
                 <Dialog.Close
                   render={
@@ -608,7 +663,17 @@ export function GameSearch({
               <Dialog.Description className="sr-only">
                 Search the Catalog and choose a game to see its actions.
               </Dialog.Description>
-              {content}
+              {renderFeedback?.(selected?.game ?? null)}
+              {hasContinuation ? (
+                <div
+                  ref={pendingBody}
+                  className="min-h-0 overflow-y-auto overscroll-contain p-4"
+                >
+                  {continuation}
+                </div>
+              ) : (
+                content
+              )}
             </Dialog.Popup>
           </Dialog.Viewport>
         </Dialog.Portal>

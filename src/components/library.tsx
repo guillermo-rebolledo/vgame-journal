@@ -104,7 +104,7 @@ export function Library({
           Search for a game you’ve played, are playing or want to play, and add
           it to your journal.
         </p>
-        <Button render={<Link href="/" />} nativeButton={false}>
+        <Button render={<Link href="/?search=1" />} nativeButton={false}>
           Find a game
         </Button>
       </div>

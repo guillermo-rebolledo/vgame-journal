@@ -1,5 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { selectCatalogGame } from "./support/catalog";
 import { signUp } from "./support/sign-up";
 
 test.use({ video: "on" });
@@ -8,8 +9,10 @@ test("record production cold navigation and drawer separately at 4x CPU", async 
   request,
 }, testInfo) => {
   await signUp(page, request, `profile_record_${Date.now()}`);
-  await page.getByRole("searchbox").fill("Celeste");
-  await expect(page.getByRole("link", { name: /Celeste/ })).toBeVisible();
+  await selectCatalogGame(page, "Celeste");
+  await expect(
+    page.getByRole("link", { name: "View game: Celeste", exact: true }),
+  ).toBeVisible();
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
   await page.evaluate(() => {
@@ -91,7 +94,9 @@ test("record production cold navigation and drawer separately at 4x CPU", async 
       );
     });
   await profile("start", "cold-navigation");
-  await page.getByRole("link", { name: /Celeste/ }).click();
+  await page
+    .getByRole("link", { name: "View game: Celeste", exact: true })
+    .click();
   await expect(
     page.getByRole("button", { name: "Add playthrough", exact: true }),
   ).toBeVisible();

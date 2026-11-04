@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { viewCatalogGame } from "./support/catalog";
 import { chooseAccountMenuItem } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { signUp } from "./support/sign-up";
@@ -252,8 +253,7 @@ test("sign up, share a profile without notes, export the journal, and delete the
   const privateNote = "PRIVATE_NOTE_only_the_owner_should_see_this";
   const email = await signUp(page, request, username);
 
-  await page.getByRole("searchbox", { name: "Search games" }).fill("Celeste");
-  await page.getByRole("link", { name: /Celeste/ }).click();
+  await viewCatalogGame(page, "Celeste");
   await chooseStatus(page, "wishlist");
   await page.getByRole("link", { name: /^wishlist$/i }).click();
   await expect(
@@ -282,8 +282,7 @@ test("sign up, share a profile without notes, export the journal, and delete the
 
   // Keep a second game on the wishlist to exercise its public read-only state.
   await page.goto("/");
-  await page.getByRole("searchbox", { name: "Search games" }).fill("Silksong");
-  await page.getByRole("link", { name: /Silksong/ }).click();
+  await viewCatalogGame(page, "Silksong");
   await chooseStatus(page, "wishlist");
 
   const visitor = await browser.newContext();

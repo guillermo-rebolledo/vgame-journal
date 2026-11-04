@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   createContext,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
   startTransition,
   useContext,
   useEffect,
@@ -50,6 +52,10 @@ type SaveState = {
   authRequired?: boolean;
 };
 type HomeState = {
+  notice: string;
+  noticeGame: number | null;
+  setNotice: Dispatch<SetStateAction<string>>;
+  setFeedbackHosts: Dispatch<SetStateAction<number>>;
   snapshot: HomeSnapshot;
   loaded: boolean;
   byGame: Map<number, HomeEntry>;
@@ -86,8 +92,8 @@ function focusHomeGame(gameId?: number) {
   (
     control ??
     Array.from(
-      document.querySelectorAll<HTMLInputElement>(
-        '.home-journal search input[type="search"]',
+      document.querySelectorAll<HTMLElement>(
+        '[role="dialog"] input[type="search"], .home-journal [data-catalog-trigger], .home-journal search input[type="search"]',
       ),
     ).find(visible)
   )?.focus({ preventScroll: true });
@@ -128,6 +134,8 @@ export function HomeJournalProvider({
   const [loaded, setLoaded] = useState(!owner);
   const [saves, setSaves] = useState<Record<number, SaveState>>({});
   const [notice, setNotice] = useState("");
+  const [noticeGame, setNoticeGame] = useState<number | null>(null);
+  const [feedbackHosts, setFeedbackHosts] = useState(0);
   const [intent, setIntent] = useState<Intent | null>(null);
   const [focusAfterSave, setFocusAfterSave] = useState<Intent | null>(null);
   const [intentFailed, setIntentFailed] = useState(false);
@@ -218,11 +226,15 @@ export function HomeJournalProvider({
       return false;
     }
     if (!snapshot.entries) return false;
+    function report(message: string) {
+      setNoticeGame(game.gameId);
+      setNotice(message);
+    }
     const expectedOwner = snapshot.owner;
     locks.current.add(game.gameId);
     ++version.current;
     setSaves((old) => ({ ...old, [game.gameId]: { status, pending: true } }));
-    setNotice(`Saving ${game.title} to ${capitalize(status)}…`);
+    report(`Saving ${game.title} to ${capitalize(status)}…`);
     try {
       let result: Awaited<ReturnType<typeof saveHomeStatus>>;
       try {
@@ -251,7 +263,7 @@ export function HomeJournalProvider({
               "Your session changed. Sign in to continue; nothing is confirmed saved.",
           },
         }));
-        setNotice(`${game.title}: sign in to continue saving.`);
+        report(`${game.title}: sign in to continue saving.`);
         replaceHomeUrl({ ...game, status });
         return false;
       }
@@ -279,7 +291,7 @@ export function HomeJournalProvider({
           ?.status === status;
       if (confirmed) {
         setSaves((old) => ({ ...old, [game.gameId]: { status } }));
-        setNotice(`${game.title} saved to ${capitalize(status)}.`);
+        report(`${game.title} saved to ${capitalize(status)}.`);
         return true;
       }
       setSaves((old) => ({
@@ -298,7 +310,7 @@ export function HomeJournalProvider({
             : {}),
         },
       }));
-      setNotice(`${game.title}: save not confirmed.`);
+      report(`${game.title}: save not confirmed.`);
       return false;
     } finally {
       locks.current.delete(game.gameId);
@@ -419,6 +431,10 @@ export function HomeJournalProvider({
     </section>
   );
   const context: HomeState = {
+    notice,
+    noticeGame,
+    setNotice,
+    setFeedbackHosts,
     snapshot,
     loaded,
     byGame: new Map(snapshot.entries?.map((entry) => [entry.gameId, entry])),
@@ -432,6 +448,7 @@ export function HomeJournalProvider({
       <div className="home-journal contents">
         {children}
         <output
+          hidden={feedbackHosts > 0}
           aria-label="Journal updates"
           aria-live="polite"
           className="sr-only"
@@ -443,20 +460,58 @@ export function HomeJournalProvider({
   );
 }
 
-export function HomePendingSave() {
-  return useContext(HomeContext)?.continuation;
+export function HomePendingSave({
+  children,
+}: {
+  children?: (continuation: ReactNode) => ReactNode;
+}) {
+  const continuation = useContext(HomeContext)?.continuation;
+  return children ? children(continuation) : continuation;
+}
+
+/** The active search stage owns announcements; background shelves stay silent. */
+export function HomeJournalFeedback({ gameId }: { gameId?: number }) {
+  const home = useContext(HomeContext);
+  const setHosts = home?.setFeedbackHosts;
+  const clear = home?.setNotice;
+  useEffect(() => {
+    setHosts?.((count) => count + 1);
+    clear?.("");
+    return () => {
+      setHosts?.((count) => count - 1);
+      clear?.("");
+    };
+  }, [setHosts, clear]);
+  return (
+    <output
+      aria-label="Journal updates"
+      aria-live="polite"
+      aria-atomic="true"
+      className="sr-only"
+    >
+      {gameId === undefined || home?.noticeGame === gameId ? home?.notice : ""}
+    </output>
+  );
 }
 
 export function HomeSaveControls({
   game,
   presentation = "compact",
+  announce = true,
 }: {
   game: Game;
+  announce?: boolean;
   presentation?: "compact" | "direct";
 }) {
   const home = useContext(HomeContext);
   const trigger = useRef<HTMLButtonElement | null>(null);
   const errorId = useId();
+  const clear = home?.setNotice;
+  useEffect(() => {
+    if (presentation !== "direct" || announce) return;
+    clear?.("");
+    return () => clear?.("");
+  }, [clear, presentation, announce]);
   if (!home) return null;
   const { snapshot, saves } = home;
   const entry = home.byGame.get(game.gameId);
@@ -496,6 +551,9 @@ export function HomeSaveControls({
       data-home-game={game.gameId}
       className={`mt-2 flex min-w-0 flex-col gap-2 text-sm [overflow-wrap:anywhere]${presentation === "direct" ? " w-full max-w-xl" : ""}`}
     >
+      {presentation === "direct" && announce && (
+        <HomeJournalFeedback gameId={game.gameId} />
+      )}
       {presentation === "direct" ? (
         <fieldset className="flex min-w-0 flex-col gap-2">
           <legend className="mb-2 font-medium">Journal status</legend>
@@ -613,6 +671,8 @@ export function HomeSaveControls({
         state &&
         !busy &&
         !state.error &&
+        home.noticeGame === game.gameId &&
+        home.notice === `${game.title} saved to ${capitalize(state.status)}.` &&
         state.status === entry?.status && (
           <p>
             {game.title} saved to {capitalize(state.status)}.

@@ -477,30 +477,35 @@ export function OwnerListEditor({
             <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
               {panel === "games" && feedback}
               <section className="max-w-2xl">
-                <GameSearch
-                  inputRef={searchInput}
-                  guidance="Adding games here changes only this list."
-                  renderAction={(game) => {
-                    const added = list.games.some(
-                      (item) => item.gameId === game.id,
-                    );
-                    return (
-                      <Button
-                        variant="outline"
-                        className="min-h-11"
-                        disabled={pending || !ready || needsRefresh || added}
-                        aria-label={
-                          added
-                            ? `${game.title} already in list`
-                            : `Add ${game.title} to list`
-                        }
-                        onClick={() => change({ kind: "add", gameId: game.id })}
-                      >
-                        {added ? "Already in list" : "Add to list"}
-                      </Button>
-                    );
-                  }}
-                />
+                {panel === "games" && (
+                  <GameSearch
+                    presentation="embedded"
+                    inputRef={searchInput}
+                    guidance="Adding games here changes only this list."
+                    renderAction={(game) => {
+                      const added = list.games.some(
+                        (item) => item.gameId === game.id,
+                      );
+                      return (
+                        <Button
+                          variant="outline"
+                          className="min-h-11"
+                          disabled={pending || !ready || needsRefresh || added}
+                          aria-label={
+                            added
+                              ? `${game.title} already in list`
+                              : `Add ${game.title} to list`
+                          }
+                          onClick={() =>
+                            change({ kind: "add", gameId: game.id })
+                          }
+                        >
+                          {added ? "Already in list" : "Add to list"}
+                        </Button>
+                      );
+                    }}
+                  />
+                )}
               </section>
             </div>
           </ListEditorDrawer>

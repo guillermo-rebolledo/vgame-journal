@@ -136,7 +136,7 @@ export function Wishlist({
             Find an upcoming game and set its status to Wishlist to count down
             to its release.
           </p>
-          <Button render={<Link href="/" />} nativeButton={false}>
+          <Button render={<Link href="/?search=1" />} nativeButton={false}>
             Find a game
           </Button>
         </div>

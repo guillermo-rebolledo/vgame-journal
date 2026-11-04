@@ -4,7 +4,10 @@ import { ReadonlyURLSearchParams } from "next/navigation";
 import { useRef, useState, useSyncExternalStore } from "react";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import type { SearchResult } from "@/lib/catalog";
+import { saveHomeStatus } from "../../.storybook/home-actions.mock";
 import { GameSearch } from "./game-search";
+import { HomeJournalProvider } from "./home-journal";
+import { HomeSearch } from "./home-search";
 import { ListEditorDrawer } from "./list-creation-drawer";
 import { Button } from "./ui/button";
 
@@ -338,5 +341,142 @@ export const SoftwareKeyboardViewport: Story = {
         Object.defineProperty(window, "visualViewport", descriptor);
       else Reflect.deleteProperty(window, "visualViewport");
     }
+  },
+};
+
+const journal: Promise<import("@/lib/home-journal").HomeSnapshot> =
+  Promise.resolve({ owner: "search-player", entries: [] });
+export const ConfirmedHomeSaveIsScopedToActiveStage: Story = {
+  render: () => (
+    <HomeJournalProvider owner="search-player" initial={journal}>
+      <HomeSearch guidance="Search the Catalog, then choose a Journal Status." />
+    </HomeJournalProvider>
+  ),
+  play: async ({ canvasElement }) => {
+    saveHomeStatus
+      .mockReset()
+      .mockImplementation(async (owner, gameId, slug, status) => ({
+        snapshot: {
+          owner,
+          entries: [
+            {
+              gameId,
+              slug,
+              title: "Celeste",
+              status,
+              coverImageId: null,
+              addedAt: new Date("2026-11-01"),
+            },
+          ],
+        },
+      }));
+    const body = within(canvasElement.ownerDocument.body);
+    const { input } = await open(canvasElement);
+    await userEvent.type(input, "games");
+    await userEvent.click(
+      await body.findByRole("option", { name: /^Celeste/ }),
+    );
+    await expect(saveHomeStatus).not.toHaveBeenCalled();
+    await userEvent.click(body.getByRole("button", { name: "Save to Played" }));
+    await expect(await body.findByText("Current status: Played")).toBeVisible();
+    const updates = body.getByRole("status", { name: "Journal updates" });
+    await waitFor(() =>
+      expect(updates).toHaveTextContent("Celeste saved to Played."),
+    );
+    await expect(
+      body.getAllByRole("status", { name: "Journal updates" }),
+    ).toHaveLength(1);
+    await userEvent.click(
+      body.getByRole("button", { name: "Back to results" }),
+    );
+    await userEvent.click(body.getByRole("option", { name: /^The Legend/ }));
+    await expect(
+      body.getByRole("status", { name: "Journal updates" }),
+    ).toBeEmptyDOMElement();
+    await expect(
+      body.queryByText("Celeste saved to Played."),
+    ).not.toBeInTheDocument();
+    await userEvent.click(body.getByRole("button", { name: "Close search" }));
+    await open(canvasElement);
+    await userEvent.click(body.getByRole("option", { name: /^Celeste/ }));
+    await expect(body.getByText("Current status: Played")).toBeVisible();
+    await expect(
+      body.getByRole("status", { name: "Journal updates" }),
+    ).toBeEmptyDOMElement();
+    await expect(
+      body.queryByText("Celeste saved to Played."),
+    ).not.toBeInTheDocument();
+  },
+};
+
+export const LateSaveCannotAnnounceForAnotherGame: Story = {
+  render: ConfirmedHomeSaveIsScopedToActiveStage.render,
+  play: async ({ canvasElement }) => {
+    let finishFirst!: (
+      value: Awaited<ReturnType<typeof saveHomeStatus>>,
+    ) => void;
+    let finishSecond!: (
+      value: Awaited<ReturnType<typeof saveHomeStatus>>,
+    ) => void;
+    saveHomeStatus
+      .mockReset()
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishSecond = resolve;
+          }),
+      );
+    const { body, input } = await open(canvasElement);
+    await userEvent.type(input, "games");
+    await userEvent.click(
+      await body.findByRole("option", { name: /^Celeste/ }),
+    );
+    await userEvent.click(
+      body.getByRole("button", { name: "Save to Backlog" }),
+    );
+    await userEvent.click(
+      body.getByRole("button", { name: "Back to results" }),
+    );
+    await userEvent.click(body.getByRole("option", { name: /^The Legend/ }));
+    await userEvent.click(
+      body.getByRole("button", { name: "Save to Wishlist" }),
+    );
+    const entry = (index: number, status: "backlog" | "wishlist") => ({
+      ...games[index],
+      gameId: games[index].id,
+      status,
+      addedAt: new Date("2026-11-01"),
+    });
+    finishFirst({
+      snapshot: { owner: "search-player", entries: [entry(0, "backlog")] },
+    });
+    await waitFor(() =>
+      expect(
+        body.getByRole("status", { name: "Journal updates" }),
+      ).toBeEmptyDOMElement(),
+    );
+    await expect(
+      body.getByRole("status", { name: "Journal updates" }),
+    ).not.toHaveTextContent("Celeste");
+    finishSecond({
+      snapshot: {
+        owner: "search-player",
+        entries: [entry(0, "backlog"), entry(1, "wishlist")],
+      },
+    });
+    await waitFor(() =>
+      expect(
+        body.getByRole("status", { name: "Journal updates" }),
+      ).toHaveTextContent(`${games[1].title} saved to Wishlist.`),
+    );
+    await expect(
+      body.getAllByRole("status", { name: "Journal updates" }),
+    ).toHaveLength(1);
   },
 };

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const DESTINATIONS = [
-  ["/", "Find a game"],
+  ["/?search=1", "Find a game"],
   ["/library", "Library"],
   ["/wishlist", "Wishlist"],
   ["/lists", "Lists"],
@@ -21,8 +21,21 @@ export function MainNav({ className }: { className?: string }) {
           <li key={href}>
             <Link
               href={href}
+              onClick={(event) => {
+                if (
+                  href === "/?search=1" &&
+                  pathname === "/" &&
+                  !event.metaKey &&
+                  !event.ctrlKey &&
+                  !event.shiftKey &&
+                  !event.altKey
+                ) {
+                  event.preventDefault();
+                  window.dispatchEvent(new Event("catalog-search-open"));
+                }
+              }}
               aria-current={
-                pathname === href ||
+                pathname === href.split("?")[0] ||
                 (href === "/lists" && pathname.startsWith("/lists/"))
                   ? "page"
                   : undefined
