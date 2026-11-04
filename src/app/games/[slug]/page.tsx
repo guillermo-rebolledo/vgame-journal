@@ -116,7 +116,7 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
             />
           </Suspense>
 
-          <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-4 sm:max-w-md">
+          <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-4 sm:max-w-md sm:grid-cols-2">
             <Score
               label="Critic score"
               score={game.criticScore}
