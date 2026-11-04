@@ -57,10 +57,10 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
   const cover = game.coverImageId && coverUrl(game.coverImageId);
 
   return (
-    <article className="relative isolate flex-1">
+    <article className="@container relative isolate flex-1">
       <JsonLd data={videoGameSchema(game, cover)} />
-      <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 sm:grid-cols-[minmax(0,15rem)_1fr] sm:gap-x-8 sm:py-12 md:grid-cols-[minmax(0,17rem)_1fr]">
-        <header className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-4 sm:contents">
+      <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 @min-[40em]:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] @min-[40em]:gap-x-8 @min-[40em]:py-12 @min-[48em]:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+        <header className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-4 @min-[40em]:contents">
           <ViewTransition
             name={`game-cover-${game.id}`}
             default="none"
@@ -68,12 +68,12 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
           >
             <GameCover
               imageId={game.coverImageId}
-              className="w-20 self-start rounded-lg shadow-2xl sm:row-span-2 sm:w-full"
+              className="w-20 self-start rounded-lg shadow-2xl @min-[40em]:row-span-2 @min-[40em]:w-full"
             />
           </ViewTransition>
 
           <div className="flex min-w-0 flex-col gap-2">
-            <h1 className="text-balance font-semibold text-3xl tracking-tight [overflow-wrap:anywhere] sm:text-5xl">
+            <h1 className="text-balance font-semibold text-3xl tracking-tight [overflow-wrap:anywhere] @min-[40em]:text-5xl">
               {game.title}
             </h1>
             {game.genres.length > 0 && (
@@ -84,7 +84,7 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
           </div>
         </header>
 
-        <div className="flex min-w-0 flex-col gap-6 sm:col-start-2">
+        <div className="flex min-w-0 flex-col gap-6 @min-[40em]:col-start-2">
           <Suspense
             fallback={
               <output

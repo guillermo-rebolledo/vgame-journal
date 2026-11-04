@@ -8,6 +8,7 @@ import {
 } from "@playwright/test";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
+import { closeListPanel, openListPanel } from "./support/list-editor";
 import { signUp } from "./support/sign-up";
 
 async function renderedContrast(element: Locator) {
@@ -200,6 +201,46 @@ for (const theme of ["light", "dark"] as const) {
         .getByRole("button", { name: "Create list", exact: true })
         .click();
       await expect(page).toHaveURL(/\/lists\/[a-f0-9-]+$/);
+      await scan(page, testInfo, "list-editor");
+      await openListPanel(page, "Add games");
+      await scan(page, testInfo, "list-game-search");
+      await page
+        .getByRole("searchbox", { name: "Search games", exact: true })
+        .fill("Celeste");
+      await page
+        .getByRole("button", { name: "Add Celeste to list", exact: true })
+        .click();
+      await expect(
+        page.getByRole("button", {
+          name: "Celeste already in list",
+          exact: true,
+        }),
+      ).toBeDisabled();
+      await closeListPanel(page);
+      await scan(page, testInfo, "populated-list-editor");
+      await page
+        .getByRole("button", { name: "Remove Celeste from list", exact: true })
+        .hover();
+      await scan(page, testInfo, "list-removal-hover");
+      await openListPanel(page, "Edit list");
+      await page
+        .getByRole("textbox", { name: "List title", exact: true })
+        .fill("   ");
+      await page
+        .getByRole("button", { name: "Save details", exact: true })
+        .click();
+      await scan(page, testInfo, "edit-list-validation");
+      await closeListPanel(page);
+      await openListPanel(page, "Visibility and sharing");
+      await scan(page, testInfo, "list-sharing");
+      await page
+        .getByRole("button", { name: "Publish list", exact: true })
+        .click();
+      await expect(
+        page.getByRole("textbox", { name: "Public list URL", exact: true }),
+      ).toBeVisible();
+      await scan(page, testInfo, "public-list-sharing");
+      await closeListPanel(page);
       await page.goto("/lists");
       await expect(
         page.getByRole("link", { name: "Weekend games", exact: true }),

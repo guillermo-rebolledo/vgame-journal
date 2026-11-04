@@ -41,6 +41,7 @@ export type CreateListInput = {
   description?: string;
   visibility?: ListVisibility;
   submissionId: string;
+  gameId?: number;
 };
 export type EditListInput = { title: string; description?: string };
 export type ListMutation = { revision: number; changed: boolean };
@@ -351,6 +352,17 @@ export function createLists(db: Db) {
         );
       try {
         if (
+          input.gameId !== undefined &&
+          (!validGameId(input.gameId) ||
+            !(
+              await db
+                .select({ id: game.id })
+                .from(game)
+                .where(eq(game.id, input.gameId))
+            )[0])
+        )
+          return fail("validation", "Choose a Catalog game.");
+        if (
           !(
             await db
               .select({ id: user.id })
@@ -359,22 +371,35 @@ export function createLists(db: Db) {
           )[0]
         )
           return authentication();
-        const [created] = await db
-          .insert(customList)
-          .values({
-            id: randomUUID(),
-            userId: actor,
-            submissionId: input.submissionId,
-            title: input.title.trim(),
-            description: input.description ?? "",
-            visibility: input.visibility ?? "private",
-          })
-          .onConflictDoUpdate({
-            target: [customList.userId, customList.submissionId],
-            set: { id: sql`${customList.id}` },
-          })
-          .returning({ id: customList.id });
-        const value = await this.ownerDetail(actor, created.id);
+        // The initial game and list become visible together; retries cannot revive later removals.
+        const created = await executeBatch(db, [
+          sql`select id from ${user} where id = ${actor} for key share`,
+          sql`with created as (
+          insert into ${customList} (id, user_id, submission_id, title, description, visibility)
+          values (${randomUUID()}, ${actor}, ${input.submissionId}, ${input.title.trim()}, ${input.description ?? ""}, ${input.visibility ?? "private"})
+          on conflict (user_id, submission_id) do nothing returning id
+        ), added as (
+          insert into ${listEntry} (list_id, game_id, position)
+          select id, ${input.gameId ?? null}::integer, 0 from created
+          where ${input.gameId !== undefined} returning list_id
+        ) select id from created`,
+        ]);
+        const inserted = created[0] as { id: string } | undefined;
+        const id =
+          inserted?.id ??
+          (
+            await db
+              .select({ id: customList.id })
+              .from(customList)
+              .where(
+                and(
+                  eq(customList.userId, actor),
+                  eq(customList.submissionId, input.submissionId),
+                ),
+              )
+          )[0]?.id;
+        if (!id) return unavailable();
+        const value = await this.ownerDetail(actor, id);
         return value ? { ok: true, value } : unavailable();
       } catch {
         return unavailable();

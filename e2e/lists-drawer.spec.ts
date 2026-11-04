@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openListPanel } from "./support/list-editor";
 import { signUp, uniqueUsername } from "./support/sign-up";
 
 for (const storageAvailable of [true, false]) {
@@ -80,6 +81,7 @@ test("invalid list titles identify and focus the field during creation and editi
   await title.fill("Valid title");
   await page.getByRole("button", { name: "Create list", exact: true }).click();
   await expect(page).toHaveURL(/\/lists\/[a-f0-9-]+$/);
+  await openListPanel(page, "Edit list");
   await title.fill("   ");
   await page.getByRole("button", { name: "Save details", exact: true }).click();
   await expect(title).toHaveAttribute("aria-invalid", "true");

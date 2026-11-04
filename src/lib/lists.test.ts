@@ -76,6 +76,39 @@ async function saved(
   return result.value;
 }
 
+test("creation with a Catalog game saves it once and a retry never restores a later removal", async () => {
+  const input = {
+    title: "Short games",
+    submissionId: randomUUID(),
+    gameId: 1,
+  };
+  const created = await lists.create("mario", input);
+  expect(created).toMatchObject({
+    ok: true,
+    value: { gameCount: 1, games: [{ gameId: 1 }] },
+  });
+  if (!created.ok) throw new Error("Creation failed");
+  expect(await lists.create("mario", input)).toEqual(created);
+  expect(await lists.create("mario", { ...input, gameId: 2 })).toEqual(created);
+  await lists.removeGame("mario", created.value.id, created.value.revision, 1);
+  expect(await lists.create("mario", input)).toMatchObject({
+    ok: true,
+    value: { gameCount: 0, games: [] },
+  });
+  expect(await lists.ownerCollection("mario")).toHaveLength(1);
+});
+
+test("an unavailable initial game does not create an empty list", async () => {
+  expect(
+    await lists.create("mario", {
+      title: "Short games",
+      submissionId: randomUUID(),
+      gameId: 999,
+    }),
+  ).toMatchObject({ ok: false, code: "validation" });
+  expect(await lists.ownerCollection("mario")).toEqual([]);
+});
+
 test("public access preflight follows the current creator and visibility through publication and deletion", async () => {
   const list = await saved();
   expect(await lists.hasPublicList("mario", list.id)).toBe(false);

@@ -1,13 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
-import { ListCreationDrawer } from "./list-creation-drawer";
+import { ListCreationDrawer, ListEditorDrawer } from "./list-creation-drawer";
 import { ListFields, ListVisibilityFields } from "./list-form";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 
 const meta = {
   title: "Product/List creation drawer",
   component: ListCreationDrawer,
+  subcomponents: { ListEditorDrawer },
   args: { open: false, pending: false, onOpenChange: fn(), children: null },
   render: function Example(args) {
     const [open, setOpen] = useState(args.open);
@@ -94,3 +96,82 @@ export const Pending: Story = {
   },
 };
 export const LightTheme: Story = { ...Open, globals: { theme: "light" } };
+
+export const EditDetails: Story = {
+  render: function EditExample() {
+    const [open, setOpen] = useState(false);
+    const [title, setTitle] = useState("Weekend games");
+    const [description, setDescription] = useState("");
+    return (
+      <ListEditorDrawer
+        open={open}
+        onOpenChange={setOpen}
+        title="Edit list"
+        description="Update the title and description. Closing keeps your draft."
+        trigger={<Button variant="outline">Edit details</Button>}
+      >
+        <div className="mx-auto flex w-full max-w-xl flex-col gap-6 p-4 sm:p-6">
+          <ListFields
+            title={title}
+            description={description}
+            onTitle={setTitle}
+            onDescription={setDescription}
+          />
+          <Button onClick={() => setOpen(false)}>Save details</Button>
+        </div>
+      </ListEditorDrawer>
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    const trigger = canvas.getByRole("button", { name: "Edit details" });
+    await userEvent.click(trigger);
+    const title = await body.findByRole("textbox", { name: "List title" });
+    await userEvent.clear(title);
+    await userEvent.type(title, "A retained draft");
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await userEvent.click(trigger);
+    await expect(
+      await body.findByRole("textbox", { name: "List title" }),
+    ).toHaveValue("A retained draft");
+  },
+};
+
+export const FocusedSearch: Story = {
+  render: function SearchExample() {
+    const [open, setOpen] = useState(false);
+    const search = useRef<HTMLInputElement>(null);
+    return (
+      <ListEditorDrawer
+        open={open}
+        onOpenChange={setOpen}
+        title="Add games"
+        description="Search the Catalog and add games to this list."
+        initialFocus={search}
+        trigger={<Button>Add games</Button>}
+      >
+        <div className="mx-auto w-full max-w-xl p-4 sm:p-6">
+          <label htmlFor="story-list-search">Search games</label>
+          <Input ref={search} id="story-list-search" type="search" />
+        </div>
+      </ListEditorDrawer>
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole("button", {
+      name: "Add games",
+    });
+    trigger.focus();
+    await userEvent.keyboard("{Enter}");
+    const body = within(canvasElement.ownerDocument.body);
+    await waitFor(() =>
+      expect(
+        body.getByRole("searchbox", { name: "Search games" }),
+      ).toHaveFocus(),
+    );
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(trigger).toHaveFocus());
+  },
+};
