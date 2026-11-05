@@ -47,7 +47,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Create-list composition using the shared Drawer and Playthrough editor viewport sizing. Spans the full screen width and attaches to the bottom on desktop and mobile. Fits its content on desktop and mobile, scrolling only above the viewport limit. Mobile retains its keyboard-aware maximum. A dimmed backdrop keeps attention on the editor. Keeps focus inside, restores the trigger on dismissal, and prevents dismissal during submission. CreateListForm supplies persistence in the app; these stories use local state only.",
+          "Create-list composition using the shared Drawer and Playthrough editor viewport sizing. Spans the full screen width and attaches to the bottom on desktop and mobile. Fits its content on desktop and mobile, scrolling only above the viewport limit. Mobile retains its keyboard-aware maximum; the shared Drawer anchors it above browser toolbars and the software keyboard. A dimmed backdrop keeps attention on the editor. Keeps focus inside, restores the trigger on dismissal, and prevents dismissal during submission. CreateListForm supplies persistence in the app; these stories use local state only.",
       },
     },
   },
@@ -196,5 +196,62 @@ export const FocusedSearch: Story = {
     );
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(trigger).toHaveFocus());
+  },
+};
+
+// Model Chrome toolbar changes while the fixed containing block retains its height.
+export const BottomBrowserToolbar: Story = {
+  play: async ({ canvasElement }) => {
+    const win = canvasElement.ownerDocument.defaultView;
+    if (!win) throw new Error("Window missing");
+    const heightDescriptor = Object.getOwnPropertyDescriptor(
+      win,
+      "innerHeight",
+    );
+    const viewport = win.visualViewport;
+    if (!viewport) throw new Error("Visual viewport missing");
+    const viewportHeight = viewport.height - 120;
+    Object.defineProperty(viewport, "height", {
+      configurable: true,
+      value: viewportHeight,
+    });
+    Object.defineProperty(win, "innerHeight", {
+      configurable: true,
+      get: () => viewport.height,
+    });
+    const body = within(canvasElement.ownerDocument.body);
+    try {
+      await userEvent.click(
+        within(canvasElement).getByRole("button", { name: "Create a list" }),
+      );
+      const dialog = await body.findByRole("dialog", { name: "Create a list" });
+      for (const height of [
+        viewport.height,
+        viewport.height - 100,
+        viewport.height,
+      ]) {
+        Object.defineProperty(viewport, "height", {
+          configurable: true,
+          value: height,
+        });
+        viewport.dispatchEvent(new Event("resize"));
+        const submit = within(dialog).getByRole("button", {
+          name: "Create list",
+        });
+        submit.focus();
+        await waitFor(() => {
+          expect(dialog.getBoundingClientRect().bottom).toBeCloseTo(height, 0);
+          expect(submit.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+            height,
+          );
+        });
+      }
+      await userEvent.keyboard("{Escape}");
+    } finally {
+      if (heightDescriptor)
+        Object.defineProperty(win, "innerHeight", heightDescriptor);
+      Reflect.deleteProperty(viewport, "height");
+      viewport.dispatchEvent(new Event("resize"));
+    }
   },
 };

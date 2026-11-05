@@ -181,3 +181,120 @@ test("desktop form drawers fit content and only scroll when the viewport is too 
   await cancel.click();
   await expect(account).toBeFocused();
 });
+
+test("mobile drawer actions stay reachable above browser chrome and the keyboard", async ({
+  page,
+  request,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await signUp(page, request, uniqueUsername("mobile_drawers"));
+  await page.goto("/lists");
+  await page
+    .getByRole("button", { name: "Create a list", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "List title", exact: true })
+    .fill("Favorites");
+  await page.getByRole("button", { name: "Create list", exact: true }).click();
+  await expect(page).toHaveURL(/\/lists\/[a-f0-9-]+$/);
+  await page.goto("/games/celeste");
+
+  async function checkVisibleActions(drawer: Locator, action: Locator) {
+    for (const [height, top] of [
+      [724, 0],
+      [360, 40],
+      [724, 0],
+    ]) {
+      await page.evaluate(
+        ({ height, top }) => {
+          if (!visualViewport) throw new Error("Visual viewport missing");
+          Object.defineProperty(visualViewport, "height", {
+            configurable: true,
+            value: height,
+          });
+          Object.defineProperty(visualViewport, "offsetTop", {
+            configurable: true,
+            value: top,
+          });
+          // Some Chrome toolbar states report innerHeight as the visible height while
+          // fixed-position descendants still use the larger containing block.
+          Object.defineProperty(window, "innerHeight", {
+            configurable: true,
+            value: height + top,
+          });
+          visualViewport.dispatchEvent(new Event("resize"));
+          visualViewport.dispatchEvent(new Event("scroll"));
+        },
+        { height, top },
+      );
+      await expect
+        .poll(() =>
+          drawer.evaluate((node) =>
+            Math.round(node.getBoundingClientRect().bottom),
+          ),
+        )
+        .toBe(height + top);
+      await action.scrollIntoViewIfNeeded();
+      await expect
+        .poll(() =>
+          action.evaluate((node) => {
+            const bounds = node.getBoundingClientRect();
+            const viewport = window.visualViewport;
+            return (
+              !!viewport &&
+              bounds.top >= viewport.offsetTop &&
+              bounds.bottom <= viewport.offsetTop + viewport.height + 1
+            );
+          }),
+        )
+        .toBe(true);
+    }
+    await page.evaluate(() => {
+      Reflect.deleteProperty(window, "innerHeight");
+      if (visualViewport) {
+        Reflect.deleteProperty(visualViewport, "height");
+        Reflect.deleteProperty(visualViewport, "offsetTop");
+        visualViewport.dispatchEvent(new Event("resize"));
+      }
+    });
+  }
+
+  await page.getByRole("button", { name: "Add to list", exact: true }).click();
+  const picker = page.getByRole("dialog", { name: "Add to list", exact: true });
+  const create = picker.getByText("Create a new list", { exact: true });
+  await expect(create).toBeVisible();
+  await checkVisibleActions(picker, create);
+  await create.click();
+  await checkVisibleActions(
+    picker,
+    picker.getByRole("button", {
+      name: "Create list and add Celeste",
+      exact: true,
+    }),
+  );
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("button", { name: "Add playthrough", exact: true })
+    .click();
+  const playthrough = page.getByRole("dialog", {
+    name: "Add playthrough",
+    exact: true,
+  });
+  await checkVisibleActions(
+    playthrough,
+    playthrough.getByRole("button", { name: "Save", exact: true }),
+  );
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: /^Account menu,/ }).click();
+  await page.getByRole("menuitem", { name: "Feedback", exact: true }).click();
+  const feedback = page.getByRole("dialog", {
+    name: "Send feedback",
+    exact: true,
+  });
+  await checkVisibleActions(
+    feedback,
+    feedback.getByRole("button", { name: "Cancel", exact: true }),
+  );
+  await page.keyboard.press("Escape");
+});

@@ -51,7 +51,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Modal sheet with a title, description, keyboard dismissal, focus containment, and focus restoration. Vertical drawers span the screen width; bottom drawers attach to the bottom edge on desktop and mobile. A 60% black modal backdrop dims the page. They fit their content on every screen and scroll above their viewport limit; desktop allows all but 32px of viewport height. Use the existing product editor for Playthroughs and lists. Source: src/components/ui/drawer.tsx.",
+          "Modal sheet with a title, description, keyboard dismissal, focus containment, and focus restoration. Vertical drawers span the screen width; bottom drawers attach to the visible bottom edge on desktop and mobile, tracking browser toolbars, the software keyboard, and viewport panning. A 60% black modal backdrop dims the page. They fit their content on every screen and scroll above their viewport limit; desktop allows all but 32px of viewport height. Use the existing product editor for Playthroughs and lists. Source: src/components/ui/drawer.tsx.",
       },
     },
   },
@@ -140,5 +140,55 @@ export const KeepMountedDraft: Story = {
       expect(body.queryByRole("dialog")).not.toBeInTheDocument(),
     );
     await expect(trigger).toHaveFocus();
+  },
+};
+
+export const VisibleViewport: Story = {
+  play: async ({ canvasElement }) => {
+    const win = canvasElement.ownerDocument.defaultView;
+    const viewport = win?.visualViewport;
+    if (!win || !viewport) throw new Error("Visual viewport missing");
+    const body = within(canvasElement.ownerDocument.body);
+    try {
+      await userEvent.click(
+        within(canvasElement).getByRole("button", { name: "Open editor" }),
+      );
+      const dialog = await body.findByRole("dialog", {
+        name: "Playthrough editor",
+      });
+      // Toolbar, keyboard, then a panned visual viewport and restored browser chrome.
+      for (const [height, top] of [
+        [600, 0],
+        [300, 0],
+        [260, 60],
+        [600, 0],
+      ]) {
+        Object.defineProperty(viewport, "height", {
+          configurable: true,
+          value: height,
+        });
+        Object.defineProperty(viewport, "offsetTop", {
+          configurable: true,
+          value: top,
+        });
+        viewport.dispatchEvent(new Event("resize"));
+        viewport.dispatchEvent(new Event("scroll"));
+        const cancel = within(dialog).getByRole("button", { name: "Cancel" });
+        cancel.focus();
+        await waitFor(() => {
+          const bounds = dialog.getBoundingClientRect();
+          expect(bounds.top).toBeGreaterThanOrEqual(top);
+          expect(bounds.bottom).toBeCloseTo(top + height, 0);
+          expect(cancel.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+            top + height,
+          );
+        });
+      }
+      await userEvent.keyboard("{Escape}");
+    } finally {
+      Reflect.deleteProperty(viewport, "height");
+      Reflect.deleteProperty(viewport, "offsetTop");
+      viewport.dispatchEvent(new Event("resize"));
+    }
   },
 };

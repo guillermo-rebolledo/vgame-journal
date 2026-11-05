@@ -40,11 +40,13 @@ export function useEditorViewport(open: boolean) {
     viewport.addEventListener("resize", resize);
     viewport.addEventListener("scroll", resize);
     window.addEventListener("orientationchange", resize);
+    window.addEventListener("resize", resize);
     return () => {
       observer.disconnect();
       viewport.removeEventListener("resize", resize);
       viewport.removeEventListener("scroll", resize);
       window.removeEventListener("orientationchange", resize);
+      window.removeEventListener("resize", resize);
       document.documentElement.style.removeProperty("--editor-height");
       document.documentElement.style.removeProperty("--editor-viewport-height");
       document.documentElement.style.removeProperty("--editor-bottom");
