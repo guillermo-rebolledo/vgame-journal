@@ -4,7 +4,9 @@ import { signUp } from "./support/sign-up";
 test.use({ video: "on" });
 
 async function swipeHandle(page: Page, touch: boolean) {
-  const handle = page.locator('[data-slot="drawer-swipe-handle"]');
+  const handle = page
+    .getByRole("dialog", { name: "Add playthrough", exact: true })
+    .locator('[data-slot="drawer-swipe-handle"]');
   await expect(handle).toBeVisible();
   await handle.scrollIntoViewIfNeeded();
   const box = await handle.boundingBox();
@@ -59,7 +61,7 @@ for (const phone of [false, true]) {
         name: "Add playthrough",
         exact: true,
       });
-      await page
+      await dialog
         .locator('[data-slot="drawer-swipe-handle"]')
         .scrollIntoViewIfNeeded();
       // Measure the settled drawer, rather than a frame of its entrance transition.
