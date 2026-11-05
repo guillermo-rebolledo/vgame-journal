@@ -2,12 +2,13 @@ import { expect, test } from "@playwright/test";
 import { openCatalog } from "./support/catalog";
 import { chooseTheme } from "./support/header";
 import { signUp } from "./support/sign-up";
+import { snap } from "./support/snap";
 import { supportUrl } from "./support/url";
 
 for (const theme of ["dark", "light"] as const) {
   test(`Catalog progress has a visible shimmer and respects reduced motion (${theme})`, async ({
     page,
-  }) => {
+  }, testInfo) => {
     let release!: () => void;
     const held = new Promise<void>((resolve) => {
       release = resolve;
@@ -82,6 +83,13 @@ for (const theme of ["dark", "light"] as const) {
         "the shimmer must produce a visible sweep, not just a running animation",
       ).toBeGreaterThanOrEqual(60);
 
+      await label.evaluate((el) => {
+        for (const animation of el.getAnimations()) animation.play();
+      });
+      await snap(page, testInfo, `catalog-loading-${theme}`);
+      await expect(progress).toHaveText("Searching…");
+      await expect(compass).toBeVisible();
+
       await page.emulateMedia({ reducedMotion: "reduce" });
       await expect(compass.locator("g")).toHaveCSS("animation-name", "none");
       await expect(label).toHaveCSS("animation-name", "none");
@@ -111,7 +119,7 @@ test("first reads show static skeletons and resolve to Home, lists and Stats con
   request,
 }) => {
   const email = await signUp(page, request, `loading_${Date.now()}`);
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 320, height: 740 });
   try {
     for (const [path, label] of [
       ["/", "Checking Journal status…"],
@@ -127,6 +135,9 @@ test("first reads show static skeletons and resolve to Home, lists and Stats con
         .getByRole("status")
         .filter({ hasText: label });
       await expect(status).toHaveCount(1);
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "32px";
+      });
       const placeholder = status.locator("..");
       await expect(
         placeholder.locator('[data-slot="skeleton"]').first(),
@@ -136,10 +147,17 @@ test("first reads show static skeletons and resolve to Home, lists and Stats con
       ).toHaveCSS("animation-name", "none");
       await expect(placeholder.locator("button, a, input")).toHaveCount(0);
       expect(
-        await page.evaluate(
-          () => document.documentElement.scrollWidth <= innerWidth,
+        await page.evaluate(() =>
+          [...document.querySelectorAll('[data-slot="skeleton"]')]
+            .filter((el) => el.getBoundingClientRect().right > innerWidth)
+            .map((el) => el.className),
         ),
-      ).toBe(true);
+        `${path}: enlarged skeletons fit the viewport`,
+      ).toEqual([]);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+        `${path}: enlarged loading content reflows`,
+      ).toBeLessThanOrEqual(320);
       await request.post(supportUrl("/collection-delay"), {
         data: { email, hold: false },
       });

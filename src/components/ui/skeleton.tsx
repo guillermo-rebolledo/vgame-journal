@@ -5,7 +5,7 @@ function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="skeleton"
       aria-hidden="true"
-      className={cn("rounded-md bg-muted", className)}
+      className={cn("max-w-full rounded-md bg-muted", className)}
       {...props}
     />
   );
