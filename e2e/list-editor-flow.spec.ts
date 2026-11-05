@@ -161,8 +161,8 @@ test("list drawers and the game-page picker reflow with narrow screens and enlar
   }
   await page.setViewportSize({ width: 720, height: 900 });
   await page.goto("/games/celeste?addToList=1");
-  const picker = page.getByRole("region", {
-    name: "Add Celeste to a list",
+  const picker = page.getByRole("dialog", {
+    name: "Add to list",
     exact: true,
   });
   await expect(
@@ -174,9 +174,7 @@ test("list drawers and the game-page picker reflow with narrow screens and enlar
   await page.evaluate(() => {
     document.documentElement.style.fontSize = "200%";
   });
-  await picker
-    .getByText("Create a new list for Celeste", { exact: true })
-    .click();
+  await picker.getByText("Create a new list", { exact: true }).click();
   await expect(
     picker.getByRole("textbox", { name: "List title", exact: true }),
   ).toBeVisible();

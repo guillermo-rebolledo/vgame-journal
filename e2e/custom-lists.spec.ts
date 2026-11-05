@@ -478,7 +478,7 @@ test("lists preserve Journal history and account export/deletion stays complete 
   await chooseStatus(page, "playing");
   await page
     .getByRole("button", {
-      name: "Change Journal status for Hades",
+      name: /Change Journal status for Hades$/,
       exact: true,
     })
     .click();

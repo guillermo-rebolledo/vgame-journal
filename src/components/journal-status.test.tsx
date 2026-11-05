@@ -39,7 +39,7 @@ async function choose(name: string | RegExp) {
   const user = userEvent.setup();
   await user.click(
     screen.getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
     }),
   );
   await user.click(await screen.findByRole("menuitemradio", { name }));
@@ -163,7 +163,7 @@ test("removing an entry records whether it had playthroughs, once confirmed", as
   );
   await user.click(
     screen.getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
     }),
   );
   await user.click(
@@ -178,4 +178,15 @@ test("removing an entry records whether it had playthroughs, once confirmed", as
       had_playthroughs: true,
     }),
   );
+});
+
+test("the current Status and Completion tag appear only in the action", () => {
+  renderStatus({ status: "played", completionTag: "completed" }, vi.fn());
+  const trigger = screen.getByRole("button", {
+    name: "Played · Completed — Change Journal status for Celeste",
+  });
+  expect(trigger.textContent).toBe("Played · Completed");
+  expect(
+    screen.getAllByText("Played · Completed", { exact: true }),
+  ).toHaveLength(1);
 });

@@ -130,7 +130,7 @@ test("overflowing menus, Platform choices and removal confirmations contain boun
   await page.goto("/games/overlay-scroll-fixture");
   await chooseStatus(page, "played");
   await page.setViewportSize({ width: 390, height: 360 });
-  const trigger = page.getByRole("button", { name: /^Change Journal status/ });
+  const trigger = page.getByRole("button", { name: /Change Journal status/ });
   await trigger.click();
   const menu = page.getByRole("menu");
   await expect(menu).toHaveCSS("opacity", "1");
@@ -343,11 +343,7 @@ test("pending Journal actions stay understandable and disabled controls cannot p
       .getByRole("status")
       .filter({ hasText: "Saving journal status…" });
     await expect(status).toHaveText("Saving journal status…");
-    await expect(
-      page
-        .getByRole("region", { name: "Game journal", exact: true })
-        .getByText("Saving…", { exact: true }),
-    ).toBeVisible();
+    await expect(trigger).toHaveText("Add to Journal");
     await page.emulateMedia({ reducedMotion: "no-preference" });
     for (const button of [trigger]) {
       const box = await button.boundingBox();
@@ -365,7 +361,7 @@ test("pending Journal actions stay understandable and disabled controls cannot p
   }
   await expect(
     page.getByRole("button", {
-      name: "Change Journal status for Celeste",
+      name: /Change Journal status for Celeste$/,
       exact: true,
     }),
   ).toBeEnabled();

@@ -103,7 +103,6 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
                   <Skeleton className="h-11 w-36" />
                   <Skeleton className="h-11 w-28" />
                 </div>
-                <Skeleton className="h-5 w-32" />
               </output>
             }
           >

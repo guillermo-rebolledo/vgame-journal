@@ -410,7 +410,7 @@ test("signup and username onboarding return to the selected game without mutatin
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page).toHaveURL(/\/games\/celeste\?addToList=1$/);
   await expect(
-    page.getByRole("region", { name: "Add Celeste to a list", exact: true }),
+    page.getByRole("dialog", { name: "Add to list", exact: true }),
   ).toContainText("No lists yet");
   await page.goto("/library");
   await expect(
@@ -445,17 +445,46 @@ test("game-page picker retains the selected game through sign-in and no-lists cr
     .getByRole("button", { name: "Sign in with email", exact: true })
     .click();
   await expect(page).toHaveURL(/\/games\/celeste\?addToList=1$/);
-  const picker = page.getByRole("region", {
-    name: "Add Celeste to a list",
+  const picker = page.getByRole("dialog", {
+    name: "Add to list",
     exact: true,
   });
   await expect(picker).toContainText("No lists yet");
   await picker
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("From a game page");
+  await page.keyboard.press("Escape");
+  await expect(picker).toHaveCount(0);
+  const trigger = page.getByRole("button", {
+    name: "Add to list",
+    exact: true,
+  });
+  await expect(trigger).toBeFocused();
+  await expect(page).not.toHaveURL(/addToList/);
+  await trigger.click();
+  await expect(
+    picker.getByRole("textbox", { name: "List title", exact: true }),
+  ).toHaveValue("From a game page");
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/games/celeste**", async (route) => {
+    if (route.request().method() === "POST") await held;
+    await route.continue();
+  });
   await picker
     .getByRole("button", { name: "Create list and add Celeste", exact: true })
     .click();
+  try {
+    await expect(
+      picker.getByRole("button", { name: "Close", exact: true }),
+    ).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(picker).toBeVisible();
+  } finally {
+    release();
+  }
   await expect(
     picker.getByRole("textbox", { name: "List title", exact: true }),
   ).toHaveCount(0);

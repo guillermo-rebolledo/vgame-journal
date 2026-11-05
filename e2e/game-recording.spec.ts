@@ -128,7 +128,7 @@ for (const state of ["guest", "unsaved", "saved"] as const) {
     });
     await expect(actions).toBeVisible();
     const journal = actions.getByRole(state === "guest" ? "link" : "button", {
-      name: /^(Add to Journal|Change Journal status) for Celeste$/,
+      name: /(Add to Journal|Change Journal status) for Celeste$/,
     });
     const add = actions.getByRole(state === "guest" ? "link" : "button", {
       name: "Add playthrough",
@@ -146,42 +146,19 @@ for (const state of ["guest", "unsaved", "saved"] as const) {
     await expect(add).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(lists).toBeFocused();
-    if (state !== "guest") {
-      const status = page
-        .getByRole("region", { name: "Game journal", exact: true })
-        .getByText(state === "saved" ? "Playing" : "Not in your Journal", {
-          exact: true,
-        });
-      const statusBox = await status.boundingBox();
-      const listsBox = await lists.boundingBox();
-      expect(statusBox?.y).toBeGreaterThanOrEqual(
-        (listsBox?.y ?? 0) + (listsBox?.height ?? 0),
-      );
-    }
     await page.keyboard.press("Enter");
-    const picker = page.getByRole("region", {
-      name: "Add Celeste to a list",
+    const picker = page.getByRole("dialog", {
+      name: "Add to list",
       exact: true,
     });
     await expect(picker).toBeFocused();
-    await expect(journal).toBeVisible();
-    await expect(add).toBeVisible();
-    await expect(
-      page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
-    ).toHaveCount(0);
-    const pickerBox = await picker.boundingBox();
-    const addBox = await add.boundingBox();
-    expect(pickerBox?.y).toBeGreaterThanOrEqual(
-      (addBox?.y ?? 0) + (addBox?.height ?? 0),
-    );
+    await expect(picker.getByText("Celeste", { exact: true })).toBeVisible();
     if (state === "guest")
       await expect(picker.getByRole("link")).toHaveAttribute(
         "href",
         "/sign-in?returnTo=%2Fgames%2Fceleste%3FaddToList%3D1",
       );
-    await actions
-      .getByRole("button", { name: "Close list picker", exact: true })
-      .click();
+    await picker.getByRole("button", { name: "Close", exact: true }).click();
     await expect(picker).toHaveCount(0);
     await expect(lists).toBeFocused();
   });
@@ -291,13 +268,13 @@ test("journal choices, tags, errors and removal preserve saved state", async ({
     await chooseStatus(page, status);
   await expect(
     page.getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
       exact: true,
     }),
   ).toBeFocused();
   await page
     .getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
       exact: true,
     })
     .click();
@@ -312,7 +289,7 @@ test("journal choices, tags, errors and removal preserve saved state", async ({
   await chooseStatus(page, "played");
   await page
     .getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
       exact: true,
     })
     .click();
@@ -326,7 +303,7 @@ test("journal choices, tags, errors and removal preserve saved state", async ({
   await page.route("**/games/celeste", fail);
   await page
     .getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
       exact: true,
     })
     .click();
@@ -340,14 +317,14 @@ test("journal choices, tags, errors and removal preserve saved state", async ({
   await chooseStatus(page, "wishlist");
   await page
     .getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
       exact: true,
     })
     .click();
   await page.getByRole("menuitem", { name: "Remove from journal" }).click();
   await expect(
     page.getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
       exact: true,
     }),
   ).toHaveAttribute("aria-description", "Not in your journal");
@@ -383,7 +360,7 @@ test("drawer drafts, validation, retry, outside-journal status, editing and dele
   ).toBeVisible();
   await expect(page.getByLabel("Started", { exact: true })).toHaveCount(0);
   for (const name of [
-    /^(?:Add to Journal|Change Journal status) for /,
+    /(?:Add to Journal|Change Journal status) for /,
     "Add playthrough",
   ]) {
     const box = await page
@@ -595,7 +572,7 @@ for (const populated of [false, true]) {
     } else {
       await expect(
         page.getByRole("region", { name: "Game journal" }),
-      ).toContainText("Not in your Journal");
+      ).toContainText("Add to Journal");
       await expect(
         page.getByText("No playthroughs yet.", { exact: true }),
       ).toBeVisible();
@@ -687,7 +664,7 @@ test("F01: cancelling or dismissing Journal removal preserves saved Playthroughs
       writes++;
   });
   const trigger = page.getByRole("button", {
-    name: /^(?:Add to Journal|Change Journal status) for /,
+    name: /(?:Add to Journal|Change Journal status) for /,
     exact: true,
   });
   const dialog = page.getByRole("dialog", {
@@ -753,7 +730,7 @@ test("F01: confirmed removal waits for acknowledgement, recovers locally, and pe
   const before = await (await page.request.get("/api/account/export")).json();
   await page
     .getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
       exact: true,
     })
     .click();
@@ -849,7 +826,7 @@ test("F01: confirmed removal waits for acknowledgement, recovers locally, and pe
   await page.reload();
   await expect(
     page.getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
       exact: true,
     }),
   ).toHaveAttribute("aria-description", "Not in your journal");
@@ -905,7 +882,7 @@ test.describe("F01: stale Journal removal on a touch screen", () => {
     await addInOtherTab("Private note added in the other tab");
     const before = await (await page.request.get("/api/account/export")).json();
     const trigger = page.getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
       exact: true,
     });
     await trigger.tap();
@@ -940,7 +917,7 @@ test.describe("F01: stale Journal removal on a touch screen", () => {
     await other.reload();
     await expect(
       other.getByRole("button", {
-        name: /^(?:Add to Journal|Change Journal status) for /,
+        name: /(?:Add to Journal|Change Journal status) for /,
         exact: true,
       }),
     ).toHaveAttribute("aria-description", "Not in your journal");

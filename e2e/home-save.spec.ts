@@ -235,7 +235,7 @@ test("details visibly distinguish saving a Journal entry from adding a Playthrou
   });
   await expect(
     journal.getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
       exact: true,
     }),
   ).toContainText("Add to Journal");
