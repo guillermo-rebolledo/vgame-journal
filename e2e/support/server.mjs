@@ -27,7 +27,9 @@ const server = createServer(async (request, response) => {
       if (
         state &&
         (sql.includes('from "journal_entry"') ||
-          sql.includes('from "custom_list"'))
+          sql.includes('from "custom_list"') ||
+          sql.includes('from "playthrough"') ||
+          sql.includes('from "status_event"'))
       ) {
         if (state.fail)
           throw new Error("Synthetic personal Journal read failure");
