@@ -177,3 +177,54 @@ export const SaveConfirmsAfterDismissal: Story = {
     await expect(args.onAdd).toHaveBeenCalledOnce();
   },
 };
+
+export const SavingOnlyMarksTheSaveAction: Story = {
+  args: { onUpdate: fn(() => new Promise<undefined>(() => {})) },
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(
+      within(canvasElement).getByRole("button", { name: "Edit" }),
+    );
+    const save = await body.findByRole("button", { name: "Save" });
+    await userEvent.click(save);
+    await expect(save).toHaveAttribute("aria-busy", "true");
+    await expect(
+      save.querySelector('[data-active="true"] [data-slot="spinner"]'),
+    ).toBeVisible();
+    const remove = body.getByRole("button", { name: "Delete playthrough" });
+    await expect(remove).toBeDisabled();
+    await expect(
+      remove.querySelector('[data-active="true"] [data-slot="spinner"]'),
+    ).toBeNull();
+    await expect(body.getByText("Saving…", { exact: true })).toBeVisible();
+  },
+};
+
+export const DeletingOnlyMarksTheDeleteAction: Story = {
+  args: { onRemove: fn(() => new Promise<undefined>(() => {})) },
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(
+      within(canvasElement).getByRole("button", { name: "Edit" }),
+    );
+    const remove = await body.findByRole("button", {
+      name: "Delete playthrough",
+    });
+    await userEvent.click(remove);
+    await expect(remove).toHaveAttribute("aria-busy", "true");
+    await expect(
+      remove.querySelector('[data-active="true"] [data-slot="spinner"]'),
+    ).toBeVisible();
+    const save = body.getByRole("button", { name: "Save" });
+    await expect(save).toBeDisabled();
+    await expect(
+      save.querySelector('[data-active="true"] [data-slot="spinner"]'),
+    ).toBeNull();
+    await expect(
+      body.queryByText("Saving…", { exact: true }),
+    ).not.toBeInTheDocument();
+    await expect(
+      body.getByText("Deleting playthrough…", { exact: true }),
+    ).toBeVisible();
+  },
+};

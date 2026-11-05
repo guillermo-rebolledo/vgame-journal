@@ -4,9 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Analytics } from "@/components/analytics";
+import { HeaderLoading } from "@/components/content-loading";
 import { PageTransition } from "@/components/page-transition";
 import { SkipLink } from "@/components/skip-link";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Spinner } from "@/components/ui/spinner";
 import { Toaster } from "@/components/ui/toast";
 import { UserMenu } from "@/components/user-menu";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
@@ -82,7 +84,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               />
               {SITE_NAME}
             </Link>
-            <Suspense fallback={<div aria-hidden className="size-11" />}>
+            <Suspense fallback={<HeaderLoading />}>
               <UserMenu />
             </Suspense>
           </header>
@@ -91,7 +93,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             tabIndex={-1}
             className="flex flex-1 flex-col"
           >
-            <Suspense fallback={<div className="flex-1" />}>
+            <Suspense
+              fallback={
+                <output className="flex flex-1 items-center justify-center gap-2 p-8 text-muted-foreground">
+                  <Spinner />
+                  <span className="shimmer">Loading page…</span>
+                </output>
+              }
+            >
               <PageTransition>{children}</PageTransition>
             </Suspense>
           </main>

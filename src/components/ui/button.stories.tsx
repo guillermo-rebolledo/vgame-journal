@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Plus, Save } from "lucide-react";
 import { useId, useState } from "react";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import {
   ActionFeedback,
   ActionIcon,
@@ -182,5 +182,68 @@ export const AsyncFeedback: Story = {
     await expect(canvas.queryByRole("alert")).not.toBeInTheDocument();
     await expect(save).toBeEnabled();
     await expect(args.onClick).toHaveBeenCalledTimes(2);
+  },
+};
+
+export const Loading: Story = {
+  args: { loading: true, children: "Saving…" },
+  play: async ({ canvasElement, args }) => {
+    const button = within(canvasElement).getByRole("button", {
+      name: "Saving…",
+    });
+    await expect(button).toBeDisabled();
+    await expect(button).toHaveAttribute("aria-busy", "true");
+    button.click();
+    await expect(args.onClick).not.toHaveBeenCalled();
+  },
+};
+export const PendingThenRetry: Story = {
+  render: function Example(args) {
+    const [pending, setPending] = useState(false);
+    const [failed, setFailed] = useState(false);
+    return (
+      <div className="space-y-3">
+        <Button
+          {...args}
+          loading={pending}
+          onClick={() => {
+            setPending(true);
+            setTimeout(() => {
+              setPending(false);
+              setFailed(true);
+            }, 400);
+          }}
+        >
+          {pending ? "Saving…" : failed ? "Retry save" : "Save"}
+        </Button>
+        <output>
+          {pending
+            ? "Saving your changes…"
+            : failed
+              ? "Couldn’t save. Your draft is kept."
+              : ""}
+        </output>
+      </div>
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Save" }));
+    await expect(
+      canvas.getByRole("button", { name: "Saving…" }),
+    ).toBeDisabled();
+    await expect(canvas.getByRole("status")).toHaveTextContent(
+      "Saving your changes…",
+    );
+    await expect(
+      canvas.getByRole("button", { name: "Saving…" }).querySelector(".shimmer"),
+    ).toHaveTextContent("Saving…");
+    await waitFor(() =>
+      expect(canvas.getByRole("button", { name: "Retry save" })).toBeEnabled(),
+    );
+    await expect(
+      canvasElement.querySelector('[data-slot="spinner"]'),
+    ).toBeNull();
+    await expect(canvasElement.querySelector(".shimmer")).toBeNull();
   },
 };

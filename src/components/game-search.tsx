@@ -24,6 +24,7 @@ import { HomeCoverLink } from "@/components/home-cover-link";
 import { HomeSaveControls } from "@/components/home-journal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { useEditorViewport } from "@/components/use-editor-viewport";
 import "./game-search.css";
 import type { SearchResult } from "@/lib/catalog";
@@ -385,19 +386,24 @@ export function GameSearch({
             aria-atomic="true"
             className="text-muted-foreground text-sm empty:hidden"
           >
-            {q.length < MIN_QUERY
-              ? "Enter at least 2 characters to search the Catalog."
-              : idle || failed
-                ? ""
-                : !current
-                  ? "Searching…"
-                  : (year || platform) && matches?.length === 0
-                    ? "No matches in these results. Clear filters or search for a more specific title."
-                    : results?.length === 0
-                      ? `No matches returned for “${q}”. Check the spelling or try different words from the title.`
-                      : year || platform
-                        ? `${matches?.length} of ${results?.length} returned matches ${matches?.length === 1 ? "fits" : "fit"} your filters.`
-                        : `${results?.length} returned ${results?.length === 1 ? "match" : "matches"} for “${q}”.`}
+            {q.length < MIN_QUERY ? (
+              "Enter at least 2 characters to search the Catalog."
+            ) : idle || failed ? (
+              ""
+            ) : !current ? (
+              <>
+                <Spinner className="mr-2" />
+                <span className="shimmer">Searching…</span>
+              </>
+            ) : (year || platform) && matches?.length === 0 ? (
+              "No matches in these results. Clear filters or search for a more specific title."
+            ) : results?.length === 0 ? (
+              `No matches returned for “${q}”. Check the spelling or try different words from the title.`
+            ) : year || platform ? (
+              `${matches?.length} of ${results?.length} returned matches ${matches?.length === 1 ? "fits" : "fit"} your filters.`
+            ) : (
+              `${results?.length} returned ${results?.length === 1 ? "match" : "matches"} for “${q}”.`
+            )}
           </output>
           {failed && (
             <div

@@ -18,7 +18,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Decorative icon state layers, shared with CopyButton. Callers own request state, disablement and one stable live region. Keep the visible action label intact. Pending spinners and 300ms state transitions honor reduced motion; no entrance on mount. See UI/Button AsyncFeedback for keyboard, duplicate-submit and retry coverage.",
+          "Decorative icon state layers, shared with CopyButton. Callers own request state, disablement and one stable live region. Keep the visible action label intact. Pending uses the shared Compass and shimmering text; 300ms state transitions honor reduced motion; no entrance on mount. See UI/Button AsyncFeedback for keyboard, duplicate-submit and retry coverage.",
       },
     },
   },
@@ -28,7 +28,9 @@ const meta = {
       aria-busy={args.state === "pending"}
     >
       <ActionIcon {...args} />
-      Save
+      <span className={args.state === "pending" ? "shimmer" : undefined}>
+        Save
+      </span>
     </Button>
   ),
 } satisfies Meta<typeof ActionIcon>;

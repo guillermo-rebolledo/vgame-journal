@@ -169,6 +169,7 @@ export function CreateListForm({
         )}
         <Button
           type="submit"
+          loading={pending}
           disabled={pending || !ready || disabled}
           className="min-h-11 self-start"
         >
@@ -479,9 +480,15 @@ export function OwnerListEditor({
       <output
         aria-live="polite"
         aria-atomic="true"
-        className={message?.kind === "refreshed" ? "text-sm" : "sr-only"}
+        className={
+          pending || message?.kind === "refreshed" ? "text-sm" : "sr-only"
+        }
       >
-        {message?.text}
+        {pending ? (
+          <ActionFeedback state="pending">Updating list…</ActionFeedback>
+        ) : (
+          message?.text
+        )}
       </output>
     </>
   );
@@ -650,7 +657,9 @@ export function OwnerListEditor({
                     icon={<Save />}
                     state={pending ? "pending" : "idle"}
                   />
-                  Save details
+                  <span className={pending ? "shimmer" : undefined}>
+                    Save details
+                  </span>
                 </Button>
               </form>
               {panel === "details" && feedback}

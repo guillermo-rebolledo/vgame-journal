@@ -574,3 +574,23 @@ export const LongTitlePending: Story = {
     ).toHaveTextContent(`Saving ${args.game.title} to Played…`);
   },
 };
+
+const unresolvedJournal = new Promise<HomeSnapshot>(() => {});
+export const LoadingPersonalShelves: Story = {
+  render: () => (
+    <HomeJournalProvider owner="storybook-player" initial={unresolvedJournal}>
+      <HomeCollections />
+    </HomeJournalProvider>
+  ),
+  play: async ({ canvasElement }) => {
+    await expect(
+      within(canvasElement).getByText("Checking Journal status…"),
+    ).toBeInTheDocument();
+    await expect(
+      canvasElement.querySelector('[data-slot="skeleton"]'),
+    ).toBeVisible();
+    await expect(
+      within(canvasElement).queryByText("No games yet"),
+    ).not.toBeInTheDocument();
+  },
+};

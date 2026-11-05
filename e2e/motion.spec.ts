@@ -335,10 +335,9 @@ test("pending Journal actions stay understandable and disabled controls cannot p
   try {
     await expect(trigger).toHaveAttribute("aria-busy", "true");
     await expect(trigger).toHaveAttribute("aria-disabled", "true");
-    await expect(trigger.locator(".lucide-loader-circle")).toHaveCSS(
-      "animation-name",
-      "none",
-    );
+    await expect(
+      trigger.locator('[data-active="true"] .compass-ticks'),
+    ).toHaveCSS("animation-name", "none");
     const status = page
       .getByRole("region", { name: "Game journal", exact: true })
       .getByRole("status")

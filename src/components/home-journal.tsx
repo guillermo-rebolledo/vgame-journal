@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "cn";
 import {
   BookMarked,
   BookPlus,
@@ -28,6 +29,7 @@ import {
   readHomeJournal,
   saveHomeStatus,
 } from "@/app/home-actions";
+import { HomeCollectionsLoading } from "@/components/content-loading";
 import { GameCover } from "@/components/game-cover";
 import { HomeCoverLink } from "@/components/home-cover-link";
 import { HomeWishlistPreview } from "@/components/home-wishlist-preview";
@@ -42,6 +44,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
 import { authPageHref } from "@/lib/auth-continuation";
 import {
   type HomeEntry,
@@ -406,7 +409,10 @@ export function HomeJournalProvider({
               </div>
             </>
           ) : !loaded ? (
-            <p>Checking your Journal…</p>
+            <p className="flex items-center gap-2">
+              <Spinner />
+              <span className="shimmer">Checking your Journal…</span>
+            </p>
           ) : !snapshot.entries ? (
             <>
               <p>Your Journal status is unavailable.</p>
@@ -428,7 +434,7 @@ export function HomeJournalProvider({
               </p>
               <Button
                 className="min-h-11 self-start"
-                disabled={saves[intent.gameId]?.pending}
+                loading={saves[intent.gameId]?.pending}
                 onClick={async () => {
                   if (await save(intent, intent.status)) {
                     setIntent(null);
@@ -629,7 +635,13 @@ export function HomeSaveControls({
                   }}
                 >
                   <ActionIcon icon={<BookPlus />} state={actionState(status)} />
-                  Save to {capitalize(status)}
+                  <span
+                    className={
+                      actionState(status) === "pending" ? "shimmer" : undefined
+                    }
+                  >
+                    Save to {capitalize(status)}
+                  </span>
                 </Button>
               ),
             )}
@@ -672,7 +684,15 @@ export function HomeSaveControls({
                   icon={entry ? <BookMarked /> : <BookPlus />}
                   state={actionState(entry ? undefined : "backlog")}
                 />
-                {entry ? "Change status" : "Add to backlog"}
+                <span
+                  className={
+                    actionState(entry ? undefined : "backlog") === "pending"
+                      ? "shimmer"
+                      : undefined
+                  }
+                >
+                  {entry ? "Change status" : "Add to backlog"}
+                </span>
                 {entry && (
                   <ChevronDown aria-hidden="true" data-icon="inline-end" />
                 )}
@@ -712,7 +732,15 @@ export function HomeSaveControls({
                   icon={<BookPlus />}
                   state={actionState("wishlist")}
                 />
-                Add to wishlist
+                <span
+                  className={
+                    actionState("wishlist") === "pending"
+                      ? "shimmer"
+                      : undefined
+                  }
+                >
+                  Add to wishlist
+                </span>
               </Button>
             )}
           </div>
@@ -720,10 +748,13 @@ export function HomeSaveControls({
       )}
       {unavailable && (
         <>
-          <p>
-            {home.loaded
-              ? "Journal status unavailable."
-              : "Checking Journal status…"}
+          <p className="flex items-center gap-2">
+            {!home.loaded && <Spinner />}
+            <span className={cn(!home.loaded && "shimmer")}>
+              {home.loaded
+                ? "Journal status unavailable."
+                : "Checking Journal status…"}
+            </span>
           </p>
           <Button
             variant="ghost"
@@ -773,8 +804,12 @@ export function HomeSaveControls({
 
 export function HomeCollections() {
   const home = useContext(HomeContext);
+  const [initialRead, setInitialRead] = useState(true);
+  if (initialRead && home?.loaded) setInitialRead(false);
   if (!home?.snapshot.owner) return null;
   const entries = home.snapshot.entries;
+  if (!entries && !home.loaded && initialRead)
+    return <HomeCollectionsLoading />;
   if (!entries)
     return (
       <div className="flex flex-wrap gap-2">
@@ -794,10 +829,13 @@ export function HomeCollections() {
             {label} (…)
           </Link>
         ))}
-        <p>
-          {home.loaded
-            ? "Journal status unavailable."
-            : "Checking Journal status…"}
+        <p className="flex items-center gap-2">
+          {!home.loaded && <Spinner />}
+          <span className={cn(!home.loaded && "shimmer")}>
+            {home.loaded
+              ? "Journal status unavailable."
+              : "Checking Journal status…"}
+          </span>
         </p>
         <Button onClick={home.retry} disabled={!home.loaded}>
           Retry Journal

@@ -13,6 +13,7 @@ export function ListReadUnavailable() {
       <Button
         variant="outline"
         className="min-h-11 self-start"
+        loading={pending}
         disabled={pending}
         onClick={() => start(() => router.refresh())}
       >

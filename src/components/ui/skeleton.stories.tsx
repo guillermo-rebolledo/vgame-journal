@@ -8,7 +8,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Placeholder for content that is loading. Hide decorative shapes from assistive technology and provide one readable loading status. Use CollectionLoading for Library and Wishlist. Source: src/components/ui/skeleton.tsx.",
+          "Static placeholder for content that is loading; no pulsing, including under reduced motion. Hide decorative shapes from assistive technology and provide one readable loading status. Use CollectionLoading for Library and Wishlist. Source: src/components/ui/skeleton.tsx.",
       },
     },
   },
