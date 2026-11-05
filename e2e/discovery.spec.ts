@@ -70,7 +70,7 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
   if (!recentHandle) throw new Error("Recently released shelf is missing");
   expect(
     await page
-      .getByRole("button", { name: "Search games…", exact: true })
+      .getByRole("combobox", { name: "Search games", exact: true })
       .evaluate((node, shelf) => {
         return Boolean(
           node.compareDocumentPosition(shelf) &
@@ -81,7 +81,11 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
   const headings = await page
     .getByRole("heading", { level: 2 })
     .allTextContents();
-  expect(headings).toEqual(["Recently released", "Recently trending"]);
+  expect(headings).toEqual([
+    "Find your next game.",
+    "Recently released",
+    "Recently trending",
+  ]);
   const columns = () =>
     recent
       .locator("ul")
@@ -92,8 +96,20 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await columns()).toBe(2);
   await page
-    .getByRole("button", { name: "Search games…", exact: true })
+    .getByRole("combobox", { name: "Search games", exact: true })
     .focus();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("button", { name: "Show games", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("combobox", { name: "Platform", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("combobox", { name: "Release year", exact: true }),
+  ).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("link", { name: "Sign up to start a Journal" }),
@@ -143,6 +159,7 @@ test("empty and saved Journals retain priority; duplicate covers navigate from e
   await chooseStatus(page, "backlog");
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 2 })).toHaveText([
+    "Find your next game.",
     "Playing",
     "Recently added",
     "Recently released",
@@ -162,11 +179,8 @@ test("empty and saved Journals retain priority; duplicate covers navigate from e
   await expect(page).toHaveURL(/\/games\/discovery-one$/);
   await page.goto("/");
   await selectCatalogGame(page, "Discovery One");
-  await page
-    .getByRole("link", { name: "View game: Discovery One", exact: true })
-    .click();
   await expect(page).toHaveURL(/\/games\/discovery-one$/);
-  // The Command action and all four shelf occurrences navigate independently.
+  // Catalog results and all four shelf occurrences navigate independently.
   await page.goto("/");
   const links = page.getByRole("link", { name: /^Discovery One/ });
   await expect(links).toHaveCount(4);
@@ -218,7 +232,7 @@ test("pending and failed discovery leave search and personal shelves usable", as
       }),
     ).toBeVisible();
     await (await openCatalog(page)).fill("Celeste");
-    await expect(page.getByRole("option", { name: /^Celeste/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Celeste/ })).toBeVisible();
     await expect(
       page
         .getByRole("region", {
@@ -327,9 +341,6 @@ test("pending and failed discovery leave search and personal shelves usable", as
       page.getByRole("combobox", { name: "Platform", exact: true }),
     ).toHaveAccessibleName("Platform");
     await selectCatalogGame(page, "Celeste");
-    await page
-      .getByRole("link", { name: "View game: Celeste", exact: true })
-      .click();
     await expect(page).toHaveURL(/\/games\/celeste$/);
   } finally {
     await request.post(supportUrl("/discovery-state"), {
@@ -368,7 +379,7 @@ test("successful empty discovery offers search without an error or retry loop", 
     await expect(
       page.getByRole("combobox", { name: "Search games", exact: true }),
     ).toHaveValue("Celeste");
-    await expect(page.getByRole("option", { name: /^Celeste/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Celeste/ })).toBeVisible();
   } finally {
     // Cron's refresh lease can skip an immediate retry; restore the fixture exactly.
     for (const [key, gameIds] of rows)

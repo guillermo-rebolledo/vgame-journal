@@ -8,7 +8,7 @@ import { snap } from "./support/snap";
 
 async function expectForcedColorsFocus(target: Locator) {
   await expect(target).toBeFocused();
-  await expect(target).toHaveCSS("outline-style", "solid");
+
   const indicator = await target.evaluate((node) => {
     const probe = document.createElement("span");
     document.body.append(probe);
@@ -19,15 +19,17 @@ async function expectForcedColorsFocus(target: Locator) {
     const palette = [systemColor("CanvasText"), systemColor("Highlight")];
     const canvas = systemColor("Canvas");
     probe.remove();
-    const style = getComputedStyle(node);
+    const style = getComputedStyle(node.closest(".game-catalog-input") ?? node);
     return {
       width: parseFloat(style.outlineWidth),
+      style: style.outlineStyle,
       color: style.outlineColor,
       palette,
       canvas,
     };
   });
   expect(indicator.width).toBeGreaterThanOrEqual(2);
+  expect(indicator.style).toBe("solid");
   expect(indicator.palette).toContain(indicator.color);
   expect(indicator.color).not.toBe(indicator.canvas);
   await expect(target).toBeInViewport();
@@ -89,9 +91,7 @@ for (const destination of ["Library", "Wishlist"] as const) {
       await page
         .getByRole("combobox", { name: "Search games", exact: true })
         .fill("Celeste");
-      await expect(
-        page.getByRole("option", { name: /^Celeste/ }),
-      ).toBeVisible();
+      await expect(page.getByRole("link", { name: /^Celeste/ })).toBeVisible();
       if (dismiss === "close") await closeCatalog(page);
       else await page.keyboard.press("Escape");
       await expect(find).toBeFocused();
@@ -122,7 +122,7 @@ test("Find a game preserves native modifier and middle-click navigation", async 
       const tab = await opened;
       await expect(tab).toHaveURL(/\/\?search=1$/);
       await expect(
-        tab.getByRole("dialog", { name: "Find a game", exact: true }),
+        tab.getByRole("dialog", { name: "Search results", exact: true }),
       ).toBeVisible();
       await tab.close();
       await expect(page).toHaveURL(new RegExp(`${path === "/" ? "/" : path}$`));
@@ -139,7 +139,7 @@ test("skip route moves focus into main on Home and details", async ({
     // Main can still be an empty streamed fallback after navigation commits.
     await expect(
       path === "/"
-        ? page.getByRole("button", { name: "Search games…", exact: true })
+        ? page.getByRole("combobox", { name: "Search games", exact: true })
         : page.getByRole("link", {
             name: "Add to Journal for Celeste",
             exact: true,
@@ -159,7 +159,7 @@ test("skip route moves focus into main on Home and details", async ({
     ).toBe(true);
     if (path === "/")
       await expect(
-        page.getByRole("button", { name: "Search games…", exact: true }),
+        page.getByRole("combobox", { name: "Search games", exact: true }),
       ).toBeFocused();
   }
 });
@@ -224,7 +224,7 @@ test("header forward and reverse keyboard order matches visible rows at every br
 });
 
 for (const colorScheme of ["light", "dark"] as const) {
-  test(`platform disclosures have contrasting keyboard focus in ${colorScheme} and forced colors`, async ({
+  test(`Catalog result links have contrasting keyboard focus in ${colorScheme} and forced colors`, async ({
     page,
   }) => {
     await page.addInitScript(
@@ -246,10 +246,11 @@ for (const colorScheme of ["light", "dark"] as const) {
       }),
     );
     await page.goto("/?q=Celeste");
-    await page.getByRole("option", { name: /^Celeste/ }).click();
-    const search = page.getByRole("dialog");
-    const more = search.getByLabel(/More platforms for Celeste$/);
-    await page.keyboard.press("Tab");
+    const more = page.getByRole("link", { name: /^Celeste/ });
+    await expect(more).toBeVisible();
+    await page
+      .getByRole("combobox", { name: "Search games", exact: true })
+      .press("ArrowDown");
     await expect(more).toBeFocused();
     const indicator = await more.evaluate((node) => {
       const style = getComputedStyle(node);
@@ -296,13 +297,8 @@ for (const colorScheme of ["light", "dark"] as const) {
     });
     expect(indicator.width).toBeGreaterThanOrEqual(2);
     expect(indicator.style).toBe("solid");
-    expect(indicator.offset).toBeGreaterThanOrEqual(2);
+    expect(indicator.offset).toBeLessThanOrEqual(-2);
     expect(indicator.ratio).toBeGreaterThanOrEqual(3);
-    await page.keyboard.press("Enter");
-    await expect(
-      search.getByRole("list", { name: "Additional platforms for Celeste" }),
-    ).toBeVisible();
-    await page.keyboard.press("Enter");
     await page.emulateMedia({ forcedColors: "active", colorScheme });
     await expectForcedColorsFocus(more);
   });
@@ -335,38 +331,26 @@ for (const colorScheme of ["light", "dark"] as const) {
       }),
     );
     await page.goto("/?q=focus");
-    const filters = page.getByRole("button", { name: "Filters", exact: true });
-    await expect(filters).toBeVisible();
-
-    await expectForcedColorsFocus(
-      page.getByRole("combobox", { name: "Search games", exact: true }),
-    );
-    await page.keyboard.press("Tab");
-    await expectForcedColorsFocus(filters);
-    await page.keyboard.press("Enter");
-    await expect(filters).toHaveAttribute("aria-expanded", "true");
-    await page.keyboard.press("Tab");
-    await expectForcedColorsFocus(
-      page.getByRole("combobox", { name: "Release year", exact: true }),
-    );
-    await page.keyboard.press("Tab");
-    await expectForcedColorsFocus(
-      page.getByRole("combobox", { name: "Platform", exact: true }),
-    );
     const input = page.getByRole("combobox", {
       name: "Search games",
       exact: true,
     });
-    await input.focus();
-    await input.press("ArrowDown");
-    await input.press("Enter");
-    const more = page.getByLabel("More platforms for Celeste");
+    await expectForcedColorsFocus(input);
+    await page.keyboard.press("Escape");
     await page.keyboard.press("Tab");
-    await expectForcedColorsFocus(more);
-    await page.keyboard.press("Enter");
-    await expect(
-      page.getByRole("list", { name: "Additional platforms for Celeste" }),
-    ).toBeVisible();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expectForcedColorsFocus(
+      page.getByRole("combobox", { name: "Platform", exact: true }),
+    );
+    await page.keyboard.press("Tab");
+    await expectForcedColorsFocus(
+      page.getByRole("combobox", { name: "Release year", exact: true }),
+    );
+    await input.click();
+    await expect(page.locator(".game-catalog-result").first()).toBeVisible();
+    await input.press("ArrowDown");
+    await expectForcedColorsFocus(page.locator(".game-catalog-result").first());
   });
 }
 
@@ -514,10 +498,7 @@ for (const theme of ["light", "dark"] as const) {
         await chooseStatus(page, "wishlist");
         await page.goto("/");
         await (await openCatalog(page)).fill("The Lantern Keeper");
-        await page.getByRole("option", { name: /^The Lantern Keeper/ }).click();
-        await page
-          .getByRole("link", { name: /^View game: The Lantern Keeper/ })
-          .click();
+        await page.getByRole("link", { name: /^The Lantern Keeper/ }).click();
         await chooseStatus(page, "wishlist");
         await seedSql(
           request,
@@ -543,9 +524,7 @@ for (const theme of ["light", "dark"] as const) {
         await checkWidth(`Home ${populated} ${font}`, font);
         await (await openCatalog(page)).fill("Celeste");
         await expect(
-          page
-            .getByRole("listbox", { name: "Search results" })
-            .getByRole("option"),
+          page.locator(".game-catalog-results").getByRole("link"),
         ).toBeVisible({ timeout: 30_000 });
         await checkWidth("Home search results", font);
         await closeCatalog(page);
@@ -575,6 +554,7 @@ for (const theme of ["light", "dark"] as const) {
               await page.getByText("More filters", { exact: true }).click();
               await page
                 .getByLabel("Platform", { exact: true })
+                .filter({ visible: true })
                 .selectOption("PC");
               await checkWidth("Library expanded filters", font);
               await page

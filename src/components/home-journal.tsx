@@ -104,7 +104,7 @@ function focusHomeGame(gameId?: number) {
     control ??
     Array.from(
       document.querySelectorAll<HTMLElement>(
-        '[role="dialog"] input[type="search"], .home-journal [data-catalog-trigger], .home-journal search input[type="search"]',
+        '[role="dialog"] input[type="search"], .home-journal [role="combobox"][type="search"], .home-journal [data-catalog-trigger], .home-journal search input[type="search"]',
       ),
     ).find(visible)
   )?.focus({ preventScroll: true });
@@ -506,19 +506,16 @@ export function HomePendingSave({
   return children ? children(continuation) : continuation;
 }
 
-/** The active search stage owns announcements; background shelves stay silent. */
+/** Search owns announcements while open; preserve confirmed feedback across host changes. */
 export function HomeJournalFeedback({ gameId }: { gameId?: number }) {
   const home = useContext(HomeContext);
   const setHosts = home?.setFeedbackHosts;
-  const clear = home?.clearFeedback;
   useEffect(() => {
     setHosts?.((count) => count + 1);
-    clear?.();
     return () => {
       setHosts?.((count) => count - 1);
-      clear?.();
     };
-  }, [setHosts, clear]);
+  }, [setHosts]);
   return (
     <output
       aria-label="Journal updates"

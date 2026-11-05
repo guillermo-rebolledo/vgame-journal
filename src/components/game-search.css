@@ -61,3 +61,66 @@
     border-color: ButtonText;
   }
 }
+
+.game-catalog-input:focus-within {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+.game-catalog-input .game-search-input:focus-visible {
+  outline: none;
+}
+.game-catalog-positioner {
+  width: var(--anchor-width);
+  max-width: var(--available-width);
+}
+.game-catalog-results {
+  max-height: min(26.25rem, max(7.5rem, calc(var(--available-height) - 10rem)));
+  scroll-padding: 4px;
+}
+.game-search .game-catalog-result:focus-visible {
+  background: var(--accent);
+  outline: 2px solid var(--foreground);
+  outline-offset: -2px;
+}
+.game-catalog-filter {
+  height: auto;
+}
+@media (hover: hover) and (pointer: fine) {
+  .game-catalog-result:hover {
+    background: var(--accent);
+  }
+}
+@media (forced-colors: active) {
+  .game-search .game-catalog-result:focus-visible,
+  .game-catalog-input:focus-within {
+    outline-color: Highlight;
+  }
+}
+
+.game-catalog-popup {
+  max-height: var(--available-height);
+  overflow-y: auto;
+}
+.game-catalog {
+  --muted-foreground: color-mix(
+    in oklch,
+    var(--foreground) 70%,
+    var(--background)
+  );
+}
+.game-catalog-filter {
+  background: var(--background);
+}
+.game-catalog-filter [data-slot="select-value"] {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+}
+@media (max-width: 640px) {
+  .game-catalog-input {
+    flex-basis: 100%;
+  }
+}
+.game-catalog-input input::-webkit-search-cancel-button {
+  display: none;
+}

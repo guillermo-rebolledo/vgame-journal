@@ -25,8 +25,8 @@ test("Home browsing survives account switching, verification, onboarding and sig
   );
   const home = "/?q=Home&year=2027&platform=PC&all=1&filters=1";
   await page.goto(home);
-  const results = page.getByRole("listbox", { name: "Search results" });
-  await expect(results.getByRole("option")).toHaveCount(8);
+  const results = page.locator(".game-catalog-results");
+  await expect(results.getByRole("link")).toHaveCount(8);
   await expect(page.getByLabel("Release year", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Platform", { exact: true })).toBeVisible();
   await closeCatalog(page);
@@ -109,7 +109,7 @@ test("Home browsing survives account switching, verification, onboarding and sig
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page).toHaveURL(home);
-  await expect(results.getByRole("option")).toHaveCount(8);
+  await expect(results.getByRole("link")).toHaveCount(8);
   await closeCatalog(page);
   await expect(
     page.getByRole("link", { name: "All saved games (0)" }),
@@ -133,11 +133,13 @@ test("Home browsing survives account switching, verification, onboarding and sig
   await page.getByLabel("Password", { exact: true }).fill("password123");
   await page.getByRole("button", { name: "Sign in with email" }).click();
   await expect(page).toHaveURL(home);
-  await expect(results.getByRole("option")).toHaveCount(8);
-  await expect(page.getByLabel("Release year", { exact: true })).toHaveValue(
+  await expect(results.getByRole("link")).toHaveCount(8);
+  await expect(page.getByLabel("Release year", { exact: true })).toContainText(
     "2027",
   );
-  await expect(page.getByLabel("Platform", { exact: true })).toHaveValue("PC");
+  await expect(page.getByLabel("Platform", { exact: true })).toContainText(
+    "PC",
+  );
   await expect(page.getByLabel("Release year", { exact: true })).toBeVisible();
   const exported = await (await page.request.get("/api/account/export")).json();
   expect(exported.entries).toEqual([]);
@@ -159,8 +161,8 @@ test("Find a game, shortcuts and native navigation have one active owner across 
     })
     .filter({ visible: true });
   const before = await heading.boundingBox();
-  const trigger = page.getByRole("button", {
-    name: "Search games…",
+  const trigger = page.getByRole("combobox", {
+    name: "Search games",
     exact: true,
   });
   await trigger.click();
@@ -170,21 +172,10 @@ test("Find a game, shortcuts and native navigation have one active owner across 
   });
   await expect(input).toBeFocused();
   await input.fill("Celeste");
-  const option = page.getByRole("option", { name: /^Celeste/ });
+  const option = page.getByRole("link", { name: /^Celeste/ });
   await expect(option).toBeVisible();
   expect(await heading.boundingBox()).toEqual(before);
-  await input.press("ArrowDown");
-  await input.press("Enter");
-  await expect(
-    page.getByRole("button", { name: "Back to results" }),
-  ).toBeFocused();
-  await expect(
-    page.getByRole("dialog").getByRole("group", { name: "Journal status" }),
-  ).toBeVisible();
-  const view = page.getByRole("link", {
-    name: "View game: Celeste",
-    exact: true,
-  });
+  const view = option;
   await expect(view).toHaveAttribute("href", "/games/celeste");
   const popup = page.context().waitForEvent("page");
   await view.click({ modifiers: ["ControlOrMeta"] });

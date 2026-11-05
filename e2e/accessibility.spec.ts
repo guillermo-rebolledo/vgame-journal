@@ -295,19 +295,11 @@ for (const theme of ["light", "dark"] as const) {
       ).toContainText("Search isn’t working");
       await scan(page, testInfo, "search-error");
       await searchInput.fill("Celeste");
-      await expect(
-        page.getByRole("option", { name: /^Celeste/ }),
-      ).toBeVisible();
+      await expect(page.getByRole("link", { name: /^Celeste/ })).toBeVisible();
       await scan(page, testInfo, "search-results");
-      await page.getByRole("option", { name: /^Celeste/ }).click();
-      await scan(page, testInfo, "search-actions");
-      await page
-        .getByRole("button", { name: "Save to Wishlist", exact: true })
-        .click();
-      await expect(
-        page.getByRole("region", { name: "Pending Journal save" }),
-      ).toBeVisible();
-      await scan(page, testInfo, "search-auth-continuation");
+      await page.getByRole("link", { name: /^Celeste/ }).click();
+      await expect(page).toHaveURL(/\/games\/celeste$/);
+      await scan(page, testInfo, "search-game-page");
 
       for (const path of [
         "/games/celeste",

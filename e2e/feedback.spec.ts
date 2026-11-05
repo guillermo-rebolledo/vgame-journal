@@ -28,6 +28,7 @@ test("feedback stores real submissions, opens from the account menu, and limits 
     page.getByRole("menuitem", { name: "Feedback", exact: true }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toHaveCount(0);
   await page.setViewportSize({ width: 320, height: 812 });
   expect(
     await page.evaluate(

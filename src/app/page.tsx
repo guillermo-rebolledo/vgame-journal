@@ -77,9 +77,7 @@ async function HomeContent() {
             </div>
           }
         >
-          <HomeSearch
-            guidance={`Find a game, then save it to Backlog or Wishlist.${!userId ? " Sign in to save its Status in your Journal." : ""}`}
-          />
+          <HomeSearch guidance="Search the Catalog. Choose a game to open its page." />
         </Suspense>
         {!userId && (
           <div className="flex flex-col gap-4">

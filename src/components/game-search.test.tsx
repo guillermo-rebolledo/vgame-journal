@@ -522,9 +522,9 @@ test("standalone search opens above the page with a named, always valid result l
   const user = userEvent.setup();
   render(<GameSearch />);
   expect(screen.queryByRole("dialog")).toBeNull();
-  await user.click(screen.getByRole("button", { name: "Search games…" }));
+  await user.click(box());
   const input = screen.getByRole("combobox", { name: "Search games" });
-  const list = screen.getByRole("listbox", { name: "Search results" });
+  const list = screen.getByRole("dialog", { name: "Search results" });
   expect(input.getAttribute("aria-controls")).toBe(list.id);
   await vi.waitFor(() => expect(document.activeElement).toBe(input));
   expect(screen.getByRole("dialog")).toBeTruthy();
@@ -583,12 +583,14 @@ test("a shared URL opens once, keeps browsing context on close, and reopens in S
   const input = await screen.findByRole("combobox", { name: "Search games" });
   await until(1);
   await act(async () => requests[0].answer([game(1, "Game one")]));
-  await user.click(screen.getByRole("option", { name: /^Game one / }));
+  expect(
+    screen.getByRole("link", { name: /^Game one/ }).getAttribute("href"),
+  ).toBe("/games/game one");
   await user.click(screen.getByRole("button", { name: "Close search" }));
   await vi.waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(window.location.search).toContain("unrelated=kept");
   expect(window.location.hash).toBe("#search");
-  await user.click(screen.getByRole("button", { name: "Search games…" }));
+  await user.click(box());
   expect(screen.queryByRole("button", { name: "Back to results" })).toBeNull();
   expect(
     (screen.getByRole("combobox", { name: "Search games" }) as HTMLInputElement)
@@ -674,9 +676,7 @@ test("restored queries respect the endpoint bound and browser navigation restore
   );
   await screen.findByRole("dialog");
   expect((box() as HTMLInputElement).value).toBe("game");
-  expect(
-    (screen.getByLabelText("Release year") as HTMLSelectElement).value,
-  ).toBe("2018");
+  expect(screen.getByLabelText("Release year").textContent).toContain("2018");
 });
 
 test("native middle-click View game records only the aggregate navigation bucket", async () => {

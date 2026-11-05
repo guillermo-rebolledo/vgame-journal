@@ -18,6 +18,7 @@ import {
   resultsBucket,
   trackEvent,
 } from "@/components/analytics";
+import { CatalogSearch } from "@/components/catalog-search";
 import { GameCover } from "@/components/game-cover";
 import { GameIdentificationMetadata } from "@/components/game-identification-metadata";
 import { HomeCoverLink } from "@/components/home-cover-link";
@@ -41,7 +42,7 @@ export function GameSearch({
   renderAction,
   renderFeedback,
   inputRef,
-  presentation = "dialog",
+  presentation = "catalog",
   continuation,
 }: {
   continuation?: ReactNode;
@@ -49,7 +50,7 @@ export function GameSearch({
   renderAction?: (game: SearchResult) => ReactNode;
   renderFeedback?: (game: SearchResult | null) => ReactNode;
   inputRef?: Ref<HTMLInputElement>;
-  presentation?: "dialog" | "embedded";
+  presentation?: "catalog" | "embedded";
 }) {
   const id = useId();
   const searchParams = useSearchParams();
@@ -81,18 +82,30 @@ export function GameSearch({
     position: number;
   } | null>(null);
   useLayoutEffect(() => {
-    if (presentation === "dialog" && !open) return;
+    if (presentation === "catalog" && !open) return;
     if (hasContinuation)
       pendingBody.current
         ?.querySelector<HTMLElement>("a, button")
-        ?.focus({ preventScroll: true });
-    else if (selected) back.current?.focus({ preventScroll: true });
-    else {
+        ?.focus({ preventScroll: presentation === "embedded" });
+    else if (selected)
+      back.current?.focus({ preventScroll: presentation === "embedded" });
+    else if (presentation === "catalog") {
+      // Let route focus restoration finish before focusing the inline search.
+      const frame = requestAnimationFrame(() => {
+        input.current?.focus();
+        if (window.innerWidth <= 640)
+          input.current?.scrollIntoView({
+            block: "center",
+            behavior: "instant",
+          });
+      });
+      return () => cancelAnimationFrame(frame);
+    } else {
       input.current?.focus({ preventScroll: true });
       if (body.current) body.current.scrollTop = scroll.current;
     }
   }, [open, presentation, selected, hasContinuation]);
-  useEditorViewport(presentation === "dialog" && open);
+  useEditorViewport(presentation === "catalog" && open && hasContinuation);
   const [attempt, setAttempt] = useState(0);
   const [answer, setAnswer] = useState<Answer | null>(null);
   const q = query.trim();
@@ -109,7 +122,7 @@ export function GameSearch({
     function restore() {
       const params = new URLSearchParams(window.location.search);
       if (
-        presentation !== "dialog" ||
+        presentation !== "catalog" ||
         pendingIntent ||
         params.has("saveGame") ||
         !isVisible(owner.current)
@@ -139,7 +152,7 @@ export function GameSearch({
 
   useEffect(() => {
     function activate() {
-      if (presentation !== "dialog" || !isVisible(owner.current)) return;
+      if (presentation !== "catalog" || !isVisible(owner.current)) return;
       initiator.current =
         takeCatalogSearchInitiator() ??
         (document.activeElement instanceof HTMLElement
@@ -147,7 +160,7 @@ export function GameSearch({
           : null);
       setSelected(null);
       setOpen(true);
-      input.current?.focus({ preventScroll: true });
+      input.current?.focus({ preventScroll: false });
     }
     window.addEventListener("catalog-search-open", activate);
     return () => window.removeEventListener("catalog-search-open", activate);
@@ -172,10 +185,15 @@ export function GameSearch({
         .filter(isVisible)
         .at(-1);
       // Only the search in the active editor may claim its shortcut.
-      if (modal && !modal.contains(input.current)) return;
+      if (
+        modal &&
+        !modal.contains(input.current) &&
+        !modal.contains(body.current)
+      )
+        return;
       event.preventDefault();
       setSelected(null);
-      if (presentation === "dialog") {
+      if (presentation === "catalog") {
         if (!open)
           initiator.current =
             document.activeElement instanceof HTMLElement
@@ -183,7 +201,9 @@ export function GameSearch({
               : null;
         setOpen(true);
       }
-      input.current?.focus({ preventScroll: true });
+      requestAnimationFrame(() =>
+        input.current?.focus({ preventScroll: presentation === "embedded" }),
+      );
     }
     document.addEventListener("keydown", shortcut);
     return () => document.removeEventListener("keydown", shortcut);
@@ -207,7 +227,7 @@ export function GameSearch({
     if (
       hasContinuation ||
       q.length < MIN_QUERY ||
-      (presentation === "dialog" &&
+      (presentation === "catalog" &&
         (!open || (!isVisible(owner.current) && !isVisible(body.current))))
     )
       return;
@@ -276,7 +296,7 @@ export function GameSearch({
       selected ||
       !matched ||
       !current ||
-      (presentation === "dialog" && !open) ||
+      (presentation === "catalog" && !open) ||
       typeof ResizeObserver === "undefined"
     ) {
       setScrollable(false);
@@ -308,6 +328,56 @@ export function GameSearch({
     setSelected(null);
     setOpen(next);
   }
+
+  const updates = (
+    <>
+      <output
+        aria-label="Search updates"
+        aria-live="polite"
+        aria-atomic="true"
+        className="text-muted-foreground text-sm empty:hidden"
+      >
+        {q.length < MIN_QUERY ? (
+          "Enter at least 2 characters to search the Catalog."
+        ) : idle || failed ? (
+          ""
+        ) : !current ? (
+          <>
+            <Spinner className="mr-2" />
+            <span className="shimmer">Searching…</span>
+          </>
+        ) : (year || platform) && matches?.length === 0 ? (
+          "No matches in these results. Clear filters or search for a more specific title."
+        ) : results?.length === 0 ? (
+          `No matches returned for “${q}”. Check the spelling or try different words from the title.`
+        ) : year || platform ? (
+          `${matches?.length} of ${results?.length} returned matches ${matches?.length === 1 ? "fits" : "fit"} your filters.`
+        ) : (
+          `${results?.length} returned ${results?.length === 1 ? "match" : "matches"} for “${q}”.`
+        )}
+      </output>
+      {failed && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm"
+        >
+          <p>Search isn’t working right now. Your search is kept.</p>
+          <Button
+            variant="outline"
+            className="min-h-11"
+            onClick={() => {
+              setAttempt(attempt + 1);
+              input.current?.focus({
+                preventScroll: presentation === "embedded",
+              });
+            }}
+          >
+            Try again
+          </Button>
+        </div>
+      )}
+    </>
+  );
 
   const content = (
     <div
@@ -380,49 +450,7 @@ export function GameSearch({
               </p>
             )}
           </div>
-          <output
-            aria-label="Search updates"
-            aria-live="polite"
-            aria-atomic="true"
-            className="text-muted-foreground text-sm empty:hidden"
-          >
-            {q.length < MIN_QUERY ? (
-              "Enter at least 2 characters to search the Catalog."
-            ) : idle || failed ? (
-              ""
-            ) : !current ? (
-              <>
-                <Spinner className="mr-2" />
-                <span className="shimmer">Searching…</span>
-              </>
-            ) : (year || platform) && matches?.length === 0 ? (
-              "No matches in these results. Clear filters or search for a more specific title."
-            ) : results?.length === 0 ? (
-              `No matches returned for “${q}”. Check the spelling or try different words from the title.`
-            ) : year || platform ? (
-              `${matches?.length} of ${results?.length} returned matches ${matches?.length === 1 ? "fits" : "fit"} your filters.`
-            ) : (
-              `${results?.length} returned ${results?.length === 1 ? "match" : "matches"} for “${q}”.`
-            )}
-          </output>
-          {failed && (
-            <div
-              role="alert"
-              className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm"
-            >
-              <p>Search isn’t working right now. Your search is kept.</p>
-              <Button
-                variant="outline"
-                className="min-h-11"
-                onClick={() => {
-                  setAttempt(attempt + 1);
-                  input.current?.focus({ preventScroll: true });
-                }}
-              >
-                Try again
-              </Button>
-            </div>
-          )}
+          {updates}
           {(showYear || showPlatform) && (
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -444,7 +472,9 @@ export function GameSearch({
                     className="min-h-11"
                     onClick={() => {
                       updateSearch({ year: "", platform: "", all: "" });
-                      input.current?.focus({ preventScroll: true });
+                      input.current?.focus({
+                        preventScroll: presentation === "embedded",
+                      });
                     }}
                   >
                     Clear filters
@@ -605,6 +635,42 @@ export function GameSearch({
       )}
     </div>
   );
+  if (presentation === "catalog" && !hasContinuation)
+    return (
+      <div ref={owner}>
+        <CatalogSearch
+          finalFocus={() =>
+            initiator.current?.isConnected &&
+            !initiator.current.closest("[hidden]") &&
+            (initiator.current.checkVisibility?.() ?? true) &&
+            initiator.current !== document.body
+              ? initiator.current
+              : (input.current ?? false)
+          }
+          query={query}
+          year={year}
+          platform={platform}
+          years={years}
+          platforms={platforms}
+          matches={matches ?? []}
+          open={open}
+          onOpenChange={changeOpen}
+          onChange={updateSearch}
+          inputRef={(element) => {
+            input.current = element;
+            if (typeof inputRef === "function") inputRef(element);
+            else if (inputRef) inputRef.current = element;
+          }}
+          bodyRef={body}
+          listRef={list}
+          updates={updates}
+          feedback={renderFeedback?.(null)}
+          guidance={guidance}
+          busy={!idle && !current}
+          scrollable={scrollable}
+        />
+      </div>
+    );
   if (presentation === "embedded")
     return (
       <div ref={owner} className="game-search flex min-h-0 flex-1 flex-col">
