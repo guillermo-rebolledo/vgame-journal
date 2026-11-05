@@ -113,7 +113,9 @@ export function AuthForm({
               icon={<ArrowRight />}
               state={pending ? "pending" : state?.error ? "error" : "idle"}
             />
-            {submitLabel}
+            <span className={pending ? "shimmer" : undefined}>
+              {submitLabel}
+            </span>
           </Button>
         </form>
       )}

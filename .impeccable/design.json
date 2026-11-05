@@ -228,6 +228,16 @@
         "name": "duration-editor-enter",
         "value": "220ms",
         "purpose": "Shared Playthrough and list-creation editor drawer entry; exits use 140ms and reduced motion removes movement."
+      },
+      {
+        "name": "compass-loading",
+        "value": "rotate(90deg) 500ms ease-in-out infinite",
+        "purpose": "loading.dev Compass for ongoing work; transform only, stationary under reduced motion. Repeating state indication is an intentional exception to the 300ms transition budget. Initial content uses static skeletons."
+      },
+      {
+        "name": "loading-text-shimmer",
+        "value": "background-position 2s linear infinite",
+        "purpose": "Installed shadcn shimmer utility on pending labels beside the Compass. Muted status text with a foreground highlight creates a visible sweep; a -500ms start offset makes it apparent during short requests. Button labels retain their inherited color. Restore solid, stationary text under reduced motion and forced colors; remove on completion or failure. Skeletons stay static."
       }
     ],
     "breakpoints": [
@@ -356,6 +366,11 @@
         "name": "The Objects, Not Surfaces Rule",
         "body": "Shadows belong to covers and floating layers. Cards, notices, inputs and empty states never get a shadow. They use a hairline border, or Dust at 40% opacity.",
         "section": "elevation"
+      },
+      {
+        "name": "Loading feedback",
+        "body": "Use static skeletons for predictable initial content, preserve existing content on refresh, and use the Compass beside readable progress for search and pending actions. Button loading blocks duplicate activation and exposes aria-busy. Only the active action shows progress; decorative SVGs and skeleton shapes do not create duplicate announcements. See content-loading.tsx, ui/spinner.tsx and their Storybook examples.",
+        "section": "loading"
       }
     ],
     "dos": [

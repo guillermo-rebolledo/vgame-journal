@@ -195,6 +195,11 @@ export const Loading: Story = {
     await expect(
       body.getByRole("status", { name: "Search updates" }),
     ).toHaveTextContent("Searching…");
+    await expect(
+      body
+        .getByRole("status", { name: "Search updates" })
+        .querySelector('[data-slot="spinner"]'),
+    ).toBeVisible();
   },
 };
 export const Empty: Story = {

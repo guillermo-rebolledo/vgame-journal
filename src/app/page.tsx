@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { readHomeJournal } from "@/app/home-actions";
+import { HomeLoading } from "@/components/content-loading";
 import { Discovery, DiscoveryLoading } from "@/components/discovery";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
 import { HomeAuthActions } from "@/components/home-auth-actions";
@@ -11,6 +12,7 @@ import {
 } from "@/components/home-journal";
 import { HomeSearch } from "@/components/home-search";
 import { JsonLd } from "@/components/json-ld";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import { signedInUserId } from "@/lib/auth";
 
@@ -35,13 +37,7 @@ export default function Home() {
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-10 sm:py-16">
       <JsonLd data={siteSchema} />
-      <Suspense
-        fallback={
-          <output className="text-muted-foreground">
-            Opening your Journal…
-          </output>
-        }
-      >
+      <Suspense fallback={<HomeLoading />}>
         <HomeContent />
       </Suspense>
     </section>
@@ -73,14 +69,29 @@ async function HomeContent() {
         ) : (
           <HomeIntroduction />
         )}
-        <Suspense fallback={<output>Loading game search…</output>}>
+        <Suspense
+          fallback={
+            <div>
+              <output className="sr-only">Loading game search…</output>
+              <Skeleton className="h-11 w-40" />
+            </div>
+          }
+        >
           <HomeSearch
             guidance={`Find a game, then save it to Backlog or Wishlist.${!userId ? " Sign in to save its Status in your Journal." : ""}`}
           />
         </Suspense>
         {!userId && (
           <div className="flex flex-col gap-4">
-            <Suspense fallback={null}>
+            <Suspense
+              fallback={
+                <div className="flex flex-wrap gap-2">
+                  <output className="sr-only">Loading sign-in actions…</output>
+                  <Skeleton className="h-11 w-48" />
+                  <Skeleton className="h-11 w-36" />
+                </div>
+              }
+            >
               <HomeAuthActions />
             </Suspense>
             <JournalExample />

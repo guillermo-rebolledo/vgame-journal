@@ -96,7 +96,9 @@ export function CalendarFeedForm({
                   : "idle"
             }
           />
-          Regenerate URL
+          <span className={pending ? "shimmer" : undefined}>
+            Regenerate URL
+          </span>
         </Button>
         <output aria-live="polite" aria-atomic="true" className="text-sm">
           {pending ? (

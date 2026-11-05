@@ -164,7 +164,11 @@ export function JournalStatus({
                           }
                           state={pending ? "pending" : "idle"}
                         />
-                        {confirmed ? "Change Journal status" : "Add to Journal"}
+                        <span className={pending ? "shimmer" : undefined}>
+                          {confirmed
+                            ? "Change Journal status"
+                            : "Add to Journal"}
+                        </span>
                         <ChevronDown
                           aria-hidden="true"
                           data-icon="inline-end"
@@ -316,6 +320,7 @@ export function JournalStatus({
                 variant="destructive"
                 disabled={pending}
                 className="h-auto min-h-11 max-w-full py-2 whitespace-normal"
+                loading={pending}
                 onClick={() => save(null, null, true)}
               >
                 {pending

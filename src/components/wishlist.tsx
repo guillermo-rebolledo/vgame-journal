@@ -13,6 +13,7 @@ import { GameCover } from "@/components/game-cover";
 import { Odometer } from "@/components/odometer";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { useToday } from "@/components/use-today";
 import type { Status, WishlistEntry } from "@/lib/journal";
 import { capitalize } from "@/lib/library";
@@ -252,6 +253,7 @@ function MoveNotice({
           <Button
             size="sm"
             variant="outline"
+            loading={pending}
             disabled={pending}
             className="h-11 sm:pointer-fine:h-7"
             onClick={() => onUndo(notice)}
@@ -346,9 +348,14 @@ function Row({
       {left === OUT_NOW && onMove && (
         <div className="flex flex-wrap items-center gap-2 min-[400px]:pl-18 sm:pl-0">
           <span className="text-muted-foreground text-sm">
-            {pending && target
-              ? `Moving ${entry.title} to ${capitalize(target)}…`
-              : "Move to"}
+            {pending && target ? (
+              <>
+                <Spinner className="mr-2" />
+                <span className="shimmer">{`Moving ${entry.title} to ${capitalize(target)}…`}</span>
+              </>
+            ) : (
+              "Move to"
+            )}
           </span>
           {(["backlog", "playing"] as const).map((status) => (
             <Button
@@ -377,6 +384,7 @@ function Row({
           <Button
             size="sm"
             variant="outline"
+            loading={pending}
             disabled={pending}
             className="h-11 sm:pointer-fine:h-7"
             onClick={() => move(target)}

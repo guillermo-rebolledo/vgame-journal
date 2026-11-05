@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
+import { ListLoading } from "@/components/content-loading";
 import { ListReadUnavailable } from "@/components/list-read-unavailable";
 import { ListSessionBoundary } from "@/components/list-session";
 import { OwnerListEditor } from "@/components/owner-lists";
@@ -20,7 +21,7 @@ export default function ListPage({ params }: PageProps<"/lists/[listId]">) {
       <Link href="/lists" prefetch={false} className="underline">
         All lists
       </Link>
-      <Suspense fallback={<output>Loading your list…</output>}>
+      <Suspense fallback={<ListLoading />}>
         <Content params={params} />
       </Suspense>
     </section>

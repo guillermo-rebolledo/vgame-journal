@@ -51,6 +51,7 @@ export function DeleteAccountForm({
         type="submit"
         variant="destructive"
         className="self-start"
+        loading={pending}
         disabled={pending || confirmation !== "DELETE"}
       >
         {pending ? "Deleting account…" : "Permanently delete account"}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { ProfileLoading } from "@/components/content-loading";
 import { JsonLd } from "@/components/json-ld";
 import { PublicProfile } from "@/components/public-profile";
 import { SITE_NAME, SITE_URL } from "@/config/site";
@@ -24,11 +25,7 @@ export async function generateMetadata({
 export default function ProfilePage(props: PageProps<"/u/[username]">) {
   return (
     <section className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-4 py-8">
-      <Suspense
-        fallback={
-          <output className="text-muted-foreground">Loading profile…</output>
-        }
-      >
+      <Suspense fallback={<ProfileLoading />}>
         <Profile params={props.params} />
       </Suspense>
     </section>

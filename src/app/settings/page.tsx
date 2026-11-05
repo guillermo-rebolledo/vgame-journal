@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { TrackClicks } from "@/components/analytics";
 import { CalendarFeedForm } from "@/components/calendar-feed-form";
+import { SettingLoading } from "@/components/content-loading";
 import { DeleteAccountForm } from "@/components/delete-account-form";
 import { RegionForm } from "@/components/region-form";
 import { Button } from "@/components/ui/button";
@@ -19,13 +20,13 @@ export default function SettingsPage() {
   return (
     <section className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-8">
       <h1 className="font-semibold text-3xl tracking-tight">Settings</h1>
-      <Suspense>
+      <Suspense fallback={<SettingLoading label="Loading release region…" />}>
         <RegionSetting />
       </Suspense>
-      <Suspense>
+      <Suspense fallback={<SettingLoading label="Loading calendar feed…" />}>
         <CalendarFeedSetting />
       </Suspense>
-      <Suspense>
+      <Suspense fallback={<SettingLoading label="Loading account data…" />}>
         <AccountDataSetting />
       </Suspense>
     </section>

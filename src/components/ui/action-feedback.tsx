@@ -1,6 +1,7 @@
 import { cn } from "cn";
-import { Check, CircleAlert, LoaderCircle } from "lucide-react";
+import { Check, CircleAlert } from "lucide-react";
 import type { ReactNode } from "react";
+import { Spinner } from "@/components/ui/spinner";
 
 export type ActionState = "idle" | "pending" | "success" | "error";
 
@@ -21,9 +22,9 @@ export function ActionIcon({
     >
       <span data-active={state === "idle"}>{icon}</span>
       <span data-active={state === "pending"}>
-        <LoaderCircle
+        <Spinner
           className={
-            state === "pending" ? "motion-safe:animate-spin" : undefined
+            state === "pending" ? undefined : "[&_.compass-ticks]:animate-none"
           }
         />
       </span>
@@ -56,7 +57,7 @@ export function ActionFeedback({
       )}
     >
       <ActionIcon state={state} icon={null} />
-      <span>{children}</span>
+      <span className={cn(state === "pending" && "shimmer")}>{children}</span>
     </span>
   );
 }

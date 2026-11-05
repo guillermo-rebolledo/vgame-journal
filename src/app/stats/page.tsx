@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { StatsLoading } from "@/components/content-loading";
 import { Stats } from "@/components/stats";
 import { signedInUserId } from "@/lib/auth";
 import { journal } from "@/lib/journal";
@@ -14,11 +15,7 @@ export default function StatsPage() {
         <h1 className="font-semibold text-3xl tracking-tight">Stats</h1>
         <p className="text-muted-foreground">Your gaming journal, over time.</p>
       </div>
-      <Suspense
-        fallback={
-          <output className="text-muted-foreground">Loading stats…</output>
-        }
-      >
+      <Suspense fallback={<StatsLoading />}>
         <UserStats />
       </Suspense>
     </section>

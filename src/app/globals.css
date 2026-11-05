@@ -432,3 +432,45 @@ body {
   outline: 1px solid var(--image-outline);
   outline-offset: -1px;
 }
+
+.shimmer {
+  color: var(--muted-foreground);
+  --shimmer-color: var(--foreground);
+  /* Start the band inside short-lived labels instead of off their left edge. */
+  animation-delay: -500ms;
+}
+[data-slot="button"] .shimmer {
+  color: inherit;
+  --shimmer-color: oklch(
+    from currentColor clamp(0.4, calc(l * 0.5 + 0.25), 0.7) c h
+  );
+}
+@media (forced-colors: active) {
+  .shimmer {
+    animation: none;
+    background-image: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+/* loading.dev Compass: four ticks turn a quarter revolution per cycle. */
+.compass-ticks {
+  transform-origin: center;
+  animation: compass-turn 500ms ease-in-out infinite;
+}
+@keyframes compass-turn {
+  to {
+    transform: rotate(90deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .compass-ticks {
+    animation: none;
+  }
+}
+@media (forced-colors: active) {
+  [data-slot="skeleton"] {
+    background: GrayText;
+    opacity: 0.2;
+  }
+}

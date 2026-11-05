@@ -10,6 +10,7 @@ import { CreateListForm } from "@/components/owner-lists";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { ActionFeedback, ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { authPageHref } from "@/lib/auth-continuation";
 import type { OwnerList } from "@/lib/lists";
 
@@ -111,6 +112,7 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
         const result = await readOwnerLists(actor);
         if (cancelled) return;
         if (!result.ok) {
+          setMessage("");
           if (result.code === "authentication") access.deny();
           else setError("Lists are unavailable. Try again.");
           return;
@@ -121,7 +123,10 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
         setError("");
         setBlocked(false);
       } catch {
-        if (!cancelled) setError("Lists are unavailable. Try again.");
+        if (!cancelled) {
+          setMessage("");
+          setError("Lists are unavailable. Try again.");
+        }
       }
     });
     return () => {
@@ -130,6 +135,7 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
   }, [actor, access, attempt]);
   function add(list: OwnerList) {
     if (pending || blocked) return;
+    setMessage("");
     start(async () => {
       try {
         const result = await changeOwnerList(actor, list.id, list.revision, {
@@ -176,7 +182,12 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
       >
         Adding a game changes only the selected list.
       </p>
-      {items === null && !error && <output>Loading your lists…</output>}
+      {items === null && !error && (
+        <output className="flex items-center gap-2">
+          <Spinner />
+          <span className="shimmer">Loading your lists…</span>
+        </output>
+      )}
       {error && <p role="alert">{error}</p>}
       {error && (
         <Button
@@ -190,7 +201,11 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
         </Button>
       )}
       <output aria-live="polite" aria-atomic="true">
-        {message && <ActionFeedback state="success">{message}</ActionFeedback>}
+        {pending && items !== null ? (
+          <ActionFeedback state="pending">Updating your lists…</ActionFeedback>
+        ) : (
+          message && <ActionFeedback state="success">{message}</ActionFeedback>
+        )}
       </output>
       {items !== null && (
         <>

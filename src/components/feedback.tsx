@@ -215,7 +215,7 @@ export function Feedback({
                   icon={<Send />}
                   state={pending ? "pending" : error ? "error" : "idle"}
                 />
-                Send
+                <span className={pending ? "shimmer" : undefined}>Send</span>
               </Button>
             </div>
           </form>
