@@ -5,7 +5,7 @@ import {
   test,
 } from "@playwright/test";
 import { chooseTheme } from "./support/header";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { supportUrl } from "./support/url";
 
 test("signed-out visitors see Sign in and can't reach onboarding", async ({
@@ -38,7 +38,7 @@ test("R10 guest recording returns an existing member to the game after retry wit
   request,
 }) => {
   const { signUp } = await import("./support/sign-up");
-  const email = await signUp(page, request, `continuation_${Date.now()}`);
+  const email = await signUp(page, request, uniqueUsername(`continuation`));
   await page.context().clearCookies();
   await page.goto("/games/celeste");
   const journal = page.getByRole("region", { name: "Game journal" });
@@ -102,7 +102,7 @@ test("R10 signup switching, verification resend and username retry preserve the 
   page,
   request,
 }) => {
-  const username = `new_game_${Date.now()}`;
+  const username = uniqueUsername(`new_game`);
   const email = `${username}@example.com`;
   const destination = "?returnTo=%2Fgames%2Fceleste";
   await page.goto("/games/celeste");
@@ -312,7 +312,7 @@ test("R10 username selection and both session gates reject unsafe continuations"
   request,
 }) => {
   test.setTimeout(90_000);
-  const username = `safe_home_${Date.now()}`;
+  const username = uniqueUsername(`safe_home`);
   const email = `${username}@example.com`;
   // Arrange an existing verified member who still needs to claim a username.
   const signup = await page.request.post("/api/auth/sign-up/email", {
@@ -477,7 +477,7 @@ test("expired resets preserve the old password and a replacement reset acknowled
   page,
   request,
 }) => {
-  const email = await signUp(page, request, `reset_${Date.now()}`);
+  const email = await signUp(page, request, uniqueUsername(`reset`));
   const replacement = "n".repeat(128);
   await page.context().clearCookies();
   await page.goto("/sign-in");

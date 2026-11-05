@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 
 for (const reducedMotion of ["no-preference", "reduce"] as const) {
   test(`Playthrough completion confirms once without taking focus (${reducedMotion})`, async ({
@@ -10,7 +10,9 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     await signUp(
       page,
       request,
-      `action_${reducedMotion === "reduce" ? "reduced" : "full"}_${Date.now()}`,
+      uniqueUsername(
+        `action_${reducedMotion === "reduce" ? "reduced" : "full"}`,
+      ),
     );
     await page.setViewportSize({ width: 320, height: 812 });
     await page.goto("/games/celeste");
@@ -111,7 +113,7 @@ test("Calendar regeneration prevents duplicate requests and keeps failure recove
   page,
   request,
 }) => {
-  await signUp(page, request, `calendar_action_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`calendar_action`));
   await page.goto("/settings");
   const form = page.getByRole("form", { name: "Calendar feed", exact: true });
   const regenerate = form.getByRole("button", {

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { snap } from "./support/snap";
 
 for (const theme of ["dark", "light"] as const) {
@@ -62,7 +62,7 @@ for (const theme of ["dark", "light"] as const) {
         await snap(page, testInfo, `guest-${theme}-${width}`, true);
     }
     await page.setViewportSize({ width: 390, height: 844 });
-    await signUp(page, request, `home78_${theme}_${Date.now()}`);
+    await signUp(page, request, uniqueUsername(`home78_${theme}`));
     await expect(
       page.getByRole("link", { name: "All saved games (0)", exact: true }),
     ).toBeVisible();

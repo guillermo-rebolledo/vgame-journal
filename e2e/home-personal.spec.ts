@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { closeCatalog, selectCatalogGame } from "./support/catalog";
 import { chooseTheme } from "./support/header";
 import { seedSql } from "./support/seed-sql";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { snap } from "./support/snap";
 
 test("Home summaries, compact personal shelves, addition order and region-aware Wishlist agree with collections", async ({
@@ -11,7 +11,7 @@ test("Home summaries, compact personal shelves, addition order and region-aware 
 }, testInfo) => {
   test.setTimeout(120_000);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  const email = await signUp(page, request, `personal78_${Date.now()}`);
+  const email = await signUp(page, request, uniqueUsername(`personal78`));
   await expect(
     page.getByRole("link", { name: "All saved games (0)" }),
   ).toBeVisible();
@@ -142,7 +142,7 @@ test("direct Home status changes reconcile release preview and counts without ch
   page,
   request,
 }) => {
-  const email = await signUp(page, request, `integrated78_${Date.now()}`);
+  const email = await signUp(page, request, uniqueUsername(`integrated78`));
   await seedSql(
     request,
     [

@@ -50,7 +50,7 @@ test("signed-out readers get the ordered public list, canonical sharing metadata
   request,
   browser,
 }) => {
-  const username = `listpub_${Date.now()}`;
+  const username = uniqueUsername(`listpub`);
   const email = await signUp(page, request, username);
   const id = await seedList(request, email);
   const path = `/u/${username}/lists/${id}`;
@@ -142,7 +142,7 @@ test("private, wrong-creator, malformed and revoked public URLs are generic real
   request,
   browser,
 }) => {
-  const username = `listprivacy_${Date.now()}`;
+  const username = uniqueUsername(`listprivacy`);
   const email = await signUp(page, request, username);
   const id = await seedList(request, email, { title: "REVOKED_LIST_TITLE_87" });
   const hiddenId = await seedList(request, email, {
@@ -160,7 +160,7 @@ test("private, wrong-creator, malformed and revoked public URLs are generic real
   const unrelated = await browser.newContext();
   try {
     const other = await unrelated.newPage();
-    const otherUsername = `listother_${Date.now()}`;
+    const otherUsername = uniqueUsername(`listother`);
     await signUp(other, request, otherUsername);
     const guest = await visitor.newPage();
     await guest.goto(path);
@@ -240,7 +240,7 @@ test("profile Lists discovers only public cards and counts while preserving URL 
   request,
   browser,
 }) => {
-  const username = `listprofile_${Date.now()}`;
+  const username = uniqueUsername(`listprofile`);
   const email = await signUp(page, request, username);
   const id = await seedList(request, email, {
     title: "Discover this collection",
@@ -448,7 +448,7 @@ test("page and metadata reauthorize when visibility changes after a successful p
   request,
   browser,
 }) => {
-  const username = `listrace_${Date.now()}`;
+  const username = uniqueUsername(`listrace`);
   const email = await signUp(page, request, username);
   const id = await seedList(request, email, {
     title: "PREFLIGHT_MUST_NOT_AUTHORIZE_87",
@@ -477,7 +477,7 @@ for (const theme of ["light", "dark"]) {
     request,
     browser,
   }) => {
-    const username = `listphone_${Date.now()}`;
+    const username = uniqueUsername(`listphone`);
     const email = await signUp(page, request, username);
     const title = "L".repeat(100);
     await seedList(request, email, { title });

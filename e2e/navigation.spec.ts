@@ -3,7 +3,7 @@ import { closeCatalog, openCatalog, viewCatalogGame } from "./support/catalog";
 import { chooseAccountMenuItem } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { seedSql } from "./support/seed-sql";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { snap } from "./support/snap";
 
 async function expectForcedColorsFocus(target: Locator) {
@@ -74,7 +74,7 @@ for (const destination of ["Library", "Wishlist"] as const) {
     await signUp(
       page,
       request,
-      `find_${destination.toLowerCase()}_${Date.now()}`,
+      uniqueUsername(`find_${destination.toLowerCase()}`),
     );
     const nav = page.getByRole("navigation", { name: "Main", exact: true });
     const find = nav.getByRole("link", { name: "Find a game", exact: true });
@@ -108,7 +108,7 @@ test("Find a game preserves native modifier and middle-click navigation", async 
   request,
   context,
 }) => {
-  await signUp(page, request, `find_native_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`find_native`));
   const nav = page.getByRole("navigation", { name: "Main", exact: true });
   for (const path of ["/", "/library"]) {
     await page.goto(path);
@@ -168,7 +168,7 @@ test("header forward and reverse keyboard order matches visible rows at every br
   page,
   request,
 }) => {
-  const username = `header_${Date.now()}`;
+  const username = uniqueUsername(`header`);
   await signUp(page, request, username);
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
@@ -384,7 +384,7 @@ test("populated collections keep Find a game reachable with comfortable phone co
   await snap(signedOut, testInfo, "signed-out-320");
   await signedOut.close();
 
-  const username = `nav_${Date.now()}`;
+  const username = uniqueUsername(`nav`);
   await signUp(page, request, username);
 
   // Released Celeste on the wishlist offers moves; upcoming Silksong counts down.
@@ -478,7 +478,7 @@ for (const theme of ["light", "dark"] as const) {
     test.setTimeout(180_000);
     page.setDefaultTimeout(15_000);
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-    const username = `reflow_${Date.now()}`.padEnd(30, "x");
+    const username = uniqueUsername(`reflow`).padEnd(30, "x");
     const email = await signUp(page, request, username);
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     const nav = page.getByRole("navigation", { name: "Main", exact: true });

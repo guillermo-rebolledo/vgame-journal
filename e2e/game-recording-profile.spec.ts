@@ -1,14 +1,14 @@
 import { writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { selectCatalogGame } from "./support/catalog";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 
 test.use({ video: "on" });
 test("record production cold navigation and drawer separately at 4x CPU", async ({
   page,
   request,
 }, testInfo) => {
-  await signUp(page, request, `profile_record_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`profile_record`));
   await selectCatalogGame(page, "Celeste");
   await expect(
     page.getByRole("link", { name: "View game: Celeste", exact: true }),

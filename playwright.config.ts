@@ -6,13 +6,28 @@ process.env.E2E_SUPPORT_URL = `http://127.0.0.1:${supportPort}`;
 
 export default defineConfig({
   testDir: "./e2e",
+  // Spread a file's tests across workers so one long spec doesn't finish alone. Opt out per file with mode: "serial".
+  fullyParallel: true,
   reporter: [["list"], ["html", { open: "never" }]],
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   // ubuntu-latest has 4 cores; Playwright would default to 2. Specs are mostly awaiting the server.
   workers: process.env.CI ? 4 : undefined,
   use: { baseURL: `http://localhost:${port}`, trace: "on-first-retry" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: "discovery.spec.ts",
+    },
+    // Discovery specs hold, fail and empty the shared discovery feed that Home
+    // tests read, so CI runs this project in its own job with its own server.
+    {
+      name: "global-state",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: "discovery.spec.ts",
+    },
+  ],
   webServer: [
     {
       command: "node e2e/support/server.mjs",

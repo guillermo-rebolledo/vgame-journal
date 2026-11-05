@@ -3,14 +3,14 @@ import { expect, test } from "@playwright/test";
 import { viewCatalogGame } from "./support/catalog";
 import { chooseAccountMenuItem } from "./support/header";
 import { chooseStatus } from "./support/journal";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { supportUrl } from "./support/url";
 
 test("F05/F16: Release region save stays local on transport failure and retries the retained choice", async ({
   page,
   request,
 }) => {
-  await signUp(page, request, `region_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`region`));
   await page.goto("/settings");
   const japan = page.getByRole("radio", {
     name: "Japan Japanese release dates",
@@ -80,7 +80,7 @@ test("F05/F16: invalid region and expired-session action failures stay in Settin
   page,
   request,
 }) => {
-  await signUp(page, request, `region_action_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`region_action`));
   await page.goto("/settings");
   const japan = page.getByRole("radio", {
     name: "Japan Japanese release dates",
@@ -137,7 +137,7 @@ test("F06: Calendar feed copy acknowledges success and recovers from denied or u
   request,
   context,
 }) => {
-  await signUp(page, request, `clipboard_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`clipboard`));
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/settings");
   const feed = page.getByRole("textbox", { name: "Calendar feed URL" });
@@ -265,7 +265,7 @@ test("sign up, share a profile without notes, export the journal, and delete the
   request,
   browser,
 }, testInfo) => {
-  const username = `player_${Date.now()}`;
+  const username = uniqueUsername(`player`);
   const privateNote = "PRIVATE_NOTE_only_the_owner_should_see_this";
   const email = await signUp(page, request, username);
 
@@ -518,7 +518,7 @@ for (const theme of ["dark", "light"]) {
       (theme) => localStorage.setItem("theme", theme),
       theme,
     );
-    const username = `media_${Date.now()}`;
+    const username = uniqueUsername(`media`);
     const email = await signUp(page, request, username);
     const visitor = await browser.newContext({
       viewport: { width: 390, height: 844 },

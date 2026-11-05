@@ -16,7 +16,7 @@ test("a pending Copy button stays stationary and prevents duplicate clipboard wr
   page,
   request,
 }) => {
-  await signUp(page, request, `copy_pending_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`copy_pending`));
   await page.goto("/settings");
   await page.evaluate(() => {
     Object.defineProperty(navigator.clipboard, "writeText", {
@@ -54,7 +54,7 @@ for (const theme of ["light", "dark"] as const) {
     page,
     request,
   }, testInfo) => {
-    await signUp(page, request, `phone_polish_${Date.now()}`);
+    await signUp(page, request, uniqueUsername(`phone_polish`));
     const phone = await browser.newContext({
       storageState: await page.context().storageState(),
       viewport: { width: 390, height: 844 },
@@ -126,7 +126,7 @@ test("overflowing menus, Platform choices and removal confirmations contain boun
   page,
   request,
 }) => {
-  await signUp(page, request, `overlay_scroll_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`overlay_scroll`));
   await page.goto("/games/overlay-scroll-fixture");
   await chooseStatus(page, "played");
   await page.setViewportSize({ width: 390, height: 360 });
@@ -260,7 +260,7 @@ test("content photos and covers have neutral inset edges in both themes", async 
   page,
   request,
 }) => {
-  const username = `image_edge_${Date.now()}`;
+  const username = uniqueUsername(`image_edge`);
   const email = await signUp(page, request, username);
   await seedSql(
     request,
@@ -314,7 +314,7 @@ test("pending Journal actions stay understandable and disabled controls cannot p
   request,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await signUp(page, request, `pending_motion_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`pending_motion`));
   await page.goto("/games/celeste");
   let release!: () => void;
   const held = new Promise<void>((resolve) => {
@@ -375,7 +375,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
   }) => {
     await page.emulateMedia({ reducedMotion });
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-    await signUp(page, request, `copy_motion_${Date.now()}`);
+    await signUp(page, request, uniqueUsername(`copy_motion`));
     await page.addInitScript(() => {
       window.motionCopyTransitions = [];
       function sample() {
@@ -623,7 +623,7 @@ test("playthrough drawer keeps the page stationary and dismisses its select firs
   page,
   request,
 }) => {
-  await signUp(page, request, `drawer_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`drawer`));
   await page.goto("/games/celeste");
   await expect(page.getByLabel("Started", { exact: true })).toHaveCount(0);
   const cover = page
@@ -866,7 +866,7 @@ for (const source of ["search", "shelf"] as const) {
     request,
   }) => {
     test.setTimeout(90_000);
-    await signUp(page, request, `overlap_${source}_${Date.now()}`);
+    await signUp(page, request, uniqueUsername(`overlap_${source}`));
     await page.goto("/games/celeste");
     await chooseStatus(page, "backlog");
     await page.addInitScript(() => {
@@ -942,7 +942,7 @@ test("filtering the library never animates covers", async ({
   request,
 }) => {
   test.setTimeout(90_000);
-  await signUp(page, request, `filter_motion_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`filter_motion`));
   for (const slug of ["celeste", "silksong"]) {
     await page.goto(`/games/${slug}`);
     await chooseStatus(page, "backlog");

@@ -6,7 +6,7 @@ import {
 } from "./support/catalog";
 import { chooseStatus } from "./support/journal";
 import { seedSql } from "./support/seed-sql";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { supportUrl } from "./support/url";
 
 test.describe.configure({ mode: "serial" });
@@ -123,7 +123,7 @@ test("empty and saved Journals retain priority; duplicate covers navigate from e
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await signUp(page, request, `discovery_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`discovery`));
   await expect(page.getByText(/Your Journal is empty/)).toBeVisible();
   await expect(
     page
@@ -184,7 +184,7 @@ test("pending and failed discovery leave search and personal shelves usable", as
   page,
   request,
 }) => {
-  await signUp(page, request, `discfail_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`discfail`));
   await page.goto("/games/discovery-one");
   await chooseStatus(page, "playing");
   await request.post(supportUrl("/discovery-state"), {

@@ -1,7 +1,7 @@
 import { expect, type Locator, test } from "@playwright/test";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { supportUrl } from "./support/url";
 
 test.use({ video: "on", trace: "on" });
@@ -11,7 +11,7 @@ test("detail Status remains visible after each confirmed save with one game-spec
   page,
   request,
 }) => {
-  await signUp(page, request, `visible_status_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`visible_status`));
   await page.goto("/games/celeste");
   const journal = page.getByRole("region", {
     name: "Game journal",
@@ -46,7 +46,7 @@ test("Playthroughs stay between recording actions and Catalog information from e
   page,
   request,
 }) => {
-  await signUp(page, request, `history_location_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`history_location`));
   await page.goto("/games/celeste");
   const history = page.getByRole("region", {
     name: "Playthroughs",
@@ -119,7 +119,7 @@ for (const state of ["guest", "unsaved", "saved"] as const) {
     request,
   }) => {
     if (state !== "guest")
-      await signUp(page, request, `grouped_${state}_${Date.now()}`);
+      await signUp(page, request, uniqueUsername(`grouped_${state}`));
     await page.goto("/games/celeste");
     if (state === "saved") await chooseStatus(page, "playing");
     const actions = page.getByRole("group", {
@@ -255,7 +255,7 @@ test("journal choices, tags, errors and removal preserve saved state", async ({
   page,
   request,
 }) => {
-  await signUp(page, request, `status_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`status`));
   await page.goto("/games/celeste");
   for (const status of [
     "wishlist",
@@ -334,7 +334,7 @@ test("drawer drafts, validation, retry, outside-journal status, editing and dele
   page,
   request,
 }, testInfo) => {
-  await signUp(page, request, `record_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`record`));
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Performance.enable");
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
@@ -487,7 +487,7 @@ test("signed-out actions lead to sign in and no-platform games explain the limit
     .getByRole("link", { name: "Add playthrough", exact: true })
     .click();
   await expect(page).toHaveURL("/sign-in?returnTo=%2Fgames%2Fceleste");
-  await signUp(page, request, `platformless_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`platformless`));
   await request.post(supportUrl("/query"), {
     data: {
       sql: "insert into game (id, title, slug, genres, platforms, synced_at) values (8888, 'No platforms', 'no-platforms', '{}', '{}', now()) on conflict do nothing",
@@ -509,7 +509,7 @@ for (const populated of [false, true]) {
     page,
     request,
   }) => {
-    const email = await signUp(page, request, `delayed_record_${Date.now()}`);
+    const email = await signUp(page, request, uniqueUsername(`delayed_record`));
     await page.goto("/games/celeste");
     if (populated) {
       const entry = await request.post(supportUrl("/query"), {
@@ -591,7 +591,7 @@ test("cancel never writes and the drawer stays within a keyboard-reduced visual 
   page,
   request,
 }) => {
-  await signUp(page, request, `keyboard_record_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`keyboard_record`));
   await page.goto("/games/celeste");
   await page
     .getByRole("button", { name: "Add playthrough", exact: true })
@@ -642,7 +642,7 @@ test("F01: cancelling or dismissing Journal removal preserves saved Playthroughs
   page,
   request,
 }, testInfo) => {
-  await signUp(page, request, `removal_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`removal`));
   await page.goto("/games/celeste");
   await chooseStatus(page, "played");
   await chooseStatus(page, "completed");
@@ -709,7 +709,7 @@ test("F01: confirmed removal waits for acknowledgement, recovers locally, and pe
   page,
   request,
 }, testInfo) => {
-  await signUp(page, request, `remove_retry_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`remove_retry`));
   await page.goto("/games/celeste");
   await chooseStatus(page, "played");
   await chooseStatus(page, "completed");
@@ -858,7 +858,7 @@ test.describe("F01: stale Journal removal on a touch screen", () => {
     page,
     request,
   }) => {
-    await signUp(page, request, `remove_stale_${Date.now()}`);
+    await signUp(page, request, uniqueUsername(`remove_stale`));
     await page.goto("/games/celeste");
     await chooseStatus(page, "playing");
     await expect(
@@ -945,7 +945,7 @@ test.describe("enlarged-text touch editor", () => {
       await signUp(
         page,
         request,
-        `reflow_${theme}_${testInfo.workerIndex}_${Date.now()}`,
+        uniqueUsername(`reflow_${theme}_${testInfo.workerIndex}`),
       );
       await page.setViewportSize({ width: 320, height: 740 });
       await page.goto(
@@ -1203,7 +1203,7 @@ test("F04: saved private notes wrap long URLs without changing their contents", 
   page,
   request,
 }) => {
-  await signUp(page, request, `notes_wrap_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`notes_wrap`));
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/games/celeste");
   await page

@@ -2,13 +2,13 @@ import { expect, test } from "@playwright/test";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { seedSql } from "./support/seed-sql";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 
 test("Wishlist countdown digits align with their units in both themes, widths, and motion preferences", async ({
   page,
   request,
 }) => {
-  await signUp(page, request, `digits_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`digits`));
   await page.goto("/games/silksong");
   await chooseStatus(page, "wishlist");
   await seedSql(

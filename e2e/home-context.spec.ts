@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { closeCatalog } from "./support/catalog";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { supportUrl } from "./support/url";
 
 // The search workstream owns the disclosure and candidate rendering; this exercises
@@ -67,7 +67,7 @@ test("Home browsing survives account switching, verification, onboarding and sig
   await expect(page).toHaveURL(`/sign-in${destination}`);
   await page.getByRole("link", { name: "Create an account" }).click();
 
-  const username = `home78_${Date.now()}`;
+  const username = uniqueUsername(`home78`);
   const email = `${username}@example.com`;
   await page.getByLabel("Name", { exact: true }).fill("Player");
   await page.getByLabel("Email", { exact: true }).fill(email);
@@ -149,7 +149,7 @@ test("Find a game, shortcuts and native navigation have one active owner across 
   page,
   request,
 }) => {
-  await signUp(page, request, `command_nav_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`command_nav`));
   const heading = page
     .getByRole("heading", {
       name: "Your Journal",
