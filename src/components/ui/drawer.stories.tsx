@@ -51,7 +51,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Modal sheet with a title, description, keyboard dismissal, focus containment, and focus restoration. Vertical drawers span the screen width; bottom drawers attach to the bottom edge on desktop and mobile. They fit their content and scroll above their viewport limit; desktop allows all but 32px of viewport height. Use the existing product editor for Playthroughs and lists. Source: src/components/ui/drawer.tsx.",
+          "Modal sheet with a title, description, keyboard dismissal, focus containment, and focus restoration. Vertical drawers span the screen width; bottom drawers attach to the bottom edge on desktop and mobile. A 60% black modal backdrop dims the page. They fit their content on every screen and scroll above their viewport limit; desktop allows all but 32px of viewport height. Use the existing product editor for Playthroughs and lists. Source: src/components/ui/drawer.tsx.",
       },
     },
   },
@@ -84,6 +84,7 @@ export const Open: Story = {
     });
     await waitFor(() => {
       const bounds = dialog.getBoundingClientRect();
+      expect(bounds.height).toBeLessThan(400);
       expect(bounds.left).toBe(0);
       expect(bounds.width).toBe(document.documentElement.clientWidth);
       expect(bounds.bottom).toBeCloseTo(
@@ -91,6 +92,11 @@ export const Open: Story = {
         1,
       );
     });
+    const overlay = document.querySelector('[data-slot="drawer-overlay"]');
+    if (!overlay) throw new Error("Modal backdrop missing");
+    expect(getComputedStyle(overlay).backgroundColor).toBe(
+      "oklab(0 0 0 / 0.6)",
+    );
   },
 };
 

@@ -47,7 +47,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Create-list composition using the shared Drawer and Playthrough editor viewport sizing. Spans the full screen width and attaches to the bottom on desktop and mobile. On desktop it fits its content up to the visible viewport minus 32px, then scrolls. Mobile retains keyboard-aware sizing. Keeps focus inside, restores the trigger on dismissal, and prevents dismissal during submission. CreateListForm supplies persistence in the app; these stories use local state only.",
+          "Create-list composition using the shared Drawer and Playthrough editor viewport sizing. Spans the full screen width and attaches to the bottom on desktop and mobile. Fits its content on desktop and mobile, scrolling only above the viewport limit. Mobile retains its keyboard-aware maximum. A dimmed backdrop keeps attention on the editor. Keeps focus inside, restores the trigger on dismissal, and prevents dismissal during submission. CreateListForm supplies persistence in the app; these stories use local state only.",
       },
     },
   },

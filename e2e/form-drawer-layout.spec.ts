@@ -52,6 +52,19 @@ test("desktop form drawers fit content and only scroll when the viewport is too 
   await expect
     .poll(async () => (await creation.boundingBox())?.height ?? 0)
     .toBeLessThan(720);
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 1200 });
+    await expectFullWidthBottomDrawer(creation);
+    await expect.poll(() => scrollableOverflow(creation)).toBe(false);
+    await expect
+      .poll(async () => (await creation.boundingBox())?.height ?? 0)
+      .toBeLessThan(900);
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.locator('[data-slot="drawer-overlay"]')).toHaveCSS(
+    "background-color",
+    "oklab(0 0 0 / 0.6)",
+  );
   await creation
     .getByRole("textbox", { name: "List title", exact: true })
     .fill("Favorites");
