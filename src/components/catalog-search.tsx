@@ -220,7 +220,7 @@ export function CatalogSearch({
                         <GameCover
                           imageId={game.coverImageId}
                           size="cover_small"
-                          className="w-16 rounded-md"
+                          className="w-16 max-w-[25%] rounded-md"
                         />
                       }
                       href={`/games/${game.slug}`}

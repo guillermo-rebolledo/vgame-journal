@@ -123,11 +123,33 @@ for (const theme of ["light", "dark"] as const) {
           await page.evaluate(() => document.documentElement.scrollWidth),
         ).toBeLessThanOrEqual(width);
         const popup = page.getByRole("dialog", { name: "Search results" });
-        expect(
-          await popup.evaluate(
-            (node) => node.scrollWidth <= node.clientWidth + 1,
-          ),
-        ).toBe(true);
+        await expect
+          .poll(
+            () =>
+              popup.evaluate((node) => {
+                const anchor = document.querySelector(".game-catalog-input");
+                if (!anchor) return false;
+                // Base UI updates the anchored width after a resize observer runs.
+                const positioned =
+                  Math.abs(
+                    node.getBoundingClientRect().width -
+                      anchor.getBoundingClientRect().width,
+                  ) <= 1;
+                return (
+                  positioned &&
+                  [
+                    node,
+                    ...node.querySelectorAll<HTMLElement>(
+                      ".game-catalog-results, .game-catalog-result",
+                    ),
+                  ].every(
+                    (element) => element.scrollWidth <= element.clientWidth + 1,
+                  )
+                );
+              }),
+            { message: `Catalog fits at ${width}px with ${font}px root text` },
+          )
+          .toBe(true);
       }
       await page.evaluate(() => {
         document.documentElement.style.fontSize = "16px";
