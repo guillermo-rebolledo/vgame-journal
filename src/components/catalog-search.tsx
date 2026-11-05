@@ -189,7 +189,7 @@ export function CatalogSearch({
                 finalFocus={() => (restoreFocus.current ? finalFocus() : false)}
               >
                 <div className="flex items-center justify-between gap-2 border-border border-b px-3 py-1">
-                  <p className="text-muted-foreground text-xs">
+                  <p className="min-w-0 text-muted-foreground text-xs [overflow-wrap:anywhere]">
                     Explore the Catalog
                   </p>
                   <Popover.Close

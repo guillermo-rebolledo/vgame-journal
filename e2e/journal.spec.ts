@@ -265,6 +265,8 @@ test("sign up, share a profile without notes, export the journal, and delete the
   request,
   browser,
 }, testInfo) => {
+  // This full account journey includes profile and settings screenshots in three layouts.
+  test.slow();
   const username = uniqueUsername(`player`);
   const privateNote = "PRIVATE_NOTE_only_the_owner_should_see_this";
   const email = await signUp(page, request, username);
@@ -441,9 +443,9 @@ test("sign up, share a profile without notes, export the journal, and delete the
   await page.getByRole("button", { name: "Download JSON" }).click();
   const download = await downloading;
   expect(download.suggestedFilename()).toBe("shelve-games.json");
-  const exported = JSON.parse(
-    await readFile((await download.path()) ?? "", "utf8"),
-  );
+  const exportPath = testInfo.outputPath("shelve-games.json");
+  await download.saveAs(exportPath);
+  const exported = JSON.parse(await readFile(exportPath, "utf8"));
   expect(exported.profile).toMatchObject({ email, username });
   expect(exported.entries).toHaveLength(2);
   expect(exported.statusHistory).toHaveLength(4);
