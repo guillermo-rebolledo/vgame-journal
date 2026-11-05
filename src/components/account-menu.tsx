@@ -3,6 +3,7 @@
 import {
   LogInIcon,
   LogOutIcon,
+  MessageSquarePlus,
   PaletteIcon,
   SettingsIcon,
   UserIcon,
@@ -10,6 +11,8 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
+import { useRef } from "react";
+import { Feedback, type SubmitFeedback } from "@/components/feedback";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -57,7 +60,14 @@ function ThemeMenu() {
 }
 
 /** Avatar-triggered account menu; guests get a visible Sign in link plus a Theme / Sign in menu. Content only mounts on open, so the client-only theme never hydrates. */
-export function AccountMenu({ user }: { user: AccountUser | null }) {
+export function AccountMenu({
+  user,
+  onSubmitFeedback,
+}: {
+  user: AccountUser | null;
+  onSubmitFeedback?: SubmitFeedback;
+}) {
+  const accountTrigger = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams().toString();
@@ -91,9 +101,10 @@ export function AccountMenu({ user }: { user: AccountUser | null }) {
     );
 
   const handle = user.username ? `@${user.username}` : user.name;
-  return (
+  const menu = (openFeedback?: () => void) => (
     <DropdownMenu>
       <DropdownMenuTrigger
+        ref={accountTrigger}
         aria-label={`Account menu, ${handle}`}
         className={trigger}
       >
@@ -129,6 +140,12 @@ export function AccountMenu({ user }: { user: AccountUser | null }) {
           Settings
         </DropdownMenuItem>
         <ThemeMenu />
+        {openFeedback && (
+          <DropdownMenuItem onClick={openFeedback}>
+            <MessageSquarePlus aria-hidden />
+            Feedback
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={async () => {
@@ -142,5 +159,15 @@ export function AccountMenu({ user }: { user: AccountUser | null }) {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+  return user.username && onSubmitFeedback ? (
+    <Feedback
+      username={user.username}
+      onSubmit={onSubmitFeedback}
+      renderTrigger={menu}
+      finalFocus={accountTrigger}
+    />
+  ) : (
+    menu()
   );
 }

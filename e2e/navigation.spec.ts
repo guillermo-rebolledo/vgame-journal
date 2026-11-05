@@ -176,17 +176,22 @@ test("header forward and reverse keyboard order matches visible rows at every br
     const header = page.locator("header");
     const targets = [
       header.getByRole("link", { name: "shelve.games", exact: true }),
-      header.getByRole("button", { name: "Send feedback", exact: true }),
+      ...["Find a game", "Library", "Wishlist", "Lists", "Stats"].map((name) =>
+        header.getByRole("link", { name, exact: true }),
+      ),
       header.getByRole("button", {
         name: `Account menu, @${username}`,
         exact: true,
       }),
-      ...["Find a game", "Library", "Wishlist", "Lists", "Stats"].map((name) =>
-        header.getByRole("link", { name, exact: true }),
-      ),
     ];
     // The request-scoped account/navigation header streams after the brand.
     for (const target of targets) await expect(target).toBeVisible();
+    const headerBox = await header.boundingBox();
+    const accountBox = await targets[targets.length - 1].boundingBox();
+    if (!headerBox || !accountBox) throw new Error("Header has no bounds");
+    expect(accountBox.x + accountBox.width).toBe(
+      headerBox.x + headerBox.width - 16,
+    );
     await page.getByRole("link", { name: "Skip to main content" }).focus();
     let previous: {
       x: number;
@@ -404,12 +409,14 @@ test("populated collections keep Find a game reachable with comfortable phone co
         "header a, header button, main select, main fieldset button",
       ),
     );
-    // Account actions sit on their own row, above the collection navigation.
+    // The account trigger sits at the right edge beside collection navigation.
     const account = page.getByRole("button", { name: /^Account menu/ });
     const navBox = await nav.boundingBox();
     const accountBox = await account.boundingBox();
     if (!navBox || !accountBox) throw new Error("Header has no bounds");
-    expect(accountBox.y + accountBox.height).toBeLessThanOrEqual(navBox.y);
+    expect(accountBox.y).toBe(navBox.y);
+    expect(accountBox.x).toBeGreaterThanOrEqual(navBox.x + navBox.width);
+    expect(accountBox.x + accountBox.width).toBe(width - 16);
   }
   await snap(page, testInfo, "library-mobile");
 

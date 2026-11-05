@@ -1,7 +1,14 @@
 "use client";
 
 import { MessageSquarePlus, Send } from "lucide-react";
-import { useId, useRef, useState, useTransition } from "react";
+import {
+  type ComponentProps,
+  type ReactNode,
+  useId,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { trackEvent } from "@/components/analytics";
 import { ActionFeedback, ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
@@ -38,9 +45,13 @@ const types = FEEDBACK_TYPES.map((value) => ({
 export function Feedback({
   username,
   onSubmit,
+  renderTrigger,
+  finalFocus,
 }: {
   username?: string | null;
   onSubmit: SubmitFeedback;
+  renderTrigger?: (open: () => void) => ReactNode;
+  finalFocus?: ComponentProps<typeof DrawerContent>["finalFocus"];
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -67,21 +78,25 @@ export function Feedback({
 
   return (
     <Drawer open={open} onOpenChange={changeOpen}>
-      <DrawerTrigger
-        render={
-          <Button
-            variant="outline"
-            press="static"
-            size="sm"
-            aria-label="Send feedback"
-            className="min-h-11 min-w-11"
-          />
-        }
-      >
-        <MessageSquarePlus data-icon="inline-start" />
-        <span className="hidden sm:inline">Feedback</span>
-      </DrawerTrigger>
-      <DrawerContent className="mx-auto max-w-xl">
+      {renderTrigger ? (
+        renderTrigger(() => changeOpen(true))
+      ) : (
+        <DrawerTrigger
+          render={
+            <Button
+              variant="outline"
+              press="static"
+              size="sm"
+              aria-label="Send feedback"
+              className="min-h-11 min-w-11"
+            />
+          }
+        >
+          <MessageSquarePlus data-icon="inline-start" />
+          <span className="hidden sm:inline">Feedback</span>
+        </DrawerTrigger>
+      )}
+      <DrawerContent className="mx-auto max-w-xl" finalFocus={finalFocus}>
         <DrawerHeader>
           <DrawerTitle>
             {sent ? "Thanks, got it." : "Send feedback"}

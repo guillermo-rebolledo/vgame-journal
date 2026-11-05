@@ -13,7 +13,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Feedback editor with retained drafts on failure and a stable success announcement inside the drawer. It remains open so the player can read the confirmation and close it. Submissions are local callbacks.",
+          "Feedback editor with retained drafts on failure and a stable success announcement inside the drawer. It remains open so the player can read the confirmation and close it. The account menu composes this editor through renderTrigger and finalFocus; see Product/Account menu for that keyboard flow. Submissions are local callbacks.",
       },
     },
   },

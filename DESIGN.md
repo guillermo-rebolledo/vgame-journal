@@ -192,7 +192,7 @@ There's one centered column. The site frame (header and footer) caps at 72rem (`
 
 Spacing follows Tailwind's 4px grid. Related items sit 8–12px apart (`gap-2`, `gap-3`), groups inside a section 16px apart (`gap-4`), and page sections 24–32px apart (`gap-6`, `space-y-8`). Card padding is 16px, and empty states expand to 32px from `sm`.
 
-Navigation wraps onto a second row on phones instead of collapsing into a menu. Every primary navigation target is at least 44 × 44px (`min-h-11 min-w-11`). The layout must not overflow horizontally at any width down to 320px.
+Navigation wraps onto a second row on phones instead of collapsing into a menu. The account trigger follows the navigation at its right edge; Feedback opens the existing drawer from the account menu, returning focus to the account trigger on dismissal. Every primary navigation target is at least 44 × 44px (`min-h-11 min-w-11`). The layout must not overflow horizontally at any width down to 320px.
 
 ## Elevation & Depth
 
