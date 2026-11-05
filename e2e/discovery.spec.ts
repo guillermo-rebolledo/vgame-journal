@@ -16,9 +16,24 @@ test.beforeAll(async ({ request }) => {
     headers: { authorization: "Bearer e2e-cron-secret" },
   });
   expect(response.ok()).toBe(true);
-  expect(await response.json()).toMatchObject({
-    discovery: { recent: 4, popular: 4 },
-  });
+  const refresh = await response.json();
+  if (!refresh.skipped)
+    expect(refresh).toMatchObject({ discovery: { recent: 4, popular: 4 } });
+  await expect
+    .poll(async () => {
+      const snapshots = await request.post(supportUrl("/query"), {
+        data: {
+          sql: "select key, cardinality(game_ids) from discovery_snapshot order by key",
+          params: [],
+        },
+      });
+      expect(snapshots.ok()).toBe(true);
+      return (await snapshots.json()).rows;
+    })
+    .toEqual([
+      ["popular", 4],
+      ["recent", 4],
+    ]);
 });
 
 test("guests see discovery after search, with dates below tiles, keyboard links and responsive grids", async ({
@@ -340,7 +355,9 @@ test("successful empty discovery offers search without an error or retry loop", 
   try {
     await page.goto("/?q=Celeste");
     await expect(
-      page.getByText("No discovery picks yet—search for a game."),
+      page
+        .getByText("No discovery picks yet—search for a game.")
+        .filter({ visible: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", {
