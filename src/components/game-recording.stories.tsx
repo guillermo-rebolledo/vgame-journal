@@ -188,9 +188,11 @@ export const SavingOnlyMarksTheSaveAction: Story = {
     const save = await body.findByRole("button", { name: "Save" });
     await userEvent.click(save);
     await expect(save).toHaveAttribute("aria-busy", "true");
-    await expect(
-      save.querySelector('[data-active="true"] [data-slot="spinner"]'),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        save.querySelector('[data-active="true"] [data-slot="spinner"]'),
+      ).toBeVisible(),
+    );
     const remove = body.getByRole("button", { name: "Delete playthrough" });
     await expect(remove).toBeDisabled();
     await expect(
@@ -212,9 +214,11 @@ export const DeletingOnlyMarksTheDeleteAction: Story = {
     });
     await userEvent.click(remove);
     await expect(remove).toHaveAttribute("aria-busy", "true");
-    await expect(
-      remove.querySelector('[data-active="true"] [data-slot="spinner"]'),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        remove.querySelector('[data-active="true"] [data-slot="spinner"]'),
+      ).toBeVisible(),
+    );
     const save = body.getByRole("button", { name: "Save" });
     await expect(save).toBeDisabled();
     await expect(

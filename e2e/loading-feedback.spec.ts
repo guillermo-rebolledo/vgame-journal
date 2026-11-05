@@ -112,15 +112,15 @@ test("first reads show static skeletons and resolve to Home, lists and Stats con
 }) => {
   const email = await signUp(page, request, `loading_${Date.now()}`);
   await page.setViewportSize({ width: 390, height: 844 });
-  await request.post(supportUrl("/collection-delay"), {
-    data: { email, milliseconds: 2000 },
-  });
   try {
     for (const [path, label] of [
       ["/", "Checking Journal status…"],
       ["/lists", "Loading your lists…"],
       ["/stats", "Loading stats…"],
     ]) {
+      await request.post(supportUrl("/collection-delay"), {
+        data: { email, hold: true },
+      });
       await page.goto(path, { waitUntil: "commit" });
       const status = page
         .getByRole("main")
@@ -140,6 +140,9 @@ test("first reads show static skeletons and resolve to Home, lists and Stats con
           () => document.documentElement.scrollWidth <= innerWidth,
         ),
       ).toBe(true);
+      await request.post(supportUrl("/collection-delay"), {
+        data: { email, hold: false },
+      });
       await expect(status).toHaveCount(0);
       await expect(
         page.getByRole("main").locator('[data-slot="skeleton"]'),
@@ -147,7 +150,7 @@ test("first reads show static skeletons and resolve to Home, lists and Stats con
     }
   } finally {
     await request.post(supportUrl("/collection-delay"), {
-      data: { email, milliseconds: 0 },
+      data: { email, hold: false },
     });
   }
 });

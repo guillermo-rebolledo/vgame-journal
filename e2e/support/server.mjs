@@ -31,6 +31,8 @@ const server = createServer(async (request, response) => {
       ) {
         if (state.fail)
           throw new Error("Synthetic personal Journal read failure");
+        if (state.hold)
+          await new Promise((resolve) => state.waiters.push(resolve));
         if (state.milliseconds)
           await new Promise((resolve) =>
             setTimeout(resolve, state.milliseconds),
@@ -76,13 +78,25 @@ const server = createServer(async (request, response) => {
       request.url === "/collection-delay" &&
       request.method === "POST"
     ) {
-      const { email, milliseconds = 0, fail = false } = JSON.parse(body);
+      const {
+        email,
+        milliseconds = 0,
+        fail = false,
+        hold = false,
+      } = JSON.parse(body);
       const { rows } = await database.query(
         'select id from "user" where email = $1',
         [email],
       );
       if (!rows.length) throw new Error("Unknown test user");
-      collectionDelays.set(rows[0].id, { milliseconds, fail });
+      const previous = collectionDelays.get(rows[0].id);
+      collectionDelays.set(rows[0].id, {
+        milliseconds,
+        fail,
+        hold,
+        waiters: [],
+      });
+      for (const resolve of previous?.waiters ?? []) resolve();
       response.end("{}");
     } else if (
       request.url === "/discovery-state" &&
