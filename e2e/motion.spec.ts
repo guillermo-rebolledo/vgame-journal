@@ -482,18 +482,32 @@ test("explicit and System Theme changes suppress transitions through the style f
   await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/sign-up");
   const button = page.getByRole("button", { name: "Sign up", exact: true });
+  const themeColor = page.locator('head meta[name="theme-color"]');
   await expect(page.locator("html")).toHaveClass(/dark/);
+  await expect(themeColor).toHaveCount(1);
+  await expect(themeColor).toHaveAttribute("content", "#0a0a0a");
   for (const theme of ["light", "dark", "system"] as const) {
     const flush = themeStyleFlush(page);
     await chooseTheme(page, theme);
     expect(await flush).toBe("0s");
+    await expect(themeColor).toHaveAttribute(
+      "content",
+      theme === "dark" ? "#0a0a0a" : "#ffffff",
+    );
     await expect(button).toHaveCSS("transition-duration", "0.15s");
   }
   const flush = themeStyleFlush(page);
   await page.emulateMedia({ colorScheme: "dark" });
   expect(await flush).toBe("0s");
   await expect(page.locator("html")).toHaveClass(/dark/);
+  await expect(themeColor).toHaveAttribute("content", "#0a0a0a");
   await expect(button).toHaveCSS("transition-duration", "0.15s");
+
+  await chooseTheme(page, "light");
+  await page.reload();
+  await expect(page.locator("html")).toHaveClass(/light/);
+  await expect(themeColor).toHaveCount(1);
+  await expect(themeColor).toHaveAttribute("content", "#ffffff");
 });
 
 test("popup transitions retain opacity feedback and forced-colors edges", async ({
