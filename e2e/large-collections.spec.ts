@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { seedSql } from "./support/seed-sql";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { supportUrl } from "./support/url";
 
 test("large collections bound rendered rows and retain navigation, search and editing", async ({
@@ -9,7 +9,7 @@ test("large collections bound rendered rows and retain navigation, search and ed
   browser,
 }, testInfo) => {
   test.setTimeout(180_000);
-  const username = `large_${testInfo.workerIndex}_${Date.now()}`;
+  const username = uniqueUsername(`large_${testInfo.workerIndex}`);
   const email = await signUp(page, request, username);
   await seedSql(
     request,
@@ -399,7 +399,7 @@ test("large collections bound rendered rows and retain navigation, search and ed
           : /libraryPage=2&marker=keep$/,
       );
     }
-    const peer = `peer_${testInfo.workerIndex}_${Date.now()}`;
+    const peer = uniqueUsername(`peer_${testInfo.workerIndex}`);
     await seedSql(
       request,
       [
@@ -555,7 +555,7 @@ test("F14 Wishlist section links retain independent pages through move, Undo and
   browser,
 }, testInfo) => {
   test.setTimeout(120_000);
-  const username = `sections_${testInfo.workerIndex}_${Date.now()}`;
+  const username = uniqueUsername(`sections_${testInfo.workerIndex}`);
   const email = await signUp(page, request, username);
   await seedSql(
     request,
@@ -717,7 +717,7 @@ test("F14 Stats dataset links restore bounded personal and public rows lazily", 
   browser,
 }, testInfo) => {
   test.setTimeout(120_000);
-  const username = `datasets_${testInfo.workerIndex}_${Date.now()}`;
+  const username = uniqueUsername(`datasets_${testInfo.workerIndex}`);
   const email = await signUp(page, request, username);
   await seedSql(
     request,

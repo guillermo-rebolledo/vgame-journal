@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { openCatalog, viewCatalogGame } from "./support/catalog";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { snap } from "./support/snap";
 
 // The fake GameSource's "today" game is dated by the UTC day.
@@ -273,7 +273,7 @@ test("Library search, filters and sort survive game visits, Back and reload", as
   page,
   request,
 }, testInfo) => {
-  await signUp(page, request, `lib_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`lib`));
   await expect(page.getByText("Your Journal is empty.")).toBeVisible();
   await snap(page, testInfo, "home-empty-journal");
 
@@ -359,7 +359,7 @@ test("Wishlist sections released, upcoming and unannounced games, and moves are 
   page,
   request,
 }, testInfo) => {
-  await signUp(page, request, `wish_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`wish`));
   for (const title of [
     "Celeste",
     "Silksong",

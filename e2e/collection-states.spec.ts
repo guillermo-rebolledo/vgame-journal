@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { openCatalog } from "./support/catalog";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { snap } from "./support/snap";
 import { supportUrl } from "./support/url";
 
@@ -19,7 +19,7 @@ for (const viewport of [
     }, testInfo) => {
       await page.setViewportSize(viewport);
       await page.emulateMedia({ reducedMotion: "reduce" });
-      const email = await signUp(page, request, `covers_${Date.now()}`);
+      const email = await signUp(page, request, uniqueUsername(`covers`));
       if (theme === "light") await chooseTheme(page, "light");
       await expect(page.locator("html")).toHaveClass(new RegExp(theme));
 
@@ -168,7 +168,7 @@ for (const signedIn of [false, true]) {
     }) => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.emulateMedia({ reducedMotion: "reduce" });
-      if (signedIn) await signUp(page, request, `hero_${Date.now()}`);
+      if (signedIn) await signUp(page, request, uniqueUsername(`hero`));
       let failedRequests = 0;
       await page.route("https://images.igdb.com/**", (route) => {
         if (route.request().url().includes("cob9kr")) {

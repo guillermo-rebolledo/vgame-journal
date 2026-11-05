@@ -19,7 +19,7 @@ test("switching games during a pending save keeps feedback scoped and persists b
   page,
   request,
 }) => {
-  await signUp(page, request, `save_scope_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`save_scope`));
   await page.goto("/?q=ce");
   await page.getByRole("option", { name: /^Celeste/ }).click();
   const actions = page.getByRole("dialog");
@@ -80,7 +80,7 @@ test("an unconfirmed status change cannot make the retained status a false local
   page,
   request,
 }) => {
-  await signUp(page, request, `uncertain_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`uncertain`));
   await page.goto("/games/celeste");
   await chooseStatus(page, "played");
   await page.goto("/?q=Celeste");
@@ -119,7 +119,7 @@ test("Home saves a selected game without losing browsing context and opens filte
   page,
   request,
 }) => {
-  await signUp(page, request, `quick_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`quick`));
   await expect(count(page, "Backlog (0)")).toBeVisible();
   await page.goto("/?q=Celeste&year=2018&all=1");
   await page.getByRole("option", { name: /^Celeste/ }).click();
@@ -160,7 +160,7 @@ test("discovery saves coordinate repeated games, labels and counts across all Ho
   await request.get("/api/cron/refresh-release-dates", {
     headers: { authorization: "Bearer e2e-cron-secret" },
   });
-  await signUp(page, request, `shelves_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`shelves`));
   const recent = page.getByRole("region", {
     name: "Recently released",
     exact: true,
@@ -227,7 +227,7 @@ test("details visibly distinguish saving a Journal entry from adding a Playthrou
   page,
   request,
 }) => {
-  await signUp(page, request, `detail_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`detail`));
   await page.goto("/games/celeste");
   const journal = page.getByRole("region", {
     name: "Game journal",
@@ -248,7 +248,7 @@ test("guest intent survives sign-in, restores filters and requires confirmation 
   page,
   request,
 }) => {
-  const email = await signUp(page, request, `return_${Date.now()}`);
+  const email = await signUp(page, request, uniqueUsername(`return`));
   await page.context().clearCookies();
   await page.goto("/?q=Celeste&year=2018&platform=PC&all=1&filters=1");
   await page.getByRole("option", { name: /^Celeste/ }).click();
@@ -327,7 +327,7 @@ test("pending saves block duplicate occurrences; failures before and after persi
   await request.get("/api/cron/refresh-release-dates", {
     headers: { authorization: "Bearer e2e-cron-secret" },
   });
-  await signUp(page, request, `network_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`network`));
   const actions = await selectCatalogGame(page, "Discovery One");
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
@@ -413,7 +413,7 @@ test("expired sessions offer sign-in recovery without a saved label", async ({
   page,
   request,
 }) => {
-  await signUp(page, request, `expired_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`expired`));
   const actions = await selectCatalogGame(page, "Celeste");
   await page.context().clearCookies();
   await actions
@@ -436,7 +436,7 @@ test("personal state can load or fail without presenting a confirmed unsaved gam
   page,
   request,
 }) => {
-  const email = await signUp(page, request, `loading_${Date.now()}`);
+  const email = await signUp(page, request, uniqueUsername(`loading`));
   await request.post(supportUrl("/collection-delay"), {
     data: { email, milliseconds: 2000 },
   });
@@ -485,7 +485,7 @@ test("four Status labels are owner scoped; unchanged Played and status changes p
   await request.get("/api/cron/refresh-release-dates", {
     headers: { authorization: "Bearer e2e-cron-secret" },
   });
-  const email = await signUp(page, request, `owner_${Date.now()}`);
+  const email = await signUp(page, request, uniqueUsername(`owner`));
   await seedSql(
     request,
     [
@@ -544,7 +544,7 @@ test("four Status labels are owner scoped; unchanged Played and status changes p
   ).not.toMatch(/Private summit|completionTag|userId|notes/);
   const other = await browser.newPage({ baseURL: new URL(page.url()).origin });
   try {
-    await signUp(other, request, `other_${Date.now()}`);
+    await signUp(other, request, uniqueUsername(`other`));
     const otherActions = await selectCatalogGame(other, "Discovery One");
     await otherActions
       .getByRole("button", { name: "Save to Wishlist", exact: true })
@@ -577,7 +577,7 @@ test("signup and onboarding preserve Backlog intent; cancellation and repeated o
   await prompt
     .getByRole("link", { name: "Create an account to continue", exact: true })
     .click();
-  const username = `continue_${Date.now()}`;
+  const username = uniqueUsername(`continue`);
   const email = `${username}@example.com`;
   await page.getByLabel("Name", { exact: true }).fill("Player");
   await page.getByLabel("Email", { exact: true }).fill(email);
@@ -648,7 +648,7 @@ test("keyboard saves retain focus, menus restore it, and focused indicators cont
   await request.get("/api/cron/refresh-release-dates", {
     headers: { authorization: "Bearer e2e-cron-secret" },
   });
-  await signUp(page, request, `keyboard_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`keyboard`));
   await page.goto("/?q=Discovery%20One");
   const results = await selectCatalogGame(page, "Discovery One");
   const add = results.getByRole("button", {
@@ -828,7 +828,7 @@ test("saving the eighth contained search match preserves filters, active result 
   page,
   request,
 }) => {
-  await signUp(page, request, `contained_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`contained`));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/?q=Search%20Journey&year=2020&platform=PC&filters=1&all=1");
   const results = page.getByRole("listbox", { name: "Search results" });

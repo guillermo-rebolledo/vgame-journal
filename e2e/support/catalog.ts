@@ -1,17 +1,27 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 export async function openCatalog(page: Page) {
   const input = page.getByRole("combobox", {
     name: "Search games",
     exact: true,
   });
-  await input
-    .or(page.getByRole("button", { name: "Back to results", exact: true }))
-    .or(page.getByRole("button", { name: "Search games…", exact: true }))
-    .filter({ visible: true })
-    .first()
-    .click();
-  await expect(input).toBeVisible();
+  const visible = (locator: Locator) =>
+    locator.filter({ visible: true }).first();
+  const back = visible(
+    page.getByRole("button", { name: "Back to results", exact: true }),
+  );
+  const trigger = visible(
+    page.getByRole("button", { name: "Search games…", exact: true }),
+  );
+  // `?q=` and `?search=1` open the catalog after hydration, which can cover the
+  // trigger mid-click. Re-check and retry instead of waiting out the test timeout.
+  await expect(async () => {
+    if (await back.isVisible()) await back.click({ timeout: 2_000 });
+    else if (await visible(input).isVisible())
+      await input.click({ timeout: 2_000 });
+    else await trigger.click({ timeout: 2_000 });
+    await expect(input).toBeVisible({ timeout: 2_000 });
+  }).toPass();
   return input;
 }
 

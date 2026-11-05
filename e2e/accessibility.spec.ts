@@ -10,7 +10,7 @@ import { openCatalog, selectCatalogGame } from "./support/catalog";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { closeListPanel, openListPanel } from "./support/list-editor";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 
 async function renderedContrast(element: Locator) {
   // Hide only ink: the screenshot retains painted images, gradients, and surfaces.
@@ -179,7 +179,7 @@ for (const theme of ["light", "dark"] as const) {
       page,
       request,
     }, testInfo) => {
-      await signUp(page, request, `axe_lists_${theme}_${Date.now()}`);
+      await signUp(page, request, uniqueUsername(`axe_lists_${theme}`));
       await chooseTheme(page, theme);
       await page.goto("/lists");
       await expect(
@@ -325,7 +325,7 @@ for (const theme of ["light", "dark"] as const) {
       page,
       request,
     }, testInfo) => {
-      const username = `axe_${theme}_${Date.now()}`;
+      const username = uniqueUsername(`axe_${theme}`);
       await signUp(page, request, username);
       await chooseTheme(page, theme);
       await page.goto("/games/celeste");

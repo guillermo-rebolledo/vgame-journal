@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 
 test.use({ video: "on" });
 
@@ -50,7 +50,7 @@ for (const phone of [false, true]) {
       page,
       request,
     }) => {
-      await signUp(page, request, `swipe_${phone}_${Date.now()}`);
+      await signUp(page, request, uniqueUsername(`swipe_${phone}`));
       await page.goto("/games/celeste");
       const add = page.getByRole("button", {
         name: "Add playthrough",
@@ -133,7 +133,7 @@ test("swiping while a save is pending leaves the editor open until persistence f
   page,
   request,
 }) => {
-  await signUp(page, request, `pending_swipe_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`pending_swipe`));
   await page.goto("/games/celeste");
   await page
     .getByRole("button", { name: "Add playthrough", exact: true })

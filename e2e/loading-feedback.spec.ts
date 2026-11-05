@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { openCatalog } from "./support/catalog";
 import { chooseTheme } from "./support/header";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { snap } from "./support/snap";
 import { supportUrl } from "./support/url";
 
@@ -118,7 +118,7 @@ test("first reads show static skeletons and resolve to Home, lists and Stats con
   page,
   request,
 }) => {
-  const email = await signUp(page, request, `loading_${Date.now()}`);
+  const email = await signUp(page, request, uniqueUsername(`loading`));
   await page.setViewportSize({ width: 320, height: 740 });
   try {
     for (const [path, label] of [

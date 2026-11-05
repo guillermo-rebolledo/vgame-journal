@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { expectContainedScroll } from "./support/contained-scroll";
 import { chooseTheme } from "./support/header";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 
 const ageRating = (page: Page) =>
   page.getByRole("button", { name: /^Age rating: / });
@@ -151,7 +151,7 @@ test("the headline board follows the signed-in user's Region", async ({
   request,
 }) => {
   test.setTimeout(60_000);
-  await signUp(page, request, `ratings_${Date.now()}`);
+  await signUp(page, request, uniqueUsername(`ratings`));
   await page.goto("/games/hades--1");
   await expect(ageRating(page)).toHaveAccessibleName(
     "Age rating: Teen · ESRB View details",
