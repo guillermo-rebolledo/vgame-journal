@@ -150,9 +150,9 @@ test("desktop form drawers fit content and only scroll when the viewport is too 
   await expect(add).toBeFocused();
 
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page
-    .getByRole("button", { name: "Send feedback", exact: true })
-    .click();
+  const account = page.getByRole("button", { name: /^Account menu,/ });
+  await account.click();
+  await page.getByRole("menuitem", { name: "Feedback", exact: true }).click();
   const feedback = page.getByRole("dialog", {
     name: "Send feedback",
     exact: true,
@@ -178,4 +178,6 @@ test("desktop form drawers fit content and only scroll when the viewport is too 
   const cancel = feedback.getByRole("button", { name: "Cancel", exact: true });
   await cancel.scrollIntoViewIfNeeded();
   await expect(cancel).toBeInViewport({ ratio: 1 });
+  await cancel.click();
+  await expect(account).toBeFocused();
 });

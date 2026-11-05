@@ -1,5 +1,4 @@
 import { AccountMenu } from "@/components/account-menu";
-import { Feedback } from "@/components/feedback";
 import { MainNav } from "@/components/main-nav";
 import { db } from "@/db";
 import { currentSession } from "@/lib/auth";
@@ -19,12 +18,14 @@ export async function UserMenu() {
 
   const { image, username, name } = session.user;
   return (
-    <>
-      <div className="ml-auto flex items-center gap-2">
-        <Feedback username={username} onSubmit={submitFeedback} />
-        <AccountMenu user={{ username, name, image }} />
+    <div className="ml-auto flex w-full items-start gap-2 sm:w-auto">
+      <MainNav className="-ml-2 min-w-0 flex-1 sm:ml-0" />
+      <div className="shrink-0">
+        <AccountMenu
+          user={{ username, name, image }}
+          onSubmitFeedback={submitFeedback}
+        />
       </div>
-      <MainNav className="-ml-2 w-full sm:ml-0 sm:w-auto" />
-    </>
+    </div>
   );
 }

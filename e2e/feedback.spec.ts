@@ -3,7 +3,7 @@ import { signUp } from "./support/sign-up";
 import { snap } from "./support/snap";
 import { supportUrl } from "./support/url";
 
-test("feedback stores real submissions, collapses on mobile, and limits the sixth message", async ({
+test("feedback stores real submissions, opens from the account menu, and limits the sixth message", async ({
   page,
   request,
 }, testInfo) => {
@@ -17,19 +17,18 @@ test("feedback stores real submissions, collapses on mobile, and limits the sixt
   await expect(
     page.getByRole("heading", { name: "Library", exact: true }),
   ).toBeVisible();
-  const trigger = page.getByRole("button", { name: "Send feedback" });
-  await expect(trigger.getByText("Feedback")).toBeVisible();
-  await page.setViewportSize({ width: 320, height: 812 });
-  await expect(trigger).toBeVisible();
-  await expect(trigger.getByText("Feedback")).toBeHidden();
+  await expect(
+    page.locator("header").getByRole("button", { name: "Send feedback" }),
+  ).toHaveCount(0);
   const account = page.getByRole("button", {
     name: `Account menu, @${username}`,
   });
-  const feedbackBox = await trigger.boundingBox();
-  const accountBox = await account.boundingBox();
-  if (!feedbackBox || !accountBox) throw new Error("Header controls missing");
-  expect(feedbackBox.y).toBe(accountBox.y);
-  expect(feedbackBox.x + feedbackBox.width).toBeLessThanOrEqual(accountBox.x);
+  await account.click();
+  await expect(
+    page.getByRole("menuitem", { name: "Feedback", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 320, height: 812 });
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -37,7 +36,8 @@ test("feedback stores real submissions, collapses on mobile, and limits the sixt
   ).toBe(true);
   await snap(page, testInfo, "feedback-mobile-header");
   for (let i = 0; i < 6; i++) {
-    await trigger.click();
+    await account.click();
+    await page.getByRole("menuitem", { name: "Feedback", exact: true }).click();
     await expect(page.getByLabel("Message", { exact: true })).toHaveValue("");
     if (i === 0) {
       await page.getByRole("combobox", { name: "Type", exact: true }).click();
@@ -52,6 +52,7 @@ test("feedback stores real submissions, collapses on mobile, and limits the sixt
       ).toBeVisible();
       if (i === 0) await snap(page, testInfo, "feedback-success");
       await page.getByRole("button", { name: "Close", exact: true }).click();
+      await expect(account).toBeFocused();
     } else {
       await expect(page.getByRole("alert")).toContainText(
         "You’ve sent 5 messages",
