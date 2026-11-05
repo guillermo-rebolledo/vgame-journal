@@ -30,6 +30,9 @@ jobs:
 
   storybook:
     runs-on: ubuntu-latest
+    # Browsers and their system packages come preinstalled; apt mirrors have stalled installs for 10 min.
+    # Keep the tag equal to @playwright/test in pnpm-lock.yaml (Playwright says so loudly on mismatch).
+    container: mcr.microsoft.com/playwright:v1.64.1-noble
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -38,12 +41,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm build-storybook
       - run: pnpm test:storybook
       - uses: actions/upload-artifact@v4
@@ -55,6 +52,9 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    # Browsers and their system packages come preinstalled; apt mirrors have stalled installs for 10 min.
+    # Keep the tag equal to @playwright/test in pnpm-lock.yaml (Playwright says so loudly on mismatch).
+    container: mcr.microsoft.com/playwright:v1.64.1-noble
     strategy:
       # Let every shard finish so one failure doesn't hide the others.
       fail-fast: false
@@ -73,12 +73,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e --project=${{ matrix.project }} --shard=${{ matrix.shard }}
       - uses: actions/upload-artifact@v4
         if: failure()
