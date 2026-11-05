@@ -185,8 +185,7 @@ test("discovery saves coordinate repeated games, labels and counts across all Ho
       .click();
     await expect(
       shelf.getByRole("button", {
-        name: `Change status for ${title}`,
-        exact: true,
+        name: new RegExp(`Change status for ${title}$`),
       }),
     ).toBeVisible();
   }
@@ -211,10 +210,7 @@ test("discovery saves coordinate repeated games, labels and counts across all Ho
   await closeCatalog(page);
   await page
     .getByRole("region", { name: "Playing", exact: true })
-    .getByRole("button", {
-      name: "Change status for Discovery One",
-      exact: true,
-    })
+    .getByRole("button", { name: /Change status for Discovery One$/ })
     .click();
   await page
     .getByRole("menuitemradio", { name: "Wishlist", exact: true })
@@ -663,10 +659,7 @@ test("keyboard saves retain focus, menus restore it, and focused indicators cont
   await closeCatalog(page);
   const change = page
     .getByRole("region", { name: "Recently released", exact: true })
-    .getByRole("button", {
-      name: "Change status for Discovery One",
-      exact: true,
-    });
+    .getByRole("button", { name: /Change status for Discovery One$/ });
   await change.click();
   await expect(
     page.getByRole("menuitemradio", { name: "Backlog", exact: true }),

@@ -393,7 +393,12 @@ test("selecting a result exposes its full platform availability outside the View
   const details = screen.getByLabelText(/More platforms for Game collection$/);
   expect(details.closest("a")).toBeNull();
   await user.click(details);
-  expect(details.parentElement?.hasAttribute("open")).toBe(true);
+  expect(details.getAttribute("aria-expanded")).toBe("true");
+  expect(
+    screen.getByRole("list", {
+      name: "Additional platforms for Game collection",
+    }).textContent,
+  ).toBe("WiiSuper Nintendo Entertainment SystemPlayStation 5");
   expect(
     screen
       .getByRole("link", { name: "View game: Game collection" })

@@ -91,7 +91,7 @@ test("confirmation focuses the committed personal shelf when the game is absent 
     await screen.findByRole("button", { name: "Confirm Celeste to Wishlist" }),
   );
   const change = await screen.findByRole("button", {
-    name: "Change status for Celeste",
+    name: /Change status for Celeste$/,
   });
   expect(document.activeElement).toBe(change);
   expect(
@@ -151,14 +151,15 @@ test("reversed save responses preserve both games and the Backlog count", async 
   await act(async () =>
     second.resolve({ snapshot: snapshot([hades, celeste]) }),
   );
-  await screen.findAllByRole("button", { name: "Change status for Hades" });
+  await screen.findAllByRole("button", { name: /Change status for Hades$/ });
   await act(async () => first.resolve({ snapshot: snapshot([celeste]) }));
   expect(screen.getByRole("link", { name: "Backlog (2)" })).toBeTruthy();
   expect(
-    screen.getAllByRole("button", { name: "Change status for Hades" }).length,
+    screen.getAllByRole("button", { name: /Change status for Hades$/ }).length,
   ).toBeGreaterThan(0);
   expect(
-    screen.getAllByRole("button", { name: "Change status for Celeste" }).length,
+    screen.getAllByRole("button", { name: /Change status for Celeste$/ })
+      .length,
   ).toBeGreaterThan(0);
 });
 
@@ -190,7 +191,7 @@ test("status edits preserve Recently added order and include Playing", async () 
       .map((link) => link.getAttribute("href")),
   ).toEqual(["/games/hades", "/games/celeste"]);
   await user.click(
-    recent.getByRole("button", { name: "Change status for Celeste" }),
+    recent.getByRole("button", { name: /Change status for Celeste$/ }),
   );
   await user.click(
     await screen.findByRole("menuitemradio", { name: "Wishlist" }),
