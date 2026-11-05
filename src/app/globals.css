@@ -288,16 +288,18 @@
 .editor-drawer[data-swipe-direction="down"] {
   transition-duration: 220ms;
   height: auto;
-  max-height: var(--editor-height, min(calc(100dvh - 7.25rem), 960px));
+  max-height: min(
+    var(--editor-height, min(calc(100dvh - 7.25rem), 960px)),
+    100%
+  );
   border-radius: 2rem 2rem 0 0;
-  bottom: var(--editor-bottom, 0px);
 }
 .editor-drawer[data-ending-style] {
   transition-duration: 140ms;
 }
 @media (min-width: 48rem) {
   .editor-drawer[data-swipe-direction="down"] {
-    max-height: var(--editor-height, calc(100dvh - 2rem));
+    max-height: min(var(--editor-height, calc(100dvh - 2rem)), 100%);
   }
 }
 @media (prefers-reduced-motion: reduce) {
