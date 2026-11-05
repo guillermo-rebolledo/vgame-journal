@@ -3,7 +3,7 @@ import { closeCatalog, selectCatalogGame } from "./support/catalog";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { seedSql } from "./support/seed-sql";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { supportUrl } from "./support/url";
 
 const updates = (page: import("@playwright/test").Page) =>
@@ -754,10 +754,11 @@ test("Home controls reflow with long titles and missing art at phone, tablet, de
   page,
   request,
 }) => {
+  test.slow();
   await request.get("/api/cron/refresh-release-dates", {
     headers: { authorization: "Bearer e2e-cron-secret" },
   });
-  await signUp(page, request, `reflow_${Date.now()}`);
+  await signUp(page, request, uniqueUsername("reflow"));
   const title =
     "The Lantern Keeper's Extraordinarily Long Voyage Across the Shattered Archipelago: Definitive Edition";
   for (const theme of ["light", "dark"] as const) {

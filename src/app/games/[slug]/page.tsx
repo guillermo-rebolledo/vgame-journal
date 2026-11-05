@@ -47,7 +47,13 @@ export async function generateMetadata({
 }
 
 export default function GamePage({ params }: PageProps<"/games/[slug]">) {
-  return <Game params={params} />;
+  return (
+    <article className="@container relative isolate flex-1">
+      <Suspense fallback={<GameSkeleton />}>
+        <Game params={params} />
+      </Suspense>
+    </article>
+  );
 }
 
 async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
@@ -58,7 +64,7 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
   const cover = game.coverImageId && coverUrl(game.coverImageId);
 
   return (
-    <article className="@container relative isolate flex-1">
+    <>
       <JsonLd data={videoGameSchema(game, cover)} />
       <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 @min-[40em]:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] @min-[40em]:gap-x-8 @min-[40em]:py-12 @min-[48em]:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
         <header className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-4 @min-[40em]:contents">
@@ -193,7 +199,32 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
           <GameTagShelves game={game} />
         </Suspense>
       </DiscoveryBoundary>
-    </article>
+    </>
+  );
+}
+
+function GameSkeleton() {
+  return (
+    <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 @min-[40em]:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] @min-[40em]:gap-x-8 @min-[40em]:py-12 @min-[48em]:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+      <output className="col-span-full text-muted-foreground text-sm">
+        Loading game…
+      </output>
+      <div aria-hidden="true" className="contents">
+        <Skeleton className="aspect-[264/374] w-20 animate-none @min-[40em]:w-full" />
+        <div className="flex min-w-0 flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-9 w-3/4 animate-none @min-[40em]:h-12" />
+            <Skeleton className="h-5 w-1/2 animate-none" />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Skeleton className="h-11 w-40 animate-none" />
+            <Skeleton className="h-11 w-36 animate-none" />
+          </div>
+          <Skeleton className="h-40 w-full animate-none" />
+          <Skeleton className="h-24 w-full animate-none" />
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -18,20 +18,34 @@ export function ActionIcon({
       aria-hidden="true"
       data-icon="inline-start"
       data-action-state={state}
-      className="action-icon grid size-4 shrink-0 *:col-start-1 *:row-start-1"
+      className="action-icon grid size-4 shrink-0 *:col-start-1 *:flex *:row-start-1 [&_svg]:size-full"
     >
-      <span data-active={state === "idle"}>{icon}</span>
-      <span data-active={state === "pending"}>
+      <span
+        data-active={state === "idle"}
+        style={{ opacity: state === "idle" ? 1 : 0 }}
+      >
+        {icon}
+      </span>
+      <span
+        data-active={state === "pending"}
+        style={{ opacity: state === "pending" ? 1 : 0 }}
+      >
         <Spinner
           className={
             state === "pending" ? undefined : "[&_.compass-ticks]:animate-none"
           }
         />
       </span>
-      <span data-active={state === "success"}>
+      <span
+        data-active={state === "success"}
+        style={{ opacity: state === "success" ? 1 : 0 }}
+      >
         <Check />
       </span>
-      <span data-active={state === "error"}>
+      <span
+        data-active={state === "error"}
+        style={{ opacity: state === "error" ? 1 : 0 }}
+      >
         <CircleAlert />
       </span>
     </span>

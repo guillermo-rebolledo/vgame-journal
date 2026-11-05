@@ -47,6 +47,8 @@ const server = createServer(async (request, response) => {
         : null;
       if (listState?.fail)
         throw new Error("Synthetic public Lists read failure");
+      if (listState?.hold)
+        await new Promise((resolve) => listState.waiters.push(resolve));
       if (listState?.milliseconds)
         await new Promise((resolve) =>
           setTimeout(resolve, listState.milliseconds),
@@ -113,7 +115,9 @@ const server = createServer(async (request, response) => {
       request.method === "POST"
     ) {
       const state = JSON.parse(body);
-      publicListStates.set(state.username, state);
+      const previous = publicListStates.get(state.username);
+      publicListStates.set(state.username, { ...state, waiters: [] });
+      for (const resolve of previous?.waiters ?? []) resolve();
       response.end("{}");
     } else if (request.url === "/emails" && request.method === "POST") {
       mailbox.push(JSON.parse(body));
