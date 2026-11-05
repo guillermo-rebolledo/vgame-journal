@@ -1,6 +1,6 @@
 "use client";
 
-import { BookMarked, Plus, X } from "lucide-react";
+import { BookMarked, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useRef, useState } from "react";
@@ -15,6 +15,7 @@ import {
   type SavePlaythrough,
 } from "@/components/playthrough-form";
 import { PlaythroughHistory } from "@/components/playthrough-history";
+import { ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -23,6 +24,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { toast } from "@/components/ui/toast";
 import {
   Tooltip,
   TooltipContent,
@@ -70,6 +72,7 @@ export function GameRecording({
   const drawer = useRef<HTMLDivElement | null>(null);
   const initiator = useRef<HTMLElement | null>(null);
   const busy = useRef(false);
+  const completion = useRef<string | null>(null);
   const key = editor === "add" ? "add" : editor?.id;
   useEditorViewport(editor !== null);
   function open(value: Playthrough | "add") {
@@ -94,6 +97,7 @@ export function GameRecording({
         drafts.current.delete(editor.id);
         // The deleted row's Edit button can outlive dismissal until history refreshes.
         initiator.current = addTrigger.current;
+        completion.current = "Playthrough deleted";
         setEditor(null);
         trackEvent("playthrough_removed");
       }
@@ -189,6 +193,16 @@ export function GameRecording({
       <Drawer
         showSwipeHandle
         open={editor !== null}
+        onOpenChangeComplete={(open) => {
+          if (!open && completion.current) {
+            toast.add({
+              title: completion.current,
+              description: gameTitle,
+              type: "success",
+            });
+            completion.current = null;
+          }
+        }}
         onOpenChange={(value, event) => {
           if (!value && busy.current) {
             event.cancel();
@@ -252,6 +266,10 @@ export function GameRecording({
               }
               onSuccess={(values) => {
                 drafts.current.delete(key);
+                completion.current =
+                  editor === "add"
+                    ? "Playthrough saved"
+                    : "Playthrough updated";
                 setEditor(null);
                 if (editor !== "add") return;
                 // Saving a playthrough outside the journal adds the game too.
@@ -284,6 +302,10 @@ export function GameRecording({
                   className="min-h-11"
                   onClick={remove}
                 >
+                  <ActionIcon
+                    icon={<Trash2 />}
+                    state={pending ? "pending" : "idle"}
+                  />
                   Delete playthrough
                 </Button>
                 {error && (

@@ -55,6 +55,7 @@ export function ListEditorDrawer({
   children,
   initialFocus,
   finalFocus,
+  onOpenChangeComplete,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -65,12 +66,14 @@ export function ListEditorDrawer({
   children: ReactNode;
   initialFocus?: ComponentProps<typeof DrawerContent>["initialFocus"];
   finalFocus?: ComponentProps<typeof DrawerContent>["finalFocus"];
+  onOpenChangeComplete?: (open: boolean) => void;
 }) {
   useEditorViewport(open);
   return (
     <Drawer
       showSwipeHandle
       open={open}
+      onOpenChangeComplete={onOpenChangeComplete}
       onOpenChange={(value, event) => {
         if (!value && pending) event.cancel();
         else onOpenChange(value);

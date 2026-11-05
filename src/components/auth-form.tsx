@@ -1,6 +1,8 @@
 "use client";
 
+import { ArrowRight, Check } from "lucide-react";
 import { type ReactNode, useActionState } from "react";
+import { ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,12 +25,15 @@ export function AuthForm({
   fields,
   submitLabel,
   onSubmit,
+  notice,
   children,
 }: {
   title: string;
   fields: Field[];
   submitLabel: string;
   onSubmit: Submit;
+  /** Page confirmation that keeps the form available, such as a completed password reset. */
+  notice?: string;
   children?: ReactNode;
 }) {
   const [state, action, pending] = useActionState(
@@ -44,13 +49,24 @@ export function AuthForm({
     },
     undefined,
   );
+  const message = state?.message ?? notice;
 
   return (
     <section className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-16">
       <h1 className="font-semibold text-2xl tracking-tight">{title}</h1>
-      {state?.message ? (
-        <output className="enter">{state.message}</output>
-      ) : (
+      <output
+        aria-live="polite"
+        aria-atomic="true"
+        className={
+          !pending && message ? "flex items-start gap-2 text-sm" : "sr-only"
+        }
+      >
+        {!pending && message && (
+          <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+        )}
+        {pending ? "Submitting…" : message}
+      </output>
+      {!state?.message && (
         <form action={action} className="flex flex-col gap-4">
           {fields.map((f) => (
             <div key={f.name} className="flex flex-col gap-2">
@@ -87,7 +103,16 @@ export function AuthForm({
               {state.error}
             </p>
           )}
-          <Button type="submit" disabled={pending}>
+          <Button
+            type="submit"
+            disabled={pending}
+            aria-busy={pending}
+            className="min-h-11"
+          >
+            <ActionIcon
+              icon={<ArrowRight />}
+              state={pending ? "pending" : state?.error ? "error" : "idle"}
+            />
             {submitLabel}
           </Button>
         </form>

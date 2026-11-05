@@ -1,8 +1,9 @@
 "use client";
 
-import { MessageSquarePlus } from "lucide-react";
+import { MessageSquarePlus, Send } from "lucide-react";
 import { useId, useRef, useState, useTransition } from "react";
 import { trackEvent } from "@/components/analytics";
+import { ActionFeedback, ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -91,6 +92,19 @@ export function Feedback({
               : "Have an idea or found a bug? Tell us about it."}
           </DrawerDescription>
         </DrawerHeader>
+        <output
+          aria-live="polite"
+          aria-atomic="true"
+          className={sent ? "px-4 text-sm" : "sr-only"}
+        >
+          {sent ? (
+            <ActionFeedback state="success">Feedback sent.</ActionFeedback>
+          ) : pending ? (
+            "Sending feedback…"
+          ) : (
+            ""
+          )}
+        </output>
         {sent ? (
           <div className="flex justify-end p-4">
             <DrawerClose render={<Button className="min-h-11" />}>
@@ -195,8 +209,13 @@ export function Feedback({
                 type="submit"
                 className="min-h-11"
                 disabled={pending || !message.trim()}
+                aria-busy={pending}
               >
-                {pending ? "Sending…" : "Send"}
+                <ActionIcon
+                  icon={<Send />}
+                  state={pending ? "pending" : error ? "error" : "idle"}
+                />
+                Send
               </Button>
             </div>
           </form>

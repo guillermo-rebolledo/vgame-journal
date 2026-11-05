@@ -1,6 +1,12 @@
 "use client";
 
-import { Check } from "lucide-react";
+import {
+  BookMarked,
+  BookPlus,
+  Check,
+  ChevronDown,
+  RotateCw,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -25,6 +31,7 @@ import {
 import { GameCover } from "@/components/game-cover";
 import { HomeCoverLink } from "@/components/home-cover-link";
 import { HomeWishlistPreview } from "@/components/home-wishlist-preview";
+import { ActionIcon, type ActionState } from "@/components/ui/action-feedback";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -545,6 +552,17 @@ export function HomeSaveControls({
   const unavailable = !!snapshot.owner && !snapshot.entries;
   const busy = state?.pending;
   const loading = unavailable;
+  const saved =
+    !busy &&
+    !state?.error &&
+    state?.feedback?.confirmed &&
+    state.status === entry?.status;
+  function actionState(status?: Status): ActionState {
+    if (status && state?.status !== status) return "idle";
+    if (busy) return "pending";
+    if (state?.error) return "error";
+    return saved ? "success" : "idle";
+  }
   async function choose(status: Status) {
     const focused = document.activeElement;
     const result = home?.save(game, status);
@@ -610,6 +628,7 @@ export function HomeSaveControls({
                     if (!busy && !loading) choose(status);
                   }}
                 >
+                  <ActionIcon icon={<BookPlus />} state={actionState(status)} />
                   Save to {capitalize(status)}
                 </Button>
               ),
@@ -649,7 +668,14 @@ export function HomeSaveControls({
                   />
                 }
               >
+                <ActionIcon
+                  icon={entry ? <BookMarked /> : <BookPlus />}
+                  state={actionState(entry ? undefined : "backlog")}
+                />
                 {entry ? "Change status" : "Add to backlog"}
+                {entry && (
+                  <ChevronDown aria-hidden="true" data-icon="inline-end" />
+                )}
               </DropdownMenuTrigger>
               <DropdownMenuContent className="home-journal-menu w-60 max-w-[calc(100vw-2rem)] [overflow-wrap:anywhere]">
                 <DropdownMenuGroup>
@@ -682,27 +708,16 @@ export function HomeSaveControls({
                   if (!busy && !loading) choose("wishlist");
                 }}
               >
+                <ActionIcon
+                  icon={<BookPlus />}
+                  state={actionState("wishlist")}
+                />
                 Add to wishlist
               </Button>
             )}
           </div>
         </>
       )}
-      {busy && (
-        <p>
-          Saving {game.title} to {capitalize(state.status)}…
-        </p>
-      )}
-      {presentation === "direct" &&
-        state &&
-        !busy &&
-        !state.error &&
-        state.feedback?.confirmed &&
-        state.status === entry?.status && (
-          <p>
-            {game.title} saved to {capitalize(state.status)}.
-          </p>
-        )}
       {unavailable && (
         <>
           <p>
@@ -717,6 +732,7 @@ export function HomeSaveControls({
             aria-label={`Retry Journal for ${game.title}`}
             disabled={!home.loaded}
           >
+            <RotateCw aria-hidden="true" />
             Retry Journal
           </Button>
         </>
@@ -745,6 +761,7 @@ export function HomeSaveControls({
               onClick={() => choose(state.status)}
               aria-label={`Retry ${game.title} to ${capitalize(state.status)}`}
             >
+              <RotateCw aria-hidden="true" />
               Retry {capitalize(state.status)}
             </Button>
           )}

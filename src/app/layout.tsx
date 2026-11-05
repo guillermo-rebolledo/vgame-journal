@@ -7,6 +7,7 @@ import { Analytics } from "@/components/analytics";
 import { PageTransition } from "@/components/page-transition";
 import { SkipLink } from "@/components/skip-link";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/toast";
 import { UserMenu } from "@/components/user-menu";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import "./globals.css";
@@ -106,6 +107,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </a>
             .
           </footer>
+          <Toaster />
         </ThemeProvider>
         <Analytics />
       </body>

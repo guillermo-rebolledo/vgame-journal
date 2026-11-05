@@ -41,8 +41,8 @@ test("switching games during a pending save keeps feedback scoped and persists b
       .click();
     await expect(
       actions
-        .getByRole("paragraph")
-        .filter({ hasText: "Saving Celeste to Backlog…" }),
+        .getByRole("button", { name: "Save to Backlog", exact: true })
+        .locator("[data-action-state=pending]"),
     ).toBeVisible();
     await actions.getByRole("button", { name: "Back to results" }).click();
     await page.getByRole("option", { name: /^Dead Cells/ }).click();
@@ -54,8 +54,8 @@ test("switching games during a pending save keeps feedback scoped and persists b
     await expect(current(page, "Wishlist")).toBeVisible();
     await expect(
       actions
-        .getByRole("paragraph")
-        .filter({ hasText: "Dead Cells saved to Wishlist." }),
+        .getByRole("button", { name: "Save to Wishlist", exact: true })
+        .locator("[data-action-state=success]"),
     ).toBeVisible();
     await expect(updates(page)).toHaveText("Dead Cells saved to Wishlist.");
     await expect(updates(page)).toHaveCount(1);
@@ -358,8 +358,8 @@ test("pending saves block duplicate occurrences; failures before and after persi
   ).toHaveAttribute("aria-disabled", "true");
   await expect(
     actions
-      .getByRole("paragraph")
-      .filter({ hasText: "Saving Discovery One to Backlog…" }),
+      .getByRole("button", { name: "Save to Backlog", exact: true })
+      .locator("[data-action-state=pending]"),
   ).toBeVisible();
   await actions
     .getByRole("button", { name: "Save to Wishlist", exact: true })

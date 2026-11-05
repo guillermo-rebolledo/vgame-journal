@@ -48,13 +48,15 @@ test("adding games stays at the top and the search drawer supports repeated addi
   await expect(search).toBeFocused();
   for (const title of ["Celeste", "Hades"]) {
     await selectCatalogGame(page, title);
-    await expect(page.getByRole("dialog")).toHaveCount(1);
+    await expect(
+      page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+    ).toHaveCount(1);
     await page
-      .getByRole("button", { name: `Add ${title} to list`, exact: true })
+      .getByRole("button", { name: `Add to list: ${title}`, exact: true })
       .click();
     await expect(
       page.getByRole("button", {
-        name: `${title} already in list`,
+        name: `Already in list: ${title}`,
         exact: true,
       }),
     ).toBeDisabled();
@@ -77,7 +79,9 @@ test("adding games stays at the top and the search drawer supports repeated addi
   await expect(search).toBeFocused();
   await expect(search).toHaveValue("Hades");
   await expect(page.getByRole("option", { name: /^Hades/ })).toBeVisible();
-  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toHaveCount(1);
   await closeListPanel(page);
   await expect(
     page
@@ -97,7 +101,9 @@ test("adding games stays at the top and the search drawer supports repeated addi
     page.getByRole("textbox", { name: "List title", exact: true }),
   ).toHaveValue("Draft title");
   await page.getByRole("button", { name: "Save details", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Draft title", exact: true }),
   ).toBeVisible();
@@ -161,7 +167,7 @@ test("list drawers and the game-page picker reflow with narrow screens and enlar
   });
   await expect(
     picker.getByRole("button", {
-      name: "Add Celeste to Weekend games",
+      name: "Add here: Celeste to Weekend games",
       exact: true,
     }),
   ).toBeVisible();
@@ -201,7 +207,9 @@ test("embedded additions retain failure, pending-close and stale-version recover
   await page.getByRole("button", { name: "Create list", exact: true }).click();
   await openListPanel(page, "Add games");
   const editor = await selectCatalogGame(page, "Celeste");
-  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toHaveCount(1);
   let failed = false;
   await page.route("**/*", async (route) => {
     if (!failed && route.request().headers()["next-action"]) {
@@ -210,20 +218,20 @@ test("embedded additions retain failure, pending-close and stale-version recover
     } else await route.continue();
   });
   await editor
-    .getByRole("button", { name: "Add Celeste to list", exact: true })
+    .getByRole("button", { name: "Add to list: Celeste", exact: true })
     .click();
   await expect(editor.getByRole("alert")).toContainText(
     "Couldn’t confirm the save",
   );
   await expect(
-    editor.getByRole("button", { name: "Add Celeste to list", exact: true }),
+    editor.getByRole("button", { name: "Add to list: Celeste", exact: true }),
   ).toBeDisabled();
   await page.unrouteAll({ behavior: "wait" });
   await editor
     .getByRole("button", { name: "Refresh saved list", exact: true })
     .click();
   await expect(
-    editor.getByRole("button", { name: "Add Celeste to list", exact: true }),
+    editor.getByRole("button", { name: "Add to list: Celeste", exact: true }),
   ).toBeEnabled();
   let release!: () => void;
   const held = new Promise<void>((resolve) => {
@@ -239,7 +247,7 @@ test("embedded additions retain failure, pending-close and stale-version recover
   });
   try {
     await editor
-      .getByRole("button", { name: "Add Celeste to list", exact: true })
+      .getByRole("button", { name: "Add to list: Celeste", exact: true })
       .click();
     await expect(
       editor.getByRole("button", { name: "Close", exact: true }),
@@ -247,14 +255,14 @@ test("embedded additions retain failure, pending-close and stale-version recover
     await page.keyboard.press("Escape");
     await expect(editor).toBeVisible();
     await expect(
-      editor.getByRole("button", { name: "Add Celeste to list", exact: true }),
+      editor.getByRole("button", { name: "Add to list: Celeste", exact: true }),
     ).toBeDisabled();
   } finally {
     release();
   }
   await expect(
     editor.getByRole("button", {
-      name: "Celeste already in list",
+      name: "Already in list: Celeste",
       exact: true,
     }),
   ).toBeDisabled();
@@ -266,7 +274,9 @@ test("embedded additions retain failure, pending-close and stale-version recover
   });
   await expect(input).toBeFocused();
   await expect(input).toHaveValue("Celeste");
-  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toHaveCount(1);
   const other = await context.newPage();
   try {
     await other.goto(page.url());
@@ -277,24 +287,26 @@ test("embedded additions retain failure, pending-close and stale-version recover
     await other
       .getByRole("button", { name: "Save details", exact: true })
       .click();
-    await expect(other.getByRole("dialog")).toHaveCount(0);
+    await expect(
+      other.getByRole("dialog").and(other.locator(':not([data-slot="toast"])')),
+    ).toHaveCount(0);
     await selectCatalogGame(page, "Hades");
     await editor
-      .getByRole("button", { name: "Add Hades to list", exact: true })
+      .getByRole("button", { name: "Add to list: Hades", exact: true })
       .click();
     await expect(editor.getByRole("alert")).toContainText("This list changed");
     await editor
       .getByRole("button", { name: "Refresh saved list", exact: true })
       .click();
     await expect(
-      editor.getByRole("button", { name: "Add Hades to list", exact: true }),
+      editor.getByRole("button", { name: "Add to list: Hades", exact: true }),
     ).toBeEnabled();
     await editor
-      .getByRole("button", { name: "Add Hades to list", exact: true })
+      .getByRole("button", { name: "Add to list: Hades", exact: true })
       .click();
     await expect(
       editor.getByRole("button", {
-        name: "Hades already in list",
+        name: "Already in list: Hades",
         exact: true,
       }),
     ).toBeDisabled();
@@ -304,7 +316,9 @@ test("embedded additions retain failure, pending-close and stale-version recover
   await closeListPanel(page);
   await openListPanel(page, "Edit list");
   await page.keyboard.press("Control+k");
-  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toHaveCount(1);
   await expect(
     page.getByRole("combobox", { name: "Search games", exact: true }),
   ).toHaveCount(0);

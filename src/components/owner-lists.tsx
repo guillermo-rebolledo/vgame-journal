@@ -1,6 +1,18 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ChevronDown, Plus } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  Globe,
+  Lock,
+  Pencil,
+  Plus,
+  RotateCw,
+  Save,
+  Share2,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
@@ -22,6 +34,7 @@ import { useListDraft } from "@/components/list-draft";
 import { ListFields, ListVisibilityFields } from "@/components/list-form";
 import { useListSession } from "@/components/list-session";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
+import { ActionFeedback, ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/toast";
 import { SITE_URL } from "@/config/site";
 import type { OwnerList } from "@/lib/lists";
 
@@ -287,7 +301,10 @@ export function OwnerListEditor({
     revision: initial.revision,
   });
   const { title, description } = draft;
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<{
+    text: string;
+    kind: "saved" | "visibility" | "refreshed";
+  }>();
   const [error, setError] = useState("");
   const [titleError, setTitleError] = useState("");
   const [pending, start] = useTransition();
@@ -298,6 +315,7 @@ export function OwnerListEditor({
   );
   const searchInput = useRef<HTMLInputElement>(null);
   const optionsTrigger = useRef<HTMLButtonElement>(null);
+  const detailsSaved = useRef(false);
   useEffect(() => {
     if (
       ready &&
@@ -321,6 +339,7 @@ export function OwnerListEditor({
   }, [focusGame, pending, shareId]);
   function change(change: ListChange, focus?: number, position?: number) {
     if (pending || needsRefresh || !ready) return;
+    setMessage(undefined);
     start(async () => {
       try {
         const result = await changeOwnerList(
@@ -341,17 +360,33 @@ export function OwnerListEditor({
         if (!(await access.confirm())) return;
         if (!result.value) {
           clear();
+          toast.add({
+            title: "List deleted",
+            description: list.title,
+            type: "success",
+          });
           router.push("/lists");
           return;
         }
         update({ revision: result.value.revision });
         setList(result.value);
         setError("");
-        setMessage(
-          change.kind === "visibility"
-            ? "Visibility saved."
-            : "List games saved.",
-        );
+        if (change.kind === "remove") {
+          toast.add({
+            title: "Game removed from list",
+            description: list.games.find(
+              (game) => game.gameId === change.gameId,
+            )?.title,
+            type: "success",
+          });
+        } else
+          setMessage({
+            text:
+              change.kind === "visibility"
+                ? "Visibility saved."
+                : "List games saved.",
+            kind: change.kind === "visibility" ? "visibility" : "saved",
+          });
         if (focus !== undefined) {
           pagination.onPageChange(
             Math.floor(
@@ -414,9 +449,10 @@ export function OwnerListEditor({
         setList(result.value);
         setNeedsRefresh(false);
         setError("");
-        setMessage(
-          "Saved list refreshed. Your draft is kept; review it before saving again.",
-        );
+        setMessage({
+          text: "Saved list refreshed. Your draft is kept; review it before saving again.",
+          kind: "refreshed",
+        });
       } catch {
         setError(
           "Lists are unavailable. Your draft is kept. Try refreshing again.",
@@ -435,12 +471,17 @@ export function OwnerListEditor({
             disabled={pending}
             onClick={reloadSaved}
           >
+            <RotateCw aria-hidden="true" />
             Refresh saved list
           </Button>
         </div>
       )}
-      <output aria-live="polite" className="text-sm empty:hidden">
-        {message}
+      <output
+        aria-live="polite"
+        aria-atomic="true"
+        className={message?.kind === "refreshed" ? "text-sm" : "sr-only"}
+      >
+        {message?.text}
       </output>
     </>
   );
@@ -493,13 +534,17 @@ export function OwnerListEditor({
                           disabled={pending || !ready || needsRefresh || added}
                           aria-label={
                             added
-                              ? `${game.title} already in list`
-                              : `Add ${game.title} to list`
+                              ? `Already in list: ${game.title}`
+                              : `Add to list: ${game.title}`
                           }
                           onClick={() =>
                             change({ kind: "add", gameId: game.id })
                           }
                         >
+                          <ActionIcon
+                            icon={<Plus />}
+                            state={added ? "success" : "idle"}
+                          />
                           {added ? "Already in list" : "Add to list"}
                         </Button>
                       );
@@ -514,9 +559,20 @@ export function OwnerListEditor({
             description="Update the title and description. Closing keeps your draft."
             open={panel === "details"}
             onOpenChange={(open) => setPanel(open ? "details" : null)}
+            onOpenChangeComplete={(open) => {
+              if (!open && detailsSaved.current) {
+                toast.add({
+                  title: "Details saved.",
+                  description: list.title,
+                  type: "success",
+                });
+                detailsSaved.current = false;
+              }
+            }}
             pending={pending}
             trigger={
               <Button variant="outline" className="min-h-11">
+                <Pencil aria-hidden="true" />
                 Edit details
               </Button>
             }
@@ -562,7 +618,8 @@ export function OwnerListEditor({
                       });
                       setList(result.value);
                       setError("");
-                      setMessage("Details saved.");
+                      setMessage(undefined);
+                      detailsSaved.current = true;
                       setPanel(null);
                     } catch {
                       setError(
@@ -589,7 +646,11 @@ export function OwnerListEditor({
                   disabled={pending || !ready || needsRefresh}
                   className="min-h-11 self-start"
                 >
-                  {pending ? "Saving…" : "Save details"}
+                  <ActionIcon
+                    icon={<Save />}
+                    state={pending ? "pending" : "idle"}
+                  />
+                  Save details
                 </Button>
               </form>
               {panel === "details" && feedback}
@@ -605,6 +666,7 @@ export function OwnerListEditor({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setPanel("sharing")}>
+                <Share2 aria-hidden="true" />
                 Sharing
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -619,6 +681,7 @@ export function OwnerListEditor({
                     change({ kind: "delete" });
                 }}
               >
+                <Trash2 aria-hidden="true" />
                 Delete list
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -719,6 +782,7 @@ export function OwnerListEditor({
                               )
                             }
                           >
+                            <Trash2 aria-hidden="true" />
                             Remove
                           </Button>
                         </div>
@@ -749,20 +813,34 @@ export function OwnerListEditor({
               anyone, including signed-out visitors, and appear on your public
               profile.
             </p>
-            <Button
-              variant="outline"
-              disabled={pending || !ready || needsRefresh}
-              className="min-h-11 self-start"
-              onClick={() =>
-                change({
-                  kind: "visibility",
-                  visibility:
-                    list.visibility === "private" ? "public" : "private",
-                })
-              }
-            >
-              {list.visibility === "private" ? "Publish list" : "Make private"}
-            </Button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                disabled={pending || !ready || needsRefresh}
+                className="min-h-11 self-start"
+                onClick={() =>
+                  change({
+                    kind: "visibility",
+                    visibility:
+                      list.visibility === "private" ? "public" : "private",
+                  })
+                }
+              >
+                {list.visibility === "private" ? (
+                  <Globe aria-hidden="true" />
+                ) : (
+                  <Lock aria-hidden="true" />
+                )}
+                {list.visibility === "private"
+                  ? "Publish list"
+                  : "Make private"}
+              </Button>
+              {message?.kind === "visibility" && (
+                <span aria-hidden="true">
+                  <ActionFeedback state="success">Saved</ActionFeedback>
+                </span>
+              )}
+            </div>
             {list.visibility === "public" && list.creator.username && (
               <>
                 <label htmlFor={shareId}>Public list URL</label>

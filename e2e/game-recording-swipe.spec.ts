@@ -55,7 +55,10 @@ for (const phone of [false, true]) {
         exact: true,
       });
       await add.click();
-      const dialog = page.getByRole("dialog");
+      const dialog = page.getByRole("dialog", {
+        name: "Add playthrough",
+        exact: true,
+      });
       await page
         .locator('[data-slot="drawer-swipe-handle"]')
         .scrollIntoViewIfNeeded();
@@ -141,14 +144,18 @@ test("swiping while a save is pending leaves the editor open until persistence f
   ).toBeDisabled();
   try {
     await swipeHandle(page, false);
-    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: "Add playthrough", exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Close", exact: true }),
     ).toBeDisabled();
   } finally {
     release();
   }
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog", { name: "Add playthrough", exact: true }),
+  ).toHaveCount(0);
   const exported = await (await page.request.get("/api/account/export")).json();
   expect(exported.playthroughs).toHaveLength(1);
 });

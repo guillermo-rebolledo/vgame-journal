@@ -1,6 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { useState } from "react";
-import { expect, fn, userEvent, waitFor, within } from "storybook/test";
+import {
+  expect,
+  fireEvent,
+  fn,
+  userEvent,
+  waitFor,
+  within,
+} from "storybook/test";
 import { GameListPicker } from "./game-list-picker";
 import { GameRecording } from "./game-recording";
 
@@ -73,6 +80,11 @@ export const DeleteWithDelayedHistory: Story = {
         canvas.getByRole("button", { name: "Add playthrough" }),
       ).toHaveFocus(),
     );
+    await waitFor(() =>
+      expect(
+        body.getByRole("dialog", { name: "Playthrough deleted" }),
+      ).toBeVisible(),
+    );
   },
 };
 
@@ -137,4 +149,31 @@ export const UnsavedActions: Story = {
 export const GroupedActionsLight: Story = {
   ...GroupedActions,
   globals: { theme: "light" },
+};
+
+export const SaveConfirmsAfterDismissal: Story = {
+  args: { playthroughs: [] },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    const trigger = canvas.getByRole("button", { name: "Add playthrough" });
+    await userEvent.click(trigger);
+    const editor = within(
+      await body.findByRole("dialog", { name: "Add playthrough" }),
+    );
+    await fireEvent.change(editor.getByLabelText("Started"), {
+      target: { value: "2026-11-01" },
+    });
+    await userEvent.click(editor.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(
+        body.getByRole("dialog", { name: "Playthrough saved" }),
+      ).toBeVisible(),
+    );
+    await expect(
+      body.queryByRole("dialog", { name: "Add playthrough" }),
+    ).not.toBeInTheDocument();
+    await expect(trigger).toHaveFocus();
+    await expect(args.onAdd).toHaveBeenCalledOnce();
+  },
 };

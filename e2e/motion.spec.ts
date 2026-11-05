@@ -106,8 +106,14 @@ for (const theme of ["light", "dark"] as const) {
     await mobile.getByRole("button", { name: "Copy", exact: true }).tap();
     const copied = mobile.getByRole("button", { name: "Copied", exact: true });
     await expect(copied).toBeVisible();
-    await expect(copied.locator("svg").first()).toHaveCSS("filter", "none");
-    await expect(copied.locator("svg").first()).toHaveCSS("scale", "1");
+    await expect(copied.locator(".action-icon > span").first()).toHaveCSS(
+      "filter",
+      "none",
+    );
+    await expect(copied.locator(".action-icon > span").first()).toHaveCSS(
+      "scale",
+      "1",
+    );
     await expect(copied.locator("svg").nth(1)).toHaveCSS("opacity", "1");
     await mobile.screenshot({
       path: testInfo.outputPath(`phone-copy-${theme}.png`),
@@ -152,14 +158,18 @@ test("overflowing menus, Platform choices and removal confirmations contain boun
   await expect(popup).toHaveCSS("border-top-width", "1px");
   await expect(popup).toHaveCSS("border-top-style", "solid");
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toBeVisible();
   await expect(platform).toBeFocused();
   await page.emulateMedia({ forcedColors: "none" });
   await platform.click();
   await page.getByRole("option", { name: "PC", exact: true }).click();
   await page.getByLabel("Started", { exact: true }).fill("2026-01-01");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toHaveCount(0);
   await trigger.click();
   await page
     .getByRole("menuitem", { name: "Remove from journal", exact: true })
@@ -325,13 +335,20 @@ test("pending Journal actions stay understandable and disabled controls cannot p
   try {
     await expect(trigger).toHaveAttribute("aria-busy", "true");
     await expect(trigger).toHaveAttribute("aria-disabled", "true");
-    await expect(trigger.locator("svg")).toHaveCSS("animation-name", "none");
+    await expect(trigger.locator(".lucide-loader-circle")).toHaveCSS(
+      "animation-name",
+      "none",
+    );
     const status = page
       .getByRole("region", { name: "Game journal", exact: true })
       .getByRole("status")
       .filter({ hasText: "Saving journal status…" });
     await expect(status).toHaveText("Saving journal status…");
-    expect((await status.boundingBox())?.width).toBeGreaterThan(1);
+    await expect(
+      page
+        .getByRole("region", { name: "Game journal", exact: true })
+        .getByText("Saving…", { exact: true }),
+    ).toBeVisible();
     await page.emulateMedia({ reducedMotion: "no-preference" });
     for (const button of [trigger]) {
       const box = await button.boundingBox();
@@ -341,7 +358,9 @@ test("pending Journal actions stay understandable and disabled controls cannot p
       await expect(button).toHaveCSS("scale", "none");
       await page.mouse.up();
     }
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(
+      page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+    ).toHaveCount(0);
   } finally {
     release();
   }
@@ -368,8 +387,8 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
         const button = Array.from(document.querySelectorAll("button")).find(
           (button) => button.textContent === "Copy",
         );
-        const icons = button?.querySelectorAll("svg");
-        if (icons?.length === 2) {
+        const icons = button?.querySelectorAll(".action-icon > span");
+        if (icons?.length === 4) {
           const frame = Array.from(icons, (icon) => {
             const style = getComputedStyle(icon);
             return {
@@ -402,12 +421,22 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
         scale: reducedMotion === "reduce" ? "1" : "0.25",
         filter: reducedMotion === "reduce" ? "none" : "blur(4px)",
       },
+      {
+        opacity: "0",
+        scale: reducedMotion === "reduce" ? "1" : "0.25",
+        filter: reducedMotion === "reduce" ? "none" : "blur(4px)",
+      },
+      {
+        opacity: "0",
+        scale: reducedMotion === "reduce" ? "1" : "0.25",
+        filter: reducedMotion === "reduce" ? "none" : "blur(4px)",
+      },
     ]);
     expect(await page.evaluate(() => window.motionCopyTransitions)).toEqual([]);
     const copy = page.getByRole("button", { name: "Copy", exact: true });
-    const icons = copy.locator("svg");
+    const icons = copy.locator(".action-icon > span");
     await expect(icons.nth(0)).toHaveCSS("opacity", "1");
-    await expect(icons.nth(1)).toHaveCSS("opacity", "0");
+    await expect(icons.nth(2)).toHaveCSS("opacity", "0");
     await expect(icons.nth(0)).toHaveCSS("transition-duration", "0.3s");
     await expect(icons.nth(0)).toHaveCSS(
       "transition-timing-function",
@@ -415,9 +444,9 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     );
     await copy.click();
     const copied = page.getByRole("button", { name: "Copied", exact: true });
-    const successIcons = copied.locator("svg");
+    const successIcons = copied.locator(".action-icon > span");
     await expect(successIcons.nth(0)).toHaveCSS("opacity", "0");
-    await expect(successIcons.nth(1)).toHaveCSS("opacity", "1");
+    await expect(successIcons.nth(2)).toHaveCSS("opacity", "1");
     await expect(successIcons.nth(0)).toHaveCSS(
       "scale",
       reducedMotion === "reduce" ? "1" : "0.25",
@@ -428,7 +457,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     );
     await expect(copy).toBeVisible();
     await expect(icons.nth(0)).toHaveCSS("opacity", "1");
-    await expect(icons.nth(1)).toHaveCSS("opacity", "0");
+    await expect(icons.nth(2)).toHaveCSS("opacity", "0");
   });
 }
 
@@ -619,15 +648,21 @@ test("playthrough drawer keeps the page stationary and dismisses its select firs
   const before = await cover.boundingBox();
   const scrollBefore = await page.evaluate(() => scrollY);
   await add.click({ scroll: "none" });
-  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toBeVisible();
   await expect(page.getByLabel("Started", { exact: true })).toBeVisible();
   expect((await cover.boundingBox())?.y).toBe(before?.y);
   expect(await page.evaluate(() => scrollY)).toBe(scrollBefore);
   await page.getByRole("combobox", { name: "Platform", exact: true }).click();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Add playthrough", exact: true }),
   ).toBeFocused();
@@ -635,7 +670,9 @@ test("playthrough drawer keeps the page stationary and dismisses its select firs
   await page
     .getByRole("button", { name: "Add playthrough", exact: true })
     .click();
-  await expect(page.getByRole("dialog")).toHaveCSS("translate", "none");
+  await expect(
+    page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])')),
+  ).toHaveCSS("translate", "none");
   await expect(
     page.getByRole("combobox", { name: "Platform", exact: true }),
   ).toBeVisible();

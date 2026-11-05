@@ -1,6 +1,7 @@
 import { withThemeByClassName } from "@storybook/addon-themes";
 import type { Preview } from "@storybook/nextjs-vite";
 import { sb } from "storybook/test";
+import { Toaster } from "../src/components/ui/toast";
 import { TooltipProvider } from "../src/components/ui/tooltip";
 import "../src/app/globals.css";
 import "./preview.css";
@@ -19,9 +20,11 @@ const preview: Preview = {
     }),
     (Story) => (
       <TooltipProvider>
-        <div className="p-4 text-foreground">
-          <Story />
-        </div>
+        <Toaster>
+          <div className="p-4 text-foreground">
+            <Story />
+          </div>
+        </Toaster>
       </TooltipProvider>
     ),
   ],

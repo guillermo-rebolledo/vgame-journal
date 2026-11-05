@@ -1,6 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { Plus } from "lucide-react";
+import { Plus, Save } from "lucide-react";
+import { useId, useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
+import {
+  ActionFeedback,
+  ActionIcon,
+  type ActionState,
+} from "./action-feedback";
 import { Button } from "./button";
 
 const meta = {
@@ -105,5 +111,76 @@ export const FocusableDisabled: Story = {
     await expect(button).toHaveFocus();
     await userEvent.keyboard("{Enter}");
     await expect(args.onClick).not.toHaveBeenCalled();
+  },
+};
+
+export const AsyncFeedback: Story = {
+  render: function AsyncButton(args) {
+    const [state, setState] = useState<ActionState>("idle");
+    const [attempts, setAttempts] = useState(0);
+    const id = useId();
+    return (
+      <div className="max-w-sm space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            disabled={state === "pending"}
+            aria-busy={state === "pending"}
+            aria-describedby={state === "error" ? id : undefined}
+            onClick={async (event) => {
+              setState("pending");
+              args.onClick?.(event);
+              await new Promise((resolve) => setTimeout(resolve, 500));
+              setState(attempts === 0 ? "error" : "success");
+              setAttempts(attempts + 1);
+            }}
+          >
+            <ActionIcon
+              icon={<Save />}
+              state={state === "success" ? "idle" : state}
+            />
+            Save
+          </Button>
+          <output
+            aria-live="polite"
+            aria-atomic="true"
+            className="min-h-5 text-sm"
+          >
+            {state === "pending" ? (
+              "Saving…"
+            ) : state === "success" ? (
+              <ActionFeedback state="success">Saved</ActionFeedback>
+            ) : (
+              ""
+            )}
+          </output>
+        </div>
+        {state === "error" && (
+          <p id={id} role="alert" className="text-destructive text-sm">
+            Couldn’t save. Choose Save to try again. Your draft is kept.
+          </p>
+        )}
+      </div>
+    );
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const save = canvas.getByRole("button", { name: "Save" });
+    save.focus();
+    await userEvent.keyboard("{Enter}{Enter}");
+    await expect(save).toBeDisabled();
+    await expect(save).toHaveAttribute("aria-busy", "true");
+    await expect(args.onClick).toHaveBeenCalledOnce();
+    await expect(await canvas.findByRole("alert")).toHaveTextContent(
+      "Your draft is kept.",
+    );
+    await expect(save).toHaveAccessibleDescription(/Choose Save to try again/);
+    await userEvent.click(save);
+    await expect(canvas.getByRole("status")).toHaveTextContent("Saving…");
+    await expect(
+      await canvas.findByText("Saved", { exact: true }),
+    ).toBeVisible();
+    await expect(canvas.queryByRole("alert")).not.toBeInTheDocument();
+    await expect(save).toBeEnabled();
+    await expect(args.onClick).toHaveBeenCalledTimes(2);
   },
 };

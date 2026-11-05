@@ -1,6 +1,8 @@
 "use client";
 
+import { Save } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
+import { ActionFeedback, ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import { REGIONS, type Region } from "@/lib/release-dates";
 
@@ -25,6 +27,7 @@ export function RegionForm({
 
   return (
     <form
+      aria-label="Release region"
       className="flex min-w-0 flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();
@@ -78,17 +81,40 @@ export function RegionForm({
           );
         })}
       </fieldset>
-      <output aria-live="polite" className="text-muted-foreground text-sm">
-        {pending ? "Saving…" : feedback === "saved" ? "Saved" : ""}
-      </output>
       {feedback === "failed" && (
         <p role="alert" className="text-destructive text-sm">
           Could not save your release region. Please try again.
         </p>
       )}
-      <Button type="submit" disabled={pending} className="self-start">
-        {pending ? "Saving…" : feedback === "failed" ? "Retry" : "Save"}
-      </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="submit"
+          disabled={pending}
+          aria-busy={pending}
+          className="min-h-11"
+        >
+          <ActionIcon
+            icon={<Save />}
+            state={
+              pending ? "pending" : feedback === "failed" ? "error" : "idle"
+            }
+          />
+          {feedback === "failed" ? "Retry" : "Save"}
+        </Button>
+        <output
+          aria-live="polite"
+          aria-atomic="true"
+          className="min-h-5 text-sm"
+        >
+          {pending ? (
+            "Saving…"
+          ) : feedback === "saved" ? (
+            <ActionFeedback state="success">Saved</ActionFeedback>
+          ) : (
+            ""
+          )}
+        </output>
+      </div>
     </form>
   );
 }

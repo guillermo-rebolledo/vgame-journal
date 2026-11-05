@@ -78,9 +78,13 @@ export const CurrentStatusAndExplicitActions: Story = {
       controls.getByRole("button", { name: "Save to Backlog" }),
     ).toHaveFocus();
     await userEvent.keyboard("{Enter}");
-    await expect(
-      await canvas.findByText("Celeste saved to Backlog.", { selector: "p" }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        canvas
+          .getByRole("button", { name: "Save to Backlog" })
+          .querySelector("[data-action-state]"),
+      ).toHaveAttribute("data-action-state", "success"),
+    );
   },
 };
 
@@ -101,8 +105,10 @@ export const PendingThenConfirmed: Story = {
     const playing = controls.getByRole("button", { name: "Save to Playing" });
     await userEvent.click(playing);
     await expect(
-      canvas.getByText("Saving Celeste to Playing…", { selector: "p" }),
-    ).toBeVisible();
+      canvas
+        .getByRole("button", { name: "Save to Playing" })
+        .querySelector("[data-action-state]"),
+    ).toHaveAttribute("data-action-state", "pending");
     await expect(controls.getByText("Current status: Backlog")).toBeVisible();
     for (const button of controls.getAllByRole("button")) {
       await expect(button).toHaveAttribute("aria-disabled", "true");
@@ -120,9 +126,13 @@ export const PendingThenConfirmed: Story = {
       },
     });
     await controls.findByText("Current status: Playing");
-    await expect(
-      canvas.getByText("Celeste saved to Playing.", { selector: "p" }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        canvas
+          .getByRole("button", { name: "Save to Playing" })
+          .querySelector("[data-action-state]"),
+      ).toHaveAttribute("data-action-state", "success"),
+    );
     await expect(playing).toHaveFocus();
     await expect(canvas.getAllByRole("status")).toHaveLength(1);
     await expect(
@@ -155,17 +165,21 @@ export const ConfirmationSurvivesCatalogTitleRefresh: Story = {
     await userEvent.click(
       canvas.getByRole("button", { name: "Save to Played" }),
     );
-    await expect(
-      await canvas.findByText("Celeste saved to Played.", { selector: "p" }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        canvas
+          .getByRole("button", { name: "Save to Played" })
+          .querySelector("[data-action-state]"),
+      ).toHaveAttribute("data-action-state", "success"),
+    );
     await userEvent.click(
       canvas.getByRole("button", { name: "Refresh Catalog title" }),
     );
     await expect(
-      canvas.getByText("Celeste: refreshed Catalog title saved to Played.", {
-        selector: "p",
-      }),
-    ).toBeVisible();
+      canvas
+        .getByRole("button", { name: "Save to Played" })
+        .querySelector("[data-action-state]"),
+    ).toHaveAttribute("data-action-state", "success");
     await expect(canvas.getByText("Current status: Played")).toBeVisible();
     await expect(
       canvas.getByRole("status", { name: "Journal updates" }),
@@ -205,7 +219,13 @@ export const PendingSaveCannotConfirmForAnotherOwner: Story = {
     await userEvent.click(
       canvas.getByRole("button", { name: "Save to Played" }),
     );
-    await canvas.findByText("Saving Celeste to Played…", { selector: "p" });
+    await waitFor(() =>
+      expect(
+        canvas
+          .getByRole("button", { name: "Save to Played" })
+          .querySelector("[data-action-state]"),
+      ).toHaveAttribute("data-action-state", "pending"),
+    );
     await userEvent.click(
       canvas.getByRole("button", { name: "Switch account" }),
     );
@@ -304,7 +324,13 @@ export const FailedSaveRetriesRequestedStatus: Story = {
       "Celeste: Couldn’t confirm the save. Try again.",
     );
     await userEvent.click(retry);
-    await canvas.findByText("Saving Celeste to Played…", { selector: "p" });
+    await waitFor(() =>
+      expect(
+        canvas
+          .getByRole("button", { name: "Save to Played" })
+          .querySelector("[data-action-state]"),
+      ).toHaveAttribute("data-action-state", "pending"),
+    );
     await waitFor(() =>
       expect(
         controls.getByRole("button", { name: "Save to Played" }),
@@ -366,9 +392,13 @@ export const UnconfirmedSaveCanResavePreviousStatus: Story = {
       "celeste",
       "backlog",
     );
-    await expect(
-      await canvas.findByText("Celeste saved to Backlog.", { selector: "p" }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        canvas
+          .getByRole("button", { name: "Save to Backlog" })
+          .querySelector("[data-action-state]"),
+      ).toHaveAttribute("data-action-state", "success"),
+    );
   },
 };
 
@@ -535,9 +565,12 @@ export const LongTitlePending: Story = {
       canvas.getByRole("button", { name: "Save to Played" }),
     );
     await expect(
-      canvas.getByText(`Saving ${args.game.title} to Played…`, {
-        selector: "p",
-      }),
-    ).toBeVisible();
+      canvas
+        .getByRole("button", { name: "Save to Played" })
+        .querySelector("[data-action-state]"),
+    ).toHaveAttribute("data-action-state", "pending");
+    await expect(
+      canvas.getByRole("status", { name: "Journal updates" }),
+    ).toHaveTextContent(`Saving ${args.game.title} to Played…`);
   },
 };

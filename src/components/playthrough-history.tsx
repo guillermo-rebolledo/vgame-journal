@@ -1,5 +1,6 @@
 "use client";
 
+import { Pencil } from "lucide-react";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformName } from "@/components/platform";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ export function PlaythroughHistory({
                     className="min-h-11 self-start"
                     onClick={() => onEdit(playthrough)}
                   >
+                    <Pencil aria-hidden="true" />
                     Edit
                   </Button>
                 </li>

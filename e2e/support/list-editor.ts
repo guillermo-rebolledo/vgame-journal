@@ -1,7 +1,9 @@
 import { expect, type Page } from "@playwright/test";
 
 export async function closeListPanel(page: Page) {
-  const dialog = page.getByRole("dialog");
+  const dialog = page
+    .getByRole("dialog")
+    .and(page.locator(':not([data-slot="toast"])'));
   if (await dialog.isVisible()) {
     await expect
       .poll(

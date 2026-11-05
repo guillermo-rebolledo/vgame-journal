@@ -1,13 +1,10 @@
 "use client";
 
-import { cn } from "cn";
-import { Check, Copy } from "lucide-react";
+import { Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { trackEvent } from "@/components/analytics";
+import { ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
-
-const icon =
-  "scale-100 blur-none transition-[opacity,scale,filter] duration-300 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-opacity motion-reduce:scale-100 motion-reduce:blur-none";
 
 export function CopyButton({
   text,
@@ -58,14 +55,18 @@ export function CopyButton({
           }
         }}
       >
-        <span aria-hidden className="grid *:col-start-1 *:row-start-1">
-          <Copy
-            className={cn(icon, copied && "scale-25 opacity-0 blur-[4px]")}
-          />
-          <Check
-            className={cn(icon, !copied && "scale-25 opacity-0 blur-[4px]")}
-          />
-        </span>
+        <ActionIcon
+          icon={<Copy />}
+          state={
+            copied
+              ? "success"
+              : state === "copying"
+                ? "pending"
+                : state === "failed"
+                  ? "error"
+                  : "idle"
+          }
+        />
         <span aria-live="polite">
           {copied ? "Copied" : state === "copying" ? "Copying…" : "Copy"}
         </span>
