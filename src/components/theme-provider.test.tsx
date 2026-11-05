@@ -58,10 +58,20 @@ test("System follows the OS immediately and when it changes, retaining the choic
   await waitFor(() =>
     expect(document.documentElement.classList.contains("light")).toBe(true),
   );
+  expect(
+    document.head
+      .querySelector('meta[name="theme-color"]')
+      ?.getAttribute("content"),
+  ).toBe("#ffffff");
   changeOS(true);
   await waitFor(() =>
     expect(document.documentElement.classList.contains("dark")).toBe(true),
   );
+  expect(
+    document.head
+      .querySelector('meta[name="theme-color"]')
+      ?.getAttribute("content"),
+  ).toBe("#0a0a0a");
   expect(
     screen.getByRole("button", { name: "system" }).getAttribute("aria-pressed"),
   ).toBe("true");
@@ -82,6 +92,14 @@ test.each([
   changeOS(true);
   changeOS(false);
   expect(document.documentElement.classList.contains(value)).toBe(true);
+  expect(
+    document.head.querySelectorAll('meta[name="theme-color"]'),
+  ).toHaveLength(1);
+  expect(
+    document.head
+      .querySelector('meta[name="theme-color"]')
+      ?.getAttribute("content"),
+  ).toBe(value === "light" ? "#ffffff" : "#0a0a0a");
   view.unmount();
   render(
     <ThemeProvider>
@@ -89,6 +107,11 @@ test.each([
     </ThemeProvider>,
   );
   expect(document.documentElement.classList.contains(value)).toBe(true);
+  expect(
+    document.head
+      .querySelector('meta[name="theme-color"]')
+      ?.getAttribute("content"),
+  ).toBe(value === "light" ? "#ffffff" : "#0a0a0a");
   expect(
     screen.getByRole("button", { name: value }).getAttribute("aria-pressed"),
   ).toBe("true");
@@ -104,4 +127,9 @@ test("fresh visitors keep the Dark default even with a Light OS preference", asy
   await waitFor(() =>
     expect(document.documentElement.classList.contains("dark")).toBe(true),
   );
+  expect(
+    document.head
+      .querySelector('meta[name="theme-color"]')
+      ?.getAttribute("content"),
+  ).toBe("#0a0a0a");
 });

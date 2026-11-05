@@ -150,6 +150,7 @@ The palette is a strictly achromatic gray ramp in OKLCH, with zero chroma. It's 
 
 ### Neutral
 - **Paper** (light) / **Shelf Black** (dark): page background, and the background for cards and inputs.
+- Browser chrome uses the header's Paper (`#ffffff`) / Shelf Black (`#0a0a0a`) through `ThemeProvider`'s `theme-color` metadata, following the resolved Light, Dark or System selection. The manifest retains Shelf Black as its launch/default color, matching the app's Dark default; browser support determines which browser surfaces are tinted.
 - **Shelf Card** (dark only): the raised surface for cards and popovers in dark mode. In light mode cards share Paper.
 - **Ink** (light) / **Chalk** (dark): body text, headings and icons.
 - **Dust** (light) / **Dust Dark**: tonal panels (`muted`, `secondary`, `accent`), hover fills, skeletons and the "No cover art" fallback. Notices use it at 40% opacity.
@@ -242,6 +243,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | List creation and editing | `list-creation-drawer.tsx` (`ListCreationDrawer`, `ListEditorDrawer`), `list-form.tsx` | Reuse the editor shell for creation, details, game search and sharing; keep drafts on dismissal, associate title errors, and block dismissal while saving. Each Add games opening starts in Search with its URL query retained; menu-launched sharing returns focus to List options. |
 | Modal editor viewport | `ui/drawer.tsx`, `use-editor-viewport.ts` and `.editor-drawer` | Drawer positions all sheets inside the visual viewport, including Feedback, when browser toolbars or the keyboard resize it. Shared editor sizing serves Playthrough and list drawers; editors fit their content on every screen up to the visible viewport limit, then scroll; sheets span the viewport and attach to its bottom edge. Keep mobile editors above the software keyboard. |
 | Header and navigation | `main-nav.tsx`, `account-menu.tsx`, `skip-link.tsx` | Maintain current-page state and keyboard access to main content. |
+| App and browser appearance | `theme-provider.tsx` | Own Light, Dark and System appearance and matching browser theme color; preserve the Dark default and saved choice. |
 | Copying and feedback | `copy-button.tsx`, `feedback.tsx` | Reuse success, failure, and manual-copy recovery. |
 | Action state cues | `ui/action-feedback.tsx` (`ActionIcon`, `ActionFeedback`) | Compose with Button and the caller's request state. Icons are decorative; keep one stable live region and the visible action label. |
 | Completion notifications | `ui/toast.tsx` (`Toaster`, `toast`) | One Base UI host in the root layout. Notify after an editor finishes closing; keep form errors and recovery beside their controls. |
