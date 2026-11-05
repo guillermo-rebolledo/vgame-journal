@@ -99,7 +99,7 @@ export const RemovalKeepsBackgroundHelpClosed: Story = {
     const canvas = within(canvasElement);
     const body = within(canvasElement.ownerDocument.body);
     const trigger = canvas.getByRole("button", {
-      name: "Change Journal status for Celeste",
+      name: /Change Journal status for Celeste$/,
     });
     await userEvent.click(trigger);
     await userEvent.click(

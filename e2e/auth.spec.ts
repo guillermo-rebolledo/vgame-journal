@@ -43,7 +43,7 @@ test("R10 guest recording returns an existing member to the game after retry wit
   await page.goto("/games/celeste");
   const journal = page.getByRole("region", { name: "Game journal" });
   for (const name of [
-    /^(?:Add to Journal|Change Journal status) for /,
+    /(?:Add to Journal|Change Journal status) for /,
     "Add playthrough",
     "Sign in",
   ])
@@ -52,7 +52,7 @@ test("R10 guest recording returns an existing member to the game after retry wit
     ).toHaveAttribute("href", "/sign-in?returnTo=%2Fgames%2Fceleste");
   await journal
     .getByRole("link", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
       exact: true,
     })
     .click();
@@ -72,7 +72,7 @@ test("R10 guest recording returns an existing member to the game after retry wit
   await expect(page).toHaveURL("/games/celeste");
   await expect(
     page.getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
       exact: true,
     }),
   ).toHaveAttribute("aria-description", "Not in your journal");
@@ -191,7 +191,7 @@ test("R10 signup switching, verification resend and username retry preserve the 
   await expect(page).toHaveURL("/games/celeste");
   await expect(
     page.getByRole("button", {
-      name: /^(?:Add to Journal|Change Journal status) for /,
+      name: /(?:Add to Journal|Change Journal status) for /,
       exact: true,
     }),
   ).toHaveAttribute("aria-description", "Not in your journal");

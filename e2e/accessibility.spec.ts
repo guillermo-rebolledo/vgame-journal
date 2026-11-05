@@ -93,6 +93,9 @@ async function scan(page: Page, testInfo: TestInfo, name: string) {
   // Scan the settled menu, rather than intermediate fade-in text colors.
   const menu = page.getByRole("menu");
   if (await menu.count()) await expect(menu).toHaveCSS("opacity", "1");
+  await expect(
+    page.locator('[data-slot="tooltip-content"][data-ending-style]'),
+  ).toHaveCount(0);
   // Completion notifications may arrive after an editor's closing transition.
   await expect(
     page.locator('[data-slot="toast"][data-ending-style]'),
@@ -340,6 +343,31 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page.getByRole("menu", { includeHidden: true })).toHaveCount(
         0,
       );
+
+      const lists = page.getByRole("button", {
+        name: "Add to list",
+        exact: true,
+      });
+      await lists.click();
+      const picker = page.getByRole("dialog", {
+        name: "Add to list",
+        exact: true,
+      });
+      await expect(
+        picker.getByRole("textbox", { name: "List title", exact: true }),
+      ).toBeVisible();
+      await scan(page, testInfo, "game-list-picker");
+      await picker
+        .getByRole("button", {
+          name: "Create list and add Celeste",
+          exact: true,
+        })
+        .click();
+      await expect(picker.getByText("Enter a list title.")).toBeVisible();
+      await scan(page, testInfo, "game-list-picker-validation");
+      await page.keyboard.press("Escape");
+      await expect(picker).toHaveCount(0);
+      await expect(lists).toBeFocused();
 
       const add = page.getByRole("button", {
         name: "Add playthrough",

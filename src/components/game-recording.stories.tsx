@@ -8,6 +8,7 @@ import {
   waitFor,
   within,
 } from "storybook/test";
+import { GameFactsGrid } from "./game-facts-grid";
 import { GameListPicker } from "./game-list-picker";
 import { GameRecording } from "./game-recording";
 
@@ -18,7 +19,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Grouped game actions, confirmed Journal feedback, and a single empty/populated Playthroughs section. Pass the server-rendered list picker through listPicker; its trigger and full-width panel participate in the wrapping action group. JournalStatus accepts additional actions rather than duplicating its menu or feedback. Reuses Drawer, JournalStatus, PlaythroughForm, and PlaythroughHistory. Deletion returns focus to Add playthrough even when refreshed history arrives after dismissal. Catalog callbacks are local and never access a database.",
+          "Grouped game actions, confirmed Journal feedback, and a single empty/populated Playthroughs section. Pass the server-rendered list picker through listPicker; its trigger participates in the wrapping action group and opens the shared list editor drawer. JournalStatus accepts additional actions rather than duplicating its menu or feedback. Reuses Drawer, JournalStatus, PlaythroughForm, and PlaythroughHistory. Deletion returns focus to Add playthrough even when refreshed history arrives after dismissal. Catalog callbacks are local and never access a database.",
       },
     },
   },
@@ -104,7 +105,7 @@ export const GroupedActions: Story = {
     const actions = within(canvas.getByRole("group", { name: "Game actions" }));
     await userEvent.click(
       actions.getByRole("button", {
-        name: "Change Journal status for Celeste",
+        name: /Change Journal status for Celeste$/,
       }),
     );
     const body = within(canvasElement.ownerDocument.body);
@@ -113,7 +114,7 @@ export const GroupedActions: Story = {
     await waitFor(() =>
       expect(
         actions.getByRole("button", {
-          name: "Change Journal status for Celeste",
+          name: /Change Journal status for Celeste$/,
         }),
       ).toHaveFocus(),
     );
@@ -125,18 +126,20 @@ export const GroupedActions: Story = {
     const lists = actions.getByRole("button", { name: "Add to list" });
     await expect(lists).toHaveFocus();
     await userEvent.keyboard("{Enter}");
-    const picker = canvas.getByRole("region", {
-      name: "Add Celeste to a list",
-    });
+    const picker = await body.findByRole("dialog", { name: "Add to list" });
     await waitFor(() => expect(picker).toHaveFocus());
+    await expect(within(picker).getByText("Celeste")).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(
+        body.queryByRole("dialog", { name: "Add to list" }),
+      ).not.toBeInTheDocument(),
+    );
+    await expect(lists).toHaveFocus();
     await expect(canvas.getByText("Playing", { exact: true })).toBeVisible();
     await expect(
       canvas.getByRole("region", { name: "Playthroughs" }),
     ).toHaveTextContent("No playthroughs yet.");
-    await userEvent.click(
-      actions.getByRole("button", { name: "Close list picker" }),
-    );
-    await expect(lists).toHaveFocus();
   },
 };
 
@@ -230,5 +233,66 @@ export const DeletingOnlyMarksTheDeleteAction: Story = {
     await expect(
       body.getByText("Deleting playthrough…", { exact: true }),
     ).toBeVisible();
+  },
+};
+
+export const WishlistedWithoutScores: Story = {
+  args: {
+    ...GroupedActions.args,
+    entry: { status: "wishlist", completionTag: null },
+  },
+  render: (args) => (
+    <div className="mx-auto flex max-w-xl flex-col gap-6">
+      <GameRecording {...args} />
+      <GameFactsGrid
+        game={{
+          criticScore: null,
+          criticScoreCount: null,
+          userScore: null,
+          userScoreCount: null,
+          languages: [],
+        }}
+      />
+    </div>
+  ),
+};
+
+export const ListPickerLongTitle: Story = {
+  args: {
+    ...GroupedActions.args,
+    listPicker: (
+      <GameListPicker
+        actor={null}
+        needsUsername={false}
+        game={{
+          id: 1,
+          slug: "long-title",
+          title: "冒険の記録—TheLegendOfAnExtraordinarilyLongUnbrokenGameTitle",
+        }}
+      />
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    const trigger = within(canvasElement).getByRole("button", {
+      name: "Add to list",
+    });
+    await userEvent.click(trigger);
+    const picker = await body.findByRole("dialog", { name: "Add to list" });
+    await expect(
+      within(picker).getByText(
+        "冒険の記録—TheLegendOfAnExtraordinarilyLongUnbrokenGameTitle",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await userEvent.click(
+      within(picker).getByRole("button", { name: "Close" }),
+    );
+    await waitFor(() =>
+      expect(
+        body.queryByRole("dialog", { name: "Add to list" }),
+      ).not.toBeInTheDocument(),
+    );
+    await expect(trigger).toHaveFocus();
   },
 };

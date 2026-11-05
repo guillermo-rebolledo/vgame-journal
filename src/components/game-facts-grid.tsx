@@ -1,3 +1,4 @@
+import { Info } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fact, LanguagesFact } from "@/components/game-facts";
 import type { SourceGame } from "@/lib/game-source";
@@ -29,9 +30,15 @@ export function GameFactsGrid({
       className="@container grid grid-cols-[repeat(auto-fit,minmax(min(100%,max(8rem,calc(50%_-_0.5rem))),1fr))] gap-4 max-w-[calc(100vw-2rem)] sm:max-w-md"
     >
       {game.criticScore === null && game.userScore === null ? (
-        <div className="col-span-full text-muted-foreground text-sm">
+        <div className="col-span-full flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
           <dt className="sr-only">Scores</dt>
-          <dd>Scores unavailable</dd>
+          <dd className="flex items-center gap-2">
+            <Info
+              aria-hidden="true"
+              className="size-4 shrink-0 text-muted-foreground"
+            />
+            Scores unavailable
+          </dd>
         </div>
       ) : (
         <>

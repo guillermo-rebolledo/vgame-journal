@@ -1,10 +1,11 @@
 "use client";
 
-import { ListPlus, Plus, RotateCw, X } from "lucide-react";
+import { ListPlus, Plus, RotateCw } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useId, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { changeOwnerList, readOwnerLists } from "@/app/lists/actions";
+import { ListEditorDrawer } from "@/components/list-creation-drawer";
 import { ListSessionBoundary, useListSession } from "@/components/list-session";
 import { CreateListForm } from "@/components/owner-lists";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
@@ -28,14 +29,11 @@ export function GameListPicker({
   const params = useSearchParams();
   const [open, setOpen] = useState(params.get("addToList") === "1");
   const trigger = useRef<HTMLButtonElement>(null);
-  const section = useRef<HTMLElement>(null);
-  const id = useId();
-  useEffect(() => {
-    if (open) section.current?.focus();
-  }, [open]);
-  function toggle() {
-    const next = !open;
+  const [activated, setActivated] = useState(open);
+  const [pending, setPending] = useState(false);
+  function changeOpen(next: boolean) {
     setOpen(next);
+    if (next) setActivated(true);
     const url = new URL(window.location.href);
     if (next) url.searchParams.set("addToList", "1");
     else url.searchParams.delete("addToList");
@@ -44,62 +42,73 @@ export function GameListPicker({
       "",
       `${url.pathname}${url.search}${url.hash}`,
     );
-    if (!next) trigger.current?.focus();
   }
   return (
-    <div className="contents">
-      <Button
-        ref={trigger}
-        variant="outline"
-        className="journal-action min-h-11 self-start"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={toggle}
-      >
-        {open ? <X aria-hidden="true" /> : <ListPlus aria-hidden="true" />}
-        {open ? "Close list picker" : "Add to list"}
-      </Button>
-      {open && (
-        <section
-          id={id}
-          ref={section}
-          tabIndex={-1}
-          aria-label={`Add ${game.title} to a list`}
-          className="flex w-full min-w-0 basis-full flex-col gap-4 rounded-lg border bg-background p-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+    <ListEditorDrawer
+      open={open}
+      onOpenChange={changeOpen}
+      pending={pending}
+      title="Add to list"
+      description={game.title}
+      finalFocus={trigger}
+      trigger={
+        <Button
+          ref={trigger}
+          variant="outline"
+          className="journal-action min-h-11 self-start"
         >
-          <h2 className="break-words font-semibold text-xl">
-            Add {game.title} to a list
-          </h2>
-          {actor ? (
-            <ListSessionBoundary key={actor} actor={actor}>
-              <Choices actor={actor} game={game} />
-            </ListSessionBoundary>
-          ) : (
-            <Link
-              className="underline"
-              href={authPageHref(
-                needsUsername ? "/onboarding" : "/sign-in",
-                `/games/${game.slug}?addToList=1`,
-              )}
-            >
-              {needsUsername
-                ? `Choose a username to add ${game.title} to a list`
-                : `Sign in to add ${game.title} to a list`}
-            </Link>
-          )}
-        </section>
-      )}
-    </div>
+          <ListPlus aria-hidden="true" />
+          Add to list
+        </Button>
+      }
+    >
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6">
+        <div className="mx-auto flex w-full min-w-0 max-w-xl flex-col gap-4 [overflow-wrap:anywhere]">
+          {activated &&
+            (actor ? (
+              <ListSessionBoundary key={actor} actor={actor}>
+                <Choices
+                  actor={actor}
+                  game={game}
+                  onPendingChange={setPending}
+                />
+              </ListSessionBoundary>
+            ) : (
+              <Link
+                className="underline"
+                href={authPageHref(
+                  needsUsername ? "/onboarding" : "/sign-in",
+                  `/games/${game.slug}?addToList=1`,
+                )}
+              >
+                {needsUsername
+                  ? `Choose a username to add ${game.title} to a list`
+                  : `Sign in to add ${game.title} to a list`}
+              </Link>
+            ))}
+        </div>
+      </div>
+    </ListEditorDrawer>
   );
 }
 
-function Choices({ actor, game }: { actor: string; game: Game }) {
+function Choices({
+  actor,
+  game,
+  onPendingChange,
+}: {
+  actor: string;
+  game: Game;
+  onPendingChange: (pending: boolean) => void;
+}) {
   const access = useListSession();
   const [items, setItems] = useState<OwnerList[] | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [attempt, setAttempt] = useState(0);
-  const [pending, start] = useTransition();
+  const [updating, start] = useTransition();
+  const [creating, setCreating] = useState(false);
+  const pending = updating || creating;
   const [blocked, setBlocked] = useState(false);
   const pagination = useUrlPagination("pickerPage", items?.length);
   const heading = useRef<HTMLParagraphElement>(null);
@@ -136,6 +145,7 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
   function add(list: OwnerList) {
     if (pending || blocked) return;
     setMessage("");
+    onPendingChange(true);
     start(async () => {
       try {
         const result = await changeOwnerList(actor, list.id, list.revision, {
@@ -170,6 +180,8 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
           "Couldn’t confirm the addition. Refresh your lists before retrying.",
         );
         setBlocked(true);
+      } finally {
+        onPendingChange(false);
       }
     });
   }
@@ -180,7 +192,9 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
         tabIndex={-1}
         className="outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        Adding a game changes only the selected list.
+        {items?.length === 0
+          ? "No lists yet. Create your first list."
+          : "Choose a list, or create a new one."}
       </p>
       {items === null && !error && (
         <output className="flex items-center gap-2">
@@ -200,7 +214,13 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
           Refresh lists
         </Button>
       )}
-      <output aria-live="polite" aria-atomic="true">
+      <output
+        className={
+          message || (pending && items !== null) ? undefined : "sr-only"
+        }
+        aria-live="polite"
+        aria-atomic="true"
+      >
         {pending && items !== null ? (
           <ActionFeedback state="pending">Updating your lists…</ActionFeedback>
         ) : (
@@ -209,9 +229,7 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
       </output>
       {items !== null && (
         <>
-          {items.length === 0 ? (
-            <p>No lists yet. Create a list for {game.title} below.</p>
-          ) : (
+          {items.length > 0 && (
             <PagedList
               items={items}
               label="Choose a list"
@@ -266,13 +284,17 @@ function Choices({ actor, game }: { actor: string; game: Game }) {
           )}
           <details ref={creation} open={items.length === 0}>
             <summary className="min-h-11 cursor-pointer py-3 underline">
-              Create a new list for {game.title}
+              Create a new list
             </summary>
             <CreateListForm
               actor={actor}
               game={game}
               scope={`picker:${game.id}`}
               disabled={pending || blocked}
+              onPendingChange={(value) => {
+                setCreating(value);
+                onPendingChange(value);
+              }}
               onCreated={(list) => {
                 setItems((current) => [
                   list,

@@ -4,7 +4,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import { BookMarked, ChevronDown, Trash2 } from "lucide-react";
 import { type ReactNode, startTransition, useRef, useState } from "react";
 import { trackEvent } from "@/components/analytics";
-import { ActionFeedback, ActionIcon } from "@/components/ui/action-feedback";
+import { ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -71,6 +71,9 @@ export function JournalStatus({
   const trigger = useRef<HTMLButtonElement | null>(null);
   const cancel = useRef<HTMLButtonElement | null>(null);
   const busy = useRef(false);
+  const label = confirmed
+    ? `${SAVED_LABELS[confirmed.status]}${confirmed.completionTag ? ` · ${capitalize(confirmed.completionTag)}` : ""}`
+    : "Add to Journal";
   function save(
     status: Status | null,
     tag: CompletionTag | null,
@@ -145,7 +148,7 @@ export function JournalStatus({
                       <Button
                         ref={trigger}
                         press="static"
-                        aria-label={`${confirmed ? "Change Journal status" : "Add to Journal"} for ${gameTitle}`}
+                        aria-label={`${label}${confirmed ? " — Change Journal status" : ""} for ${gameTitle}`}
                         aria-description={
                           confirmed
                             ? `In your journal: ${confirmed.status}${confirmed.completionTag ? `, ${confirmed.completionTag}` : ""}`
@@ -165,9 +168,7 @@ export function JournalStatus({
                           state={pending ? "pending" : "idle"}
                         />
                         <span className={pending ? "shimmer" : undefined}>
-                          {confirmed
-                            ? "Change Journal status"
-                            : "Add to Journal"}
+                          {label}
                         </span>
                         <ChevronDown
                           aria-hidden="true"
@@ -257,18 +258,6 @@ export function JournalStatus({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-          <span
-            aria-hidden="true"
-            className="inline-flex min-h-6 min-w-16 items-center text-muted-foreground text-sm"
-          >
-            {pending ? (
-              "Saving…"
-            ) : notice ? (
-              <ActionFeedback state="success">
-                {confirmed ? "Saved" : "Removed"}
-              </ActionFeedback>
-            ) : null}
-          </span>
         </div>
         {actions}
       </fieldset>
@@ -333,9 +322,6 @@ export function JournalStatus({
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>
-      <p className="mt-2 text-sm">
-        {confirmed ? SAVED_LABELS[confirmed.status] : "Not in your Journal"}
-      </p>
       <output className="sr-only" aria-live="polite" aria-atomic="true">
         {pending ? "Saving journal status…" : notice}
       </output>
