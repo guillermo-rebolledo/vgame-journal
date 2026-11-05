@@ -22,10 +22,12 @@ export default defineConfig({
     },
     // Discovery specs hold, fail and empty the shared discovery feed that Home
     // tests read, so CI runs this project in its own job with its own server.
+    // One worker: copies of these specs (--repeat-each) would release each other's holds.
     {
       name: "global-state",
       use: { ...devices["Desktop Chrome"] },
       testMatch: "discovery.spec.ts",
+      workers: 1,
     },
   ],
   webServer: [
