@@ -648,103 +648,95 @@ export function HomeSaveControls({
           </div>
         </fieldset>
       ) : (
-        <>
-          {entry && <p>{SAVED_LABELS[entry.status]}</p>}
-          <div className="flex flex-wrap gap-2">
-            <DropdownMenu
-              onOpenChange={(open, event) => {
-                if (open && (!entry || busy || loading)) event.cancel();
-              }}
+        <div className="flex flex-wrap gap-2">
+          <DropdownMenu
+            onOpenChange={(open, event) => {
+              if (open && (!entry || busy || loading)) event.cancel();
+            }}
+          >
+            <DropdownMenuTrigger
+              {...(!entry
+                ? { "aria-haspopup": undefined, "aria-expanded": undefined }
+                : {})}
+              render={
+                <Button
+                  ref={trigger}
+                  press={entry ? "static" : "scale"}
+                  variant="outline"
+                  className="min-h-11 max-w-full"
+                  aria-label={
+                    entry
+                      ? `${SAVED_LABELS[entry.status]} — Change status for ${game.title}`
+                      : `Add to backlog for ${game.title}`
+                  }
+                  aria-disabled={busy || loading}
+                  aria-busy={!!busy}
+                  aria-describedby={state?.error ? errorId : undefined}
+                  onClick={() => {
+                    if (!entry && !busy && !loading) choose("backlog");
+                  }}
+                />
+              }
             >
-              <DropdownMenuTrigger
-                {...(!entry
-                  ? { "aria-haspopup": undefined, "aria-expanded": undefined }
-                  : {})}
-                render={
-                  <Button
-                    ref={trigger}
-                    press={entry ? "static" : "scale"}
-                    variant="outline"
-                    className="min-h-11 max-w-full"
-                    aria-label={
-                      entry
-                        ? `Change status for ${game.title}`
-                        : `Add to backlog for ${game.title}`
-                    }
-                    aria-disabled={busy || loading}
-                    aria-busy={!!busy}
-                    aria-describedby={state?.error ? errorId : undefined}
-                    onClick={() => {
-                      if (!entry && !busy && !loading) choose("backlog");
-                    }}
-                  />
+              <ActionIcon
+                icon={entry ? <BookMarked fill="currentColor" /> : <BookPlus />}
+                state={actionState(entry ? undefined : "backlog")}
+              />
+              <span
+                className={
+                  actionState(entry ? undefined : "backlog") === "pending"
+                    ? "shimmer"
+                    : undefined
                 }
               >
-                <ActionIcon
-                  icon={entry ? <BookMarked /> : <BookPlus />}
-                  state={actionState(entry ? undefined : "backlog")}
-                />
-                <span
-                  className={
-                    actionState(entry ? undefined : "backlog") === "pending"
-                      ? "shimmer"
-                      : undefined
-                  }
-                >
-                  {entry ? "Change status" : "Add to backlog"}
-                </span>
-                {entry && (
-                  <ChevronDown aria-hidden="true" data-icon="inline-end" />
-                )}
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="home-journal-menu w-60 max-w-[calc(100vw-2rem)] [overflow-wrap:anywhere]">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Status for {game.title}</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup value={entry?.status ?? ""}>
-                    {STATUSES.map((status) => (
-                      <DropdownMenuRadioItem
-                        key={status}
-                        value={status}
-                        closeOnClick
-                        className="min-h-11"
-                        disabled={busy}
-                        onClick={() => choose(status)}
-                      >
-                        {capitalize(status)}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {!entry && (
-              <Button
-                variant="outline"
-                className="min-h-11"
-                aria-label={`Add to wishlist for ${game.title}`}
-                aria-describedby={state?.error ? errorId : undefined}
-                aria-disabled={busy || loading}
-                onClick={() => {
-                  if (!busy && !loading) choose("wishlist");
-                }}
+                {entry ? SAVED_LABELS[entry.status] : "Add to backlog"}
+              </span>
+              {entry && (
+                <ChevronDown aria-hidden="true" data-icon="inline-end" />
+              )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="home-journal-menu w-60 max-w-[calc(100vw-2rem)] [overflow-wrap:anywhere]">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Status for {game.title}</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={entry?.status ?? ""}>
+                  {STATUSES.map((status) => (
+                    <DropdownMenuRadioItem
+                      key={status}
+                      value={status}
+                      closeOnClick
+                      className="min-h-11"
+                      disabled={busy}
+                      onClick={() => choose(status)}
+                    >
+                      {capitalize(status)}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {!entry && (
+            <Button
+              variant="outline"
+              className="min-h-11"
+              aria-label={`Add to wishlist for ${game.title}`}
+              aria-describedby={state?.error ? errorId : undefined}
+              aria-disabled={busy || loading}
+              onClick={() => {
+                if (!busy && !loading) choose("wishlist");
+              }}
+            >
+              <ActionIcon icon={<BookPlus />} state={actionState("wishlist")} />
+              <span
+                className={
+                  actionState("wishlist") === "pending" ? "shimmer" : undefined
+                }
               >
-                <ActionIcon
-                  icon={<BookPlus />}
-                  state={actionState("wishlist")}
-                />
-                <span
-                  className={
-                    actionState("wishlist") === "pending"
-                      ? "shimmer"
-                      : undefined
-                  }
-                >
-                  Add to wishlist
-                </span>
-              </Button>
-            )}
-          </div>
-        </>
+                Add to wishlist
+              </span>
+            </Button>
+          )}
+        </div>
       )}
       {unavailable && (
         <>

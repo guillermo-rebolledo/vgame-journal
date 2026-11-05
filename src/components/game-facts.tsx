@@ -2,11 +2,12 @@
 
 import { cn } from "cn";
 import { CheckIcon, ChevronDownIcon, MinusIcon } from "lucide-react";
-import { type ReactNode, useId, useRef, useState } from "react";
+import { type ReactNode, useId } from "react";
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
+  useHoverDisclosure,
 } from "@/components/ui/hover-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -58,10 +59,7 @@ export function AgeRatingFactSkeleton() {
   );
 }
 
-/**
- * A score-grid card that is itself the trigger of a hover card. Base UI's Preview Card ignores touch,
- * so a tap toggles it; a mouse click doesn't, or it would close the card that hover just opened.
- */
+/** A score-grid card that is itself the trigger of a hover card. */
 function HoverFact({
   label,
   summary,
@@ -77,54 +75,19 @@ function HoverFact({
   children: ReactNode;
   className?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const openAtTouch = useRef<boolean>(undefined);
-  const pointerType = useRef("");
-  const container = useRef<HTMLElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
+  const { open, container, setContainer, trigger, rootProps, triggerProps } =
+    useHoverDisclosure();
   const id = useId();
   return (
     <div className="flex min-w-0">
       <dt className="sr-only">{label}</dt>
-      <dd ref={container} className="flex min-w-0 flex-1">
-        <HoverCard
-          open={open}
-          onOpenChange={(nextOpen, details) => {
-            // Touch browsers can emit mouse-leave after a tap; it must not undo the toggle.
-            if (
-              pointerType.current === "touch" &&
-              details.reason === "trigger-hover"
-            ) {
-              details.cancel();
-              return;
-            }
-            if (!nextOpen && details.reason === "escape-key")
-              trigger.current?.focus();
-            setOpen(nextOpen);
-          }}
-        >
+      <dd ref={setContainer} className="flex min-w-0 flex-1">
+        <HoverCard {...rootProps}>
           <HoverCardTrigger
-            delay={200}
+            {...triggerProps}
             render={<button ref={trigger} type="button" />}
             aria-label={`${label}: ${summary} View details`}
-            aria-expanded={open}
             aria-controls={open ? id : undefined}
-            // A tap also focuses and "hovers" the trigger, which opens the card after `delay`; on a
-            // slow device that can land before the click. Toggle from the state at touch-down instead.
-            onPointerEnter={(event) => {
-              pointerType.current = event.pointerType;
-            }}
-            onPointerDown={(event) => {
-              pointerType.current = event.pointerType;
-              openAtTouch.current =
-                event.pointerType === "touch" ? open : undefined;
-            }}
-            onClick={() => {
-              if (openAtTouch.current !== undefined)
-                setOpen(!openAtTouch.current);
-              else setOpen(true);
-              openAtTouch.current = undefined;
-            }}
             className={cn(
               CARD,
               "flex-1 cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",

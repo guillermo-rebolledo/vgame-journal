@@ -196,7 +196,7 @@ test("discovery saves update shared Status, counts and the resolved Wishlist pre
   expect(
     within(
       screen.getByRole("region", { name: "Wishlist release preview" }),
-    ).getByRole("button", { name: "Change status for Old classic" }),
+    ).getByRole("button", { name: /Change status for Old classic$/ }),
   ).toBeTruthy();
   expect(
     screen.getByRole("region", { name: "Recently added" }).textContent,

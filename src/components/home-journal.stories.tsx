@@ -523,13 +523,13 @@ export const CompactDefault: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      await canvas.findByRole("button", { name: "Change status for Celeste" }),
+      await canvas.findByRole("button", { name: /Change status for Celeste$/ }),
     ).toBeVisible();
     await expect(
       canvas.queryByRole("button", { name: "Save to Backlog" }),
     ).not.toBeInTheDocument();
     await userEvent.click(
-      canvas.getByRole("button", { name: "Change status for Celeste" }),
+      canvas.getByRole("button", { name: /Change status for Celeste$/ }),
     );
     const body = within(canvasElement.ownerDocument.body);
     await expect(
@@ -538,7 +538,7 @@ export const CompactDefault: Story = {
     await userEvent.keyboard("{Escape}");
     await waitFor(() =>
       expect(
-        canvas.getByRole("button", { name: "Change status for Celeste" }),
+        canvas.getByRole("button", { name: /Change status for Celeste$/ }),
       ).toHaveFocus(),
     );
   },
