@@ -948,6 +948,7 @@ function PersonalShelf({
               gameId={entry.gameId}
               source="shelf"
               href={`/games/${entry.slug}`}
+              prefetch={true}
               className={`home-details group gap-3 rounded-lg outline-none ${compact ? "flex items-center" : "row-span-2 grid grid-rows-subgrid"}`}
               cover={
                 <GameCover

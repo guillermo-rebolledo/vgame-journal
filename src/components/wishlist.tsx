@@ -310,6 +310,7 @@ function Row({
     <li className="flex flex-wrap items-center gap-x-4 gap-y-2 py-4">
       <Link
         href={`/games/${entry.slug}`}
+        prefetch={true}
         className="group flex min-w-0 flex-1 basis-64 items-center gap-4 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <ViewTransition

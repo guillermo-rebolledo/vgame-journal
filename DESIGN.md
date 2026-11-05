@@ -331,7 +331,7 @@ Motion is implemented in `globals.css` and the components; `.impeccable/design.j
 - **Theme:** the existing provider suppresses transitions through its theme style flush for explicit choices and System appearance updates, then promptly restores them. Preserve the Dark default and persisted selection.
 - **Journal pending:** the pending icon rotates only with no reduced-motion preference; visible “Saving…” beside the button and a single live output provide stationary progress feedback. Keep the action’s static label. Home Status saves swap the acted-on button's icon and retain the scoped Journal updates announcement; persistent current Status stays visible without inserting a duplicate confirmation paragraph.
 - **Tag selection:** press feedback uses the same 0.96 / 150ms ease-out scale contract; name `scale` in transition properties. Selection and shelf replacement are immediate, without routine cover-entry sequences. Gate hover feedback to hover-capable fine pointers.
-- **Route changes** use view transitions: the old page fades out and the new one fades up 6px.
+- **Route changes** use view transitions: the old page fades out and the new one fades up 6px. Personal collection links in Home, Library, and Wishlist use per-link prefetching (`prefetch={true}`) so the cached hero is ready for the same navigation snapshot. Direct visits and unfinished prefetches retain the route-local game skeleton.
 - **Inserted content** uses `.enter`: CSS transitions with `@starting-style` and a 4px rise, so it can be interrupted.
 - Every animation has a `prefers-reduced-motion: reduce` branch that removes movement and keeps opacity only where it helps.
 

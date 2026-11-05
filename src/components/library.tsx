@@ -279,6 +279,7 @@ export function Library({
                     <li key={e.gameId}>
                       <Link
                         href={`/games/${e.slug}`}
+                        prefetch={true}
                         transitionTypes={["open-game"]}
                         className="group flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                       >
@@ -322,6 +323,7 @@ export function Library({
                     <li key={e.gameId}>
                       <Link
                         href={`/games/${e.slug}`}
+                        prefetch={true}
                         transitionTypes={["open-game"]}
                         className="-mx-2 flex flex-wrap items-center gap-3 sm:flex-nowrap rounded-md p-2 outline-none hover:bg-muted focus-visible:bg-muted"
                       >
