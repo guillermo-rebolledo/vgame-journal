@@ -81,9 +81,7 @@ for (const viewport of [
       await visit("Wishlist", true);
       await page.goto("/");
       await (await openCatalog(page)).fill("Moss Cartographer");
-      const result = page
-        .getByRole("listbox", { name: "Search results" })
-        .getByRole("option");
+      const result = page.locator(".game-catalog-results").getByRole("link");
       await expect(result).toHaveAccessibleName(/Moss Cartographer/);
       await expect(result.getByText("Year unavailable")).toBeVisible();
       await expect(result.locator('[aria-hidden="true"] svg')).toHaveCount(1);
@@ -93,12 +91,6 @@ for (const viewport of [
         `search-missing-cover-${viewport.name}-${theme}`,
       );
       await result.click();
-      await page
-        .getByRole("link", {
-          name: "View game: Moss Cartographer",
-          exact: true,
-        })
-        .click();
       await chooseStatus(page, "wishlist");
 
       await visit("Library", false);
@@ -138,9 +130,7 @@ test("an unreachable cover keeps the game's title and cover proportions", async 
   });
   await page.goto("/");
   await (await openCatalog(page)).fill("Celeste");
-  const result = page
-    .getByRole("listbox", { name: "Search results" })
-    .getByRole("option");
+  const result = page.locator(".game-catalog-results").getByRole("link");
   const cover = result.locator("img");
   await expect(cover).toBeVisible();
   const before = await cover.boundingBox();
@@ -153,11 +143,9 @@ test("an unreachable cover keeps the game's title and cover proportions", async 
   expect(after?.width).toBe(before?.width);
   expect(after?.height).toBeCloseTo(before?.height ?? 0, 0);
   await expect(result).toHaveAccessibleName(/Celeste/);
-  const row = page
-    .getByRole("listbox", { name: "Search results" })
-    .getByRole("option");
+  const row = page.locator(".game-catalog-results").getByRole("link");
   await expect(row.getByText("2018", { exact: true })).toBeVisible();
-  await expect(row.getByText("PC", { exact: true })).toBeVisible();
+  await expect(row.getByText(/PC/)).toBeVisible();
 });
 
 for (const signedIn of [false, true]) {

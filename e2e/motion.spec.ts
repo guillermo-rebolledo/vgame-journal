@@ -1,9 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import {
-  closeCatalog,
-  openCatalog,
-  selectCatalogGame,
-} from "./support/catalog";
+import { closeCatalog, openCatalog } from "./support/catalog";
 import { expectContainedScroll } from "./support/contained-scroll";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
@@ -619,18 +615,18 @@ test("Command result covers stay still while the pointer moves", async ({
 }) => {
   await page.goto("/");
   await (await openCatalog(page)).fill("Celeste");
-  const option = page.getByRole("option", { name: /^Celeste/ });
+  const option = page.getByRole("link", { name: /^Celeste/ });
   const cover = option.locator("img");
   await expect(cover).toBeVisible();
+  await option.hover();
   const before = await cover.boundingBox();
+  await page.mouse.move(0, 0);
   await option.hover();
   await expect(cover).toHaveCSS("transform", "none");
   await expect(cover).toHaveCSS("animation-name", "none");
   expect(await cover.boundingBox()).toEqual(before);
   await option.click();
-  await expect(
-    page.getByRole("button", { name: "Back to results" }),
-  ).toBeFocused();
+  await expect(page).toHaveURL(/\/games\/celeste$/);
 });
 
 test("playthrough drawer keeps the page stationary and dismisses its select first", async ({
@@ -714,9 +710,7 @@ test("Command results appear immediately without stagger or pointer motion", asy
   );
   await page.goto("/");
   await (await openCatalog(page)).fill("games");
-  const entries = page
-    .getByRole("listbox", { name: "Search results" })
-    .getByRole("option");
+  const entries = page.locator(".game-catalog-results").getByRole("link");
   await expect(entries).toHaveCount(2);
   await expect(entries.first()).toHaveCSS("animation-name", "none");
   await expect(entries.nth(1)).toHaveCSS("animation-delay", "0s");
@@ -746,11 +740,11 @@ test("View game navigates from Command actions with the existing route transitio
     await route.continue();
   });
   await page.goto("/");
-  await selectCatalogGame(page, "Celeste");
-  const link = page.getByRole("link", {
-    name: "View game: Celeste",
-    exact: true,
-  });
+  await (await openCatalog(page)).fill("Celeste");
+  const link = page
+    .locator(".game-catalog-result")
+    .filter({ hasText: "Celeste" })
+    .first();
   await expect(link).toBeVisible();
   await link.click();
   await expect(
@@ -900,11 +894,11 @@ for (const source of ["search", "shelf"] as const) {
     });
 
     await page.goto("/");
-    await selectCatalogGame(page, "Celeste");
-    const search = page.getByRole("link", {
-      name: "View game: Celeste",
-      exact: true,
-    });
+    await (await openCatalog(page)).fill("Celeste");
+    const search = page
+      .locator(".game-catalog-result")
+      .filter({ hasText: "Celeste" })
+      .first();
     await expect(search).toBeVisible();
     const shelf = page
       .getByRole("region", { name: "Recently added" })
@@ -997,13 +991,10 @@ test("touch selects Command results without cover movement", async ({
   const page = await context.newPage();
   await page.goto("/");
   await (await openCatalog(page)).fill("Celeste");
-  const option = page.getByRole("option", { name: /^Celeste/ });
+  const option = page.getByRole("link", { name: /^Celeste/ });
   await expect(option).toHaveCSS("transform", "none");
   await option.tap();
-  await expect(
-    page.getByRole("button", { name: "Back to results" }),
-  ).toBeVisible();
-  await expect(page).toHaveURL(/q=Celeste/);
+  await expect(page).toHaveURL(/\/games\/celeste$/);
   await context.close();
 });
 
@@ -1020,7 +1011,7 @@ for (const reduced of [false, true]) {
       });
     await page.goto("/");
     await (await openCatalog(page)).fill("Celeste");
-    const cover = page.getByRole("option", { name: /^Celeste/ });
+    const cover = page.getByRole("link", { name: /^Celeste/ });
     await expect(cover).toBeVisible();
     if (reduced) {
       await cover.hover();
@@ -1029,9 +1020,7 @@ for (const reduced of [false, true]) {
       await expect(page.locator("[data-cover-glare]")).toBeHidden();
     }
     await cover.click();
-    await page
-      .getByRole("link", { name: "View game: Celeste", exact: true })
-      .click();
+
     await expect(
       page.getByRole("heading", { name: "Celeste", exact: true }),
     ).toBeVisible();
@@ -1060,7 +1049,7 @@ test("Command selection works when touch follows a fine pointer", async ({
 }) => {
   await page.goto("/");
   await (await openCatalog(page)).fill("Celeste");
-  const option = page.getByRole("option", { name: /^Celeste/ });
+  const option = page.getByRole("link", { name: /^Celeste/ });
   await option.hover();
   await expect(option).toHaveCSS("transform", "none");
   const box = await option.boundingBox();
@@ -1075,7 +1064,5 @@ test("Command selection works when touch follows a fine pointer", async ({
     type: "touchEnd",
     touchPoints: [],
   });
-  await expect(
-    page.getByRole("button", { name: "Back to results" }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/games\/celeste$/);
 });

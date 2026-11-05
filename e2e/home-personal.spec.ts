@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { closeCatalog, selectCatalogGame } from "./support/catalog";
+import { closeCatalog } from "./support/catalog";
 import { chooseTheme } from "./support/header";
 import { seedSql } from "./support/seed-sql";
 import { signUp, uniqueUsername } from "./support/sign-up";
@@ -184,11 +184,8 @@ test("direct Home status changes reconcile release preview and counts without ch
     name: "Recently added",
     exact: true,
   });
-  await expect(
-    page.getByRole("listbox", { name: "Search results" }),
-  ).toBeVisible();
+  await expect(page.locator(".game-catalog-results")).toBeVisible();
   await closeCatalog(page);
-  const search = page.getByRole("dialog");
   const preview = page.getByRole("region", {
     name: "Wishlist release preview",
   });
@@ -196,14 +193,12 @@ test("direct Home status changes reconcile release preview and counts without ch
     "Home integration newer",
     "Home integration older",
   ]);
-  await selectCatalogGame(page, "Home integration older");
-  await search
-    .getByRole("button", { name: "Save to Wishlist", exact: true })
+  await recent
+    .getByRole("button", { name: "Change status for Home integration older" })
     .click();
-  await expect(
-    search.getByText("Current status: Wishlist", { exact: true }),
-  ).toBeVisible();
-  await closeCatalog(page);
+  await page
+    .getByRole("menuitemradio", { name: "Wishlist", exact: true })
+    .click();
   await expect(
     page.getByRole("link", { name: "All saved games (2)", exact: true }),
   ).toBeVisible();
@@ -226,18 +221,11 @@ test("direct Home status changes reconcile release preview and counts without ch
     .getByRole("menuitemradio", { name: "Backlog", exact: true })
     .click();
   await expect(preview).toHaveCount(0);
-  await selectCatalogGame(page, "Home integration older");
-  await expect(
-    search.getByText("Current status: Backlog", { exact: true }),
-  ).toBeVisible();
-  await closeCatalog(page);
   await expect(
     page.getByRole("link", { name: "Backlog (1)", exact: true }),
   ).toBeVisible();
   await page.reload();
-  await expect(
-    page.getByRole("listbox", { name: "Search results" }),
-  ).toBeVisible();
+  await expect(page.locator(".game-catalog-results")).toBeVisible();
   await closeCatalog(page);
   await expect(recent.getByRole("listitem")).toContainText([
     "Home integration newer",

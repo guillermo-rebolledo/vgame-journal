@@ -108,7 +108,7 @@ for (const theme of ["dark", "light"] as const) {
     } finally {
       release();
     }
-    await expect(page.getByRole("option", { name: /^Celeste / })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Celeste / })).toBeVisible();
     await expect(compass).toHaveCount(0);
     await expect(progress.locator(".shimmer")).toHaveCount(0);
   });
