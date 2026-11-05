@@ -136,6 +136,16 @@ export const ResultsAndActions: Story = {
     const list = body.getByRole("listbox", { name: "Search results" });
     await expect(within(list).getAllByRole("option")).toHaveLength(25);
     await expect(list.scrollHeight).toBeGreaterThan(list.clientHeight);
+    for (const scroller of [
+      list,
+      body.getByRole("dialog").querySelector(".game-search-content"),
+    ]) {
+      expect(scroller).not.toBeNull();
+      if (!scroller) throw new Error("Missing search scroller");
+      expect(getComputedStyle(scroller).scrollbarColor).toMatch(
+        /rgba\(0, 0, 0, 0\)$/,
+      );
+    }
     await userEvent.keyboard(
       "{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}",
     );
