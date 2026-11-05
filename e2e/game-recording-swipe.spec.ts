@@ -46,7 +46,7 @@ for (const phone of [false, true]) {
         : { width: 1440, height: 1000 },
       hasTouch: phone,
     });
-    test("drawer leaves space below navigation and swipe dismissal retains the draft and focus", async ({
+    test("drawer stays within the viewport and swipe dismissal retains the draft and focus", async ({
       page,
       request,
     }) => {
@@ -79,17 +79,24 @@ for (const phone of [false, true]) {
         .getByRole("banner", { includeHidden: true })
         .filter({ visible: true })
         .boundingBox();
-      expect(box?.y).toBeGreaterThanOrEqual(
-        (navbar?.y ?? 0) + (navbar?.height ?? 0) + 12,
-      );
       if (phone) {
+        expect(box?.y).toBeGreaterThanOrEqual(
+          (navbar?.y ?? 0) + (navbar?.height ?? 0) + 12,
+        );
         expect(box?.x).toBe(0);
         expect(box?.width).toBe(page.viewportSize()?.width);
       } else {
-        expect(box?.width).toBeLessThanOrEqual(768);
-        expect(box?.height).toBeLessThanOrEqual(720);
-        expect(box?.x).toBeGreaterThan(0);
+        expect(box?.y).toBeGreaterThanOrEqual(16);
+        expect(box?.height).toBeLessThanOrEqual(
+          (page.viewportSize()?.height ?? 1000) - 32,
+        );
       }
+      expect(box?.x).toBe(0);
+      expect(box?.width).toBe(page.viewportSize()?.width);
+      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeCloseTo(
+        page.viewportSize()?.height ?? 0,
+        1,
+      );
       const save = page.getByRole("button", { name: "Save", exact: true });
       await page
         .getByLabel("Notes (private, optional)")

@@ -297,12 +297,8 @@
 }
 @media (min-width: 48rem) {
   .editor-drawer[data-swipe-direction="down"] {
-    width: min(48rem, calc(100% - 3rem));
-    height: var(--editor-height, min(calc(100dvh - 6rem), 720px));
-    max-height: var(--editor-height, min(calc(100dvh - 6rem), 720px));
-    margin-inline: auto;
-    bottom: calc(var(--editor-bottom, 0px) + 1.5rem);
-    border-radius: 2rem;
+    height: auto;
+    max-height: var(--editor-height, calc(100dvh - 2rem));
   }
 }
 @media (prefers-reduced-motion: reduce) {
