@@ -13,14 +13,16 @@ export function useEditorViewport(open: boolean) {
         document.querySelector("body > header")?.getBoundingClientRect()
           .height ?? 56;
       const availableHeight =
-        viewport.height - navbarHeight - 16 - (desktop ? 24 : 0);
+        viewport.height - (desktop ? 32 : navbarHeight + 16);
       const editorHeight = Math.max(
         0,
-        Math.min(
-          Math.max(availableHeight, viewport.height * 0.6),
-          viewport.height - 16,
-          desktop ? 720 : 960,
-        ),
+        desktop
+          ? availableHeight
+          : Math.min(
+              Math.max(availableHeight, viewport.height * 0.6),
+              viewport.height - 16,
+              960,
+            ),
       );
       // The popup mounts in a portal, so publish sizing before its ref is available.
       const root = document.documentElement.style;

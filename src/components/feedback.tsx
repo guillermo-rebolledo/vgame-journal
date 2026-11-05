@@ -96,8 +96,8 @@ export function Feedback({
           <span className="hidden sm:inline">Feedback</span>
         </DrawerTrigger>
       )}
-      <DrawerContent className="mx-auto max-w-xl" finalFocus={finalFocus}>
-        <DrawerHeader>
+      <DrawerContent finalFocus={finalFocus}>
+        <DrawerHeader className="mx-auto w-full max-w-xl">
           <DrawerTitle>
             {sent ? "Thanks, got it." : "Send feedback"}
           </DrawerTitle>
@@ -110,7 +110,7 @@ export function Feedback({
         <output
           aria-live="polite"
           aria-atomic="true"
-          className={sent ? "px-4 text-sm" : "sr-only"}
+          className={sent ? "mx-auto w-full max-w-xl px-4 text-sm" : "sr-only"}
         >
           {sent ? (
             <ActionFeedback state="success">Feedback sent.</ActionFeedback>
@@ -121,7 +121,7 @@ export function Feedback({
           )}
         </output>
         {sent ? (
-          <div className="flex justify-end p-4">
+          <div className="mx-auto flex w-full max-w-xl justify-end p-4">
             <DrawerClose render={<Button className="min-h-11" />}>
               Close
             </DrawerClose>
@@ -129,7 +129,7 @@ export function Feedback({
         ) : (
           <form
             data-base-ui-swipe-ignore
-            className="flex flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+            className="mx-auto flex w-full max-w-xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
             onSubmit={(event) => {
               event.preventDefault();
               if (saving.current) return;

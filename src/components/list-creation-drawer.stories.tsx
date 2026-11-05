@@ -47,7 +47,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Create-list composition using the shared Drawer and Playthrough editor viewport sizing. Keeps focus inside, restores the trigger on dismissal, and prevents dismissal during submission. CreateListForm supplies persistence in the app; these stories use local state only.",
+          "Create-list composition using the shared Drawer and Playthrough editor viewport sizing. Spans the full screen width and attaches to the bottom on desktop and mobile. Fits its content on desktop and mobile, scrolling only above the viewport limit. Mobile retains its keyboard-aware maximum. A dimmed backdrop keeps attention on the editor. Keeps focus inside, restores the trigger on dismissal, and prevents dismissal during submission. CreateListForm supplies persistence in the app; these stories use local state only.",
       },
     },
   },
@@ -87,6 +87,28 @@ export const OpenAndDismiss: Story = {
   },
 };
 export const Open: Story = { args: { open: true } };
+export const ResizedDescription: Story = {
+  args: { open: true },
+  play: async ({ canvasElement }) => {
+    const document = canvasElement.ownerDocument;
+    const body = within(document.body);
+    const dialog = await body.findByRole("dialog", { name: "Create a list" });
+    const description = within(dialog).getByRole("textbox", {
+      name: "Description (optional)",
+    });
+    // A player can resize the description beyond the available screen height.
+    description.style.height = `${document.defaultView?.innerHeight ?? 1000}px`;
+    const submit = within(dialog).getByRole("button", { name: "Create list" });
+    submit.focus();
+    await waitFor(() => {
+      const bounds = submit.getBoundingClientRect();
+      expect(bounds.top).toBeGreaterThanOrEqual(0);
+      expect(bounds.bottom).toBeLessThanOrEqual(
+        document.defaultView?.innerHeight ?? 1000,
+      );
+    });
+  },
+};
 export const Pending: Story = {
   args: { open: true, pending: true },
   play: async ({ canvasElement }) => {

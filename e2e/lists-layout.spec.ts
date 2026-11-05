@@ -87,6 +87,18 @@ test("list cards and creation drawer reflow in both themes with reduced motion",
       });
       await expect(dialog).toBeVisible();
       await expect
+        .poll(() =>
+          dialog.evaluate((node) => {
+            const bounds = node.getBoundingClientRect();
+            return (
+              Math.round(bounds.left) === 0 &&
+              Math.round(bounds.width) === window.innerWidth &&
+              Math.round(bounds.bottom) === window.innerHeight
+            );
+          }),
+        )
+        .toBe(true);
+      await expect
         .poll(() => dialog.evaluate((el) => el.scrollWidth <= el.clientWidth))
         .toBe(true);
       if (width === 1440 || width === 320)

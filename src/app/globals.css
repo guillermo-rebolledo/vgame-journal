@@ -287,7 +287,7 @@
    second row: 100px of header plus 16px of breathing room. --editor-height measures it for real. */
 .editor-drawer[data-swipe-direction="down"] {
   transition-duration: 220ms;
-  height: var(--editor-height, min(calc(100dvh - 7.25rem), 960px));
+  height: auto;
   max-height: var(--editor-height, min(calc(100dvh - 7.25rem), 960px));
   border-radius: 2rem 2rem 0 0;
   bottom: var(--editor-bottom, 0px);
@@ -297,12 +297,7 @@
 }
 @media (min-width: 48rem) {
   .editor-drawer[data-swipe-direction="down"] {
-    width: min(48rem, calc(100% - 3rem));
-    height: var(--editor-height, min(calc(100dvh - 6rem), 720px));
-    max-height: var(--editor-height, min(calc(100dvh - 6rem), 720px));
-    margin-inline: auto;
-    bottom: calc(var(--editor-bottom, 0px) + 1.5rem);
-    border-radius: 2rem;
+    max-height: var(--editor-height, calc(100dvh - 2rem));
   }
 }
 @media (prefers-reduced-motion: reduce) {
