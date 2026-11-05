@@ -10,6 +10,7 @@ import { JsonLd } from "@/components/json-ld";
 import { PlatformName, PlatformNames } from "@/components/platform";
 import { Playthroughs } from "@/components/playthroughs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { SITE_NAME, SITE_URL } from "@/config/site";
 import { boardName, pickRatings } from "@/lib/age-ratings";
 import { signedInUserId } from "@/lib/auth";
@@ -111,7 +112,14 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
               gameTitle={game.title}
               platforms={game.platforms}
               listPicker={
-                <Suspense fallback={<output>Loading list controls…</output>}>
+                <Suspense
+                  fallback={
+                    <output className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <Spinner />
+                      <span className="shimmer">Loading list controls…</span>
+                    </output>
+                  }
+                >
                   <GameLists
                     game={{ id: game.id, slug: game.slug, title: game.title }}
                   />
@@ -180,7 +188,14 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
         </div>
       </div>
       <DiscoveryBoundary>
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <output className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Spinner />
+              <span className="shimmer">Loading similar games…</span>
+            </output>
+          }
+        >
           <GameTagShelves game={game} />
         </Suspense>
       </DiscoveryBoundary>

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { expect } from "storybook/test";
 import { Skeleton } from "./skeleton";
 
 const meta = {
@@ -8,7 +9,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Placeholder for content that is loading. Hide decorative shapes from assistive technology and provide one readable loading status. Use CollectionLoading for Library and Wishlist. Source: src/components/ui/skeleton.tsx.",
+          "Static placeholder for content that is loading; no pulsing, including under reduced motion. Hide decorative shapes from assistive technology and provide one readable loading status. Use CollectionLoading for Library and Wishlist. Source: src/components/ui/skeleton.tsx.",
       },
     },
   },
@@ -28,3 +29,17 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const LoadingGame: Story = {};
+export const NarrowContainer: Story = {
+  render: () => (
+    <div style={{ width: 288, maxWidth: "100%" }}>
+      <Skeleton className="h-7 w-80" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const skeleton = canvasElement.querySelector('[data-slot="skeleton"]');
+    if (!skeleton?.parentElement) throw new Error("Missing placeholder");
+    await expect(skeleton.getBoundingClientRect().width).toBeLessThanOrEqual(
+      skeleton.parentElement.getBoundingClientRect().width,
+    );
+  },
+};

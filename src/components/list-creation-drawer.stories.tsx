@@ -33,6 +33,7 @@ const meta = {
           </fieldset>
           <Button
             className="min-h-11 self-start"
+            loading={args.pending}
             disabled={args.pending}
             onClick={() => setOpen(false)}
           >

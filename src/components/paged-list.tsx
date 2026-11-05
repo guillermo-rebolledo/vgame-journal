@@ -10,6 +10,7 @@ import {
   useTransition,
 } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { parsePage } from "@/lib/pagination";
 
 const PAGE_SIZE = 48;
@@ -103,8 +104,11 @@ export function PagedList<T>({
           className="flex flex-wrap items-center justify-between gap-3"
         >
           <output className="text-muted-foreground text-sm tabular-nums">
-            {offset + 1}–{Math.min(offset + PAGE_SIZE, items.length)} of{" "}
-            {items.length}
+            {pending && <Spinner className="mr-2" />}
+            <span className={pending ? "shimmer" : undefined}>
+              {offset + 1}–{Math.min(offset + PAGE_SIZE, items.length)} of{" "}
+              {items.length}
+            </span>
           </output>
           <div className="flex flex-wrap gap-2">
             <Button

@@ -202,7 +202,7 @@ export function PlaythroughForm({
       <footer className="shrink-0 border-t bg-background px-[min(1.5rem,5vw)] pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-xl flex-wrap items-center justify-end gap-3">
           <output className="mr-auto text-muted-foreground text-sm">
-            {pending ? "Saving…" : ""}
+            {savingPending ? "Saving…" : ""}
           </output>
           <Button
             type="button"
@@ -217,13 +217,13 @@ export function PlaythroughForm({
             type="submit"
             className="h-11 px-6"
             disabled={pending || !platforms.length}
-            aria-busy={pending}
+            aria-busy={savingPending}
           >
             <ActionIcon
               icon={<Save />}
-              state={pending ? "pending" : error ? "error" : "idle"}
+              state={savingPending ? "pending" : error ? "error" : "idle"}
             />
-            Save
+            <span className={savingPending ? "shimmer" : undefined}>Save</span>
           </Button>
         </div>
       </footer>

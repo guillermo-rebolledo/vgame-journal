@@ -99,7 +99,9 @@ export function RegionForm({
               pending ? "pending" : feedback === "failed" ? "error" : "idle"
             }
           />
-          {feedback === "failed" ? "Retry" : "Save"}
+          <span className={pending ? "shimmer" : undefined}>
+            {feedback === "failed" ? "Retry" : "Save"}
+          </span>
         </Button>
         <output
           aria-live="polite"

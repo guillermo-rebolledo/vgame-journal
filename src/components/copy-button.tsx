@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "cn";
 import { Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { trackEvent } from "@/components/analytics";
@@ -29,6 +30,7 @@ export function CopyButton({
         type="button"
         variant="outline"
         disabled={state === "copying"}
+        aria-busy={state === "copying"}
         onClick={async () => {
           if (busy.current) return;
           busy.current = true;
@@ -67,7 +69,10 @@ export function CopyButton({
                   : "idle"
           }
         />
-        <span aria-live="polite">
+        <span
+          aria-live="polite"
+          className={cn(state === "copying" && "shimmer")}
+        >
           {copied ? "Copied" : state === "copying" ? "Copying…" : "Copy"}
         </span>
       </Button>

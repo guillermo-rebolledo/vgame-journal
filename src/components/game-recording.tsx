@@ -66,6 +66,7 @@ export function GameRecording({
   const signInHref = authPageHref("/sign-in", usePathname());
   const [editor, setEditor] = useState<Playthrough | "add" | null>(null);
   const [pending, setPending] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string>();
   const drafts = useRef(new Map<string | number, Record<string, string>>());
   const addTrigger = useRef<HTMLButtonElement | null>(null);
@@ -89,6 +90,7 @@ export function GameRecording({
     if (!editor || editor === "add" || busy.current) return;
     busy.current = true;
     setPending(true);
+    setRemoving(true);
     setError(undefined);
     try {
       const result = await onRemove(editor.id);
@@ -106,6 +108,7 @@ export function GameRecording({
     } finally {
       busy.current = false;
       setPending(false);
+      setRemoving(false);
     }
   }
   const additionalActions = (
@@ -301,13 +304,19 @@ export function GameRecording({
                   disabled={pending}
                   className="min-h-11"
                   onClick={remove}
+                  aria-busy={removing}
                 >
                   <ActionIcon
                     icon={<Trash2 />}
-                    state={pending ? "pending" : "idle"}
+                    state={removing ? "pending" : "idle"}
                   />
-                  Delete playthrough
+                  <span className={removing ? "shimmer" : undefined}>
+                    Delete playthrough
+                  </span>
                 </Button>
+                <output className="block text-muted-foreground text-sm empty:hidden">
+                  {removing ? "Deleting playthrough…" : ""}
+                </output>
                 {error && (
                   <p role="alert" className="text-destructive text-sm">
                     {error}

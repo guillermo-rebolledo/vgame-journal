@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { ListsLoading } from "@/components/content-loading";
 import { ListReadUnavailable } from "@/components/list-read-unavailable";
 import { ListSessionBoundary } from "@/components/list-session";
 import { OwnerLists } from "@/components/owner-lists";
@@ -24,11 +25,7 @@ export default function ListsPage() {
           Organize games into lists without adding them to your Journal.
         </p>
       </div>
-      <Suspense
-        fallback={
-          <output className="col-span-full">Loading your lists…</output>
-        }
-      >
+      <Suspense fallback={<ListsLoading />}>
         <Content />
       </Suspense>
     </section>

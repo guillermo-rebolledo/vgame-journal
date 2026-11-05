@@ -1,16 +1,13 @@
 import type { Page, TestInfo } from "@playwright/test";
 
-/** A viewport screenshot once animations settle, attached to the report. */
+/** Settle finite transitions and freeze loading loops for the captured frame. */
 export async function snap(
   page: Page,
   testInfo: TestInfo,
   name: string,
   fullPage = false,
 ) {
-  await page.evaluate(() =>
-    Promise.allSettled(document.getAnimations().map((a) => a.finished)),
-  );
   const path = testInfo.outputPath(`${name}.png`);
-  await page.screenshot({ path, fullPage });
+  await page.screenshot({ path, fullPage, animations: "disabled" });
   await testInfo.attach(name, { path, contentType: "image/png" });
 }

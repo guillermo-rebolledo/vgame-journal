@@ -15,6 +15,7 @@ export function ListsUnavailable() {
       <Button
         variant="outline"
         className="min-h-11"
+        loading={pending}
         disabled={pending}
         aria-busy={pending}
         onClick={() => {

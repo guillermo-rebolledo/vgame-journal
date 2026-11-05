@@ -10,6 +10,7 @@ import { PlatformIcon, PlatformNames } from "@/components/platform";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import {
   capitalize,
   LIBRARY_SORTS,
@@ -264,6 +265,12 @@ export function Library({
         </div>
       ) : (
         <div aria-busy={query !== deferredQuery}>
+          {query !== deferredQuery && (
+            <output className="mb-3 flex items-center gap-2 text-muted-foreground text-sm">
+              <Spinner />
+              <span className="shimmer">Filtering Library…</span>
+            </output>
+          )}
           <PagedList
             pagination={pagination}
             items={shown}

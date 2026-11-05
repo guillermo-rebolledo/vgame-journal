@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { ListLoading } from "@/components/content-loading";
 import { PublicListDetail } from "@/components/public-list";
 import { ListsUnavailable } from "@/components/public-lists";
 import { publicList } from "./list";
@@ -44,11 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default function PublicListPage({ params }: Props) {
   return (
     <section className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-      <Suspense
-        fallback={
-          <output className="text-muted-foreground">Loading list…</output>
-        }
-      >
+      <Suspense fallback={<ListLoading label="Loading list…" />}>
         <List params={params} />
       </Suspense>
     </section>
