@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { type APIRequestContext, expect, test } from "@playwright/test";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { supportUrl } from "./support/url";
 
 async function query(
@@ -344,7 +344,12 @@ test("profile Lists discovers only public cards and counts while preserving URL 
 async function listState(
   request: APIRequestContext,
   username: string,
-  state: { fail?: boolean; milliseconds?: number; revokeId?: string },
+  state: {
+    fail?: boolean;
+    milliseconds?: number;
+    hold?: boolean;
+    revokeId?: string;
+  },
 ) {
   const response = await request.post(supportUrl("/public-lists-state"), {
     data: { username, ...state },
@@ -357,7 +362,7 @@ test("public readers see loading, unavailable with recovery, and genuine empty c
   request,
   browser,
 }) => {
-  const username = `listrecover_${Date.now()}`;
+  const username = uniqueUsername("listrecover");
   const email = await signUp(page, request, username);
   const id = await seedList(request, email, {
     title: "An empty collection",
@@ -367,11 +372,12 @@ test("public readers see loading, unavailable with recovery, and genuine empty c
   const visitor = await browser.newContext();
   try {
     const guest = await visitor.newPage();
-    await listState(request, username, { milliseconds: 1500 });
+    await listState(request, username, { hold: true });
     await guest.goto(`/u/${username}?view=lists`, { waitUntil: "commit" });
     await expect(
-      guest.getByText("Loading profile…", { exact: true }),
+      guest.getByRole("status").filter({ hasText: "Loading profile…" }),
     ).toBeVisible();
+    await listState(request, username, {});
     await expect(
       guest.getByRole("link", { name: /An empty collection/ }),
     ).toBeVisible();

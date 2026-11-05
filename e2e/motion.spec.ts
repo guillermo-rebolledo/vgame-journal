@@ -8,7 +8,7 @@ import { expectContainedScroll } from "./support/contained-scroll";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { seedSql } from "./support/seed-sql";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 
 test.use({ video: "on" });
 
@@ -758,15 +758,31 @@ test("View game navigates from Command actions with the existing route transitio
 });
 
 for (const view of ["Grid", "List"] as const) {
-  test(`library ${view.toLowerCase()} cover morphs into the hero`, async ({
+  test(`cached library ${view.toLowerCase()} cover morphs into the hero`, async ({
     page,
     request,
   }) => {
     test.setTimeout(90_000);
-    await signUp(page, request, `morph_${view.toLowerCase()}_${Date.now()}`);
+    await signUp(page, request, uniqueUsername(`morph_${view.toLowerCase()}`));
     await page.goto("/games/celeste");
     await chooseStatus(page, "backlog");
-    await page.addInitScript(() => {
+    await page
+      .getByRole("navigation", { name: "Main", exact: true })
+      .getByRole("link", { name: "Library", exact: true })
+      .click();
+    await expect(page).toHaveURL("/library");
+    await page.getByRole("button", { name: view, exact: true }).click();
+    await page.evaluate(async () => {
+      await Promise.allSettled(
+        document
+          .getAnimations()
+          .filter((animation) =>
+            (animation.effect as KeyframeEffect).pseudoElement?.includes(
+              "view-transition",
+            ),
+          )
+          .map((animation) => animation.finished),
+      );
       const observed = window;
       observed.motionAnimations = [];
       function sample() {
@@ -782,8 +798,6 @@ for (const view of ["Grid", "List"] as const) {
       requestAnimationFrame(sample);
     });
 
-    await page.goto("/library");
-    await page.getByRole("button", { name: view, exact: true }).click();
     await page
       .getByRole("list", { name: "Games", exact: true })
       .getByRole("link", { name: /Celeste/ })
@@ -796,6 +810,59 @@ for (const view of ["Grid", "List"] as const) {
       .toContain("game-cover-1");
   });
 }
+
+test("an unfinished hero prefetch keeps content visible and resolves", async ({
+  page,
+  request,
+}) => {
+  await signUp(page, request, uniqueUsername("cold_morph"));
+  await page.goto("/games/celeste");
+  await chooseStatus(page, "backlog");
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let heroHeld = false;
+  await page.route("**/games/celeste?*", async (route) => {
+    const response = await route.fetch();
+    const body = await response.text();
+    if (body.includes("game-cover-1")) {
+      heroHeld = true;
+      await held;
+    }
+    await route.fulfill({ response, body });
+  });
+  try {
+    await page.goto("/library");
+    const game = page
+      .getByRole("list", { name: "Games", exact: true })
+      .getByRole("link", { name: /Celeste/ });
+    await game.click();
+    await expect.poll(() => heroHeld).toBe(true);
+    const loading = page
+      .getByRole("status")
+      .filter({ hasText: "Loading game…" });
+    await expect(
+      loading
+        .or(page.getByRole("heading", { name: "Library", exact: true }))
+        .filter({ visible: true }),
+    ).toBeVisible();
+    if (await loading.isVisible())
+      await expect(
+        page.locator("main article [data-slot=skeleton]").first(),
+      ).toBeVisible();
+    release();
+    await expect(
+      page.getByRole("heading", { name: "Celeste", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Loading game…" }),
+    ).toHaveCount(0);
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+});
 
 for (const source of ["search", "shelf"] as const) {
   test(`Home ${source} navigation uses its own game occurrence after Command selection`, async ({
