@@ -14,6 +14,7 @@ const SAFE_PARAMS = new Set([
   "status",
   "platform",
   "year",
+  "rated",
   "sort",
   "view",
   "all",
