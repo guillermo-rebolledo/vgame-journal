@@ -207,7 +207,7 @@ test("sort choices say which way they go", () => {
   ]);
 });
 
-test("grid and list both show Status, platforms and release year", async () => {
+test("grid and list both show Status, Rating, platforms and release year", async () => {
   const user = userEvent.setup();
   const games = [
     entry({
@@ -215,6 +215,7 @@ test("grid and list both show Status, platforms and release year", async () => {
       title: "Celeste",
       status: "played",
       completionTag: "completed",
+      rating: 9,
       platforms: ["PC", "Nintendo Switch"],
       releasedAt: new Date("2018-01-25"),
     }),
@@ -226,8 +227,18 @@ test("grid and list both show Status, platforms and release year", async () => {
   for (const view of ["Grid", "List"]) {
     await user.click(screen.getByRole("button", { name: view }));
     expect(card()).toContain("Played · Completed");
+    expect(card()).toContain("Rated 4.5 out of 5");
     expect(card()).toContain("PC, Nintendo Switch");
     expect(card()).toContain("2018");
+  }
+});
+
+test("unrated games show no Rating in either view", async () => {
+  const user = userEvent.setup();
+  render(<Library entries={entries} initialView="grid" />);
+  for (const view of ["Grid", "List"]) {
+    await user.click(screen.getByRole("button", { name: view }));
+    expect(screen.queryByText(/Rated .* out of 5/)).toBeNull();
   }
 });
 

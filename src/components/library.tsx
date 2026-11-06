@@ -7,6 +7,7 @@ import { useDeferredValue, useEffect, useState, ViewTransition } from "react";
 import { GameCover } from "@/components/game-cover";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformIcon, PlatformNames } from "@/components/platform";
+import { RatingStars } from "@/components/rating-stars";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -312,6 +313,11 @@ export function Library({
                           <p className="text-muted-foreground text-xs">
                             {statusLabel(e)}
                           </p>
+                          {e.rating !== null && (
+                            <p className="text-xs">
+                              <RatingStars points={e.rating} />
+                            </p>
+                          )}
                           {(e.releasedAt || e.platforms.length > 0) && (
                             <p className="line-clamp-2 text-muted-foreground text-xs tabular-nums">
                               {releaseAndPlatforms(e)}
@@ -364,8 +370,14 @@ export function Library({
                             </p>
                           )}
                         </div>
-                        <span className="shrink-0 text-muted-foreground text-sm">
+                        <span className="flex shrink-0 flex-col items-end gap-0.5 text-muted-foreground text-sm">
                           {statusLabel(e)}
+                          {e.rating !== null && (
+                            <RatingStars
+                              points={e.rating}
+                              className="text-foreground"
+                            />
+                          )}
                         </span>
                       </Link>
                     </li>
