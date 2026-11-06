@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "cn";
+import { RotateCw } from "lucide-react";
 import { catchError } from "next/error";
 import { type ReactNode, useTransition } from "react";
 import { RatingStars } from "@/components/rating-stars";
@@ -151,6 +152,8 @@ export function CommunityRatingUnavailable({ retry }: { retry?: () => void }) {
             loading={pending}
             onClick={() => startTransition(retry)}
           >
+            {/* While loading, the Button's spinner takes the icon's place. */}
+            {!pending && <RotateCw aria-hidden="true" />}
             Retry
           </Button>
         )}
