@@ -7,6 +7,7 @@ import { useDeferredValue, useEffect, useState, ViewTransition } from "react";
 import { GameCover } from "@/components/game-cover";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformIcon, PlatformNames } from "@/components/platform";
+import { RatingStars } from "@/components/rating-stars";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,7 @@ const SORT_LABELS: Record<LibrarySort, string> = {
   added: "Recently added",
   released: "Release date (newest first)",
   title: "Title (A–Z)",
+  rating: "Rating (highest first)",
 };
 
 const statusLabel = (e: LibraryEntry) =>
@@ -71,6 +73,8 @@ export function Library({
   const deferredState = parseLibraryParams(new URLSearchParams(deferredQuery));
 
   const { platforms, years } = libraryChoices(entries);
+  // Rated stays on without rated games, so the link shows no matches rather than silently every game.
+  const offerRated = chosen.rated || entries.some((e) => e.rating !== null);
   // A platform or year from an old link that no game has any more would hide everything.
   const filters: LibraryFilters = {
     ...chosen,
@@ -119,7 +123,7 @@ export function Library({
     const nextParams = new URLSearchParams(
       libraryParams(state.filters, state.sort),
     );
-    for (const key of ["q", "status", "platform", "year", "sort"]) {
+    for (const key of ["q", "status", "platform", "year", "rated", "sort"]) {
       const value = nextParams.get(key);
       if (value) url.searchParams.set(key, value);
       else url.searchParams.delete(key);
@@ -170,6 +174,22 @@ export function Library({
               ...STATUSES.map((s) => [s, capitalize(s)] as const),
             ]}
           />
+          {offerRated && (
+            <Select
+              label="Rating"
+              value={filters.rated ? "rated" : ""}
+              onChange={(rated) =>
+                setFilters({
+                  ...filters,
+                  rated: rated === "rated" || undefined,
+                })
+              }
+              options={[
+                ["", "Any rating"],
+                ["rated", "Rated"],
+              ]}
+            />
+          )}
           <Select
             label="Sort by"
             value={sort}
@@ -311,6 +331,11 @@ export function Library({
                           <p className="text-muted-foreground text-xs">
                             {statusLabel(e)}
                           </p>
+                          {e.rating !== null && (
+                            <p className="text-xs">
+                              <RatingStars points={e.rating} />
+                            </p>
+                          )}
                           {(e.releasedAt || e.platforms.length > 0) && (
                             <p className="line-clamp-2 text-muted-foreground text-xs tabular-nums">
                               {releaseAndPlatforms(e)}
@@ -363,8 +388,14 @@ export function Library({
                             </p>
                           )}
                         </div>
-                        <span className="shrink-0 text-muted-foreground text-sm">
+                        <span className="flex shrink-0 flex-col items-end gap-0.5 text-muted-foreground text-sm">
                           {statusLabel(e)}
+                          {e.rating !== null && (
+                            <RatingStars
+                              points={e.rating}
+                              className="text-foreground"
+                            />
+                          )}
                         </span>
                       </Link>
                     </li>

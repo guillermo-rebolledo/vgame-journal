@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense, ViewTransition } from "react";
+import {
+  CommunityRatingBoundary,
+  CommunityRatingFact,
+  CommunityRatingSkeleton,
+} from "@/components/community-rating";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
 import { GameCover } from "@/components/game-cover";
 import { AgeRatingFact, AgeRatingFactSkeleton } from "@/components/game-facts";
@@ -15,9 +20,9 @@ import { SITE_NAME, SITE_URL } from "@/config/site";
 import { boardName, pickRatings } from "@/lib/age-ratings";
 import { signedInUserId } from "@/lib/auth";
 import { coverUrl, type SourceAgeRating } from "@/lib/game-source";
-import { journal } from "@/lib/journal";
+import { journal, type RatingSummary } from "@/lib/journal";
 import { regionName, releaseLabel } from "@/lib/release-dates";
-import { findGame } from "./game";
+import { communityRating, findGame } from "./game";
 import { GameTagShelves } from "./tag-shelves";
 
 /** Search engines show about 160 characters; a summary cut mid-word reads worse than one cut at a space. */
@@ -65,7 +70,10 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
 
   return (
     <>
-      <JsonLd data={videoGameSchema(game, cover)} />
+      {/* Streams after the Community rating so the main content never waits for it. */}
+      <Suspense>
+        <GameSchema game={game} cover={cover} />
+      </Suspense>
       <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 @min-[40em]:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] @min-[40em]:gap-x-8 @min-[40em]:py-12 @min-[48em]:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
         <header className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-4 @min-[40em]:contents">
           <ViewTransition
@@ -129,6 +137,13 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
 
           <GameFactsGrid
             game={game}
+            communityRating={
+              <CommunityRatingBoundary>
+                <Suspense fallback={<CommunityRatingSkeleton />}>
+                  <CommunityRating gameId={game.id} />
+                </Suspense>
+              </CommunityRatingBoundary>
+            }
             ageRating={
               game.ageRatings?.length ? (
                 <Suspense fallback={<AgeRatingFactSkeleton />}>
@@ -234,10 +249,29 @@ async function AgeRating({ ratings }: { ratings: SourceAgeRating[] }) {
   return <AgeRatingFact {...pickRatings(ratings, region)} />;
 }
 
-/** A VideoGame record, so a crawler reads the platforms, dates and scores without parsing the page. */
+async function CommunityRating({ gameId }: { gameId: number }) {
+  return <CommunityRatingFact summary={await communityRating(gameId)} />;
+}
+
+type FoundGame = Awaited<ReturnType<typeof findGame>> & object;
+
+async function GameSchema({
+  game,
+  cover,
+}: {
+  game: FoundGame;
+  cover: string | false | null;
+}) {
+  // Structured data is optional: a failed read just leaves out the aggregate rating.
+  const community = await communityRating(game.id).catch(() => null);
+  return <JsonLd data={videoGameSchema(game, cover, community)} />;
+}
+
+/** A VideoGame record, so a crawler reads the platforms, dates and Community rating without parsing the page. */
 function videoGameSchema(
-  game: Awaited<ReturnType<typeof findGame>> & object,
+  game: FoundGame,
   cover: string | false | null,
+  community: RatingSummary | null,
 ) {
   // The guest board, so the cached markup stays user-independent.
   const rating = pickRatings(game.ageRatings ?? [], null).headline;
@@ -261,15 +295,15 @@ function videoGameSchema(
       inLanguage: game.languages.map((l) => l.name),
     }),
     ...(released && { datePublished: released.toISOString().slice(0, 10) }),
-    ...(game.userScore !== null &&
-      game.userScoreCount && {
-        aggregateRating: {
-          "@type": "AggregateRating",
-          ratingValue: Math.round(game.userScore),
-          ratingCount: game.userScoreCount,
-          bestRating: 100,
-          worstRating: 0,
-        },
-      }),
+    // Only at the threshold, from the same read as the page's Community rating card; never the IGDB user score.
+    ...(community?.average != null && {
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: community.average,
+        ratingCount: community.count,
+        bestRating: 5,
+        worstRating: 0.5,
+      },
+    }),
   };
 }

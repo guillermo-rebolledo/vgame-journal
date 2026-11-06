@@ -15,6 +15,7 @@ import {
   type SavePlaythrough,
 } from "@/components/playthrough-form";
 import { PlaythroughHistory } from "@/components/playthrough-history";
+import { type SaveRating, StarRating } from "@/components/star-rating";
 import { ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,11 +36,13 @@ import { useEditorViewport } from "@/components/use-editor-viewport";
 import type { playthrough } from "@/db/schema";
 import { authPageHref } from "@/lib/auth-continuation";
 import type { Status } from "@/lib/library";
+import { canRate, type RatingPoints } from "@/lib/rating";
 
 type Playthrough = typeof playthrough.$inferSelect;
 export function GameRecording({
   signedIn,
   entry,
+  rating = null,
   playthroughs,
   gameTitle,
   platforms,
@@ -47,11 +50,14 @@ export function GameRecording({
   onAdd,
   onUpdate,
   onRemove,
+  onRate,
   listPicker,
 }: {
   signedIn: boolean;
   listPicker?: ReactNode;
   entry: JournalSelection;
+  /** The saved Rating in points; removal also deletes it. */
+  rating?: RatingPoints | null;
   playthroughs: Playthrough[];
   gameTitle: string;
   platforms: string[];
@@ -62,6 +68,7 @@ export function GameRecording({
     values: Record<string, string>,
   ) => ReturnType<SavePlaythrough>;
   onRemove: (id: number) => ReturnType<SavePlaythrough>;
+  onRate: SaveRating;
 }) {
   const signInHref = authPageHref("/sign-in", usePathname());
   const [editor, setEditor] = useState<Playthrough | "add" | null>(null);
@@ -70,6 +77,7 @@ export function GameRecording({
   const [error, setError] = useState<string>();
   const drafts = useRef(new Map<string | number, Record<string, string>>());
   const addTrigger = useRef<HTMLButtonElement | null>(null);
+  const statusTrigger = useRef<HTMLButtonElement | null>(null);
   const drawer = useRef<HTMLDivElement | null>(null);
   const initiator = useRef<HTMLElement | null>(null);
   const busy = useRef(false);
@@ -141,9 +149,11 @@ export function GameRecording({
         {signedIn ? (
           <JournalStatus
             actions={additionalActions}
+            triggerRef={statusTrigger}
             entry={entry}
             gameTitle={gameTitle}
             playthroughCount={playthroughs.length}
+            rated={rating !== null}
             disabled={pending}
             onSave={async (status, tag, acknowledged) => {
               busy.current = true;
@@ -180,14 +190,23 @@ export function GameRecording({
             {additionalActions}
           </fieldset>
         )}
-        {!signedIn ? (
+        {entry && (
+          <StarRating
+            value={rating}
+            editable={canRate(entry.status)}
+            gameTitle={gameTitle}
+            focusAfterClear={statusTrigger}
+            onSave={onRate}
+          />
+        )}
+        {!signedIn && (
           <p className="text-muted-foreground text-sm">
             <Link href={signInHref} className="underline underline-offset-4">
               Sign in
             </Link>{" "}
-            to record games and playthroughs.
+            to record and rate games and add playthroughs.
           </p>
-        ) : null}
+        )}
         {signedIn && (
           <PlaythroughHistory playthroughs={playthroughs} onEdit={open} />
         )}

@@ -1,3 +1,5 @@
+import type { RatingPoints } from "@/lib/rating";
+
 // Journal terms and Library filters and sorts. No database here, so the Library view runs the same rules in the browser.
 
 export const STATUSES = ["played", "playing", "backlog", "wishlist"] as const;
@@ -18,6 +20,8 @@ export type LibraryEntry = {
   coverImageId: string | null;
   status: Status;
   completionTag: CompletionTag | null;
+  /** Rating points, or null if unrated. */
+  rating: RatingPoints | null;
   addedAt: Date;
   /** Earliest known release, or null if TBA. */
   releasedAt: Date | null;
@@ -33,13 +37,15 @@ export type LibraryFilters = {
   status?: Status;
   platform?: string;
   year?: number;
+  /** Only games with a Rating. */
+  rated?: boolean;
 };
 
 /** Grid or list; remembered in this cookie so the server renders the right one. */
 export type LibraryView = "grid" | "list";
 export const LIBRARY_VIEW_COOKIE = "library-view";
 
-export const LIBRARY_SORTS = ["added", "released", "title"] as const;
+export const LIBRARY_SORTS = ["added", "released", "title", "rating"] as const;
 export type LibrarySort = (typeof LIBRARY_SORTS)[number];
 
 /** "backlog" → "Backlog", for Status and Completion tag labels. */
@@ -49,7 +55,7 @@ export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export const byTitle = (a: { title: string }, b: { title: string }) =>
   a.title.localeCompare(b.title, "en", { sensitivity: "base" });
 
-/** Newest first for both dates; undated releases last. Ties go by title. */
+/** Newest first for both dates, highest Rating first; undated and unrated last. Ties go by title. */
 const compare: Record<
   LibrarySort,
   (a: LibraryEntry, b: LibraryEntry) => number
@@ -59,6 +65,7 @@ const compare: Record<
     (b.releasedAt?.getTime() ?? -Infinity) -
       (a.releasedAt?.getTime() ?? -Infinity) || byTitle(a, b),
   title: byTitle,
+  rating: (a, b) => (b.rating ?? 0) - (a.rating ?? 0) || byTitle(a, b),
 };
 
 /** "Pokémon" → "pokemon". */
@@ -68,7 +75,7 @@ const fold = (s: string) =>
 /** Entries matching every given filter, in the given order. */
 export function queryLibrary(
   entries: LibraryEntry[],
-  { query, status, platform, year }: LibraryFilters = {},
+  { query, status, platform, year, rated }: LibraryFilters = {},
   sort: LibrarySort = "added",
 ) {
   const q = fold(query?.trim() ?? "");
@@ -78,7 +85,8 @@ export function queryLibrary(
         (!q || fold(e.title).includes(q)) &&
         (!status || e.status === status) &&
         (!platform || e.platforms.includes(platform)) &&
-        (!year || e.years.includes(year)),
+        (!year || e.years.includes(year)) &&
+        (!rated || e.rating !== null),
     )
     .sort(compare[sort]);
 }
@@ -91,7 +99,7 @@ export function libraryChoices(entries: LibraryEntry[]) {
   };
 }
 
-/** Library search, filters and sort from the URL (`?q=&status=&platform=&year=&sort=`); unknown values fall back to none. */
+/** Library search, filters and sort from the URL (`?q=&status=&platform=&year=&rated=1&sort=`); unknown values fall back to none. */
 export function parseLibraryParams(params: Pick<URLSearchParams, "get">) {
   const status = params.get("status") as Status;
   const sort = params.get("sort") as LibrarySort;
@@ -101,6 +109,7 @@ export function parseLibraryParams(params: Pick<URLSearchParams, "get">) {
     status: STATUSES.includes(status) ? status : undefined,
     platform: params.get("platform") || undefined,
     year: Number.isInteger(year) && year > 0 ? year : undefined,
+    rated: params.get("rated") === "1" || undefined,
   };
   return { filters, sort: LIBRARY_SORTS.includes(sort) ? sort : "added" };
 }
@@ -108,12 +117,13 @@ export function parseLibraryParams(params: Pick<URLSearchParams, "get">) {
 /** The query string for some filters and a sort, leaving out the defaults. */
 export function libraryParams(filters: LibraryFilters, sort: LibrarySort) {
   const params = new URLSearchParams();
-  const { query, status, platform, year } = filters;
+  const { query, status, platform, year, rated } = filters;
   for (const [key, value] of [
     ["q", query],
     ["status", status],
     ["platform", platform],
     ["year", year],
+    ["rated", rated && 1],
     ["sort", sort === "added" ? undefined : sort],
   ] as const)
     if (value) params.set(key, String(value));

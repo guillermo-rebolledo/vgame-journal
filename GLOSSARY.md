@@ -40,6 +40,14 @@ _Avoid_: Status, achievement, custom tag.
 A dated record of playing a game on a platform, with a start date and optional finish date, hours, and private notes. A game may have several Playthroughs; a finish date alone does not change its Status or Completion tag.
 _Avoid_: Session, review, Journal entry when naming a Playthrough.
 
+**Rating**:
+Your half-star score, from 0.5 to 5, for a game in your Journal, given while its Status is Played or Playing. One per game; it stays through later Status changes. It is separate from a Completion tag and a Playthrough, and rating never changes either or your Status.
+_Avoid_: Score, review, User score when naming a Rating. Reserve "IGDB user score" for the external Catalog value.
+
+**Community rating**:
+The average of all shelve.games players' Ratings for a game, shown once it reaches the Community rating threshold.
+_Avoid_: User score, IGDB user score, critic score.
+
 **Countdown**:
 The time remaining until a Wishlisted game's known release, following your selected Release region. An unknown release date is shown as unannounced rather than as a numeric countdown.
 _Avoid_: Timer, launch alarm.

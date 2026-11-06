@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, type SQL, sql } from "drizzle-orm";
 import { type Db, db } from "@/db";
 import {
   game,
@@ -22,6 +22,7 @@ import {
   type Status,
 } from "@/lib/library";
 import { createLists } from "@/lib/lists";
+import { isRatingPoints, RATEABLE_STATUSES } from "@/lib/rating";
 import {
   compareWishlist,
   REGIONS,
@@ -49,10 +50,49 @@ export type WishlistEntry = {
 /** A broken Journal rule. Its message is safe to show the user. */
 export class JournalError extends Error {}
 
+/** Below this many Ratings a game's Community rating has no average. */
+export const COMMUNITY_RATING_THRESHOLD = 5;
+
+export type RatingSummary = {
+  count: number;
+  /** Stars to one decimal (rounded half up), or null with no Ratings or, for a Community rating, below the threshold. */
+  average: number | null;
+  /** Ratings per points value: `distribution[points - 1]`. */
+  distribution: number[];
+};
+
+/** Count, average and distribution from Ratings grouped by points, in integer arithmetic. */
+function summarizeRatings(
+  rows: { points: number | null; ratings: number }[],
+  threshold = 1,
+): RatingSummary {
+  const distribution = Array<number>(10).fill(0);
+  let count = 0;
+  let points = 0;
+  for (const row of rows) {
+    if (row.points === null) continue;
+    distribution[row.points - 1] = row.ratings;
+    count += row.ratings;
+    points += row.points * row.ratings;
+  }
+  // Tenths of a star = points × 5 ÷ count, rounded half up without float accumulation.
+  const average =
+    count >= threshold && count > 0
+      ? Math.floor((points * 10 + count) / (2 * count)) / 10
+      : null;
+  return { count, average, distribution };
+}
+
+/** What removing an entry would permanently delete besides the entry itself. */
+export type JournalRemovalContents = {
+  playthroughCount: number;
+  /** Removal also deletes the entry's Rating. */
+  rated: boolean;
+};
+
 export type JournalRemovalConfirmation = {
   confirmationRequired: true;
-  playthroughCount: number;
-};
+} & JournalRemovalContents;
 
 /** What a user fills in for a Playthrough. Dates are `YYYY-MM-DD`. */
 export type PlaythroughInput = {
@@ -101,6 +141,17 @@ export function createJournal(db: Db) {
     db
       .insert(statusEvent)
       .values({ userId, gameId, status, completionTag, at });
+
+  /** Ratings per points value among the matching rated entries. One grouped query over the partial rating index. */
+  const ratingsByPoints = (where: SQL) =>
+    db
+      .select({
+        points: journalEntry.rating,
+        ratings: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(journalEntry)
+      .where(and(where, sql`${journalEntry.rating} is not null`))
+      .groupBy(journalEntry.rating);
 
   const ownedPlaythrough = (userId: string, id: number) =>
     and(eq(playthrough.userId, userId), eq(playthrough.id, id));
@@ -227,6 +278,8 @@ export function createJournal(db: Db) {
             slug: game.slug,
             status: journalEntry.status,
             completionTag: journalEntry.completionTag,
+            rating: journalEntry.rating,
+            ratedAt: journalEntry.ratedAt,
             createdAt: journalEntry.createdAt,
             updatedAt: journalEntry.updatedAt,
           })
@@ -295,57 +348,59 @@ export function createJournal(db: Db) {
 
     /** Games count once per end-date year; only entries currently marked Played qualify. */
     async stats(userId: string) {
-      const [finishedPerYear, hoursByPlatform, events] = await Promise.all([
-        db
-          .select({
-            year: sql<number>`extract(year from ${playthrough.endedOn})`.mapWith(
-              Number,
-            ),
-            games: sql<number>`count(distinct ${playthrough.gameId})`.mapWith(
-              Number,
-            ),
-          })
-          .from(playthrough)
-          .innerJoin(
-            journalEntry,
-            and(
-              eq(journalEntry.userId, playthrough.userId),
-              eq(journalEntry.gameId, playthrough.gameId),
-            ),
-          )
-          .where(
-            and(
-              eq(playthrough.userId, userId),
-              eq(journalEntry.status, "played"),
-              sql`${playthrough.endedOn} is not null`,
-            ),
-          )
-          .groupBy(sql`extract(year from ${playthrough.endedOn})`)
-          .orderBy(sql`extract(year from ${playthrough.endedOn})`),
-        db
-          .select({
-            platform: playthrough.platform,
-            hours: sql<number>`sum(${playthrough.hours})`.mapWith(Number),
-          })
-          .from(playthrough)
-          .where(
-            and(
-              eq(playthrough.userId, userId),
-              sql`${playthrough.hours} is not null`,
-            ),
-          )
-          .groupBy(playthrough.platform)
-          .orderBy(sql`sum(${playthrough.hours}) desc`, playthrough.platform),
-        db
-          .select({
-            gameId: statusEvent.gameId,
-            status: statusEvent.status,
-            at: statusEvent.at,
-          })
-          .from(statusEvent)
-          .where(eq(statusEvent.userId, userId))
-          .orderBy(statusEvent.at, statusEvent.id),
-      ]);
+      const [finishedPerYear, hoursByPlatform, events, ratings] =
+        await Promise.all([
+          db
+            .select({
+              year: sql<number>`extract(year from ${playthrough.endedOn})`.mapWith(
+                Number,
+              ),
+              games: sql<number>`count(distinct ${playthrough.gameId})`.mapWith(
+                Number,
+              ),
+            })
+            .from(playthrough)
+            .innerJoin(
+              journalEntry,
+              and(
+                eq(journalEntry.userId, playthrough.userId),
+                eq(journalEntry.gameId, playthrough.gameId),
+              ),
+            )
+            .where(
+              and(
+                eq(playthrough.userId, userId),
+                eq(journalEntry.status, "played"),
+                sql`${playthrough.endedOn} is not null`,
+              ),
+            )
+            .groupBy(sql`extract(year from ${playthrough.endedOn})`)
+            .orderBy(sql`extract(year from ${playthrough.endedOn})`),
+          db
+            .select({
+              platform: playthrough.platform,
+              hours: sql<number>`sum(${playthrough.hours})`.mapWith(Number),
+            })
+            .from(playthrough)
+            .where(
+              and(
+                eq(playthrough.userId, userId),
+                sql`${playthrough.hours} is not null`,
+              ),
+            )
+            .groupBy(playthrough.platform)
+            .orderBy(sql`sum(${playthrough.hours}) desc`, playthrough.platform),
+          db
+            .select({
+              gameId: statusEvent.gameId,
+              status: statusEvent.status,
+              at: statusEvent.at,
+            })
+            .from(statusEvent)
+            .where(eq(statusEvent.userId, userId))
+            .orderBy(statusEvent.at, statusEvent.id),
+          ratingsByPoints(eq(journalEntry.userId, userId)),
+        ]);
       const backlog = new Set<number>();
       const days = new Map<string, number>();
       for (const event of events) {
@@ -357,7 +412,12 @@ export function createJournal(db: Db) {
         day,
         games,
       }));
-      return { finishedPerYear, hoursByPlatform, backlogOverTime };
+      return {
+        finishedPerYear,
+        hoursByPlatform,
+        backlogOverTime,
+        ratings: summarizeRatings(ratings),
+      };
     },
 
     /** The user's entry for a game, or null if it isn't in their journal. */
@@ -428,6 +488,49 @@ export function createJournal(db: Db) {
       return moved.updatedAt;
     },
 
+    /** Rates a Played or Playing game. One conditional UPDATE, so a racing Status move can't let a Rating land on another Status. */
+    async setRating(userId: string, gameId: number, points: unknown) {
+      if (!isRatingPoints(points))
+        throw new JournalError("Choose a Rating from half a star to 5 stars.");
+      const [rated] = await db
+        .update(journalEntry)
+        // Same value keeps rated-at, so retries are idempotent. Never touch updated-at: `move` uses it as its stale-write guard.
+        .set({
+          rating: points,
+          ratedAt: sql`case when ${journalEntry.rating} = ${points} then ${journalEntry.ratedAt} else ${sql.param(new Date(), journalEntry.ratedAt)} end`,
+        })
+        .where(
+          and(
+            owned(userId, gameId),
+            inArray(journalEntry.status, [...RATEABLE_STATUSES]),
+          ),
+        )
+        .returning({ rating: journalEntry.rating });
+      if (rated) return;
+      // Nothing was written; this read only picks the message.
+      throw new JournalError(
+        (await entry(userId, gameId))
+          ? "Mark it Played or Playing to rate it."
+          : "This game is not in your Journal.",
+      );
+    },
+
+    /** Every stored Rating for a game, whatever each entry's Status. Derived, never counted, so it can't drift. */
+    async communityRating(gameId: number): Promise<RatingSummary> {
+      return summarizeRatings(
+        await ratingsByPoints(eq(journalEntry.gameId, gameId)),
+        COMMUNITY_RATING_THRESHOLD,
+      );
+    },
+
+    /** Removes the user's Rating for a game, in any Status. A no-op if there is none. */
+    async clearRating(userId: string, gameId: number) {
+      await db
+        .update(journalEntry)
+        .set({ rating: null, ratedAt: null })
+        .where(owned(userId, gameId));
+    },
+
     /** Takes the game out of the user's journal. */
     async remove(
       userId: string,
@@ -442,22 +545,24 @@ export function createJournal(db: Db) {
             // Guard in the delete itself: stale clients cannot bypass confirmation.
             acknowledged === true
               ? undefined
-              : sql`not exists (select 1 from ${playthrough} where ${playthrough.userId} = ${userId} and ${playthrough.gameId} = ${gameId})`,
+              : sql`${journalEntry.rating} is null and not exists (select 1 from ${playthrough} where ${playthrough.userId} = ${userId} and ${playthrough.gameId} = ${gameId})`,
           ),
         )
         .returning();
       if (removed.length)
         await recordStatusEvent(userId, gameId, null, null, new Date());
       else {
-        const [current] = await db
-          .select({ count: sql<number>`count(*)`.mapWith(Number) })
-          .from(playthrough)
-          .where(owned(userId, gameId, playthrough));
-        if (current.count > 0)
-          return {
-            confirmationRequired: true,
-            playthroughCount: current.count,
-          };
+        const [kept] = await db
+          .select({
+            rated: sql<boolean>`${journalEntry.rating} is not null`,
+            playthroughCount:
+              sql<number>`(select count(*) from ${playthrough} where ${playthrough.userId} = ${userId} and ${playthrough.gameId} = ${gameId})`.mapWith(
+                Number,
+              ),
+          })
+          .from(journalEntry)
+          .where(owned(userId, gameId));
+        if (kept) return { confirmationRequired: true, ...kept };
       }
     },
 
@@ -571,6 +676,7 @@ export function createJournal(db: Db) {
             coverImageId: game.coverImageId,
             status: journalEntry.status,
             completionTag: journalEntry.completionTag,
+            rating: journalEntry.rating,
             addedAt: journalEntry.createdAt,
             releasedAt: sql<Date | null>`(
               select min(${releaseDate.date}) from ${releaseDate}

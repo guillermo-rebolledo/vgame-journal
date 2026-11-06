@@ -2,7 +2,13 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { BookMarked, ChevronDown, Trash2 } from "lucide-react";
-import { type ReactNode, startTransition, useRef, useState } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  startTransition,
+  useRef,
+  useState,
+} from "react";
 import { trackEvent } from "@/components/analytics";
 import { ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
@@ -23,7 +29,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SAVED_LABELS } from "@/lib/home-journal";
-import type { JournalRemovalConfirmation } from "@/lib/journal";
+import type {
+  JournalRemovalConfirmation,
+  JournalRemovalContents,
+} from "@/lib/journal";
 import {
   COMPLETION_TAGS,
   type CompletionTag,
@@ -45,16 +54,22 @@ export function JournalStatus({
   entry,
   gameTitle,
   playthroughCount,
+  rated = false,
   disabled,
   onSave,
   actions,
+  triggerRef,
 }: {
   entry: JournalSelection;
   gameTitle: string;
   playthroughCount: number;
+  /** Whether the entry has a Rating, which removal also deletes. */
+  rated?: boolean;
   disabled: boolean;
   onSave: SaveJournalStatus;
   actions?: ReactNode;
+  /** The Journal status button, for callers that move focus to it. */
+  triggerRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const [confirmed, setConfirmed] = useState(entry);
   const [previousEntry, setPreviousEntry] = useState(entry);
@@ -65,10 +80,11 @@ export function JournalStatus({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
-  const [confirmationCount, setConfirmationCount] = useState<number | null>(
-    null,
-  );
-  const trigger = useRef<HTMLButtonElement | null>(null);
+  /** What removal will delete, while its confirmation is open. */
+  const [confirmation, setConfirmation] =
+    useState<JournalRemovalContents | null>(null);
+  const ownTrigger = useRef<HTMLButtonElement | null>(null);
+  const trigger = triggerRef ?? ownTrigger;
   const cancel = useRef<HTMLButtonElement | null>(null);
   const busy = useRef(false);
   const label = confirmed
@@ -92,11 +108,10 @@ export function JournalStatus({
     startTransition(async () => {
       try {
         const result = await onSave(status, tag, acknowledged);
-        if (result && "confirmationRequired" in result)
-          setConfirmationCount(result.playthroughCount);
+        if (result && "confirmationRequired" in result) setConfirmation(result);
         else if (result) setError(result.error);
         else {
-          setConfirmationCount(null);
+          setConfirmation(null);
           setConfirmed(status === null ? null : { status, completionTag: tag });
           if (status === null) {
             setNotice(`${gameTitle} removed from your journal.`);
@@ -140,7 +155,7 @@ export function JournalStatus({
               if (open && (disabled || pending)) event.cancel();
             }}
           >
-            <Tooltip disabled={confirmationCount !== null}>
+            <Tooltip disabled={confirmation !== null}>
               <TooltipTrigger
                 render={
                   <DropdownMenuTrigger
@@ -245,8 +260,8 @@ export function JournalStatus({
                       onClick={() => {
                         setError(undefined);
                         setNotice(undefined);
-                        if (playthroughCount > 0)
-                          setConfirmationCount(playthroughCount);
+                        if (playthroughCount > 0 || rated)
+                          setConfirmation({ playthroughCount, rated });
                         else save(null, null);
                       }}
                     >
@@ -262,11 +277,11 @@ export function JournalStatus({
         {actions}
       </fieldset>
       <Dialog.Root
-        open={confirmationCount !== null}
+        open={confirmation !== null}
         onOpenChange={(open, event) => {
           if (busy.current) event.cancel();
           else if (!open) {
-            setConfirmationCount(null);
+            setConfirmation(null);
             setError(undefined);
           }
         }}
@@ -282,10 +297,7 @@ export function JournalStatus({
               Remove {gameTitle} from journal?
             </Dialog.Title>
             <Dialog.Description className="text-muted-foreground text-sm">
-              {gameTitle} has {confirmationCount}{" "}
-              {confirmationCount === 1 ? "Playthrough" : "Playthroughs"}. If you
-              remove it, all current Playthroughs and private notes will be
-              permanently deleted.
+              {confirmation && removalDescription(gameTitle, confirmation)}
             </Dialog.Description>
             {error && (
               <p role="alert" className="text-destructive text-sm">
@@ -325,11 +337,23 @@ export function JournalStatus({
       <output className="sr-only" aria-live="polite" aria-atomic="true">
         {pending ? "Saving journal status…" : notice}
       </output>
-      {error && confirmationCount === null && (
+      {error && confirmation === null && (
         <p role="alert" className="mt-2 max-w-xs text-destructive text-sm">
           {error}
         </p>
       )}
     </div>
   );
+}
+
+function removalDescription(
+  gameTitle: string,
+  { playthroughCount, rated }: JournalRemovalContents,
+) {
+  const playthroughs = `${playthroughCount} ${playthroughCount === 1 ? "Playthrough" : "Playthroughs"}`;
+  if (!rated)
+    return `${gameTitle} has ${playthroughs}. If you remove it, all current Playthroughs and private notes will be permanently deleted.`;
+  if (playthroughCount === 0)
+    return `${gameTitle} has your Rating. If you remove it, your Rating will be permanently deleted and will stop counting toward the Community rating.`;
+  return `${gameTitle} has ${playthroughs} and your Rating. If you remove it, all current Playthroughs, private notes and your Rating will be permanently deleted, and the Rating will stop counting toward the Community rating.`;
 }
