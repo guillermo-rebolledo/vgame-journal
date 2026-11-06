@@ -50,7 +50,7 @@ export function GameRecording({
   onAdd,
   onUpdate,
   onRemove,
-  onRate = async () => undefined,
+  onRate,
   listPicker,
 }: {
   signedIn: boolean;
@@ -68,7 +68,7 @@ export function GameRecording({
     values: Record<string, string>,
   ) => ReturnType<SavePlaythrough>;
   onRemove: (id: number) => ReturnType<SavePlaythrough>;
-  onRate?: SaveRating;
+  onRate: SaveRating;
 }) {
   const signInHref = authPageHref("/sign-in", usePathname());
   const [editor, setEditor] = useState<Playthrough | "add" | null>(null);

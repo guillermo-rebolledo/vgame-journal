@@ -45,6 +45,7 @@ const meta = {
     onAdd: fn(async () => undefined),
     onUpdate: fn(async () => undefined),
     onRemove: fn(async () => undefined),
+    onRate: fn(async () => undefined),
   },
 } satisfies Meta<typeof GameRecording>;
 export default meta;

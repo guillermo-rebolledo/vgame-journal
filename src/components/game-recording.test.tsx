@@ -49,6 +49,7 @@ function renderRecording(
       onAdd={vi.fn(async () => undefined)}
       onUpdate={vi.fn(async () => undefined)}
       onRemove={vi.fn(async () => undefined)}
+      onRate={vi.fn(async () => undefined)}
       {...props}
     />,
   );
