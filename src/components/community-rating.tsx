@@ -68,11 +68,11 @@ export function CommunityRatingFact({ summary }: { summary: RatingSummary }) {
                 key={index}
                 className={cn(
                   "flex-1 rounded-t-sm bg-chart-2",
-                  value === 0 && "bg-border",
+                  value === 0 && "h-0.5 bg-border",
                 )}
-                style={{
-                  height: value ? `${(value / max) * 100}%` : "2px",
-                }}
+                style={
+                  value ? { height: `${(value / max) * 100}%` } : undefined
+                }
               />
             ))}
           </div>

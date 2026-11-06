@@ -136,11 +136,11 @@ export function StarRating({
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {editable ? (
               <div className="relative inline-flex">
-                {/* Each 2rem star gets a 48 × 44px box, so its halves line up with the radio targets above. */}
+                {/* Each text-4xl (36px) star gets a 48 × 44px box, so its halves line up with the radio targets above. */}
                 <span aria-hidden="true">
                   <RatingStars
                     points={rating.shown ?? 0}
-                    className="text-[2rem] [&>[aria-hidden]]:mx-2 [&>[aria-hidden]]:my-1.5"
+                    className="text-4xl [&>[aria-hidden]]:mx-1.5 [&>[aria-hidden]]:my-1"
                   />
                 </span>
                 <div className="absolute inset-0 grid grid-cols-10">
