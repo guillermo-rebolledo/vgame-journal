@@ -275,6 +275,7 @@ test("removing saved Playthroughs requires explicit acknowledgement at the owner
     await expect(journal.remove("mario", 1, acknowledgement)).resolves.toEqual({
       confirmationRequired: true,
       playthroughCount: 1,
+      rated: false,
     });
     expect(await journal.exportData("mario")).toEqual(before);
   }
@@ -1161,4 +1162,285 @@ test("account export includes only the owner's public and private lists in saved
   expect((await db.select().from(game)).map((g) => g.id).sort()).toEqual([
     1, 2,
   ]);
+});
+
+test("a Played or Playing game takes any Rating from 1 to 10 points, read back with its entry", async () => {
+  await journal.set("mario", 1, { status: "played" });
+  await journal.set("mario", 2, { status: "playing" });
+  for (const points of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+    await journal.setRating("mario", 1, points);
+    await journal.setRating("mario", 2, points);
+    expect(await journal.entry("mario", 1)).toMatchObject({
+      rating: points,
+      ratedAt: expect.any(Date),
+    });
+    expect(await journal.entry("mario", 2)).toMatchObject({ rating: points });
+  }
+});
+
+test("a Rating outside 1 to 10 whole points is rejected with a user-safe error", async () => {
+  await journal.set("mario", 1, { status: "played" });
+  for (const points of [0, 11, 3.5, -1, Number.NaN, "7", null, undefined, {}])
+    await expect(journal.setRating("mario", 1, points)).rejects.toThrow(
+      new JournalError("Choose a Rating from half a star to 5 stars."),
+    );
+  expect(await journal.entry("mario", 1)).toMatchObject({
+    rating: null,
+    ratedAt: null,
+  });
+});
+
+test("rating a game outside the Journal or not Played or Playing explains why and writes nothing", async () => {
+  await expect(journal.setRating("mario", 1, 8)).rejects.toThrow(
+    new JournalError("This game is not in your Journal."),
+  );
+  expect(await journal.entry("mario", 1)).toBeNull();
+  for (const status of ["backlog", "wishlist"] as const) {
+    await journal.set("mario", 1, { status });
+    await expect(journal.setRating("mario", 1, 8)).rejects.toThrow(
+      new JournalError("Mark it Played or Playing to rate it."),
+    );
+    expect(await journal.entry("mario", 1)).toMatchObject({ rating: null });
+  }
+  // Another player's entry doesn't count as yours.
+  await journal.set("luigi", 2, { status: "played" });
+  await expect(journal.setRating("mario", 2, 8)).rejects.toThrow(
+    "This game is not in your Journal.",
+  );
+  expect(await journal.entry("luigi", 2)).toMatchObject({ rating: null });
+});
+
+test("resubmitting the same Rating keeps rated-at; a new value updates it", async () => {
+  await journal.set("mario", 1, { status: "played" });
+  vi.setSystemTime(new Date("2026-01-01T10:00:00Z"));
+  await journal.setRating("mario", 1, 7);
+  vi.setSystemTime(new Date("2026-01-02T10:00:00Z"));
+  await journal.setRating("mario", 1, 7);
+  expect(await journal.entry("mario", 1)).toMatchObject({
+    rating: 7,
+    ratedAt: new Date("2026-01-01T10:00:00Z"),
+  });
+  vi.setSystemTime(new Date("2026-01-03T10:00:00Z"));
+  await journal.setRating("mario", 1, 9);
+  expect(await journal.entry("mario", 1)).toMatchObject({
+    rating: 9,
+    ratedAt: new Date("2026-01-03T10:00:00Z"),
+  });
+});
+
+test("rating leaves updated-at and status history alone, so a Status move seen before it still succeeds", async () => {
+  await journal.set("mario", 1, { status: "backlog" });
+  const seen = await journal.move("mario", 1, { status: "backlog" }, "played");
+  const events = await journal.statusEvents("mario");
+
+  await journal.setRating("mario", 1, 6);
+  await journal.clearRating("mario", 1);
+  await journal.setRating("mario", 1, 8);
+
+  expect(await journal.entry("mario", 1)).toMatchObject({ updatedAt: seen });
+  expect(await journal.statusEvents("mario")).toEqual(events);
+  expect(
+    await journal.move(
+      "mario",
+      1,
+      { status: "played", updatedAt: seen ?? undefined },
+      "backlog",
+    ),
+  ).toBeInstanceOf(Date);
+});
+
+test("a Rating stays through every Status change, and can be cleared in any Status", async () => {
+  await journal.set("mario", 1, {
+    status: "played",
+    completionTag: "completed",
+  });
+  await journal.setRating("mario", 1, 8);
+  for (const status of ["backlog", "wishlist", "playing", "played"] as const) {
+    await journal.set("mario", 1, { status });
+    expect(await journal.entry("mario", 1)).toMatchObject({
+      status,
+      rating: 8,
+    });
+  }
+  await journal.move("mario", 1, { status: "played" }, "backlog");
+  expect(await journal.entry("mario", 1)).toMatchObject({ rating: 8 });
+
+  for (const status of ["played", "playing", "backlog", "wishlist"] as const) {
+    await journal.set("mario", 1, { status: "played" });
+    await journal.setRating("mario", 1, 4);
+    await journal.set("mario", 1, { status });
+    await journal.clearRating("mario", 1);
+    await journal.clearRating("mario", 1); // already clear: no-op
+    expect(await journal.entry("mario", 1)).toMatchObject({
+      status,
+      rating: null,
+      ratedAt: null,
+    });
+  }
+  // Clearing a game outside the Journal is a no-op, not an error.
+  await expect(journal.clearRating("mario", 2)).resolves.toBeUndefined();
+  expect(await journal.entry("mario", 2)).toBeNull();
+});
+
+test("the database rejects Ratings out of range or without rated-at", async () => {
+  await journal.set("mario", 1, { status: "played" });
+  for (const values of [
+    { rating: 0, ratedAt: new Date() },
+    { rating: 11, ratedAt: new Date() },
+    { rating: 5, ratedAt: null },
+    { rating: null, ratedAt: new Date() },
+  ])
+    await expect(
+      db.update(journalEntry).set(values).where(eq(journalEntry.gameId, 1)),
+    ).rejects.toThrow();
+  expect(await journal.entry("mario", 1)).toMatchObject({ rating: null });
+});
+
+/** Gives game `gameId` one Rating per points value, each from a new Played player. */
+async function rateByNewPlayers(gameId: number, points: number[]) {
+  for (const [i, p] of points.entries()) {
+    const id = `player-${gameId}-${i}-${randomUUID()}`;
+    await db.insert(user).values({ id, name: id, email: `${id}@example.com` });
+    await journal.set(id, gameId, { status: "played" });
+    await journal.setRating(id, gameId, p);
+  }
+}
+
+test("the Community rating counts Ratings and shows an average only from 5 Ratings", async () => {
+  expect(await journal.communityRating(1)).toEqual({
+    count: 0,
+    average: null,
+    distribution: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  });
+  await rateByNewPlayers(1, [10, 9, 9, 2]);
+  await journal.set("mario", 1, { status: "backlog" }); // unrated: ignored
+  await rateByNewPlayers(2, [1, 1, 1, 1, 1]); // another game's
+  expect(await journal.communityRating(1)).toEqual({
+    count: 4,
+    average: null,
+    distribution: [0, 1, 0, 0, 0, 0, 0, 0, 2, 1],
+  });
+  await rateByNewPlayers(1, [5]);
+  expect(await journal.communityRating(1)).toEqual({
+    count: 5,
+    average: 3.5, // 35 points ÷ 5 = 7 points = 3.5 stars
+    distribution: [0, 1, 0, 0, 1, 0, 0, 0, 2, 1],
+  });
+});
+
+test("the Community rating average rounds half up to one decimal, exactly", async () => {
+  // 46 points over 20 Ratings is 1.15 stars, which floating point rounds down.
+  await rateByNewPlayers(1, [...Array(14).fill(2), ...Array(6).fill(3)]);
+  expect(await journal.communityRating(1)).toMatchObject({
+    count: 20,
+    average: 1.2,
+  });
+  // 39 points over 6 Ratings is 3.25 stars.
+  await rateByNewPlayers(2, [7, 7, 7, 6, 6, 6]);
+  expect(await journal.communityRating(2)).toMatchObject({ average: 3.3 });
+});
+
+test("the Community rating counts Ratings kept on Backlog and Wishlist games", async () => {
+  await rateByNewPlayers(1, [8, 8, 8, 8]);
+  await journal.set("mario", 1, { status: "played" });
+  await journal.setRating("mario", 1, 3);
+  await journal.set("mario", 1, { status: "wishlist" });
+  await journal.set("luigi", 1, { status: "playing" });
+  await journal.setRating("luigi", 1, 3);
+  await journal.set("luigi", 1, { status: "backlog" });
+  expect(await journal.communityRating(1)).toMatchObject({ count: 6 });
+});
+
+test("removing a rated game needs confirmation, then drops its Rating from the Community rating", async () => {
+  await rateByNewPlayers(1, [6, 6, 6, 6]);
+  await journal.set("mario", 1, { status: "played" });
+  await journal.setRating("mario", 1, 10);
+  await journal.set("mario", 1, { status: "backlog" });
+  for (const acknowledgement of [undefined, false, "true"])
+    await expect(journal.remove("mario", 1, acknowledgement)).resolves.toEqual({
+      confirmationRequired: true,
+      playthroughCount: 0,
+      rated: true,
+    });
+  expect(await journal.entry("mario", 1)).toMatchObject({ rating: 10 });
+  expect(await journal.communityRating(1)).toMatchObject({
+    count: 5,
+    average: 3.4,
+  });
+
+  await journal.remove("mario", 1, true);
+  expect(await journal.entry("mario", 1)).toBeNull();
+  expect(await journal.communityRating(1)).toMatchObject({
+    count: 4,
+    average: null,
+  });
+});
+
+test("deleting an account removes its Ratings from the Community rating", async () => {
+  await rateByNewPlayers(1, [4, 4, 4, 4]);
+  await journal.set("mario", 1, { status: "played" });
+  await journal.setRating("mario", 1, 4);
+  expect(await journal.communityRating(1)).toMatchObject({ count: 5 });
+
+  await journal.deleteAccount("mario", "DELETE");
+  expect(await journal.communityRating(1)).toMatchObject({
+    count: 4,
+    average: null,
+  });
+});
+
+test("export, Library entries and the public profile carry each Rating and when it changed; the profile still has no notes", async () => {
+  await db.update(user).set({ username: "mario" }).where(eq(user.id, "mario"));
+  await journal.set("mario", 1, { status: "played" });
+  await journal.set("mario", 2, { status: "backlog" });
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 5",
+    startedOn: "2026-01-01",
+    notes: "Private thoughts",
+  });
+  vi.setSystemTime(new Date("2026-03-01T10:00:00Z"));
+  await journal.setRating("mario", 1, 9);
+  vi.useRealTimers();
+  const rated = {
+    gameId: 1,
+    rating: 9,
+    ratedAt: new Date("2026-03-01T10:00:00Z"),
+  };
+  const unrated = { gameId: 2, rating: null, ratedAt: null };
+
+  expect((await journal.exportData("mario")).entries).toEqual([
+    expect.objectContaining(rated),
+    expect.objectContaining(unrated),
+  ]);
+  expect(await journal.library("mario", {}, "title")).toEqual([
+    expect.objectContaining(rated),
+    expect.objectContaining(unrated),
+  ]);
+  const profile = await journal.publicProfile("mario");
+  expect(
+    [...(profile?.library ?? [])].sort((a, b) => a.gameId - b.gameId),
+  ).toEqual([expect.objectContaining(rated), expect.objectContaining(unrated)]);
+  expect(JSON.stringify(profile)).not.toMatch(/notes|Private thoughts/i);
+});
+
+test("stats report the owner's Rating distribution, average Rating given and number of rated games", async () => {
+  expect((await journal.stats("mario")).ratings).toEqual({
+    count: 0,
+    average: null,
+    distribution: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  });
+  await journal.set("mario", 1, { status: "played" });
+  await journal.setRating("mario", 1, 9);
+  await journal.set("mario", 2, { status: "playing" });
+  await journal.setRating("mario", 2, 4);
+  await journal.set("mario", 2, { status: "wishlist" }); // kept, still counts
+  await journal.set("luigi", 1, { status: "played" });
+  await journal.setRating("luigi", 1, 1);
+
+  // 13 points over 2 Ratings is 3.25 stars, so no threshold and half up.
+  expect((await journal.stats("mario")).ratings).toEqual({
+    count: 2,
+    average: 3.3,
+    distribution: [0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+  });
 });

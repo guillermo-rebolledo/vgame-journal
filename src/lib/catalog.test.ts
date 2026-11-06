@@ -4,6 +4,7 @@ import type { DatePrecision } from "@/lib/game-source";
 import { createTestDb } from "@/test/db";
 import { createFakeGameSource, sourceGame } from "@/test/fake-game-source";
 import { createCatalog } from "./catalog";
+import { createJournal } from "./journal";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -744,4 +745,43 @@ test("a catalog game synced before age ratings and languages existed re-fetches 
   });
   await catalog.findBySlug("celeste");
   expect(fetchGame).toHaveBeenCalledTimes(1);
+});
+
+test("saving a game again from the source, as a sync does, leaves its Ratings and Community rating alone", async () => {
+  const games = [sourceGame({ id: 7, title: "Celeste" })];
+  const source = createFakeGameSource(games);
+  const db = await createTestDb();
+  const catalog = createCatalog(db, source);
+  const journal = createJournal(db);
+  vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+  await catalog.search("celeste");
+  const players = ["a", "b", "c", "d", "e"];
+  await db
+    .insert(user)
+    .values(
+      players.map((id) => ({ id, name: id, email: `${id}@example.com` })),
+    );
+  for (const [i, id] of players.entries()) {
+    await journal.set(id, 7, { status: "played" });
+    await journal.setRating(id, 7, i + 6);
+  }
+  const before = {
+    community: await journal.communityRating(7),
+    entries: await Promise.all(players.map((id) => journal.entry(id, 7))),
+  };
+  expect(before.community).toMatchObject({ count: 5, average: 4 });
+
+  // The cached search expires and the source has newer details to save.
+  games[0].title = "Celeste (Remastered)";
+  vi.setSystemTime(new Date("2026-01-02T01:00:00Z"));
+  await catalog.search("celeste");
+  expect(source.searches).toBe(2);
+  expect((await catalog.findBySlug("game-7"))?.title).toBe(
+    "Celeste (Remastered)",
+  );
+
+  expect(await journal.communityRating(7)).toEqual(before.community);
+  expect(await Promise.all(players.map((id) => journal.entry(id, 7)))).toEqual(
+    before.entries,
+  );
 });

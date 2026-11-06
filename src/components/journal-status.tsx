@@ -45,6 +45,7 @@ export function JournalStatus({
   entry,
   gameTitle,
   playthroughCount,
+  rated = false,
   disabled,
   onSave,
   actions,
@@ -52,6 +53,8 @@ export function JournalStatus({
   entry: JournalSelection;
   gameTitle: string;
   playthroughCount: number;
+  /** Whether the entry has a Rating, which removal also deletes. */
+  rated?: boolean;
   disabled: boolean;
   onSave: SaveJournalStatus;
   actions?: ReactNode;
@@ -65,9 +68,11 @@ export function JournalStatus({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
-  const [confirmationCount, setConfirmationCount] = useState<number | null>(
-    null,
-  );
+  /** What removal will delete, while its confirmation is open. */
+  const [confirmation, setConfirmation] = useState<Omit<
+    JournalRemovalConfirmation,
+    "confirmationRequired"
+  > | null>(null);
   const trigger = useRef<HTMLButtonElement | null>(null);
   const cancel = useRef<HTMLButtonElement | null>(null);
   const busy = useRef(false);
@@ -92,11 +97,10 @@ export function JournalStatus({
     startTransition(async () => {
       try {
         const result = await onSave(status, tag, acknowledged);
-        if (result && "confirmationRequired" in result)
-          setConfirmationCount(result.playthroughCount);
+        if (result && "confirmationRequired" in result) setConfirmation(result);
         else if (result) setError(result.error);
         else {
-          setConfirmationCount(null);
+          setConfirmation(null);
           setConfirmed(status === null ? null : { status, completionTag: tag });
           if (status === null) {
             setNotice(`${gameTitle} removed from your journal.`);
@@ -140,7 +144,7 @@ export function JournalStatus({
               if (open && (disabled || pending)) event.cancel();
             }}
           >
-            <Tooltip disabled={confirmationCount !== null}>
+            <Tooltip disabled={confirmation !== null}>
               <TooltipTrigger
                 render={
                   <DropdownMenuTrigger
@@ -245,8 +249,8 @@ export function JournalStatus({
                       onClick={() => {
                         setError(undefined);
                         setNotice(undefined);
-                        if (playthroughCount > 0)
-                          setConfirmationCount(playthroughCount);
+                        if (playthroughCount > 0 || rated)
+                          setConfirmation({ playthroughCount, rated });
                         else save(null, null);
                       }}
                     >
@@ -262,11 +266,11 @@ export function JournalStatus({
         {actions}
       </fieldset>
       <Dialog.Root
-        open={confirmationCount !== null}
+        open={confirmation !== null}
         onOpenChange={(open, event) => {
           if (busy.current) event.cancel();
           else if (!open) {
-            setConfirmationCount(null);
+            setConfirmation(null);
             setError(undefined);
           }
         }}
@@ -282,10 +286,7 @@ export function JournalStatus({
               Remove {gameTitle} from journal?
             </Dialog.Title>
             <Dialog.Description className="text-muted-foreground text-sm">
-              {gameTitle} has {confirmationCount}{" "}
-              {confirmationCount === 1 ? "Playthrough" : "Playthroughs"}. If you
-              remove it, all current Playthroughs and private notes will be
-              permanently deleted.
+              {confirmation && removalDescription(gameTitle, confirmation)}
             </Dialog.Description>
             {error && (
               <p role="alert" className="text-destructive text-sm">
@@ -325,11 +326,32 @@ export function JournalStatus({
       <output className="sr-only" aria-live="polite" aria-atomic="true">
         {pending ? "Saving journal status…" : notice}
       </output>
-      {error && confirmationCount === null && (
+      {error && confirmation === null && (
         <p role="alert" className="mt-2 max-w-xs text-destructive text-sm">
           {error}
         </p>
       )}
     </div>
   );
+}
+
+function removalDescription(
+  gameTitle: string,
+  { playthroughCount, rated }: { playthroughCount: number; rated: boolean },
+) {
+  const playthroughs = playthroughCount > 0;
+  const held = [
+    playthroughs &&
+      `${playthroughCount} ${playthroughCount === 1 ? "Playthrough" : "Playthroughs"}`,
+    rated && "your Rating",
+  ].filter(Boolean);
+  const deleted = playthroughs
+    ? rated
+      ? "all current Playthroughs, private notes and your Rating"
+      : "all current Playthroughs and private notes"
+    : "your Rating";
+  const community = rated
+    ? `${playthroughs ? ", and the Rating" : " and"} will stop counting toward the Community rating`
+    : "";
+  return `${gameTitle} has ${held.join(" and ")}. If you remove it, ${deleted} will be permanently deleted${community}.`;
 }

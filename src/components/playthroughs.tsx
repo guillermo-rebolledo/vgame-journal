@@ -104,6 +104,7 @@ export async function Playthroughs({
       listPicker={listPicker}
       signedIn={!!userId}
       entry={entry}
+      rated={entry?.rating != null}
       playthroughs={playthroughs}
       gameTitle={gameTitle}
       platforms={platforms}

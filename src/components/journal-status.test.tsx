@@ -190,3 +190,56 @@ test("the current Status and Completion tag appear only in the action", () => {
     screen.getAllByText("Played · Completed", { exact: true }),
   ).toHaveLength(1);
 });
+
+test("removing a rated entry names the Rating in the server-required confirmation", async () => {
+  const user = userEvent.setup();
+  const onSave = vi
+    .fn<SaveJournalStatus>()
+    .mockResolvedValueOnce({
+      confirmationRequired: true,
+      playthroughCount: 0,
+      rated: true,
+    })
+    .mockResolvedValueOnce(undefined);
+  renderStatus({ status: "backlog", completionTag: null }, onSave);
+  await user.click(
+    screen.getByRole("button", { name: /Change Journal status for / }),
+  );
+  await user.click(
+    await screen.findByRole("menuitem", { name: "Remove from journal" }),
+  );
+  const dialog = await screen.findByRole("dialog");
+  expect(dialog.textContent).toContain(
+    "Celeste has your Rating. If you remove it, your Rating will be permanently deleted and will stop counting toward the Community rating.",
+  );
+  expect(dialog.textContent).not.toMatch(/Playthrough/);
+  await user.click(screen.getByRole("button", { name: "Remove permanently" }));
+  expect(onSave).toHaveBeenLastCalledWith(null, null, true);
+});
+
+test("removing a rated entry with Playthroughs names both before asking the server", async () => {
+  const user = userEvent.setup();
+  const onSave = vi.fn<SaveJournalStatus>(async () => undefined);
+  render(
+    <TooltipProvider>
+      <JournalStatus
+        entry={{ status: "played", completionTag: null }}
+        gameTitle="Celeste"
+        playthroughCount={1}
+        rated
+        disabled={false}
+        onSave={onSave}
+      />
+    </TooltipProvider>,
+  );
+  await user.click(
+    screen.getByRole("button", { name: /Change Journal status for / }),
+  );
+  await user.click(
+    await screen.findByRole("menuitem", { name: "Remove from journal" }),
+  );
+  expect((await screen.findByRole("dialog")).textContent).toContain(
+    "Celeste has 1 Playthrough and your Rating. If you remove it, all current Playthroughs, private notes and your Rating will be permanently deleted, and the Rating will stop counting toward the Community rating.",
+  );
+  expect(onSave).not.toHaveBeenCalled();
+});

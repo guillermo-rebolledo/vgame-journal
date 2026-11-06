@@ -13,6 +13,7 @@ import {
   primaryKey,
   real,
   serial,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -176,6 +177,10 @@ export const journalEntry = pgTable(
     completionTag: text("completion_tag").$type<CompletionTag>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").notNull(),
+    /** Rating points, 1–10 (half stars: points ÷ 2). Set only while Played or Playing; kept through later Status changes. */
+    rating: smallint("rating"),
+    /** When the Rating last changed value. */
+    ratedAt: timestamp("rated_at"),
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.gameId] }),
@@ -183,6 +188,18 @@ export const journalEntry = pgTable(
       "journal_entry_tag_only_when_played",
       sql`${table.completionTag} is null or ${table.status} = 'played'`,
     ),
+    check(
+      "journal_entry_rating_range",
+      sql`${table.rating} is null or ${table.rating} between 1 and 10`,
+    ),
+    check(
+      "journal_entry_rated_at_with_rating",
+      sql`(${table.rating} is null) = (${table.ratedAt} is null)`,
+    ),
+    // Community rating reads only rated entries for one game.
+    index("journal_entry_game_rating_idx")
+      .on(table.gameId, table.rating)
+      .where(sql`${table.rating} is not null`),
   ],
 );
 

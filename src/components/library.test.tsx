@@ -49,6 +49,8 @@ const entry = (e: Partial<LibraryEntry> & Pick<LibraryEntry, "gameId">) => ({
   coverImageId: null,
   status: "backlog" as const,
   completionTag: null,
+  rating: null,
+  ratedAt: null,
   addedAt: new Date("2026-01-01"),
   releasedAt: null,
   platforms: [],
@@ -197,7 +199,12 @@ test("sort choices say which way they go", () => {
     within(screen.getByLabelText("Sort by"))
       .getAllByRole("option")
       .map((o) => o.textContent),
-  ).toEqual(["Recently added", "Release date (newest first)", "Title (A–Z)"]);
+  ).toEqual([
+    "Recently added",
+    "Release date (newest first)",
+    "Title (A–Z)",
+    "Rating (highest first)",
+  ]);
 });
 
 test("grid and list both show Status, platforms and release year", async () => {

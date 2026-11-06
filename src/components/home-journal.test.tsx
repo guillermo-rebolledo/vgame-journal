@@ -218,6 +218,8 @@ const entry = (
   status,
   coverImageId: null,
   completionTag: null,
+  rating: null,
+  ratedAt: null,
   addedAt: new Date(
     `2026-10-${String(30 - gameId).padStart(2, "0")}T00:00:00Z`,
   ),

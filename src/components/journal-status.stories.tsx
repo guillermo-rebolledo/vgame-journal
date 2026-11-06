@@ -90,6 +90,28 @@ export const FailedSave: Story = {
 };
 export const LightTheme: Story = { globals: { theme: "light" } };
 
+export const RemovalNamesRating: Story = {
+  args: {
+    entry: { status: "backlog", completionTag: null },
+    playthroughCount: 1,
+    rated: true,
+  },
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(
+      within(canvasElement).getByRole("button", {
+        name: /Change Journal status for Celeste$/,
+      }),
+    );
+    await userEvent.click(
+      await body.findByRole("menuitem", { name: "Remove from journal" }),
+    );
+    await expect(
+      await body.findByRole("dialog", { name: "Remove Celeste from journal?" }),
+    ).toHaveTextContent(/your Rating will be permanently deleted/);
+  },
+};
+
 export const RemovalKeepsBackgroundHelpClosed: Story = {
   args: {
     entry: { status: "played", completionTag: null },

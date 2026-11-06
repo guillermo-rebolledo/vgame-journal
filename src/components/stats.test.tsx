@@ -9,10 +9,21 @@ vi.mock("next/navigation", () => ({
 
 afterEach(cleanup);
 
+const noRatings = {
+  count: 0,
+  average: null,
+  distribution: Array<number>(10).fill(0),
+};
+
 test("empty stats explain how to start each chart", () => {
   render(
     <Stats
-      stats={{ finishedPerYear: [], hoursByPlatform: [], backlogOverTime: [] }}
+      stats={{
+        finishedPerYear: [],
+        hoursByPlatform: [],
+        backlogOverTime: [],
+        ratings: noRatings,
+      }}
     />,
   );
   expect(screen.getByText(/No finished games yet/)).toBeTruthy();
@@ -30,6 +41,7 @@ test("zero values and a single backlog day render with exact accessible values",
         finishedPerYear: [{ year: 2026, games: 2 }],
         hoursByPlatform: [{ platform: "Nintendo Switch", hours: 0 }],
         backlogOverTime: [{ day: "2026-01-01", games: 0 }],
+        ratings: noRatings,
       }}
     />,
   );
@@ -55,6 +67,7 @@ test("large backlog histories keep exact chart data without mounting hidden tabl
         finishedPerYear: [],
         hoursByPlatform: [],
         backlogOverTime: points,
+        ratings: noRatings,
       }}
     />,
   );
@@ -78,6 +91,7 @@ test("Stats nouns agree with the formatted value at the rounding boundary", () =
           { platform: "Nintendo Switch", hours: 1.006 },
         ],
         backlogOverTime: [],
+        ratings: noRatings,
       }}
     />,
   );
