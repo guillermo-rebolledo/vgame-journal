@@ -199,7 +199,12 @@ test("sort choices say which way they go", () => {
     within(screen.getByLabelText("Sort by"))
       .getAllByRole("option")
       .map((o) => o.textContent),
-  ).toEqual(["Recently added", "Release date (newest first)", "Title (A–Z)"]);
+  ).toEqual([
+    "Recently added",
+    "Release date (newest first)",
+    "Title (A–Z)",
+    "Rating (highest first)",
+  ]);
 });
 
 test("grid and list both show Status, platforms and release year", async () => {
