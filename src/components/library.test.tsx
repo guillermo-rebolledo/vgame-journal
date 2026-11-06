@@ -165,6 +165,53 @@ test("search, filters and sort live in the URL, so reloads and Back restore them
   expect(window.location.search).toBe("?q=l&status=playing");
 });
 
+test("the Rated filter and Rating sort find rated games, highest first, and live in the URL", async () => {
+  const user = userEvent.setup();
+  const rated = [
+    ...entries,
+    entry({ gameId: 4, title: "Balatro", status: "played", rating: 9 }),
+    entry({ gameId: 5, title: "Tunic", status: "playing", rating: 6 }),
+    entry({ gameId: 6, title: "Animal Well", status: "backlog", rating: 9 }),
+  ];
+  render(<Library entries={rated} initialView="grid" />);
+
+  await user.selectOptions(screen.getByLabelText("Rating"), "Rated");
+  await user.selectOptions(
+    screen.getByLabelText("Sort by"),
+    "Rating (highest first)",
+  );
+  await waitFor(() =>
+    expect(titles()).toEqual(["Animal Well", "Balatro", "Tunic"]),
+  );
+  expect(window.location.search).toBe("?rated=1&sort=rating");
+  expect(screen.getByText("3 of 6 games")).toBeTruthy();
+
+  await user.click(screen.getByRole("button", { name: /clear filters/i }));
+  await waitFor(() => expect(titles()).toHaveLength(6));
+  expect(window.location.search).toBe("?sort=rating");
+});
+
+test("a rated link opens filtered, and no Rating filter is offered without rated games", () => {
+  window.history.replaceState(null, "", "/library?rated=1");
+  const { unmount } = render(
+    <Library
+      entries={[...entries, entry({ gameId: 4, title: "Balatro", rating: 7 })]}
+      initialView="grid"
+    />,
+  );
+  expect(titles()).toEqual(["Balatro"]);
+  expect(
+    (screen.getByLabelText("Rating") as HTMLSelectElement).selectedOptions[0]
+      .textContent,
+  ).toBe("Rated");
+  unmount();
+
+  // An old rated link shouldn't hide every game once none is rated.
+  render(<Library entries={entries} initialView="grid" />);
+  expect(screen.queryByLabelText("Rating")).toBeNull();
+  expect(titles()).toHaveLength(3);
+});
+
 test("Clear filters is offered whenever a filter is on, and keeps sort and view", async () => {
   const user = userEvent.setup();
   render(<Library entries={entries} initialView="grid" />);

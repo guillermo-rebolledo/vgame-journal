@@ -73,16 +73,19 @@ export function Library({
   const deferredState = parseLibraryParams(new URLSearchParams(deferredQuery));
 
   const { platforms, years } = libraryChoices(entries);
-  // A platform or year from an old link that no game has any more would hide everything.
+  const anyRated = entries.some((e) => e.rating !== null);
+  // A platform, year or Rated filter from an old link that no game matches any more would hide everything.
   const filters: LibraryFilters = {
     ...chosen,
     platform: platforms.find((p) => p === chosen.platform),
     year: years.find((y) => y === chosen.year),
+    rated: anyRated ? chosen.rated : undefined,
   };
   const resultFilters: LibraryFilters = {
     ...deferredState.filters,
     platform: platforms.find((p) => p === deferredState.filters.platform),
     year: years.find((y) => y === deferredState.filters.year),
+    rated: anyRated ? deferredState.filters.rated : undefined,
   };
   const shown = queryLibrary(entries, resultFilters, deferredState.sort);
   const filtered = Object.values(filters).some(Boolean);
@@ -121,7 +124,7 @@ export function Library({
     const nextParams = new URLSearchParams(
       libraryParams(state.filters, state.sort),
     );
-    for (const key of ["q", "status", "platform", "year", "sort"]) {
+    for (const key of ["q", "status", "platform", "year", "rated", "sort"]) {
       const value = nextParams.get(key);
       if (value) url.searchParams.set(key, value);
       else url.searchParams.delete(key);
@@ -172,6 +175,22 @@ export function Library({
               ...STATUSES.map((s) => [s, capitalize(s)] as const),
             ]}
           />
+          {anyRated && (
+            <Select
+              label="Rating"
+              value={filters.rated ? "rated" : ""}
+              onChange={(rated) =>
+                setFilters({
+                  ...filters,
+                  rated: rated === "rated" || undefined,
+                })
+              }
+              options={[
+                ["", "Any rating"],
+                ["rated", "Rated"],
+              ]}
+            />
+          )}
           <Select
             label="Sort by"
             value={sort}
