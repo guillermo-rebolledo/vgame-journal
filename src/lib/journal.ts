@@ -49,6 +49,17 @@ export type WishlistEntry = {
 /** A broken Journal rule. Its message is safe to show the user. */
 export class JournalError extends Error {}
 
+/** Below this many Ratings a game's Community rating has no average. */
+export const COMMUNITY_RATING_THRESHOLD = 5;
+
+export type CommunityRating = {
+  count: number;
+  /** Stars to one decimal (rounded half up), or null below the threshold. */
+  average: number | null;
+  /** Ratings per points value: `distribution[points - 1]`. */
+  distribution: number[];
+};
+
 export type JournalRemovalConfirmation = {
   confirmationRequired: true;
   playthroughCount: number;
@@ -462,6 +473,37 @@ export function createJournal(db: Db) {
           ? "Mark it Played or Playing to rate it."
           : "This game is not in your Journal.",
       );
+    },
+
+    /** Every stored Rating for a game, whatever each entry's Status. Derived, never counted, so it can't drift. */
+    async communityRating(gameId: number): Promise<CommunityRating> {
+      const rows = await db
+        .select({
+          points: journalEntry.rating,
+          ratings: sql<number>`count(*)`.mapWith(Number),
+        })
+        .from(journalEntry)
+        .where(
+          and(
+            eq(journalEntry.gameId, gameId),
+            sql`${journalEntry.rating} is not null`,
+          ),
+        )
+        .groupBy(journalEntry.rating);
+      const distribution = Array<number>(10).fill(0);
+      let count = 0;
+      let points = 0;
+      for (const row of rows) {
+        distribution[(row.points as number) - 1] = row.ratings;
+        count += row.ratings;
+        points += (row.points as number) * row.ratings;
+      }
+      // Tenths of a star = points × 5 ÷ count, rounded half up in integers.
+      const average =
+        count >= COMMUNITY_RATING_THRESHOLD
+          ? Math.floor((points * 10 + count) / (2 * count)) / 10
+          : null;
+      return { count, average, distribution };
     },
 
     /** Removes the user's Rating for a game, in any Status. A no-op if there is none. */

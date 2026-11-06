@@ -1294,3 +1294,58 @@ test("the database rejects Ratings out of range or without rated-at", async () =
     ).rejects.toThrow();
   expect(await journal.entry("mario", 1)).toMatchObject({ rating: null });
 });
+
+/** Gives game `gameId` one Rating per points value, each from a new Played player. */
+async function rateByNewPlayers(gameId: number, points: number[]) {
+  for (const [i, p] of points.entries()) {
+    const id = `player-${gameId}-${i}-${randomUUID()}`;
+    await db.insert(user).values({ id, name: id, email: `${id}@example.com` });
+    await journal.set(id, gameId, { status: "played" });
+    await journal.setRating(id, gameId, p);
+  }
+}
+
+test("the Community rating counts Ratings and shows an average only from 5 Ratings", async () => {
+  expect(await journal.communityRating(1)).toEqual({
+    count: 0,
+    average: null,
+    distribution: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  });
+  await rateByNewPlayers(1, [10, 9, 9, 2]);
+  await journal.set("mario", 1, { status: "backlog" }); // unrated: ignored
+  await rateByNewPlayers(2, [1, 1, 1, 1, 1]); // another game's
+  expect(await journal.communityRating(1)).toEqual({
+    count: 4,
+    average: null,
+    distribution: [0, 1, 0, 0, 0, 0, 0, 0, 2, 1],
+  });
+  await rateByNewPlayers(1, [5]);
+  expect(await journal.communityRating(1)).toEqual({
+    count: 5,
+    average: 3.5, // 35 points ÷ 5 = 7 points = 3.5 stars
+    distribution: [0, 1, 0, 0, 1, 0, 0, 0, 2, 1],
+  });
+});
+
+test("the Community rating average rounds half up to one decimal, exactly", async () => {
+  // 46 points over 20 Ratings is 1.15 stars, which floating point rounds down.
+  await rateByNewPlayers(1, [...Array(14).fill(2), ...Array(6).fill(3)]);
+  expect(await journal.communityRating(1)).toMatchObject({
+    count: 20,
+    average: 1.2,
+  });
+  // 39 points over 6 Ratings is 3.25 stars.
+  await rateByNewPlayers(2, [7, 7, 7, 6, 6, 6]);
+  expect(await journal.communityRating(2)).toMatchObject({ average: 3.3 });
+});
+
+test("the Community rating counts Ratings kept on Backlog and Wishlist games", async () => {
+  await rateByNewPlayers(1, [8, 8, 8, 8]);
+  await journal.set("mario", 1, { status: "played" });
+  await journal.setRating("mario", 1, 3);
+  await journal.set("mario", 1, { status: "wishlist" });
+  await journal.set("luigi", 1, { status: "playing" });
+  await journal.setRating("luigi", 1, 3);
+  await journal.set("luigi", 1, { status: "backlog" });
+  expect(await journal.communityRating(1)).toMatchObject({ count: 6 });
+});
