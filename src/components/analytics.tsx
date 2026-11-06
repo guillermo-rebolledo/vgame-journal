@@ -108,6 +108,9 @@ type ProductEvents = {
   journal_entry_removed: { had_playthroughs: boolean };
   playthrough_added: { has_notes: boolean; has_hours: boolean };
   playthrough_removed: undefined;
+  /** Rating points, 1 to 10. */
+  rating_set: { points: number };
+  rating_cleared: undefined;
   wishlist_moved: { to: Status };
   link_copied: { target: "profile" | "calendar" | "list" };
   calendar_feed_subscribed: undefined;
