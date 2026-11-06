@@ -7,6 +7,7 @@ import { useDeferredValue, useEffect, useState, ViewTransition } from "react";
 import { GameCover } from "@/components/game-cover";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformIcon, PlatformNames } from "@/components/platform";
+import { RatingStars } from "@/components/rating-stars";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,16 +73,19 @@ export function Library({
   const deferredState = parseLibraryParams(new URLSearchParams(deferredQuery));
 
   const { platforms, years } = libraryChoices(entries);
-  // A platform or year from an old link that no game has any more would hide everything.
+  const anyRated = entries.some((e) => e.rating !== null);
+  // A platform, year or Rated filter from an old link that no game matches any more would hide everything.
   const filters: LibraryFilters = {
     ...chosen,
     platform: platforms.find((p) => p === chosen.platform),
     year: years.find((y) => y === chosen.year),
+    rated: anyRated ? chosen.rated : undefined,
   };
   const resultFilters: LibraryFilters = {
     ...deferredState.filters,
     platform: platforms.find((p) => p === deferredState.filters.platform),
     year: years.find((y) => y === deferredState.filters.year),
+    rated: anyRated ? deferredState.filters.rated : undefined,
   };
   const shown = queryLibrary(entries, resultFilters, deferredState.sort);
   const filtered = Object.values(filters).some(Boolean);
@@ -120,7 +124,7 @@ export function Library({
     const nextParams = new URLSearchParams(
       libraryParams(state.filters, state.sort),
     );
-    for (const key of ["q", "status", "platform", "year", "sort"]) {
+    for (const key of ["q", "status", "platform", "year", "rated", "sort"]) {
       const value = nextParams.get(key);
       if (value) url.searchParams.set(key, value);
       else url.searchParams.delete(key);
@@ -171,6 +175,22 @@ export function Library({
               ...STATUSES.map((s) => [s, capitalize(s)] as const),
             ]}
           />
+          {anyRated && (
+            <Select
+              label="Rating"
+              value={filters.rated ? "rated" : ""}
+              onChange={(rated) =>
+                setFilters({
+                  ...filters,
+                  rated: rated === "rated" || undefined,
+                })
+              }
+              options={[
+                ["", "Any rating"],
+                ["rated", "Rated"],
+              ]}
+            />
+          )}
           <Select
             label="Sort by"
             value={sort}
@@ -312,6 +332,11 @@ export function Library({
                           <p className="text-muted-foreground text-xs">
                             {statusLabel(e)}
                           </p>
+                          {e.rating !== null && (
+                            <p className="text-xs">
+                              <RatingStars points={e.rating} />
+                            </p>
+                          )}
                           {(e.releasedAt || e.platforms.length > 0) && (
                             <p className="line-clamp-2 text-muted-foreground text-xs tabular-nums">
                               {releaseAndPlatforms(e)}
@@ -364,8 +389,14 @@ export function Library({
                             </p>
                           )}
                         </div>
-                        <span className="shrink-0 text-muted-foreground text-sm">
+                        <span className="flex shrink-0 flex-col items-end gap-0.5 text-muted-foreground text-sm">
                           {statusLabel(e)}
+                          {e.rating !== null && (
+                            <RatingStars
+                              points={e.rating}
+                              className="text-foreground"
+                            />
+                          )}
                         </span>
                       </Link>
                     </li>

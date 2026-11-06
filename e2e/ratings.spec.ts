@@ -49,9 +49,7 @@ test("rating a Played game updates the Community rating at once, and clearing re
 
   // Kept through a move to Backlog, where it can only be cleared.
   await chooseStatus(page, "backlog");
-  await expect(
-    rating.getByRole("img", { name: "Rated 4 out of 5" }),
-  ).toBeVisible();
+  await expect(rating.getByText("Rated 4 out of 5")).toBeVisible();
   await expect(rating.getByRole("radio")).toHaveCount(0);
   await rating.getByRole("button", { name: "Clear rating" }).click();
   await expect(communityRating(page)).toContainText("No ratings yet");

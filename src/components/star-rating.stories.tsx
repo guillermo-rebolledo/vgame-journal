@@ -121,9 +121,7 @@ export const ReadOnly: Story = {
   args: { value: 9, editable: false },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByRole("img", { name: "Rated 4.5 out of 5" }),
-    ).toBeVisible();
+    await expect(canvas.getByText("Rated 4.5 out of 5")).toBeVisible();
     await expect(
       canvas.getByText("Mark it Played or Playing to change your Rating."),
     ).toBeVisible();

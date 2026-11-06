@@ -174,7 +174,7 @@ test("a Rating kept outside Played or Playing is shown read-only with Clear rati
   const user = userEvent.setup();
   const onSave = renderRating({ value: 9, editable: false });
   expect(screen.queryAllByRole("radio")).toHaveLength(0);
-  expect(screen.getByRole("img", { name: "Rated 4.5 out of 5" })).toBeTruthy();
+  expect(screen.getByText("Rated 4.5 out of 5")).toBeTruthy();
   expect(
     screen.getByText("Mark it Played or Playing to change your Rating."),
   ).toBeTruthy();
@@ -183,7 +183,7 @@ test("a Rating kept outside Played or Playing is shown read-only with Clear rati
   await waitFor(() =>
     expect(status().textContent).toBe("Celeste: rating cleared."),
   );
-  expect(screen.queryByRole("img", { name: /Rated/ })).toBeNull();
+  expect(screen.queryByText(/Rated/)).toBeNull();
 });
 
 test("without a Rating, a game outside Played or Playing shows no control", () => {

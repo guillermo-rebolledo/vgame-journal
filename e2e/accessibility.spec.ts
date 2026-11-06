@@ -11,6 +11,7 @@ import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { closeListPanel, openListPanel } from "./support/list-editor";
 import { seedRatedGame } from "./support/ratings";
+import { seedSql } from "./support/seed-sql";
 import { signUp, uniqueUsername } from "./support/sign-up";
 
 async function renderedContrast(element: Locator) {
@@ -332,9 +333,7 @@ for (const theme of ["light", "dark"] as const) {
       await page.getByText("View rating data", { exact: true }).click();
       await scan(page, testInfo, "rating-control");
       await chooseStatus(page, "backlog");
-      await expect(
-        rating.getByRole("img", { name: "Rated 3.5 out of 5" }),
-      ).toBeVisible();
+      await expect(rating.getByText("Rated 3.5 out of 5")).toBeVisible();
       await scan(page, testInfo, "kept-rating");
     });
 
@@ -343,7 +342,7 @@ for (const theme of ["light", "dark"] as const) {
       request,
     }, testInfo) => {
       const username = uniqueUsername(`axe_${theme}`);
-      await signUp(page, request, username);
+      const email = await signUp(page, request, username);
       await chooseTheme(page, theme);
       await page.goto("/games/celeste");
       await expect(
@@ -415,6 +414,16 @@ for (const theme of ["light", "dark"] as const) {
 
       await page.goto("/games/hades--1");
       await chooseStatus(page, "wishlist");
+      // Scan Library, Stats and the profile with a Rating showing.
+      await seedSql(
+        request,
+        [
+          `update journal_entry set rating = 7, rated_at = now()
+           where game_id = (select id from game where slug = 'celeste')
+           and user_id = (select id from "user" where email = $1)`,
+        ],
+        [email],
+      );
       for (const path of [
         "/",
         "/library",

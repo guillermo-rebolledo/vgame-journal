@@ -3,7 +3,8 @@
 import { cn } from "cn";
 import { catchError } from "next/error";
 import { type ReactNode, useTransition } from "react";
-import { Stars, starsLabel } from "@/components/star-rating";
+import { RatingStars } from "@/components/rating-stars";
+import { starsLabel } from "@/components/star-rating";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { RatingSummary } from "@/lib/journal";
@@ -46,7 +47,10 @@ export function CommunityRatingFact({ summary }: { summary: RatingSummary }) {
           {average.toFixed(1)}
         </span>
         <span className="text-muted-foreground text-sm">out of 5</span>
-        <Stars points={Math.round(average * 2)} className="self-center" />
+        {/* The average is already text; the stars only illustrate it. */}
+        <span aria-hidden="true" className="self-center">
+          <RatingStars points={Math.round(average * 2)} />
+        </span>
       </dd>
       <dd className="text-muted-foreground text-xs tabular-nums">
         {ratings(count)}

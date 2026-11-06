@@ -144,7 +144,7 @@ test.each([
 ] as const)("a %s game shows a kept Rating read-only and no control without one", (status) => {
   renderRecording({ entry: { status, completionTag: null }, rating: 7 });
   expect(screen.queryAllByRole("radio")).toHaveLength(0);
-  expect(screen.getByRole("img", { name: "Rated 3.5 out of 5" })).toBeTruthy();
+  expect(screen.getByText("Rated 3.5 out of 5")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Clear rating" })).toBeTruthy();
   cleanup();
   renderRecording({ entry: { status, completionTag: null }, rating: null });

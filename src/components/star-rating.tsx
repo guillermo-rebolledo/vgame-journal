@@ -1,9 +1,9 @@
 "use client";
 
-import { cn } from "cn";
-import { RotateCw, Star } from "lucide-react";
+import { RotateCw } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { trackEvent } from "@/components/analytics";
+import { RatingStars } from "@/components/rating-stars";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -16,42 +16,6 @@ export const starsLabel = (points: number) =>
 
 const FAILED =
   "Couldn’t save your rating. Check your connection and try again.";
-
-/** Five stars filled to `points` half stars. Decorative: callers supply the accessible text. */
-export function Stars({
-  points,
-  className,
-  starClassName = "size-4",
-}: {
-  points: number;
-  className?: string;
-  starClassName?: string;
-}) {
-  return (
-    <span aria-hidden="true" className={cn("inline-flex", className)}>
-      {[1, 2, 3, 4, 5].map((star) => {
-        const halves = Math.min(Math.max(points - (star - 1) * 2, 0), 2);
-        return (
-          <span key={star} className={cn("relative shrink-0", starClassName)}>
-            <Star
-              strokeWidth={1.5}
-              className="size-full text-muted-foreground"
-            />
-            {halves > 0 && (
-              <Star
-                strokeWidth={1.5}
-                className="absolute inset-0 size-full fill-current text-foreground"
-                style={
-                  halves === 1 ? { clipPath: "inset(0 50% 0 0)" } : undefined
-                }
-              />
-            )}
-          </span>
-        );
-      })}
-    </span>
-  );
-}
 
 export type SaveRating = (
   points: number | null,
@@ -165,10 +129,13 @@ export function StarRating({
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {editable ? (
               <div className="relative inline-flex">
-                <Stars
-                  points={rating.shown ?? 0}
-                  starClassName="mx-2 my-1.5 size-8"
-                />
+                {/* Each 2rem star gets a 48 × 44px box, so its halves line up with the radio targets above. */}
+                <span aria-hidden="true">
+                  <RatingStars
+                    points={rating.shown ?? 0}
+                    className="text-[2rem] [&>[aria-hidden]]:mx-2 [&>[aria-hidden]]:my-1.5"
+                  />
+                </span>
                 <div className="absolute inset-0 grid grid-cols-10">
                   {POINTS.map((points) => (
                     <label
@@ -191,13 +158,7 @@ export function StarRating({
               </div>
             ) : (
               rating.shown !== null && (
-                <span
-                  role="img"
-                  aria-label={`Rated ${rating.shown / 2} out of 5`}
-                  className="inline-flex py-2"
-                >
-                  <Stars points={rating.shown} starClassName="size-6" />
-                </span>
+                <RatingStars points={rating.shown} className="py-2 text-2xl" />
               )
             )}
             {rating.shown !== null && (

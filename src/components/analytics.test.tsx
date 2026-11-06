@@ -39,10 +39,10 @@ test("redactAnalyticsEvent drops free-text search and unknown params", () => {
 test("redactAnalyticsEvent keeps filter, paging and campaign params", () => {
   expect(
     urlOf(
-      "https://example.com/library?status=playing&platform=6&year=2024&sort=title&libraryPage=2&utm_source=reddit",
+      "https://example.com/library?status=playing&platform=6&year=2024&rated=1&sort=rating&libraryPage=2&utm_source=reddit",
     ),
   ).toBe(
-    "https://example.com/library?status=playing&platform=6&year=2024&sort=title&libraryPage=2&utm_source=reddit",
+    "https://example.com/library?status=playing&platform=6&year=2024&rated=1&sort=rating&libraryPage=2&utm_source=reddit",
   );
 });
 
