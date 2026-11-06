@@ -32,4 +32,4 @@ export const ratingRows = (distribution: number[]) =>
     .reverse();
 
 export const RATING_SAVE_FAILED =
-  "Couldn’t save your rating. Check your connection and try again.";
+  "Couldn’t save your Rating. Check your connection and try again.";

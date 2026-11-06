@@ -29,7 +29,7 @@ test("rating a Played game updates the Community rating at once, and clearing re
   const { slug, title } = await seedRatedGame(request);
   await signUp(page, request, uniqueUsername("rate"));
   await page.goto(`/games/${slug}`);
-  await expect(communityRating(page)).toContainText("No ratings yet");
+  await expect(communityRating(page)).toContainText("No Ratings yet");
   // No Rating control until the game is Played or Playing.
   await expect(page.getByRole("group", { name: "Your rating" })).toHaveCount(0);
 
@@ -52,7 +52,7 @@ test("rating a Played game updates the Community rating at once, and clearing re
   await expect(rating.getByText("Rated 4 out of 5")).toBeVisible();
   await expect(rating.getByRole("radio")).toHaveCount(0);
   await rating.getByRole("button", { name: "Clear rating" }).click();
-  await expect(communityRating(page)).toContainText("No ratings yet");
+  await expect(communityRating(page)).toContainText("No Ratings yet");
   await page.reload();
   await expect(page.getByRole("group", { name: "Your rating" })).toHaveCount(0);
 });

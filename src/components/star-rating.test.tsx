@@ -74,7 +74,7 @@ test("choosing a Rating shows it at once, saves its points and announces it once
     ).checked,
   ).toBe(true);
   expect(onSave).toHaveBeenCalledExactlyOnceWith(7);
-  expect(status().textContent).toBe("Saving rating…");
+  expect(status().textContent).toBe("Saving Rating…");
   calls[0].resolve();
   await waitFor(() =>
     expect(status().textContent).toBe("Celeste: rated 3.5 stars out of 5."),
@@ -182,7 +182,7 @@ test("a save that throws shows a connection message, never the raw error", async
   });
   await user.click(screen.getByRole("radio", { name: "4 stars out of 5" }));
   const alert = await screen.findByRole("alert");
-  expect(alert.textContent).toContain("Couldn’t save your rating");
+  expect(alert.textContent).toContain("Couldn’t save your Rating");
   expect(alert.textContent).not.toContain("ECONNRESET");
 });
 
@@ -195,7 +195,7 @@ test("Clear rating removes the Rating and announces it", async () => {
     screen.getAllByRole("radio").some((r) => (r as HTMLInputElement).checked),
   ).toBe(false);
   await waitFor(() =>
-    expect(status().textContent).toBe("Celeste: rating cleared."),
+    expect(status().textContent).toBe("Celeste: Rating cleared."),
   );
   expect(track).toHaveBeenCalledExactlyOnceWith("rating_cleared", undefined);
 });
@@ -211,7 +211,7 @@ test("a Rating kept outside Played or Playing is shown read-only with Clear rati
   await user.click(screen.getByRole("button", { name: "Clear rating" }));
   expect(onSave).toHaveBeenCalledExactlyOnceWith(null);
   await waitFor(() =>
-    expect(status().textContent).toBe("Celeste: rating cleared."),
+    expect(status().textContent).toBe("Celeste: Rating cleared."),
   );
   expect(screen.queryByText(/Rated/)).toBeNull();
 });

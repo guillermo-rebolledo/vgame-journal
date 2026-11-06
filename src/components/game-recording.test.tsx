@@ -198,5 +198,5 @@ test("clearing a kept Rating outside Played or Playing hands focus to Journal st
     screen.getByRole("button", { name: /Change Journal status for Celeste/ }),
   );
   const status = document.querySelector('[data-slot="rating-status"]');
-  expect(status?.textContent).toBe("Celeste: rating cleared.");
+  expect(status?.textContent).toBe("Celeste: Rating cleared.");
 });

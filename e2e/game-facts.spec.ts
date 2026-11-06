@@ -183,7 +183,7 @@ test("unavailable facts are explicit metadata without score placeholders or disc
     "Languages",
   ]);
   await expect(facts.getByRole("definition")).toHaveText([
-    "No ratings yet",
+    "No Ratings yet",
     "Scores unavailable",
     "Not rated yet",
     "Unknown",
@@ -351,7 +351,7 @@ for (const theme of ["light", "dark"] as const) {
         document.documentElement.style.fontSize = "200%";
       });
       await expect(facts.getByRole("definition")).toHaveText([
-        "No ratings yet",
+        "No Ratings yet",
         "Scores unavailable",
         "Not rated yet",
         "Unknown",

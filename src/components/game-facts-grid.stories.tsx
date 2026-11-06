@@ -40,7 +40,7 @@ export const Unavailable: Story = {
     const canvas = within(canvasElement);
     // The combined notice covers only the Catalog's scores; the Community rating keeps its own state.
     await expect(canvas.getByText("Scores unavailable")).toBeVisible();
-    await expect(canvas.getByText("No ratings yet")).toBeVisible();
+    await expect(canvas.getByText("No Ratings yet")).toBeVisible();
   },
 };
 export const PartialScores: Story = {

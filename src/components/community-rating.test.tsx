@@ -71,7 +71,7 @@ test("with no Ratings it says so", () => {
       summary={{ count: 0, average: null, distribution: Array(10).fill(0) }}
     />,
   );
-  expect(within(card()).getByText("No ratings yet")).toBeTruthy();
+  expect(within(card()).getByText("No Ratings yet")).toBeTruthy();
 });
 
 test("a failed read shows the Community rating as unavailable", () => {

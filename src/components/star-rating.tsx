@@ -93,7 +93,7 @@ export function StarRating({
         // Without a Rating the read-only control goes; don't let focus drop to the page.
         if (!editable && group.current?.contains(document.activeElement))
           focusAfterClear?.current?.focus();
-        setNotice(`${gameTitle}: rating cleared.`);
+        setNotice(`${gameTitle}: Rating cleared.`);
         trackEvent("rating_cleared");
       } else {
         setNotice(`${gameTitle}: rated ${starsLabel(target)} out of 5.`);
@@ -213,14 +213,14 @@ export function StarRating({
           )}
         </fieldset>
       )}
-      {/* After the control, so it stays mounted when the control goes and still announces "rating cleared". */}
+      {/* After the control, so it stays mounted when the control goes and still announces "Rating cleared". */}
       <output
         data-slot="rating-status"
         className="sr-only"
         aria-live="polite"
         aria-atomic="true"
       >
-        {pending ? "Saving rating…" : notice}
+        {pending ? "Saving Rating…" : notice}
       </output>
     </>
   );

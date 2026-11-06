@@ -30,7 +30,7 @@ export function CommunityRatingFact({ summary }: { summary: RatingSummary }) {
   if (count === 0)
     return (
       <Card>
-        <dd className="text-sm">No ratings yet</dd>
+        <dd className="text-sm">No Ratings yet</dd>
       </Card>
     );
   if (average === null)
