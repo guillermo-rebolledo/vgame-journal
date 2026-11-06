@@ -74,7 +74,7 @@ test("choosing a Rating shows it at once, saves its points and announces it once
     ).checked,
   ).toBe(true);
   expect(onSave).toHaveBeenCalledExactlyOnceWith(7);
-  expect(status().textContent).toBe("Saving rating…");
+  expect(status().textContent).toBe("Saving Rating…");
   calls[0].resolve();
   await waitFor(() =>
     expect(status().textContent).toBe("Celeste: rated 3.5 stars out of 5."),
@@ -115,6 +115,36 @@ test("arrow keys move the choice and the last value chosen is the one saved", as
   expect(onSave).toHaveBeenCalledTimes(2);
 });
 
+test("a slower earlier save can't overwrite a later choice, even when it fails or refreshes late", async () => {
+  const user = userEvent.setup();
+  const { onSave, calls } = deferred();
+  const props = { editable: true, gameTitle: "Celeste", onSave };
+  const { rerender } = render(<StarRating value={6} {...props} />);
+  const checked = () =>
+    screen
+      .getAllByRole("radio")
+      .find((r) => (r as HTMLInputElement).checked)
+      ?.getAttribute("aria-label");
+  await user.click(screen.getByRole("radio", { name: "2 stars out of 5" }));
+  await user.click(screen.getByRole("radio", { name: "4 stars out of 5" }));
+  expect(checked()).toBe("4 stars out of 5");
+  // The earlier save's refresh lands after the later choice was made.
+  rerender(<StarRating value={4} {...props} />);
+  expect(checked()).toBe("4 stars out of 5");
+  // The earlier save then fails: no rollback or alert for a value no longer chosen.
+  calls[0].resolve({ error: "Couldn’t save your Rating." });
+  await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+  expect(onSave).toHaveBeenLastCalledWith(8);
+  expect(checked()).toBe("4 stars out of 5");
+  expect(screen.queryByRole("alert")).toBeNull();
+  calls[1].resolve();
+  await waitFor(() =>
+    expect(status().textContent).toBe("Celeste: rated 4 stars out of 5."),
+  );
+  expect(checked()).toBe("4 stars out of 5");
+  expect(track).toHaveBeenCalledExactlyOnceWith("rating_set", { points: 8 });
+});
+
 test("a failed save restores the saved Rating, explains why and retries the chosen value", async () => {
   const user = userEvent.setup();
   const { onSave, calls } = deferred();
@@ -152,7 +182,7 @@ test("a save that throws shows a connection message, never the raw error", async
   });
   await user.click(screen.getByRole("radio", { name: "4 stars out of 5" }));
   const alert = await screen.findByRole("alert");
-  expect(alert.textContent).toContain("Couldn’t save your rating");
+  expect(alert.textContent).toContain("Couldn’t save your Rating");
   expect(alert.textContent).not.toContain("ECONNRESET");
 });
 
@@ -165,7 +195,7 @@ test("Clear rating removes the Rating and announces it", async () => {
     screen.getAllByRole("radio").some((r) => (r as HTMLInputElement).checked),
   ).toBe(false);
   await waitFor(() =>
-    expect(status().textContent).toBe("Celeste: rating cleared."),
+    expect(status().textContent).toBe("Celeste: Rating cleared."),
   );
   expect(track).toHaveBeenCalledExactlyOnceWith("rating_cleared", undefined);
 });
@@ -181,7 +211,7 @@ test("a Rating kept outside Played or Playing is shown read-only with Clear rati
   await user.click(screen.getByRole("button", { name: "Clear rating" }));
   expect(onSave).toHaveBeenCalledExactlyOnceWith(null);
   await waitFor(() =>
-    expect(status().textContent).toBe("Celeste: rating cleared."),
+    expect(status().textContent).toBe("Celeste: Rating cleared."),
   );
   expect(screen.queryByText(/Rated/)).toBeNull();
 });

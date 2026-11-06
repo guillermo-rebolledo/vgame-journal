@@ -22,6 +22,7 @@ import {
   type Status,
 } from "@/lib/library";
 import { createLists } from "@/lib/lists";
+import { isRatingPoints, RATEABLE_STATUSES } from "@/lib/rating";
 import {
   compareWishlist,
   REGIONS,
@@ -82,12 +83,16 @@ function summarizeRatings(
   return { count, average, distribution };
 }
 
-export type JournalRemovalConfirmation = {
-  confirmationRequired: true;
+/** What removing an entry would permanently delete besides the entry itself. */
+export type JournalRemovalContents = {
   playthroughCount: number;
   /** Removal also deletes the entry's Rating. */
   rated: boolean;
 };
+
+export type JournalRemovalConfirmation = {
+  confirmationRequired: true;
+} & JournalRemovalContents;
 
 /** What a user fills in for a Playthrough. Dates are `YYYY-MM-DD`. */
 export type PlaythroughInput = {
@@ -97,15 +102,6 @@ export type PlaythroughInput = {
   hours?: number | null;
   notes?: string;
 };
-
-/** Rating points: whole half stars, 1 (half a star) to 10 (5 stars). */
-const isRatingPoints = (points: unknown): points is number =>
-  Number.isInteger(points) &&
-  (points as number) >= 1 &&
-  (points as number) <= 10;
-
-/** A Rating can only be given (not just kept) in these Statuses. */
-const RATEABLE_STATUSES: Status[] = ["played", "playing"];
 
 function isDay(day: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
@@ -506,7 +502,7 @@ export function createJournal(db: Db) {
         .where(
           and(
             owned(userId, gameId),
-            inArray(journalEntry.status, RATEABLE_STATUSES),
+            inArray(journalEntry.status, [...RATEABLE_STATUSES]),
           ),
         )
         .returning({ rating: journalEntry.rating });
@@ -681,7 +677,6 @@ export function createJournal(db: Db) {
             status: journalEntry.status,
             completionTag: journalEntry.completionTag,
             rating: journalEntry.rating,
-            ratedAt: journalEntry.ratedAt,
             addedAt: journalEntry.createdAt,
             releasedAt: sql<Date | null>`(
               select min(${releaseDate.date}) from ${releaseDate}

@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import type { RatingPoints } from "@/lib/rating";
 import {
   type LibraryEntry,
   libraryParams,
@@ -9,7 +10,7 @@ import {
 const entry = (
   gameId: number,
   title: string,
-  rating: number | null,
+  rating: RatingPoints | null,
 ): LibraryEntry => ({
   gameId,
   title,
@@ -18,7 +19,6 @@ const entry = (
   status: "played",
   completionTag: null,
   rating,
-  ratedAt: rating === null ? null : new Date("2026-01-01"),
   addedAt: new Date("2026-01-01"),
   releasedAt: null,
   platforms: [],

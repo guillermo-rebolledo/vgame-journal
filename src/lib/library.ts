@@ -1,3 +1,5 @@
+import type { RatingPoints } from "@/lib/rating";
+
 // Journal terms and Library filters and sorts. No database here, so the Library view runs the same rules in the browser.
 
 export const STATUSES = ["played", "playing", "backlog", "wishlist"] as const;
@@ -18,10 +20,8 @@ export type LibraryEntry = {
   coverImageId: string | null;
   status: Status;
   completionTag: CompletionTag | null;
-  /** Rating points, 1–10 (stars × 2), or null if unrated. */
-  rating: number | null;
-  /** When the Rating last changed, or null if unrated. */
-  ratedAt: Date | null;
+  /** Rating points, or null if unrated. */
+  rating: RatingPoints | null;
   addedAt: Date;
   /** Earliest known release, or null if TBA. */
   releasedAt: Date | null;

@@ -52,7 +52,7 @@ export const KeyboardAndClear: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Clear rating" }));
     await waitFor(() => expect(args.onSave).toHaveBeenLastCalledWith(null));
     await expect(canvas.getByRole("status")).toHaveTextContent(
-      "Celeste: rating cleared.",
+      "Celeste: Rating cleared.",
     );
   },
 };
@@ -68,7 +68,7 @@ export const Pending: Story = {
       canvas.getByRole("radio", { name: "4 stars out of 5" }),
     );
     await expect(canvas.getByRole("status")).toHaveTextContent(
-      "Saving rating…",
+      "Saving Rating…",
     );
     await expect(
       canvas.getByRole("radio", { name: "4 stars out of 5" }),
@@ -88,7 +88,7 @@ export const FailedThenRetry: Story = {
       return failures++ === 0
         ? {
             error:
-              "Couldn’t save your rating. Check your connection and try again.",
+              "Couldn’t save your Rating. Check your connection and try again.",
           }
         : undefined;
     }),
@@ -99,7 +99,7 @@ export const FailedThenRetry: Story = {
       canvas.getByRole("radio", { name: "4 stars out of 5" }),
     );
     await expect(await canvas.findByRole("alert")).toHaveTextContent(
-      "Couldn’t save your rating",
+      "Couldn’t save your Rating",
     );
     // Rolled back to the saved Rating.
     await expect(

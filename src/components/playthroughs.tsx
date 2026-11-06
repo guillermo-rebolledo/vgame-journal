@@ -10,6 +10,7 @@ import {
   type PlaythroughInput,
   type Status,
 } from "@/lib/journal";
+import { RATING_SAVE_FAILED, type RatingPoints } from "@/lib/rating";
 
 const fromForm = (values: Record<string, string>): PlaythroughInput => ({
   platform: values.platform ?? "",
@@ -77,7 +78,7 @@ export async function Playthroughs({
     }
     refresh();
   }
-  async function rate(points: number | null) {
+  async function rate(points: RatingPoints | null) {
     "use server";
     const owner = await ownerId();
     try {
@@ -86,9 +87,7 @@ export async function Playthroughs({
     } catch (error) {
       return {
         error:
-          error instanceof JournalError
-            ? error.message
-            : "Couldn’t save your rating. Check your connection and try again.",
+          error instanceof JournalError ? error.message : RATING_SAVE_FAILED,
       };
     }
     // Read-your-own-writes: the page's Community rating includes this change.

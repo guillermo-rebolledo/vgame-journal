@@ -29,7 +29,7 @@ test("rating a Played game updates the Community rating at once, and clearing re
   const { slug, title } = await seedRatedGame(request);
   await signUp(page, request, uniqueUsername("rate"));
   await page.goto(`/games/${slug}`);
-  await expect(communityRating(page)).toContainText("No ratings yet");
+  await expect(communityRating(page)).toContainText("No Ratings yet");
   // No Rating control until the game is Played or Playing.
   await expect(page.getByRole("group", { name: "Your rating" })).toHaveCount(0);
 
@@ -52,7 +52,7 @@ test("rating a Played game updates the Community rating at once, and clearing re
   await expect(rating.getByText("Rated 4 out of 5")).toBeVisible();
   await expect(rating.getByRole("radio")).toHaveCount(0);
   await rating.getByRole("button", { name: "Clear rating" }).click();
-  await expect(communityRating(page)).toContainText("No ratings yet");
+  await expect(communityRating(page)).toContainText("No Ratings yet");
   await page.reload();
   await expect(page.getByRole("group", { name: "Your rating" })).toHaveCount(0);
 });
@@ -84,10 +84,14 @@ test("the Community rating shows its average and feeds structured data only at t
     });
 });
 
-test("a guest is offered Sign in to rate, which returns to the game", async ({
+test("a guest's Sign in to record and rate returns to the game", async ({
   page,
 }) => {
   await page.goto("/games/celeste");
-  await page.getByRole("link", { name: "Sign in to rate" }).click();
+  await expect(page.getByText("Sign in to rate")).toHaveCount(0);
+  await page
+    .getByRole("region", { name: "Game journal" })
+    .getByRole("link", { name: "Sign in", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/sign-in\?returnTo=%2Fgames%2Fceleste$/);
 });

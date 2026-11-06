@@ -1,24 +1,20 @@
 "use client";
 
 import { RotateCw } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { type RefObject, useId, useRef, useState } from "react";
 import { trackEvent } from "@/components/analytics";
 import { RatingStars } from "@/components/rating-stars";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-
-/** Rating points, 1 (half a star) to 10 (5 stars). */
-const POINTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-/** "0.5 stars", "1 star", "3.5 stars". */
-export const starsLabel = (points: number) =>
-  `${points / 2} ${points === 2 ? "star" : "stars"}`;
-
-const FAILED =
-  "Couldn’t save your rating. Check your connection and try again.";
+import {
+  RATING_POINTS,
+  RATING_SAVE_FAILED,
+  type RatingPoints,
+  starsLabel,
+} from "@/lib/rating";
 
 export type SaveRating = (
-  points: number | null,
+  points: RatingPoints | null,
 ) => Promise<{ error: string } | undefined>;
 
 /**
@@ -30,14 +26,17 @@ export function StarRating({
   editable,
   gameTitle,
   disabled = false,
+  focusAfterClear,
   onSave,
 }: {
-  /** The saved Rating in points, or null. */
-  value: number | null;
+  /** The saved Rating, or null. */
+  value: RatingPoints | null;
   /** Whether the Status allows giving a Rating (Played or Playing). Otherwise a kept Rating can only be cleared. */
   editable: boolean;
   gameTitle: string;
   disabled?: boolean;
+  /** Where focus goes when clearing a kept Rating removes the control. */
+  focusAfterClear?: RefObject<HTMLElement | null>;
   onSave: SaveRating;
 }) {
   const [rating, setRating] = useState({ confirmed: value, shown: value });
@@ -49,16 +48,19 @@ export function StarRating({
   }
   const [error, setError] = useState<{
     message: string;
-    retry: number | null;
+    retry: RatingPoints | null;
   }>();
   const [notice, setNotice] = useState<string>();
   const name = useId();
   const group = useRef<HTMLFieldSetElement>(null);
   const inFlight = useRef(false);
   /** The latest choice made while a save was in flight; it goes next. */
-  const queued = useRef<{ points: number | null }>(undefined);
+  const queued = useRef<{ points: RatingPoints | null }>(undefined);
 
-  async function send(points: number | null, confirmed: number | null) {
+  async function send(
+    points: RatingPoints | null,
+    confirmed: RatingPoints | null,
+  ) {
     inFlight.current = true;
     setPending(true);
     let target = points;
@@ -67,7 +69,7 @@ export function StarRating({
       try {
         result = await onSave(target);
       } catch {
-        result = { error: FAILED };
+        result = { error: RATING_SAVE_FAILED };
       }
       if (!result) {
         confirmed = target;
@@ -88,7 +90,10 @@ export function StarRating({
         setRating((r) => ({ ...r, shown: r.confirmed }));
         setError({ message: result.error, retry: target });
       } else if (target === null) {
-        setNotice(`${gameTitle}: rating cleared.`);
+        // Without a Rating the read-only control goes; don't let focus drop to the page.
+        if (!editable && group.current?.contains(document.activeElement))
+          focusAfterClear?.current?.focus();
+        setNotice(`${gameTitle}: Rating cleared.`);
         trackEvent("rating_cleared");
       } else {
         setNotice(`${gameTitle}: rated ${starsLabel(target)} out of 5.`);
@@ -98,7 +103,7 @@ export function StarRating({
     }
   }
 
-  function choose(points: number | null) {
+  function choose(points: RatingPoints | null) {
     if (disabled) return;
     setError(undefined);
     setNotice(undefined);
@@ -109,8 +114,9 @@ export function StarRating({
 
   function clear() {
     choose(null);
-    // Clear rating disappears with the Rating; keep focus in the control.
+    // Clear rating disappears with the Rating; keep focus in the control while it saves.
     if (editable) group.current?.querySelector("input")?.focus();
+    else group.current?.focus();
   }
 
   // Without a Rating outside Played or Playing there is no control, but the announcement stays.
@@ -120,8 +126,9 @@ export function StarRating({
       {!hidden && (
         <fieldset
           ref={group}
+          tabIndex={-1}
           aria-busy={pending}
-          className="flex min-w-0 flex-col gap-1"
+          className="flex min-w-0 flex-col gap-1 outline-none"
         >
           <legend className="mb-1 text-muted-foreground text-sm">
             Your rating
@@ -129,15 +136,15 @@ export function StarRating({
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {editable ? (
               <div className="relative inline-flex">
-                {/* Each 2rem star gets a 48 × 44px box, so its halves line up with the radio targets above. */}
+                {/* Each text-4xl (36px) star gets a 48 × 44px box, so its halves line up with the radio targets above. */}
                 <span aria-hidden="true">
                   <RatingStars
                     points={rating.shown ?? 0}
-                    className="text-[2rem] [&>[aria-hidden]]:mx-2 [&>[aria-hidden]]:my-1.5"
+                    className="text-4xl [&>[aria-hidden]]:mx-1.5 [&>[aria-hidden]]:my-1"
                   />
                 </span>
                 <div className="absolute inset-0 grid grid-cols-10">
-                  {POINTS.map((points) => (
+                  {RATING_POINTS.map((points) => (
                     <label
                       key={points}
                       className="relative rounded-sm has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50"
@@ -206,14 +213,14 @@ export function StarRating({
           )}
         </fieldset>
       )}
-      {/* After the control, so it stays mounted when the control goes and still announces "rating cleared". */}
+      {/* After the control, so it stays mounted when the control goes and still announces "Rating cleared". */}
       <output
         data-slot="rating-status"
         className="sr-only"
         aria-live="polite"
         aria-atomic="true"
       >
-        {pending ? "Saving rating…" : notice}
+        {pending ? "Saving Rating…" : notice}
       </output>
     </>
   );

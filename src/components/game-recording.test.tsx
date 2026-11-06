@@ -49,6 +49,7 @@ function renderRecording(
       onAdd={vi.fn(async () => undefined)}
       onUpdate={vi.fn(async () => undefined)}
       onRemove={vi.fn(async () => undefined)}
+      onRate={vi.fn(async () => undefined)}
       {...props}
     />,
   );
@@ -156,11 +157,16 @@ test("a game outside the journal shows no rating control", () => {
   expect(screen.queryByRole("group", { name: "Your rating" })).toBeNull();
 });
 
-test("a guest is offered Sign in to rate, returning to the game", () => {
+test("a guest gets one Sign in, for recording and rating, returning to the game", () => {
   renderRecording({ signedIn: false, entry: null });
-  expect(
-    screen.getByRole("link", { name: "Sign in to rate" }).getAttribute("href"),
-  ).toBe("/sign-in?returnTo=%2Fgames%2Fceleste");
+  expect(screen.queryByRole("link", { name: "Sign in to rate" })).toBeNull();
+  const signIn = screen.getByRole("link", { name: "Sign in" });
+  expect(signIn.getAttribute("href")).toBe(
+    "/sign-in?returnTo=%2Fgames%2Fceleste",
+  );
+  expect(signIn.parentElement?.textContent).toBe(
+    "Sign in to record and rate games and add playthroughs.",
+  );
 });
 
 test("rating saves through onRate", async () => {
@@ -169,4 +175,34 @@ test("rating saves through onRate", async () => {
   renderRecording({ entry: { status: "played", completionTag: null }, onRate });
   await user.click(screen.getByRole("radio", { name: "4 stars out of 5" }));
   expect(onRate).toHaveBeenCalledExactlyOnceWith(8);
+});
+
+test("clearing a kept Rating outside Played or Playing hands focus to Journal status and announces once", async () => {
+  const user = userEvent.setup();
+  let resolve = () => {};
+  const onRate = vi.fn(
+    () => new Promise<undefined>((r) => (resolve = () => r(undefined))),
+  );
+  renderRecording({
+    entry: { status: "backlog", completionTag: null },
+    rating: 7,
+    onRate,
+  });
+  await user.click(screen.getByRole("button", { name: "Clear rating" }));
+  expect(onRate).toHaveBeenCalledExactlyOnceWith(null);
+  // While it saves, focus stays in the control rather than dropping to the page.
+  expect(
+    screen
+      .getByRole("group", { name: "Your rating" })
+      .contains(document.activeElement),
+  ).toBe(true);
+  resolve();
+  await waitFor(() =>
+    expect(screen.queryByRole("group", { name: "Your rating" })).toBeNull(),
+  );
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: /Change Journal status for Celeste/ }),
+  );
+  const status = document.querySelector('[data-slot="rating-status"]');
+  expect(status?.textContent).toBe("Celeste: Rating cleared.");
 });
