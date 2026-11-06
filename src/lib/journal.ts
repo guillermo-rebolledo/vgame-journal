@@ -681,7 +681,6 @@ export function createJournal(db: Db) {
             status: journalEntry.status,
             completionTag: journalEntry.completionTag,
             rating: journalEntry.rating,
-            ratedAt: journalEntry.ratedAt,
             addedAt: journalEntry.createdAt,
             releasedAt: sql<Date | null>`(
               select min(${releaseDate.date}) from ${releaseDate}

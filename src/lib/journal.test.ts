@@ -1389,7 +1389,7 @@ test("deleting an account removes its Ratings from the Community rating", async 
   });
 });
 
-test("export, Library entries and the public profile carry each Rating and when it changed; the profile still has no notes", async () => {
+test("export and the entry carry each Rating and when it changed; Library entries and the public profile carry only the Rating, never notes", async () => {
   await db.update(user).set({ username: "mario" }).where(eq(user.id, "mario"));
   await journal.set("mario", 1, { status: "played" });
   await journal.set("mario", 2, { status: "backlog" });
@@ -1412,15 +1412,22 @@ test("export, Library entries and the public profile carry each Rating and when 
     expect.objectContaining(rated),
     expect.objectContaining(unrated),
   ]);
-  expect(await journal.library("mario", {}, "title")).toEqual([
-    expect.objectContaining(rated),
-    expect.objectContaining(unrated),
-  ]);
+  expect(await journal.entry("mario", 1)).toMatchObject(rated);
+  // When a Rating changed stays private: the Library and public profile carry only the points.
+  const shown = [
+    { gameId: 1, rating: 9 },
+    { gameId: 2, rating: null },
+  ];
+  const library = await journal.library("mario", {}, "title");
+  expect(library).toEqual(shown.map((e) => expect.objectContaining(e)));
+  expect(library.some((e) => "ratedAt" in e)).toBe(false);
   const profile = await journal.publicProfile("mario");
   expect(
     [...(profile?.library ?? [])].sort((a, b) => a.gameId - b.gameId),
-  ).toEqual([expect.objectContaining(rated), expect.objectContaining(unrated)]);
-  expect(JSON.stringify(profile)).not.toMatch(/notes|Private thoughts/i);
+  ).toEqual(shown.map((e) => expect.objectContaining(e)));
+  expect(JSON.stringify(profile)).not.toMatch(
+    /notes|Private thoughts|ratedAt|rated_at/i,
+  );
 });
 
 test("stats report the owner's Rating distribution, average Rating given and number of rated games", async () => {

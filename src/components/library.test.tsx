@@ -50,7 +50,6 @@ const entry = (e: Partial<LibraryEntry> & Pick<LibraryEntry, "gameId">) => ({
   status: "backlog" as const,
   completionTag: null,
   rating: null,
-  ratedAt: null,
   addedAt: new Date("2026-01-01"),
   releasedAt: null,
   platforms: [],

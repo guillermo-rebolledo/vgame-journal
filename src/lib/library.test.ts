@@ -18,7 +18,6 @@ const entry = (
   status: "played",
   completionTag: null,
   rating,
-  ratedAt: rating === null ? null : new Date("2026-01-01"),
   addedAt: new Date("2026-01-01"),
   releasedAt: null,
   platforms: [],

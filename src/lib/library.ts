@@ -20,8 +20,6 @@ export type LibraryEntry = {
   completionTag: CompletionTag | null;
   /** Rating points, 1–10 (stars × 2), or null if unrated. */
   rating: number | null;
-  /** When the Rating last changed, or null if unrated. */
-  ratedAt: Date | null;
   addedAt: Date;
   /** Earliest known release, or null if TBA. */
   releasedAt: Date | null;
