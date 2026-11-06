@@ -149,104 +149,111 @@ export function StarRating({
     if (editable) group.current?.querySelector("input")?.focus();
   }
 
-  const status = (
-    <output className="sr-only" aria-live="polite" aria-atomic="true">
-      {pending ? "Saving rating…" : notice}
-    </output>
-  );
-  if (!editable && rating.shown === null && !pending && !error) return status;
-
+  // Without a Rating outside Played or Playing there is no control, but the announcement stays.
+  const hidden = !editable && rating.shown === null && !pending && !error;
   return (
-    <fieldset
-      ref={group}
-      aria-busy={pending}
-      className="flex min-w-0 flex-col gap-1"
-    >
-      <legend className="mb-1 text-muted-foreground text-sm">
-        Your rating
-      </legend>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        {editable ? (
-          <div className="relative inline-flex">
-            <Stars
-              points={rating.shown ?? 0}
-              starClassName="mx-2 my-1.5 size-8"
-            />
-            <div className="absolute inset-0 grid grid-cols-10">
-              {POINTS.map((points) => (
-                <label
-                  key={points}
-                  className="relative rounded-sm has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50"
+    <>
+      {!hidden && (
+        <fieldset
+          ref={group}
+          aria-busy={pending}
+          className="flex min-w-0 flex-col gap-1"
+        >
+          <legend className="mb-1 text-muted-foreground text-sm">
+            Your rating
+          </legend>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {editable ? (
+              <div className="relative inline-flex">
+                <Stars
+                  points={rating.shown ?? 0}
+                  starClassName="mx-2 my-1.5 size-8"
+                />
+                <div className="absolute inset-0 grid grid-cols-10">
+                  {POINTS.map((points) => (
+                    <label
+                      key={points}
+                      className="relative rounded-sm has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50"
+                    >
+                      <input
+                        type="radio"
+                        name={name}
+                        value={points}
+                        aria-label={`${starsLabel(points)} out of 5`}
+                        checked={rating.shown === points}
+                        disabled={disabled}
+                        onChange={() => choose(points)}
+                        className="absolute inset-0 m-0 cursor-pointer appearance-none opacity-0 disabled:cursor-not-allowed"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              rating.shown !== null && (
+                <span
+                  role="img"
+                  aria-label={`Rated ${rating.shown / 2} out of 5`}
+                  className="inline-flex py-2"
                 >
-                  <input
-                    type="radio"
-                    name={name}
-                    value={points}
-                    aria-label={`${starsLabel(points)} out of 5`}
-                    checked={rating.shown === points}
-                    disabled={disabled}
-                    onChange={() => choose(points)}
-                    className="absolute inset-0 m-0 cursor-pointer appearance-none opacity-0 disabled:cursor-not-allowed"
-                  />
-                </label>
-              ))}
-            </div>
+                  <Stars points={rating.shown} starClassName="size-6" />
+                </span>
+              )
+            )}
+            {rating.shown !== null && (
+              <Button
+                variant="ghost"
+                className="min-h-11"
+                disabled={disabled}
+                onClick={clear}
+              >
+                Clear rating
+              </Button>
+            )}
+            {pending && (
+              <span
+                aria-hidden="true"
+                className="flex items-center gap-2 text-muted-foreground text-sm"
+              >
+                <Spinner />
+                <span className="shimmer">Saving…</span>
+              </span>
+            )}
           </div>
-        ) : (
-          rating.shown !== null && (
-            <span
-              role="img"
-              aria-label={`Rated ${rating.shown / 2} out of 5`}
-              className="inline-flex py-2"
-            >
-              <Stars points={rating.shown} starClassName="size-6" />
-            </span>
-          )
-        )}
-        {rating.shown !== null && (
-          <Button
-            variant="ghost"
-            className="min-h-11"
-            disabled={disabled}
-            onClick={clear}
-          >
-            Clear rating
-          </Button>
-        )}
-        {pending && (
-          <span
-            aria-hidden="true"
-            className="flex items-center gap-2 text-muted-foreground text-sm"
-          >
-            <Spinner />
-            <span className="shimmer">Saving…</span>
-          </span>
-        )}
-      </div>
-      {!editable && rating.shown !== null && (
-        <p className="text-muted-foreground text-sm">
-          Mark it Played or Playing to change your Rating.
-        </p>
+          {!editable && rating.shown !== null && (
+            <p className="text-muted-foreground text-sm">
+              Mark it Played or Playing to change your Rating.
+            </p>
+          )}
+          {error && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <p role="alert" className="text-destructive text-sm">
+                {error.message}
+              </p>
+              <Button
+                variant="outline"
+                className="min-h-11"
+                disabled={disabled}
+                onClick={() => choose(error.retry)}
+              >
+                <RotateCw aria-hidden="true" />
+                {error.retry === null
+                  ? "Retry clearing"
+                  : `Retry ${starsLabel(error.retry)}`}
+              </Button>
+            </div>
+          )}
+        </fieldset>
       )}
-      {status}
-      {error && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <p role="alert" className="text-destructive text-sm">
-            {error.message}
-          </p>
-          <Button
-            variant="outline"
-            className="min-h-11"
-            disabled={disabled}
-            onClick={() => choose(error.retry)}
-          >
-            <RotateCw aria-hidden="true" />
-            {error.retry === null
-              ? "Retry clearing"
-              : `Retry ${starsLabel(error.retry)}`}
-          </Button>
-        </div>
-      )}
-    </fieldset>
+      {/* After the control, so it stays mounted when the control goes and still announces "rating cleared". */}
+      <output
+        data-slot="rating-status"
+        className="sr-only"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {pending ? "Saving rating…" : notice}
+      </output>
+    </>
   );
 }
