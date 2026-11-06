@@ -63,6 +63,15 @@ export type PlaythroughInput = {
   notes?: string;
 };
 
+/** Rating points: whole half stars, 1 (half a star) to 10 (5 stars). */
+const isRatingPoints = (points: unknown): points is number =>
+  Number.isInteger(points) &&
+  (points as number) >= 1 &&
+  (points as number) <= 10;
+
+/** A Rating can only be given (not just kept) in these Statuses. */
+const RATEABLE_STATUSES: Status[] = ["played", "playing"];
+
 function isDay(day: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
   const date = new Date(`${day}T00:00:00Z`);
@@ -426,6 +435,41 @@ export function createJournal(db: Db) {
       if (!moved) return null;
       await recordStatusEvent(userId, gameId, to, null, updatedAt);
       return moved.updatedAt;
+    },
+
+    /** Rates a Played or Playing game. One conditional UPDATE, so a racing Status move can't let a Rating land on another Status. */
+    async setRating(userId: string, gameId: number, points: unknown) {
+      if (!isRatingPoints(points))
+        throw new JournalError("Choose a Rating from half a star to 5 stars.");
+      const [rated] = await db
+        .update(journalEntry)
+        // Same value keeps rated-at, so retries are idempotent. Never touch updated-at: `move` uses it as its stale-write guard.
+        .set({
+          rating: points,
+          ratedAt: sql`case when ${journalEntry.rating} = ${points} then ${journalEntry.ratedAt} else ${new Date()} end`,
+        })
+        .where(
+          and(
+            owned(userId, gameId),
+            inArray(journalEntry.status, RATEABLE_STATUSES),
+          ),
+        )
+        .returning({ rating: journalEntry.rating });
+      if (rated) return;
+      // Nothing was written; this read only picks the message.
+      throw new JournalError(
+        (await entry(userId, gameId))
+          ? "Mark it Played or Playing to rate it."
+          : "This game is not in your Journal.",
+      );
+    },
+
+    /** Removes the user's Rating for a game, in any Status. A no-op if there is none. */
+    async clearRating(userId: string, gameId: number) {
+      await db
+        .update(journalEntry)
+        .set({ rating: null, ratedAt: null })
+        .where(owned(userId, gameId));
     },
 
     /** Takes the game out of the user's journal. */

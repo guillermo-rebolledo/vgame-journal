@@ -1162,3 +1162,135 @@ test("account export includes only the owner's public and private lists in saved
     1, 2,
   ]);
 });
+
+test("a Played or Playing game takes any Rating from 1 to 10 points, read back with its entry", async () => {
+  await journal.set("mario", 1, { status: "played" });
+  await journal.set("mario", 2, { status: "playing" });
+  for (const points of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+    await journal.setRating("mario", 1, points);
+    await journal.setRating("mario", 2, points);
+    expect(await journal.entry("mario", 1)).toMatchObject({
+      rating: points,
+      ratedAt: expect.any(Date),
+    });
+    expect(await journal.entry("mario", 2)).toMatchObject({ rating: points });
+  }
+});
+
+test("a Rating outside 1 to 10 whole points is rejected with a user-safe error", async () => {
+  await journal.set("mario", 1, { status: "played" });
+  for (const points of [0, 11, 3.5, -1, Number.NaN, "7", null, undefined, {}])
+    await expect(journal.setRating("mario", 1, points)).rejects.toThrow(
+      new JournalError("Choose a Rating from half a star to 5 stars."),
+    );
+  expect(await journal.entry("mario", 1)).toMatchObject({
+    rating: null,
+    ratedAt: null,
+  });
+});
+
+test("rating a game outside the Journal or not Played or Playing explains why and writes nothing", async () => {
+  await expect(journal.setRating("mario", 1, 8)).rejects.toThrow(
+    new JournalError("This game is not in your Journal."),
+  );
+  expect(await journal.entry("mario", 1)).toBeNull();
+  for (const status of ["backlog", "wishlist"] as const) {
+    await journal.set("mario", 1, { status });
+    await expect(journal.setRating("mario", 1, 8)).rejects.toThrow(
+      new JournalError("Mark it Played or Playing to rate it."),
+    );
+    expect(await journal.entry("mario", 1)).toMatchObject({ rating: null });
+  }
+  // Another player's entry doesn't count as yours.
+  await journal.set("luigi", 2, { status: "played" });
+  await expect(journal.setRating("mario", 2, 8)).rejects.toThrow(
+    "This game is not in your Journal.",
+  );
+  expect(await journal.entry("luigi", 2)).toMatchObject({ rating: null });
+});
+
+test("resubmitting the same Rating keeps rated-at; a new value updates it", async () => {
+  await journal.set("mario", 1, { status: "played" });
+  vi.setSystemTime(new Date("2026-01-01T10:00:00Z"));
+  await journal.setRating("mario", 1, 7);
+  vi.setSystemTime(new Date("2026-01-02T10:00:00Z"));
+  await journal.setRating("mario", 1, 7);
+  expect(await journal.entry("mario", 1)).toMatchObject({
+    rating: 7,
+    ratedAt: new Date("2026-01-01T10:00:00Z"),
+  });
+  vi.setSystemTime(new Date("2026-01-03T10:00:00Z"));
+  await journal.setRating("mario", 1, 9);
+  expect(await journal.entry("mario", 1)).toMatchObject({
+    rating: 9,
+    ratedAt: new Date("2026-01-03T10:00:00Z"),
+  });
+});
+
+test("rating leaves updated-at and status history alone, so a Status move seen before it still succeeds", async () => {
+  await journal.set("mario", 1, { status: "backlog" });
+  const seen = await journal.move("mario", 1, { status: "backlog" }, "played");
+  const events = await journal.statusEvents("mario");
+
+  await journal.setRating("mario", 1, 6);
+  await journal.clearRating("mario", 1);
+  await journal.setRating("mario", 1, 8);
+
+  expect(await journal.entry("mario", 1)).toMatchObject({ updatedAt: seen });
+  expect(await journal.statusEvents("mario")).toEqual(events);
+  expect(
+    await journal.move(
+      "mario",
+      1,
+      { status: "played", updatedAt: seen ?? undefined },
+      "backlog",
+    ),
+  ).toBeInstanceOf(Date);
+});
+
+test("a Rating stays through every Status change, and can be cleared in any Status", async () => {
+  await journal.set("mario", 1, {
+    status: "played",
+    completionTag: "completed",
+  });
+  await journal.setRating("mario", 1, 8);
+  for (const status of ["backlog", "wishlist", "playing", "played"] as const) {
+    await journal.set("mario", 1, { status });
+    expect(await journal.entry("mario", 1)).toMatchObject({
+      status,
+      rating: 8,
+    });
+  }
+  await journal.move("mario", 1, { status: "played" }, "backlog");
+  expect(await journal.entry("mario", 1)).toMatchObject({ rating: 8 });
+
+  for (const status of ["played", "playing", "backlog", "wishlist"] as const) {
+    await journal.set("mario", 1, { status: "played" });
+    await journal.setRating("mario", 1, 4);
+    await journal.set("mario", 1, { status });
+    await journal.clearRating("mario", 1);
+    await journal.clearRating("mario", 1); // already clear: no-op
+    expect(await journal.entry("mario", 1)).toMatchObject({
+      status,
+      rating: null,
+      ratedAt: null,
+    });
+  }
+  // Clearing a game outside the Journal is a no-op, not an error.
+  await expect(journal.clearRating("mario", 2)).resolves.toBeUndefined();
+  expect(await journal.entry("mario", 2)).toBeNull();
+});
+
+test("the database rejects Ratings out of range or without rated-at", async () => {
+  await journal.set("mario", 1, { status: "played" });
+  for (const values of [
+    { rating: 0, ratedAt: new Date() },
+    { rating: 11, ratedAt: new Date() },
+    { rating: 5, ratedAt: null },
+    { rating: null, ratedAt: new Date() },
+  ])
+    await expect(
+      db.update(journalEntry).set(values).where(eq(journalEntry.gameId, 1)),
+    ).rejects.toThrow();
+  expect(await journal.entry("mario", 1)).toMatchObject({ rating: null });
+});
