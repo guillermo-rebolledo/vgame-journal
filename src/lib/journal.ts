@@ -501,7 +501,7 @@ export function createJournal(db: Db) {
         // Same value keeps rated-at, so retries are idempotent. Never touch updated-at: `move` uses it as its stale-write guard.
         .set({
           rating: points,
-          ratedAt: sql`case when ${journalEntry.rating} = ${points} then ${journalEntry.ratedAt} else ${new Date()} end`,
+          ratedAt: sql`case when ${journalEntry.rating} = ${points} then ${journalEntry.ratedAt} else ${sql.param(new Date(), journalEntry.ratedAt)} end`,
         })
         .where(
           and(
