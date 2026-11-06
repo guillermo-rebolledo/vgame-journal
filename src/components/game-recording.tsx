@@ -1,6 +1,6 @@
 "use client";
 
-import { BookMarked, Plus, Trash2, X } from "lucide-react";
+import { BookMarked, Plus, Star, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useRef, useState } from "react";
@@ -15,6 +15,7 @@ import {
   type SavePlaythrough,
 } from "@/components/playthrough-form";
 import { PlaythroughHistory } from "@/components/playthrough-history";
+import { type SaveRating, StarRating } from "@/components/star-rating";
 import { ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +41,7 @@ type Playthrough = typeof playthrough.$inferSelect;
 export function GameRecording({
   signedIn,
   entry,
-  rated = false,
+  rating = null,
   playthroughs,
   gameTitle,
   platforms,
@@ -48,13 +49,14 @@ export function GameRecording({
   onAdd,
   onUpdate,
   onRemove,
+  onRate = async () => undefined,
   listPicker,
 }: {
   signedIn: boolean;
   listPicker?: ReactNode;
   entry: JournalSelection;
-  /** Whether the entry has a Rating, which removal also deletes. */
-  rated?: boolean;
+  /** The saved Rating in points; removal also deletes it. */
+  rating?: number | null;
   playthroughs: Playthrough[];
   gameTitle: string;
   platforms: string[];
@@ -65,6 +67,7 @@ export function GameRecording({
     values: Record<string, string>,
   ) => ReturnType<SavePlaythrough>;
   onRemove: (id: number) => ReturnType<SavePlaythrough>;
+  onRate?: SaveRating;
 }) {
   const signInHref = authPageHref("/sign-in", usePathname());
   const [editor, setEditor] = useState<Playthrough | "add" | null>(null);
@@ -147,7 +150,7 @@ export function GameRecording({
             entry={entry}
             gameTitle={gameTitle}
             playthroughCount={playthroughs.length}
-            rated={rated}
+            rated={rating !== null}
             disabled={pending}
             onSave={async (status, tag, acknowledged) => {
               busy.current = true;
@@ -184,13 +187,31 @@ export function GameRecording({
             {additionalActions}
           </fieldset>
         )}
+        {entry && (
+          <StarRating
+            value={rating}
+            editable={entry.status === "played" || entry.status === "playing"}
+            gameTitle={gameTitle}
+            onSave={onRate}
+          />
+        )}
         {!signedIn ? (
-          <p className="text-muted-foreground text-sm">
-            <Link href={signInHref} className="underline underline-offset-4">
-              Sign in
-            </Link>{" "}
-            to record games and playthroughs.
-          </p>
+          <>
+            <Button
+              render={<Link href={signInHref} />}
+              variant="outline"
+              className="journal-action min-h-11 self-start"
+            >
+              <Star aria-hidden="true" />
+              Sign in to rate
+            </Button>
+            <p className="text-muted-foreground text-sm">
+              <Link href={signInHref} className="underline underline-offset-4">
+                Sign in
+              </Link>{" "}
+              to record games and playthroughs.
+            </p>
+          </>
         ) : null}
         {signedIn && (
           <PlaythroughHistory playthroughs={playthroughs} onEdit={open} />

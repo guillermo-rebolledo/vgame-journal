@@ -17,8 +17,10 @@ test("detail Status remains visible after each confirmed save with one game-spec
     name: "Game journal",
     exact: true,
   });
+  // The Journal status announcements; the rating control keeps its own.
   const updates = journal
     .getByRole("status")
+    .and(page.locator(':not([data-slot="rating-status"])'))
     .filter({ hasNotText: "Loading list controls…" });
   for (const [status, label] of [
     ["wishlist", "Wishlisted"],
@@ -1165,6 +1167,8 @@ test.describe("enlarged-text touch editor", () => {
       await save.tap();
       await expect(dialog).toHaveCount(0);
       await expect(page.getByText(/4 h/)).toBeVisible();
+      // At 320 × 400 the completion notification sits over the history's Edit button.
+      await page.getByRole("button", { name: "Dismiss notification" }).tap();
       await page.getByRole("button", { name: "Edit", exact: true }).click();
       const remove = page.getByRole("button", { name: "Delete playthrough" });
       await touchReveal(remove);

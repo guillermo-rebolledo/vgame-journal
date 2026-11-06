@@ -177,11 +177,13 @@ test("unavailable facts are explicit metadata without score placeholders or disc
   await page.goto("/games/dead-cells");
   const facts = page.locator("dl");
   await expect(facts.getByRole("term")).toHaveText([
+    "Community rating",
     "Scores",
     "Age rating",
     "Languages",
   ]);
   await expect(facts.getByRole("definition")).toHaveText([
+    "No ratings yet",
     "Scores unavailable",
     "Not rated yet",
     "Unknown",
@@ -226,8 +228,9 @@ for (const theme of ["light", "dark"] as const) {
       .locator('dl[aria-label="Game facts"]')
       .filter({ visible: true });
     await expect(facts.getByRole("term")).toHaveText([
+      "Community rating",
       "Critic score",
-      "User score",
+      "IGDB user score",
       "Age rating",
       "Languages",
     ]);
@@ -241,7 +244,7 @@ for (const theme of ["light", "dark"] as const) {
     for (const fixture of [
       {
         slug: "critic-score-fixture",
-        missing: "User score",
+        missing: "IGDB user score",
         score: "95",
         count: "1,234 reviews",
       },
@@ -348,6 +351,7 @@ for (const theme of ["light", "dark"] as const) {
         document.documentElement.style.fontSize = "200%";
       });
       await expect(facts.getByRole("definition")).toHaveText([
+        "No ratings yet",
         "Scores unavailable",
         "Not rated yet",
         "Unknown",

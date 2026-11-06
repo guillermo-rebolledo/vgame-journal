@@ -10,6 +10,7 @@ import { openCatalog, selectCatalogGame } from "./support/catalog";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { closeListPanel, openListPanel } from "./support/list-editor";
+import { seedRatedGame } from "./support/ratings";
 import { seedSql } from "./support/seed-sql";
 import { signUp, uniqueUsername } from "./support/sign-up";
 
@@ -312,6 +313,28 @@ for (const theme of ["light", "dark"] as const) {
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
         await scan(page, testInfo, path);
       }
+    });
+
+    test("rating control and Community rating", async ({
+      page,
+      request,
+    }, testInfo) => {
+      const { slug } = await seedRatedGame(request, [10, 9, 8, 8, 7]);
+      await signUp(page, request, uniqueUsername(`axe_rate_${theme}`));
+      await chooseTheme(page, theme);
+      await page.goto(`/games/${slug}`);
+      await chooseStatus(page, "played");
+      const rating = page.getByRole("group", { name: "Your rating" });
+      await rating.getByRole("radio", { name: "3.5 stars out of 5" }).click();
+      await expect(page.locator('[data-slot="rating-status"]')).toHaveText(
+        /rated 3.5 stars/,
+      );
+      await expect(page.getByText("6 Ratings", { exact: true })).toBeVisible();
+      await page.getByText("View rating data", { exact: true }).click();
+      await scan(page, testInfo, "rating-control");
+      await chooseStatus(page, "backlog");
+      await expect(rating.getByText("Rated 3.5 out of 5")).toBeVisible();
+      await scan(page, testInfo, "kept-rating");
     });
 
     test("personal pages, journal menu, and playthrough editor", async ({

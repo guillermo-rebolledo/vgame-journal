@@ -122,3 +122,51 @@ test("deleting a playthrough records it once it's gone", async () => {
     ),
   );
 });
+
+test.each([
+  "played",
+  "playing",
+] as const)("a %s game offers the rating control with the saved Rating", (status) => {
+  renderRecording({ entry: { status, completionTag: null }, rating: 7 });
+  expect(screen.getByRole("group", { name: "Your rating" })).toBeTruthy();
+  expect(
+    (
+      screen.getByRole("radio", {
+        name: "3.5 stars out of 5",
+      }) as HTMLInputElement
+    ).checked,
+  ).toBe(true);
+});
+
+test.each([
+  "backlog",
+  "wishlist",
+] as const)("a %s game shows a kept Rating read-only and no control without one", (status) => {
+  renderRecording({ entry: { status, completionTag: null }, rating: 7 });
+  expect(screen.queryAllByRole("radio")).toHaveLength(0);
+  expect(screen.getByText("Rated 3.5 out of 5")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Clear rating" })).toBeTruthy();
+  cleanup();
+  renderRecording({ entry: { status, completionTag: null }, rating: null });
+  expect(screen.queryByRole("group", { name: "Your rating" })).toBeNull();
+});
+
+test("a game outside the journal shows no rating control", () => {
+  renderRecording({ entry: null });
+  expect(screen.queryByRole("group", { name: "Your rating" })).toBeNull();
+});
+
+test("a guest is offered Sign in to rate, returning to the game", () => {
+  renderRecording({ signedIn: false, entry: null });
+  expect(
+    screen.getByRole("link", { name: "Sign in to rate" }).getAttribute("href"),
+  ).toBe("/sign-in?returnTo=%2Fgames%2Fceleste");
+});
+
+test("rating saves through onRate", async () => {
+  const user = userEvent.setup();
+  const onRate = vi.fn(async () => undefined);
+  renderRecording({ entry: { status: "played", completionTag: null }, onRate });
+  await user.click(screen.getByRole("radio", { name: "4 stars out of 5" }));
+  expect(onRate).toHaveBeenCalledExactlyOnceWith(8);
+});

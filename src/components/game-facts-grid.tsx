@@ -12,15 +12,18 @@ function UnavailableFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Catalog facts with a server-rendered slot for the user's regional age rating. */
+/** Catalog facts with server-rendered slots for the Community rating and the user's regional age rating. */
 export function GameFactsGrid({
   game,
+  communityRating,
   ageRating,
 }: {
   game: Pick<
     SourceGame,
     "criticScore" | "criticScoreCount" | "userScore" | "userScoreCount"
   > & { languages: SourceGame["languages"] | null };
+  /** Always shows its own state; "Scores unavailable" covers only the Catalog's scores. */
+  communityRating?: ReactNode;
   ageRating?: ReactNode;
 }) {
   // At most two cards per row; stack when enlarged text needs more room.
@@ -29,6 +32,7 @@ export function GameFactsGrid({
       aria-label="Game facts"
       className="@container grid grid-cols-[repeat(auto-fit,minmax(min(100%,max(8rem,calc(50%_-_0.5rem))),1fr))] gap-4 max-w-[calc(100vw-2rem)] sm:max-w-md"
     >
+      {communityRating}
       {game.criticScore === null && game.userScore === null ? (
         <div className="col-span-full flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
           <dt className="sr-only">Scores</dt>
@@ -49,7 +53,7 @@ export function GameFactsGrid({
             noun="review"
           />
           <Score
-            label="User score"
+            label="IGDB user score"
             score={game.userScore}
             count={game.userScoreCount}
             noun="rating"
