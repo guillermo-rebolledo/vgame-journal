@@ -3,7 +3,7 @@
 import { cn } from "cn";
 import { RotateCw } from "lucide-react";
 import { catchError } from "next/error";
-import { type ReactNode, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import { RatingStars } from "@/components/rating-stars";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +27,7 @@ function Card({ children }: { children: ReactNode }) {
 
 /** shelve.games players' Ratings for a game: the average once it meets the threshold, otherwise how many so far. */
 export function CommunityRatingFact({ summary }: { summary: RatingSummary }) {
+  const [pointerOpening, setPointerOpening] = useState(false);
   const { count, average, distribution } = summary;
   if (count === 0)
     return (
@@ -85,8 +86,15 @@ export function CommunityRatingFact({ summary }: { summary: RatingSummary }) {
             <span>5</span>
           </div>
         </div>
-        <details className="text-sm">
-          <summary className="min-h-6 cursor-pointer underline-offset-4 hover:underline">
+        <details
+          className="rating-data text-sm"
+          data-pointer-open={pointerOpening}
+        >
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: summary is a native keyboard-operable disclosure; click detail only selects its motion. */}
+          <summary
+            className="min-h-6 cursor-pointer underline-offset-4 hover:underline"
+            onClick={(event) => setPointerOpening(event.detail > 0)}
+          >
             View rating data
           </summary>
           <table className="mt-2 w-full text-left tabular-nums">

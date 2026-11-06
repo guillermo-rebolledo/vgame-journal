@@ -42,6 +42,12 @@ export const Populated: Story = {
     await expect(canvas.getByText("128 Ratings")).toBeVisible();
     await userEvent.click(canvas.getByText("View rating data"));
     await expect(canvas.getByRole("row", { name: "5 stars 34" })).toBeVisible();
+    await userEvent.click(canvas.getByText("View rating data"));
+    await expect(
+      canvas.getByText("View rating data").parentElement,
+    ).not.toHaveAttribute("open");
+    await userEvent.click(canvas.getByText("View rating data"));
+    await expect(canvas.getByRole("row", { name: "5 stars 34" })).toBeVisible();
   },
 };
 export const PopulatedLight: Story = {
