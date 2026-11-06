@@ -63,6 +63,8 @@ export type CommunityRating = {
 export type JournalRemovalConfirmation = {
   confirmationRequired: true;
   playthroughCount: number;
+  /** Removal also deletes the entry's Rating. */
+  rated: boolean;
 };
 
 /** What a user fills in for a Playthrough. Dates are `YYYY-MM-DD`. */
@@ -528,22 +530,24 @@ export function createJournal(db: Db) {
             // Guard in the delete itself: stale clients cannot bypass confirmation.
             acknowledged === true
               ? undefined
-              : sql`not exists (select 1 from ${playthrough} where ${playthrough.userId} = ${userId} and ${playthrough.gameId} = ${gameId})`,
+              : sql`${journalEntry.rating} is null and not exists (select 1 from ${playthrough} where ${playthrough.userId} = ${userId} and ${playthrough.gameId} = ${gameId})`,
           ),
         )
         .returning();
       if (removed.length)
         await recordStatusEvent(userId, gameId, null, null, new Date());
       else {
-        const [current] = await db
-          .select({ count: sql<number>`count(*)`.mapWith(Number) })
-          .from(playthrough)
-          .where(owned(userId, gameId, playthrough));
-        if (current.count > 0)
-          return {
-            confirmationRequired: true,
-            playthroughCount: current.count,
-          };
+        const [kept] = await db
+          .select({
+            rated: sql<boolean>`${journalEntry.rating} is not null`,
+            playthroughCount:
+              sql<number>`(select count(*) from ${playthrough} where ${playthrough.userId} = ${userId} and ${playthrough.gameId} = ${gameId})`.mapWith(
+                Number,
+              ),
+          })
+          .from(journalEntry)
+          .where(owned(userId, gameId));
+        if (kept) return { confirmationRequired: true, ...kept };
       }
     },
 

@@ -40,6 +40,7 @@ type Playthrough = typeof playthrough.$inferSelect;
 export function GameRecording({
   signedIn,
   entry,
+  rated = false,
   playthroughs,
   gameTitle,
   platforms,
@@ -52,6 +53,8 @@ export function GameRecording({
   signedIn: boolean;
   listPicker?: ReactNode;
   entry: JournalSelection;
+  /** Whether the entry has a Rating, which removal also deletes. */
+  rated?: boolean;
   playthroughs: Playthrough[];
   gameTitle: string;
   platforms: string[];
@@ -144,6 +147,7 @@ export function GameRecording({
             entry={entry}
             gameTitle={gameTitle}
             playthroughCount={playthroughs.length}
+            rated={rated}
             disabled={pending}
             onSave={async (status, tag, acknowledged) => {
               busy.current = true;

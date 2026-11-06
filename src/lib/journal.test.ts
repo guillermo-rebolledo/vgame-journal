@@ -275,6 +275,7 @@ test("removing saved Playthroughs requires explicit acknowledgement at the owner
     await expect(journal.remove("mario", 1, acknowledgement)).resolves.toEqual({
       confirmationRequired: true,
       playthroughCount: 1,
+      rated: false,
     });
     expect(await journal.exportData("mario")).toEqual(before);
   }
@@ -1348,4 +1349,42 @@ test("the Community rating counts Ratings kept on Backlog and Wishlist games", a
   await journal.setRating("luigi", 1, 3);
   await journal.set("luigi", 1, { status: "backlog" });
   expect(await journal.communityRating(1)).toMatchObject({ count: 6 });
+});
+
+test("removing a rated game needs confirmation, then drops its Rating from the Community rating", async () => {
+  await rateByNewPlayers(1, [6, 6, 6, 6]);
+  await journal.set("mario", 1, { status: "played" });
+  await journal.setRating("mario", 1, 10);
+  await journal.set("mario", 1, { status: "backlog" });
+  for (const acknowledgement of [undefined, false, "true"])
+    await expect(journal.remove("mario", 1, acknowledgement)).resolves.toEqual({
+      confirmationRequired: true,
+      playthroughCount: 0,
+      rated: true,
+    });
+  expect(await journal.entry("mario", 1)).toMatchObject({ rating: 10 });
+  expect(await journal.communityRating(1)).toMatchObject({
+    count: 5,
+    average: 3.4,
+  });
+
+  await journal.remove("mario", 1, true);
+  expect(await journal.entry("mario", 1)).toBeNull();
+  expect(await journal.communityRating(1)).toMatchObject({
+    count: 4,
+    average: null,
+  });
+});
+
+test("deleting an account removes its Ratings from the Community rating", async () => {
+  await rateByNewPlayers(1, [4, 4, 4, 4]);
+  await journal.set("mario", 1, { status: "played" });
+  await journal.setRating("mario", 1, 4);
+  expect(await journal.communityRating(1)).toMatchObject({ count: 5 });
+
+  await journal.deleteAccount("mario", "DELETE");
+  expect(await journal.communityRating(1)).toMatchObject({
+    count: 4,
+    average: null,
+  });
 });
