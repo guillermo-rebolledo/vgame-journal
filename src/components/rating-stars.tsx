@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import { Star } from "lucide-react";
+import { toStars } from "@/lib/rating";
 
 const stars = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
 
@@ -13,10 +14,12 @@ export function RatingStars({
 }) {
   return (
     <span className={cn("inline-flex items-center", className)}>
-      <span className="sr-only">Rated {stars.format(points / 2)} out of 5</span>
+      <span className="sr-only">
+        Rated {stars.format(toStars(points))} out of 5
+      </span>
       {[0, 1, 2, 3, 4].map((i) => {
         // How much of this star is filled, 0–100%.
-        const fill = Math.min(1, Math.max(0, points / 2 - i)) * 100;
+        const fill = Math.min(1, Math.max(0, toStars(points) - i)) * 100;
         return (
           <span key={i} aria-hidden="true" className="relative size-[1em]">
             <Star className="absolute inset-0 size-full text-muted-foreground" />

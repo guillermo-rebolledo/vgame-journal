@@ -22,6 +22,7 @@ import {
   type Status,
 } from "@/lib/library";
 import { createLists } from "@/lib/lists";
+import { isRatingPoints, RATEABLE_STATUSES } from "@/lib/rating";
 import {
   compareWishlist,
   REGIONS,
@@ -97,15 +98,6 @@ export type PlaythroughInput = {
   hours?: number | null;
   notes?: string;
 };
-
-/** Rating points: whole half stars, 1 (half a star) to 10 (5 stars). */
-const isRatingPoints = (points: unknown): points is number =>
-  Number.isInteger(points) &&
-  (points as number) >= 1 &&
-  (points as number) <= 10;
-
-/** A Rating can only be given (not just kept) in these Statuses. */
-const RATEABLE_STATUSES: Status[] = ["played", "playing"];
 
 function isDay(day: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
@@ -506,7 +498,7 @@ export function createJournal(db: Db) {
         .where(
           and(
             owned(userId, gameId),
-            inArray(journalEntry.status, RATEABLE_STATUSES),
+            inArray(journalEntry.status, [...RATEABLE_STATUSES]),
           ),
         )
         .returning({ rating: journalEntry.rating });

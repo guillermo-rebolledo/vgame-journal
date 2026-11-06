@@ -36,6 +36,7 @@ import { useEditorViewport } from "@/components/use-editor-viewport";
 import type { playthrough } from "@/db/schema";
 import { authPageHref } from "@/lib/auth-continuation";
 import type { Status } from "@/lib/library";
+import { canRate, type RatingPoints } from "@/lib/rating";
 
 type Playthrough = typeof playthrough.$inferSelect;
 export function GameRecording({
@@ -56,7 +57,7 @@ export function GameRecording({
   listPicker?: ReactNode;
   entry: JournalSelection;
   /** The saved Rating in points; removal also deletes it. */
-  rating?: number | null;
+  rating?: RatingPoints | null;
   playthroughs: Playthrough[];
   gameTitle: string;
   platforms: string[];
@@ -192,7 +193,7 @@ export function GameRecording({
         {entry && (
           <StarRating
             value={rating}
-            editable={entry.status === "played" || entry.status === "playing"}
+            editable={canRate(entry.status)}
             gameTitle={gameTitle}
             focusAfterClear={statusTrigger}
             onSave={onRate}

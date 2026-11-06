@@ -7,6 +7,7 @@ import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformName } from "@/components/platform";
 import { RatingStars } from "@/components/rating-stars";
 import type { journal } from "@/lib/journal";
+import { averagePoints, ratingRows } from "@/lib/rating";
 
 type JournalStats = Awaited<ReturnType<typeof journal.stats>>;
 const number = new Intl.NumberFormat("en", { maximumFractionDigits: 2 });
@@ -326,7 +327,10 @@ export function Stats({
           <div className="space-y-6">
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm tabular-nums">
               <span aria-hidden="true">
-                <RatingStars points={ratings.average * 2} className="text-xl" />
+                <RatingStars
+                  points={averagePoints(ratings.average)}
+                  className="text-xl"
+                />
               </span>
               <span className="font-medium">
                 Average {ratings.average.toFixed(1)} out of 5
@@ -336,15 +340,7 @@ export function Stats({
               </span>
             </p>
             <Bars
-              rows={ratings.distribution
-                .map((games, i) => {
-                  const stars = (i + 1) / 2;
-                  return {
-                    label: `${stars} ${stars === 1 ? "star" : "stars"}`,
-                    value: games,
-                  };
-                })
-                .reverse()}
+              rows={ratingRows(ratings.distribution)}
               unit="games"
               label="Rated games by Rating"
               pagination={ratingsPagination}

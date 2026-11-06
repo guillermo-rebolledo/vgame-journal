@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import type { RatingPoints } from "@/lib/rating";
 import {
   type LibraryEntry,
   libraryParams,
@@ -9,7 +10,7 @@ import {
 const entry = (
   gameId: number,
   title: string,
-  rating: number | null,
+  rating: RatingPoints | null,
 ): LibraryEntry => ({
   gameId,
   title,

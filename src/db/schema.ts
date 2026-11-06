@@ -27,6 +27,7 @@ import type {
   SourceLanguage,
 } from "@/lib/game-source";
 import type { CompletionTag, Status } from "@/lib/journal";
+import type { RatingPoints } from "@/lib/rating";
 import type { Region } from "@/lib/release-dates";
 
 export const user = pgTable(
@@ -178,7 +179,7 @@ export const journalEntry = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").notNull(),
     /** Rating points, 1–10 (half stars: points ÷ 2). Set only while Played or Playing; kept through later Status changes. */
-    rating: smallint("rating"),
+    rating: smallint("rating").$type<RatingPoints>(),
     /** When the Rating last changed value. */
     ratedAt: timestamp("rated_at"),
   },

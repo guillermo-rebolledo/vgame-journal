@@ -6,19 +6,15 @@ import { trackEvent } from "@/components/analytics";
 import { RatingStars } from "@/components/rating-stars";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-
-/** Rating points, 1 (half a star) to 10 (5 stars). */
-const POINTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-/** "0.5 stars", "1 star", "3.5 stars". */
-export const starsLabel = (points: number) =>
-  `${points / 2} ${points === 2 ? "star" : "stars"}`;
-
-const FAILED =
-  "Couldn’t save your rating. Check your connection and try again.";
+import {
+  RATING_POINTS,
+  RATING_SAVE_FAILED,
+  type RatingPoints,
+  starsLabel,
+} from "@/lib/rating";
 
 export type SaveRating = (
-  points: number | null,
+  points: RatingPoints | null,
 ) => Promise<{ error: string } | undefined>;
 
 /**
@@ -33,8 +29,8 @@ export function StarRating({
   focusAfterClear,
   onSave,
 }: {
-  /** The saved Rating in points, or null. */
-  value: number | null;
+  /** The saved Rating, or null. */
+  value: RatingPoints | null;
   /** Whether the Status allows giving a Rating (Played or Playing). Otherwise a kept Rating can only be cleared. */
   editable: boolean;
   gameTitle: string;
@@ -52,16 +48,19 @@ export function StarRating({
   }
   const [error, setError] = useState<{
     message: string;
-    retry: number | null;
+    retry: RatingPoints | null;
   }>();
   const [notice, setNotice] = useState<string>();
   const name = useId();
   const group = useRef<HTMLFieldSetElement>(null);
   const inFlight = useRef(false);
   /** The latest choice made while a save was in flight; it goes next. */
-  const queued = useRef<{ points: number | null }>(undefined);
+  const queued = useRef<{ points: RatingPoints | null }>(undefined);
 
-  async function send(points: number | null, confirmed: number | null) {
+  async function send(
+    points: RatingPoints | null,
+    confirmed: RatingPoints | null,
+  ) {
     inFlight.current = true;
     setPending(true);
     let target = points;
@@ -70,7 +69,7 @@ export function StarRating({
       try {
         result = await onSave(target);
       } catch {
-        result = { error: FAILED };
+        result = { error: RATING_SAVE_FAILED };
       }
       if (!result) {
         confirmed = target;
@@ -104,7 +103,7 @@ export function StarRating({
     }
   }
 
-  function choose(points: number | null) {
+  function choose(points: RatingPoints | null) {
     if (disabled) return;
     setError(undefined);
     setNotice(undefined);
@@ -145,7 +144,7 @@ export function StarRating({
                   />
                 </span>
                 <div className="absolute inset-0 grid grid-cols-10">
-                  {POINTS.map((points) => (
+                  {RATING_POINTS.map((points) => (
                     <label
                       key={points}
                       className="relative rounded-sm has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50"

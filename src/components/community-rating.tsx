@@ -4,10 +4,10 @@ import { cn } from "cn";
 import { catchError } from "next/error";
 import { type ReactNode, useTransition } from "react";
 import { RatingStars } from "@/components/rating-stars";
-import { starsLabel } from "@/components/star-rating";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { RatingSummary } from "@/lib/journal";
+import { averagePoints, ratingRows } from "@/lib/rating";
 
 const CARD =
   "col-span-full flex min-w-0 flex-col gap-1 rounded-lg border bg-background p-4 wrap-anywhere @max-[12rem]:p-2";
@@ -49,7 +49,7 @@ export function CommunityRatingFact({ summary }: { summary: RatingSummary }) {
         <span className="text-muted-foreground text-sm">out of 5</span>
         {/* The average is already text; the stars only illustrate it. */}
         <span aria-hidden="true" className="self-center">
-          <RatingStars points={Math.round(average * 2)} />
+          <RatingStars points={averagePoints(average)} />
         </span>
       </dd>
       <dd className="text-muted-foreground text-xs tabular-nums">
@@ -101,15 +101,12 @@ export function CommunityRatingFact({ summary }: { summary: RatingSummary }) {
               </tr>
             </thead>
             <tbody>
-              {distribution
-                .map((value, index) => ({ points: index + 1, value }))
-                .reverse()
-                .map(({ points, value }) => (
-                  <tr key={points} className="border-b">
-                    <td className="py-1">{starsLabel(points)}</td>
-                    <td className="py-1 text-right">{value}</td>
-                  </tr>
-                ))}
+              {ratingRows(distribution).map(({ points, label, value }) => (
+                <tr key={points} className="border-b">
+                  <td className="py-1">{label}</td>
+                  <td className="py-1 text-right">{value}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </details>

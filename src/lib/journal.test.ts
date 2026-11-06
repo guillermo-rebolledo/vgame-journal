@@ -13,6 +13,7 @@ import {
   user,
   verification,
 } from "@/db/schema";
+import type { RatingPoints } from "@/lib/rating";
 import { createTestDb } from "@/test/db";
 import { createJournal, JournalError } from "./journal";
 
@@ -1291,7 +1292,11 @@ test("the database rejects Ratings out of range or without rated-at", async () =
     { rating: null, ratedAt: new Date() },
   ])
     await expect(
-      db.update(journalEntry).set(values).where(eq(journalEntry.gameId, 1)),
+      db
+        .update(journalEntry)
+        // Out-of-range points on purpose: the check constraint is what's under test.
+        .set(values as { rating: RatingPoints | null; ratedAt: Date | null })
+        .where(eq(journalEntry.gameId, 1)),
     ).rejects.toThrow();
   expect(await journal.entry("mario", 1)).toMatchObject({ rating: null });
 });
