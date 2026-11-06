@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformName } from "@/components/platform";
+import { RatingStars } from "@/components/rating-stars";
 import type { journal } from "@/lib/journal";
 
 type JournalStats = Awaited<ReturnType<typeof journal.stats>>;
@@ -19,10 +20,13 @@ function ChartSection({
   description: string;
   children: ReactNode;
 }) {
+  const id = useId();
   return (
-    <section className="min-w-0 space-y-6 border-t pt-6">
+    <section aria-labelledby={id} className="min-w-0 space-y-6 border-t pt-6">
       <div className="space-y-1">
-        <h2 className="font-semibold text-xl tracking-tight">{title}</h2>
+        <h2 id={id} className="font-semibold text-xl tracking-tight">
+          {title}
+        </h2>
         <p className="text-muted-foreground text-sm">{description}</p>
       </div>
       {children}
@@ -53,21 +57,19 @@ function Empty({
 function Bars({
   rows,
   unit,
+  label = `${unit} by category`,
   pagination,
 }: {
   rows: { label: string; value: number; display?: ReactNode }[];
   unit: string;
+  label?: string;
   pagination: ReturnType<typeof useUrlPagination>;
 }) {
   const max = rows.reduce((max, row) => Math.max(max, row.value), 1);
   return (
-    <PagedList
-      pagination={pagination}
-      items={rows}
-      label={`${unit} by category`}
-    >
+    <PagedList pagination={pagination} items={rows} label={label}>
       {(visible) => (
-        <ul className="space-y-4" aria-label={`${unit} by category`}>
+        <ul className="space-y-4" aria-label={label}>
           {visible.map(({ label, value, display }) => (
             <li key={label} className="space-y-2">
               <div className="flex justify-between gap-4 text-sm">
@@ -250,6 +252,8 @@ export function Stats({
     "backlogPage",
     stats.backlogOverTime.length,
   );
+  const ratingsPagination = useUrlPagination("ratingsPage", 10);
+  const { ratings } = stats;
   return (
     <div className="space-y-10">
       <div className="grid gap-10 md:grid-cols-2 md:gap-12">
@@ -311,6 +315,46 @@ export function Stats({
             {readOnly
               ? "No status history yet."
               : "No status history yet. Add a game to your journal to start tracking."}
+          </Empty>
+        )}
+      </ChartSection>
+      <ChartSection
+        title={readOnly ? "Ratings" : "Your ratings"}
+        description="Rated games by Rating, from half a star to 5 stars."
+      >
+        {ratings.average !== null ? (
+          <div className="space-y-6">
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm tabular-nums">
+              <span aria-hidden="true">
+                <RatingStars points={ratings.average * 2} className="text-xl" />
+              </span>
+              <span className="font-medium">
+                Average {ratings.average.toFixed(1)} out of 5
+              </span>
+              <span className="text-muted-foreground">
+                {ratings.count} rated {ratings.count === 1 ? "game" : "games"}
+              </span>
+            </p>
+            <Bars
+              rows={ratings.distribution
+                .map((games, i) => {
+                  const stars = (i + 1) / 2;
+                  return {
+                    label: `${stars} ${stars === 1 ? "star" : "stars"}`,
+                    value: games,
+                  };
+                })
+                .reverse()}
+              unit="games"
+              label="Rated games by Rating"
+              pagination={ratingsPagination}
+            />
+          </div>
+        ) : (
+          <Empty libraryHref={libraryHref}>
+            {readOnly
+              ? "No Ratings yet."
+              : "No Ratings yet. Rate a game you’ve Played or are Playing from its page."}
           </Empty>
         )}
       </ChartSection>
