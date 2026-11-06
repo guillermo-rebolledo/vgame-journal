@@ -1,7 +1,7 @@
 "use client";
 
 import { RotateCw } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { type RefObject, useId, useRef, useState } from "react";
 import { trackEvent } from "@/components/analytics";
 import { RatingStars } from "@/components/rating-stars";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ export function StarRating({
   editable,
   gameTitle,
   disabled = false,
+  focusAfterClear,
   onSave,
 }: {
   /** The saved Rating in points, or null. */
@@ -38,6 +39,8 @@ export function StarRating({
   editable: boolean;
   gameTitle: string;
   disabled?: boolean;
+  /** Where focus goes when clearing a kept Rating removes the control. */
+  focusAfterClear?: RefObject<HTMLElement | null>;
   onSave: SaveRating;
 }) {
   const [rating, setRating] = useState({ confirmed: value, shown: value });
@@ -88,6 +91,9 @@ export function StarRating({
         setRating((r) => ({ ...r, shown: r.confirmed }));
         setError({ message: result.error, retry: target });
       } else if (target === null) {
+        // Without a Rating the read-only control goes; don't let focus drop to the page.
+        if (!editable && group.current?.contains(document.activeElement))
+          focusAfterClear?.current?.focus();
         setNotice(`${gameTitle}: rating cleared.`);
         trackEvent("rating_cleared");
       } else {
@@ -109,8 +115,9 @@ export function StarRating({
 
   function clear() {
     choose(null);
-    // Clear rating disappears with the Rating; keep focus in the control.
+    // Clear rating disappears with the Rating; keep focus in the control while it saves.
     if (editable) group.current?.querySelector("input")?.focus();
+    else group.current?.focus();
   }
 
   // Without a Rating outside Played or Playing there is no control, but the announcement stays.
@@ -120,8 +127,9 @@ export function StarRating({
       {!hidden && (
         <fieldset
           ref={group}
+          tabIndex={-1}
           aria-busy={pending}
-          className="flex min-w-0 flex-col gap-1"
+          className="flex min-w-0 flex-col gap-1 outline-none"
         >
           <legend className="mb-1 text-muted-foreground text-sm">
             Your rating

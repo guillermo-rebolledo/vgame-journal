@@ -170,3 +170,33 @@ test("rating saves through onRate", async () => {
   await user.click(screen.getByRole("radio", { name: "4 stars out of 5" }));
   expect(onRate).toHaveBeenCalledExactlyOnceWith(8);
 });
+
+test("clearing a kept Rating outside Played or Playing hands focus to Journal status and announces once", async () => {
+  const user = userEvent.setup();
+  let resolve = () => {};
+  const onRate = vi.fn(
+    () => new Promise<undefined>((r) => (resolve = () => r(undefined))),
+  );
+  renderRecording({
+    entry: { status: "backlog", completionTag: null },
+    rating: 7,
+    onRate,
+  });
+  await user.click(screen.getByRole("button", { name: "Clear rating" }));
+  expect(onRate).toHaveBeenCalledExactlyOnceWith(null);
+  // While it saves, focus stays in the control rather than dropping to the page.
+  expect(
+    screen
+      .getByRole("group", { name: "Your rating" })
+      .contains(document.activeElement),
+  ).toBe(true);
+  resolve();
+  await waitFor(() =>
+    expect(screen.queryByRole("group", { name: "Your rating" })).toBeNull(),
+  );
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: /Change Journal status for Celeste/ }),
+  );
+  const status = document.querySelector('[data-slot="rating-status"]');
+  expect(status?.textContent).toBe("Celeste: rating cleared.");
+});

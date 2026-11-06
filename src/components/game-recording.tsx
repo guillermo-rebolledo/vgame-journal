@@ -76,6 +76,7 @@ export function GameRecording({
   const [error, setError] = useState<string>();
   const drafts = useRef(new Map<string | number, Record<string, string>>());
   const addTrigger = useRef<HTMLButtonElement | null>(null);
+  const statusTrigger = useRef<HTMLButtonElement | null>(null);
   const drawer = useRef<HTMLDivElement | null>(null);
   const initiator = useRef<HTMLElement | null>(null);
   const busy = useRef(false);
@@ -147,6 +148,7 @@ export function GameRecording({
         {signedIn ? (
           <JournalStatus
             actions={additionalActions}
+            triggerRef={statusTrigger}
             entry={entry}
             gameTitle={gameTitle}
             playthroughCount={playthroughs.length}
@@ -192,6 +194,7 @@ export function GameRecording({
             value={rating}
             editable={entry.status === "played" || entry.status === "playing"}
             gameTitle={gameTitle}
+            focusAfterClear={statusTrigger}
             onSave={onRate}
           />
         )}

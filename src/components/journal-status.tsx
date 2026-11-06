@@ -2,7 +2,13 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { BookMarked, ChevronDown, Trash2 } from "lucide-react";
-import { type ReactNode, startTransition, useRef, useState } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  startTransition,
+  useRef,
+  useState,
+} from "react";
 import { trackEvent } from "@/components/analytics";
 import { ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
@@ -49,6 +55,7 @@ export function JournalStatus({
   disabled,
   onSave,
   actions,
+  triggerRef,
 }: {
   entry: JournalSelection;
   gameTitle: string;
@@ -58,6 +65,8 @@ export function JournalStatus({
   disabled: boolean;
   onSave: SaveJournalStatus;
   actions?: ReactNode;
+  /** The Journal status button, for callers that move focus to it. */
+  triggerRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const [confirmed, setConfirmed] = useState(entry);
   const [previousEntry, setPreviousEntry] = useState(entry);
@@ -73,7 +82,8 @@ export function JournalStatus({
     JournalRemovalConfirmation,
     "confirmationRequired"
   > | null>(null);
-  const trigger = useRef<HTMLButtonElement | null>(null);
+  const ownTrigger = useRef<HTMLButtonElement | null>(null);
+  const trigger = triggerRef ?? ownTrigger;
   const cancel = useRef<HTMLButtonElement | null>(null);
   const busy = useRef(false);
   const label = confirmed
