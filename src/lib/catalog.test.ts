@@ -758,7 +758,9 @@ test("saving a game again from the source, as a sync does, leaves its Ratings an
   const players = ["a", "b", "c", "d", "e"];
   await db
     .insert(user)
-    .values(players.map((id) => ({ id, name: id, email: `${id}@example.com` })));
+    .values(
+      players.map((id) => ({ id, name: id, email: `${id}@example.com` })),
+    );
   for (const [i, id] of players.entries()) {
     await journal.set(id, 7, { status: "played" });
     await journal.setRating(id, 7, i + 6);
@@ -779,7 +781,7 @@ test("saving a game again from the source, as a sync does, leaves its Ratings an
   );
 
   expect(await journal.communityRating(7)).toEqual(before.community);
-  expect(
-    await Promise.all(players.map((id) => journal.entry(id, 7))),
-  ).toEqual(before.entries);
+  expect(await Promise.all(players.map((id) => journal.entry(id, 7)))).toEqual(
+    before.entries,
+  );
 });

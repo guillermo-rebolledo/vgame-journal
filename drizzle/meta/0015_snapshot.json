@@ -110,12 +110,8 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -245,12 +241,8 @@
           "name": "custom_list_user_id_user_id_fk",
           "tableFrom": "custom_list",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -385,12 +377,8 @@
           "name": "feedback_user_id_user_id_fk",
           "tableFrom": "feedback",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -608,12 +596,8 @@
           "name": "journal_entry_user_id_user_id_fk",
           "tableFrom": "journal_entry",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -621,12 +605,8 @@
           "name": "journal_entry_game_id_game_id_fk",
           "tableFrom": "journal_entry",
           "tableTo": "game",
-          "columnsFrom": [
-            "game_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["game_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -634,10 +614,7 @@
       "compositePrimaryKeys": {
         "journal_entry_user_id_game_id_pk": {
           "name": "journal_entry_user_id_game_id_pk",
-          "columns": [
-            "user_id",
-            "game_id"
-          ]
+          "columns": ["user_id", "game_id"]
         }
       },
       "uniqueConstraints": {},
@@ -715,12 +692,8 @@
           "name": "list_entry_list_id_custom_list_id_fk",
           "tableFrom": "list_entry",
           "tableTo": "custom_list",
-          "columnsFrom": [
-            "list_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["list_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -728,12 +701,8 @@
           "name": "list_entry_game_id_game_id_fk",
           "tableFrom": "list_entry",
           "tableTo": "game",
-          "columnsFrom": [
-            "game_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["game_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -741,10 +710,7 @@
       "compositePrimaryKeys": {
         "list_entry_list_id_game_id_pk": {
           "name": "list_entry_list_id_game_id_pk",
-          "columns": [
-            "list_id",
-            "game_id"
-          ]
+          "columns": ["list_id", "game_id"]
         }
       },
       "uniqueConstraints": {},
@@ -866,14 +832,8 @@
           "name": "playthrough_user_id_game_id_journal_entry_user_id_game_id_fk",
           "tableFrom": "playthrough",
           "tableTo": "journal_entry",
-          "columnsFrom": [
-            "user_id",
-            "game_id"
-          ],
-          "columnsTo": [
-            "user_id",
-            "game_id"
-          ],
+          "columnsFrom": ["user_id", "game_id"],
+          "columnsTo": ["user_id", "game_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -962,12 +922,8 @@
           "name": "release_date_game_id_game_id_fk",
           "tableFrom": "release_date",
           "tableTo": "game",
-          "columnsFrom": [
-            "game_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["game_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1110,12 +1066,8 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1125,9 +1077,7 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -1197,12 +1147,8 @@
           "name": "status_event_user_id_user_id_fk",
           "tableFrom": "status_event",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1210,12 +1156,8 @@
           "name": "status_event_game_id_game_id_fk",
           "tableFrom": "status_event",
           "tableTo": "game",
-          "columnsFrom": [
-            "game_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["game_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1308,23 +1250,17 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         },
         "user_username_unique": {
           "name": "user_username_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "username"
-          ]
+          "columns": ["username"]
         },
         "user_feed_token_unique": {
           "name": "user_feed_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "feed_token"
-          ]
+          "columns": ["feed_token"]
         }
       },
       "policies": {},
