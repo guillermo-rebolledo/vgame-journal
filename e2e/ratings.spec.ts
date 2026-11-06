@@ -84,10 +84,14 @@ test("the Community rating shows its average and feeds structured data only at t
     });
 });
 
-test("a guest is offered Sign in to rate, which returns to the game", async ({
+test("a guest's Sign in to record and rate returns to the game", async ({
   page,
 }) => {
   await page.goto("/games/celeste");
-  await page.getByRole("link", { name: "Sign in to rate" }).click();
+  await expect(page.getByText("Sign in to rate")).toHaveCount(0);
+  await page
+    .getByRole("region", { name: "Game journal" })
+    .getByRole("link", { name: "Sign in", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/sign-in\?returnTo=%2Fgames%2Fceleste$/);
 });

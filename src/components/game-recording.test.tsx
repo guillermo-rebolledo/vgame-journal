@@ -157,11 +157,16 @@ test("a game outside the journal shows no rating control", () => {
   expect(screen.queryByRole("group", { name: "Your rating" })).toBeNull();
 });
 
-test("a guest is offered Sign in to rate, returning to the game", () => {
+test("a guest gets one Sign in, for recording and rating, returning to the game", () => {
   renderRecording({ signedIn: false, entry: null });
-  expect(
-    screen.getByRole("link", { name: "Sign in to rate" }).getAttribute("href"),
-  ).toBe("/sign-in?returnTo=%2Fgames%2Fceleste");
+  expect(screen.queryByRole("link", { name: "Sign in to rate" })).toBeNull();
+  const signIn = screen.getByRole("link", { name: "Sign in" });
+  expect(signIn.getAttribute("href")).toBe(
+    "/sign-in?returnTo=%2Fgames%2Fceleste",
+  );
+  expect(signIn.parentElement?.textContent).toBe(
+    "Sign in to record and rate games and add playthroughs.",
+  );
 });
 
 test("rating saves through onRate", async () => {

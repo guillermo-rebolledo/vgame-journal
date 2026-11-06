@@ -1,6 +1,6 @@
 "use client";
 
-import { BookMarked, Plus, Star, Trash2, X } from "lucide-react";
+import { BookMarked, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useRef, useState } from "react";
@@ -199,24 +199,14 @@ export function GameRecording({
             onSave={onRate}
           />
         )}
-        {!signedIn ? (
-          <>
-            <Button
-              render={<Link href={signInHref} />}
-              variant="outline"
-              className="journal-action min-h-11 self-start"
-            >
-              <Star aria-hidden="true" />
-              Sign in to rate
-            </Button>
-            <p className="text-muted-foreground text-sm">
-              <Link href={signInHref} className="underline underline-offset-4">
-                Sign in
-              </Link>{" "}
-              to record games and playthroughs.
-            </p>
-          </>
-        ) : null}
+        {!signedIn && (
+          <p className="text-muted-foreground text-sm">
+            <Link href={signInHref} className="underline underline-offset-4">
+              Sign in
+            </Link>{" "}
+            to record and rate games and add playthroughs.
+          </p>
+        )}
         {signedIn && (
           <PlaythroughHistory playthroughs={playthroughs} onEdit={open} />
         )}
