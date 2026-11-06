@@ -1422,3 +1422,25 @@ test("export, Library entries and the public profile carry each Rating and when 
   ).toEqual([expect.objectContaining(rated), expect.objectContaining(unrated)]);
   expect(JSON.stringify(profile)).not.toMatch(/notes|Private thoughts/i);
 });
+
+test("stats report the owner's Rating distribution, average Rating given and number of rated games", async () => {
+  expect((await journal.stats("mario")).ratings).toEqual({
+    count: 0,
+    average: null,
+    distribution: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  });
+  await journal.set("mario", 1, { status: "played" });
+  await journal.setRating("mario", 1, 9);
+  await journal.set("mario", 2, { status: "playing" });
+  await journal.setRating("mario", 2, 4);
+  await journal.set("mario", 2, { status: "wishlist" }); // kept, still counts
+  await journal.set("luigi", 1, { status: "played" });
+  await journal.setRating("luigi", 1, 1);
+
+  // 13 points over 2 Ratings is 3.25 stars, so no threshold and half up.
+  expect((await journal.stats("mario")).ratings).toEqual({
+    count: 2,
+    average: 3.3,
+    distribution: [0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+  });
+});

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, type SQL, sql } from "drizzle-orm";
 import { type Db, db } from "@/db";
 import {
   game,
@@ -52,13 +52,35 @@ export class JournalError extends Error {}
 /** Below this many Ratings a game's Community rating has no average. */
 export const COMMUNITY_RATING_THRESHOLD = 5;
 
-export type CommunityRating = {
+export type RatingSummary = {
   count: number;
-  /** Stars to one decimal (rounded half up), or null below the threshold. */
+  /** Stars to one decimal (rounded half up), or null with no Ratings or, for a Community rating, below the threshold. */
   average: number | null;
   /** Ratings per points value: `distribution[points - 1]`. */
   distribution: number[];
 };
+
+/** Count, average and distribution from Ratings grouped by points, in integer arithmetic. */
+function summarizeRatings(
+  rows: { points: number | null; ratings: number }[],
+  threshold = 1,
+): RatingSummary {
+  const distribution = Array<number>(10).fill(0);
+  let count = 0;
+  let points = 0;
+  for (const row of rows) {
+    if (row.points === null) continue;
+    distribution[row.points - 1] = row.ratings;
+    count += row.ratings;
+    points += row.points * row.ratings;
+  }
+  // Tenths of a star = points × 5 ÷ count, rounded half up without float accumulation.
+  const average =
+    count >= threshold && count > 0
+      ? Math.floor((points * 10 + count) / (2 * count)) / 10
+      : null;
+  return { count, average, distribution };
+}
 
 export type JournalRemovalConfirmation = {
   confirmationRequired: true;
@@ -123,6 +145,17 @@ export function createJournal(db: Db) {
     db
       .insert(statusEvent)
       .values({ userId, gameId, status, completionTag, at });
+
+  /** Ratings per points value among the matching rated entries. One grouped query over the partial rating index. */
+  const ratingsByPoints = (where: SQL) =>
+    db
+      .select({
+        points: journalEntry.rating,
+        ratings: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(journalEntry)
+      .where(and(where, sql`${journalEntry.rating} is not null`))
+      .groupBy(journalEntry.rating);
 
   const ownedPlaythrough = (userId: string, id: number) =>
     and(eq(playthrough.userId, userId), eq(playthrough.id, id));
@@ -319,57 +352,59 @@ export function createJournal(db: Db) {
 
     /** Games count once per end-date year; only entries currently marked Played qualify. */
     async stats(userId: string) {
-      const [finishedPerYear, hoursByPlatform, events] = await Promise.all([
-        db
-          .select({
-            year: sql<number>`extract(year from ${playthrough.endedOn})`.mapWith(
-              Number,
-            ),
-            games: sql<number>`count(distinct ${playthrough.gameId})`.mapWith(
-              Number,
-            ),
-          })
-          .from(playthrough)
-          .innerJoin(
-            journalEntry,
-            and(
-              eq(journalEntry.userId, playthrough.userId),
-              eq(journalEntry.gameId, playthrough.gameId),
-            ),
-          )
-          .where(
-            and(
-              eq(playthrough.userId, userId),
-              eq(journalEntry.status, "played"),
-              sql`${playthrough.endedOn} is not null`,
-            ),
-          )
-          .groupBy(sql`extract(year from ${playthrough.endedOn})`)
-          .orderBy(sql`extract(year from ${playthrough.endedOn})`),
-        db
-          .select({
-            platform: playthrough.platform,
-            hours: sql<number>`sum(${playthrough.hours})`.mapWith(Number),
-          })
-          .from(playthrough)
-          .where(
-            and(
-              eq(playthrough.userId, userId),
-              sql`${playthrough.hours} is not null`,
-            ),
-          )
-          .groupBy(playthrough.platform)
-          .orderBy(sql`sum(${playthrough.hours}) desc`, playthrough.platform),
-        db
-          .select({
-            gameId: statusEvent.gameId,
-            status: statusEvent.status,
-            at: statusEvent.at,
-          })
-          .from(statusEvent)
-          .where(eq(statusEvent.userId, userId))
-          .orderBy(statusEvent.at, statusEvent.id),
-      ]);
+      const [finishedPerYear, hoursByPlatform, events, ratings] =
+        await Promise.all([
+          db
+            .select({
+              year: sql<number>`extract(year from ${playthrough.endedOn})`.mapWith(
+                Number,
+              ),
+              games: sql<number>`count(distinct ${playthrough.gameId})`.mapWith(
+                Number,
+              ),
+            })
+            .from(playthrough)
+            .innerJoin(
+              journalEntry,
+              and(
+                eq(journalEntry.userId, playthrough.userId),
+                eq(journalEntry.gameId, playthrough.gameId),
+              ),
+            )
+            .where(
+              and(
+                eq(playthrough.userId, userId),
+                eq(journalEntry.status, "played"),
+                sql`${playthrough.endedOn} is not null`,
+              ),
+            )
+            .groupBy(sql`extract(year from ${playthrough.endedOn})`)
+            .orderBy(sql`extract(year from ${playthrough.endedOn})`),
+          db
+            .select({
+              platform: playthrough.platform,
+              hours: sql<number>`sum(${playthrough.hours})`.mapWith(Number),
+            })
+            .from(playthrough)
+            .where(
+              and(
+                eq(playthrough.userId, userId),
+                sql`${playthrough.hours} is not null`,
+              ),
+            )
+            .groupBy(playthrough.platform)
+            .orderBy(sql`sum(${playthrough.hours}) desc`, playthrough.platform),
+          db
+            .select({
+              gameId: statusEvent.gameId,
+              status: statusEvent.status,
+              at: statusEvent.at,
+            })
+            .from(statusEvent)
+            .where(eq(statusEvent.userId, userId))
+            .orderBy(statusEvent.at, statusEvent.id),
+          ratingsByPoints(eq(journalEntry.userId, userId)),
+        ]);
       const backlog = new Set<number>();
       const days = new Map<string, number>();
       for (const event of events) {
@@ -381,7 +416,12 @@ export function createJournal(db: Db) {
         day,
         games,
       }));
-      return { finishedPerYear, hoursByPlatform, backlogOverTime };
+      return {
+        finishedPerYear,
+        hoursByPlatform,
+        backlogOverTime,
+        ratings: summarizeRatings(ratings),
+      };
     },
 
     /** The user's entry for a game, or null if it isn't in their journal. */
@@ -480,34 +520,11 @@ export function createJournal(db: Db) {
     },
 
     /** Every stored Rating for a game, whatever each entry's Status. Derived, never counted, so it can't drift. */
-    async communityRating(gameId: number): Promise<CommunityRating> {
-      const rows = await db
-        .select({
-          points: journalEntry.rating,
-          ratings: sql<number>`count(*)`.mapWith(Number),
-        })
-        .from(journalEntry)
-        .where(
-          and(
-            eq(journalEntry.gameId, gameId),
-            sql`${journalEntry.rating} is not null`,
-          ),
-        )
-        .groupBy(journalEntry.rating);
-      const distribution = Array<number>(10).fill(0);
-      let count = 0;
-      let points = 0;
-      for (const row of rows) {
-        distribution[(row.points as number) - 1] = row.ratings;
-        count += row.ratings;
-        points += (row.points as number) * row.ratings;
-      }
-      // Tenths of a star = points × 5 ÷ count, rounded half up in integers.
-      const average =
-        count >= COMMUNITY_RATING_THRESHOLD
-          ? Math.floor((points * 10 + count) / (2 * count)) / 10
-          : null;
-      return { count, average, distribution };
+    async communityRating(gameId: number): Promise<RatingSummary> {
+      return summarizeRatings(
+        await ratingsByPoints(eq(journalEntry.gameId, gameId)),
+        COMMUNITY_RATING_THRESHOLD,
+      );
     },
 
     /** Removes the user's Rating for a game, in any Status. A no-op if there is none. */
