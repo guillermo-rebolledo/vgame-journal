@@ -83,12 +83,16 @@ function summarizeRatings(
   return { count, average, distribution };
 }
 
-export type JournalRemovalConfirmation = {
-  confirmationRequired: true;
+/** What removing an entry would permanently delete besides the entry itself. */
+export type JournalRemovalContents = {
   playthroughCount: number;
   /** Removal also deletes the entry's Rating. */
   rated: boolean;
 };
+
+export type JournalRemovalConfirmation = {
+  confirmationRequired: true;
+} & JournalRemovalContents;
 
 /** What a user fills in for a Playthrough. Dates are `YYYY-MM-DD`. */
 export type PlaythroughInput = {

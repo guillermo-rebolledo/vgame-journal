@@ -29,7 +29,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SAVED_LABELS } from "@/lib/home-journal";
-import type { JournalRemovalConfirmation } from "@/lib/journal";
+import type {
+  JournalRemovalConfirmation,
+  JournalRemovalContents,
+} from "@/lib/journal";
 import {
   COMPLETION_TAGS,
   type CompletionTag,
@@ -78,10 +81,8 @@ export function JournalStatus({
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   /** What removal will delete, while its confirmation is open. */
-  const [confirmation, setConfirmation] = useState<Omit<
-    JournalRemovalConfirmation,
-    "confirmationRequired"
-  > | null>(null);
+  const [confirmation, setConfirmation] =
+    useState<JournalRemovalContents | null>(null);
   const ownTrigger = useRef<HTMLButtonElement | null>(null);
   const trigger = triggerRef ?? ownTrigger;
   const cancel = useRef<HTMLButtonElement | null>(null);
@@ -347,21 +348,12 @@ export function JournalStatus({
 
 function removalDescription(
   gameTitle: string,
-  { playthroughCount, rated }: { playthroughCount: number; rated: boolean },
+  { playthroughCount, rated }: JournalRemovalContents,
 ) {
-  const playthroughs = playthroughCount > 0;
-  const held = [
-    playthroughs &&
-      `${playthroughCount} ${playthroughCount === 1 ? "Playthrough" : "Playthroughs"}`,
-    rated && "your Rating",
-  ].filter(Boolean);
-  const deleted = playthroughs
-    ? rated
-      ? "all current Playthroughs, private notes and your Rating"
-      : "all current Playthroughs and private notes"
-    : "your Rating";
-  const community = rated
-    ? `${playthroughs ? ", and the Rating" : " and"} will stop counting toward the Community rating`
-    : "";
-  return `${gameTitle} has ${held.join(" and ")}. If you remove it, ${deleted} will be permanently deleted${community}.`;
+  const playthroughs = `${playthroughCount} ${playthroughCount === 1 ? "Playthrough" : "Playthroughs"}`;
+  if (!rated)
+    return `${gameTitle} has ${playthroughs}. If you remove it, all current Playthroughs and private notes will be permanently deleted.`;
+  if (playthroughCount === 0)
+    return `${gameTitle} has your Rating. If you remove it, your Rating will be permanently deleted and will stop counting toward the Community rating.`;
+  return `${gameTitle} has ${playthroughs} and your Rating. If you remove it, all current Playthroughs, private notes and your Rating will be permanently deleted, and the Rating will stop counting toward the Community rating.`;
 }
