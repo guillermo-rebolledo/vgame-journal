@@ -95,3 +95,44 @@ test("a guest's Sign in to record and rate returns to the game", async ({
     .click();
   await expect(page).toHaveURL(/\/sign-in\?returnTo=%2Fgames%2Fceleste$/);
 });
+
+for (const reducedMotion of ["no-preference", "reduce"] as const) {
+  test(`rating data fades on pointer opening and stays immediate by keyboard (${reducedMotion})`, async ({
+    page,
+    request,
+  }) => {
+    await page.emulateMedia({ reducedMotion });
+    const { slug } = await seedRatedGame(request, [10, 9, 8, 8, 7]);
+    await page.goto(`/games/${slug}`);
+    const card = communityRating(page);
+    const summary = card.getByText("View rating data");
+    const details = card.locator("details");
+    await summary.click();
+    await expect(details).toHaveAttribute("open");
+    const fade = await details.evaluate((element) => {
+      const style = getComputedStyle(element, "::details-content");
+      return {
+        property: style.transitionProperty,
+        duration: style.transitionDuration,
+      };
+    });
+    expect(fade).toEqual({
+      property: "opacity",
+      duration: reducedMotion === "reduce" ? "0.15s" : "0.2s",
+    });
+    await summary.click();
+    await expect(details).not.toHaveAttribute("open");
+    await summary.press("Enter");
+    await expect(details).toHaveAttribute("open");
+    expect(
+      await details.evaluate(
+        (element) =>
+          getComputedStyle(element, "::details-content").transitionDuration,
+      ),
+    ).toBe("0s");
+    await expect(card.getByRole("row", { name: "4 stars 2" })).toBeVisible();
+    await summary.press("Space");
+    await expect(details).not.toHaveAttribute("open");
+    await expect(summary).toBeFocused();
+  });
+}

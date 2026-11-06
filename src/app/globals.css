@@ -219,6 +219,33 @@
   }
 }
 
+/* Settle disclosure layout once; keyboard opening and closing stay immediate. */
+.rating-data::details-content {
+  opacity: 0;
+}
+
+.rating-data[open]::details-content {
+  opacity: 1;
+}
+
+.rating-data[open][data-pointer-open="true"]::details-content {
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rating-data::details-content {
+    opacity: 0.8;
+  }
+
+  .rating-data[open]::details-content {
+    opacity: 1;
+  }
+
+  .rating-data[open][data-pointer-open="true"]::details-content {
+    transition: opacity 150ms ease-out;
+  }
+}
+
 /* Inserted panels and notices animate only on insertion. */
 .enter {
   transition:
