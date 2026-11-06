@@ -73,19 +73,18 @@ export function Library({
   const deferredState = parseLibraryParams(new URLSearchParams(deferredQuery));
 
   const { platforms, years } = libraryChoices(entries);
-  const anyRated = entries.some((e) => e.rating !== null);
-  // A platform, year or Rated filter from an old link that no game matches any more would hide everything.
+  // Rated stays on without rated games, so the link shows no matches rather than silently every game.
+  const offerRated = chosen.rated || entries.some((e) => e.rating !== null);
+  // A platform or year from an old link that no game has any more would hide everything.
   const filters: LibraryFilters = {
     ...chosen,
     platform: platforms.find((p) => p === chosen.platform),
     year: years.find((y) => y === chosen.year),
-    rated: anyRated ? chosen.rated : undefined,
   };
   const resultFilters: LibraryFilters = {
     ...deferredState.filters,
     platform: platforms.find((p) => p === deferredState.filters.platform),
     year: years.find((y) => y === deferredState.filters.year),
-    rated: anyRated ? deferredState.filters.rated : undefined,
   };
   const shown = queryLibrary(entries, resultFilters, deferredState.sort);
   const filtered = Object.values(filters).some(Boolean);
@@ -175,7 +174,7 @@ export function Library({
               ...STATUSES.map((s) => [s, capitalize(s)] as const),
             ]}
           />
-          {anyRated && (
+          {offerRated && (
             <Select
               label="Rating"
               value={filters.rated ? "rated" : ""}

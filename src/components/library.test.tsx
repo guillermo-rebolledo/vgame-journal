@@ -191,7 +191,7 @@ test("the Rated filter and Rating sort find rated games, highest first, and live
   expect(window.location.search).toBe("?sort=rating");
 });
 
-test("a rated link opens filtered, and no Rating filter is offered without rated games", () => {
+test("a rated link opens filtered, and no Rating filter is offered without rated games", async () => {
   window.history.replaceState(null, "", "/library?rated=1");
   const { unmount } = render(
     <Library
@@ -206,10 +206,17 @@ test("a rated link opens filtered, and no Rating filter is offered without rated
   ).toBe("Rated");
   unmount();
 
-  // An old rated link shouldn't hide every game once none is rated.
+  // A rated link with nothing rated keeps its filter and says so, with a way out.
   render(<Library entries={entries} initialView="grid" />);
+  expect(screen.getByText("No games match these filters.")).toBeTruthy();
+  expect(
+    (screen.getByLabelText("Rating") as HTMLSelectElement).selectedOptions[0]
+      .textContent,
+  ).toBe("Rated");
+  await userEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+  await waitFor(() => expect(titles()).toHaveLength(3));
+  expect(window.location.search).toBe("");
   expect(screen.queryByLabelText("Rating")).toBeNull();
-  expect(titles()).toHaveLength(3);
 });
 
 test("Clear filters is offered whenever a filter is on, and keeps sort and view", async () => {
