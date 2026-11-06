@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, within } from "storybook/test";
+import { CommunityRatingFact } from "./community-rating";
 import { AgeRatingFact } from "./game-facts";
 import { GameFactsGrid } from "./game-facts-grid";
 
@@ -27,14 +28,28 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Unavailable: Story = {};
+export const Unavailable: Story = {
+  args: {
+    communityRating: (
+      <CommunityRatingFact
+        summary={{ count: 0, average: null, distribution: Array(10).fill(0) }}
+      />
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // The combined notice covers only the Catalog's scores; the Community rating keeps its own state.
+    await expect(canvas.getByText("Scores unavailable")).toBeVisible();
+    await expect(canvas.getByText("No ratings yet")).toBeVisible();
+  },
+};
 export const PartialScores: Story = {
   args: {
     game: { ...meta.args.game, criticScore: 94.5, criticScoreCount: 1234 },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("User score")).toBeVisible();
+    await expect(canvas.getByText("IGDB user score")).toBeVisible();
     await expect(
       canvas.getByText("Unavailable", { exact: true }),
     ).toBeVisible();
@@ -46,7 +61,10 @@ export const PartialScores: Story = {
   },
 };
 
-export const UnavailableLight: Story = { globals: { theme: "light" } };
+export const UnavailableLight: Story = {
+  ...Unavailable,
+  globals: { theme: "light" },
+};
 export const UserScoreOnly: Story = {
   args: { game: { ...meta.args.game, userScore: 0, userScoreCount: 1 } },
 };
@@ -64,6 +82,15 @@ export const Full: Story = {
         { name: "English", voices: true, subtitles: true, interface: true },
       ],
     },
+    communityRating: (
+      <CommunityRatingFact
+        summary={{
+          count: 12,
+          average: 4.2,
+          distribution: [0, 0, 0, 1, 0, 1, 2, 3, 0, 5],
+        }}
+      />
+    ),
     ageRating: (
       <AgeRatingFact
         headline={{
