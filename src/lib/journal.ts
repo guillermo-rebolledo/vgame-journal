@@ -249,6 +249,8 @@ export function createJournal(db: Db) {
             slug: game.slug,
             status: journalEntry.status,
             completionTag: journalEntry.completionTag,
+            rating: journalEntry.rating,
+            ratedAt: journalEntry.ratedAt,
             createdAt: journalEntry.createdAt,
             updatedAt: journalEntry.updatedAt,
           })
@@ -661,6 +663,8 @@ export function createJournal(db: Db) {
             coverImageId: game.coverImageId,
             status: journalEntry.status,
             completionTag: journalEntry.completionTag,
+            rating: journalEntry.rating,
+            ratedAt: journalEntry.ratedAt,
             addedAt: journalEntry.createdAt,
             releasedAt: sql<Date | null>`(
               select min(${releaseDate.date}) from ${releaseDate}

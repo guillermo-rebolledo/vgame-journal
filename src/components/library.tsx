@@ -30,6 +30,7 @@ const SORT_LABELS: Record<LibrarySort, string> = {
   added: "Recently added",
   released: "Release date (newest first)",
   title: "Title (A–Z)",
+  rating: "Rating (highest first)",
 };
 
 const statusLabel = (e: LibraryEntry) =>

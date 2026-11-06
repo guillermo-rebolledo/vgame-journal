@@ -1388,3 +1388,37 @@ test("deleting an account removes its Ratings from the Community rating", async 
     average: null,
   });
 });
+
+test("export, Library entries and the public profile carry each Rating and when it changed; the profile still has no notes", async () => {
+  await db.update(user).set({ username: "mario" }).where(eq(user.id, "mario"));
+  await journal.set("mario", 1, { status: "played" });
+  await journal.set("mario", 2, { status: "backlog" });
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 5",
+    startedOn: "2026-01-01",
+    notes: "Private thoughts",
+  });
+  vi.setSystemTime(new Date("2026-03-01T10:00:00Z"));
+  await journal.setRating("mario", 1, 9);
+  vi.useRealTimers();
+  const rated = {
+    gameId: 1,
+    rating: 9,
+    ratedAt: new Date("2026-03-01T10:00:00Z"),
+  };
+  const unrated = { gameId: 2, rating: null, ratedAt: null };
+
+  expect((await journal.exportData("mario")).entries).toEqual([
+    expect.objectContaining(rated),
+    expect.objectContaining(unrated),
+  ]);
+  expect(await journal.library("mario", {}, "title")).toEqual([
+    expect.objectContaining(rated),
+    expect.objectContaining(unrated),
+  ]);
+  const profile = await journal.publicProfile("mario");
+  expect(
+    [...(profile?.library ?? [])].sort((a, b) => a.gameId - b.gameId),
+  ).toEqual([expect.objectContaining(rated), expect.objectContaining(unrated)]);
+  expect(JSON.stringify(profile)).not.toMatch(/notes|Private thoughts/i);
+});
