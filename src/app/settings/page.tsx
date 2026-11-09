@@ -12,7 +12,7 @@ import { DeleteAccountForm } from "@/components/delete-account-form";
 import { ProfileVisibilityForm } from "@/components/profile-visibility-form";
 import { RegionForm } from "@/components/region-form";
 import { SignOutAllForm } from "@/components/sign-out-all-form";
-import { SteamImport } from "@/components/steam-import";
+import { SteamConnection } from "@/components/steam-connection";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { createAccountSecurity } from "@/lib/account-security";
@@ -21,15 +21,9 @@ import { sendWithResend } from "@/lib/email";
 import { JournalError, journal } from "@/lib/journal";
 import type { Region } from "@/lib/release-dates";
 import { steamImport, steamImportEnabled } from "@/lib/steam-server";
-import {
-  commitSteamImport,
-  disconnectSteam,
-  readSteamImport,
-} from "./steam-actions";
+import { disconnectSteam } from "./steam-actions";
 
 export const metadata: Metadata = { title: "Settings" };
-
-export const maxDuration = 180;
 
 export default function SettingsPage({
   searchParams,
@@ -302,19 +296,16 @@ async function SteamSetting({
 }) {
   const userId = await signedInUserId();
   if (!userId) redirect("/sign-in");
-  const [link, visibility, params] = await Promise.all([
+  const [link, enabled, params] = await Promise.all([
     steamImport.connection(userId),
-    journal.profileVisibility(userId),
+    steamImportEnabled(),
     searchParams,
   ]);
   return (
-    <SteamImport
+    <SteamConnection
       connected={Boolean(link)}
-      enabled={await steamImportEnabled()}
-      publicProfile={visibility === "public"}
+      enabled={enabled}
       connectionResult={params.steam}
-      onRead={readSteamImport.bind(null, userId)}
-      onCommit={commitSteamImport.bind(null, userId)}
       onDisconnect={disconnectSteam.bind(null, userId)}
     />
   );

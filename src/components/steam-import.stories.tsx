@@ -30,8 +30,6 @@ const meta = {
   title: "Product/Steam import",
   component: SteamImport,
   args: {
-    connected: true,
-    enabled: true,
     publicProfile: false,
     onRead: fn<() => Promise<SteamReview>>(async () => ({
       kind: "review" as const,
@@ -41,7 +39,6 @@ const meta = {
       added: 1,
       feedbackInvitation: false,
     })),
-    onDisconnect: fn(async () => ({ disconnected: true as const })),
   },
   beforeEach: ({ args }) => {
     mocked(args.onRead).mockReset().mockResolvedValue({ kind: "review", rows });
@@ -60,7 +57,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Settings Steam connection and paged text review. Reuses Button, Checkbox, Select, PagedList, ActionFeedback, toast, and first-save feedback. No Steam data is persisted by catalog callbacks. The closest Settings composition is CalendarFeedForm; selection review has a distinct responsibility.",
+          "Dedicated review page for a connected, enabled Steam account: step progress, paged text review, and a result summary. Reuses Button, Checkbox, Select, PagedList, ActionFeedback, and first-save feedback. No Steam data is persisted by catalog callbacks.",
       },
     },
   },
@@ -73,18 +70,13 @@ const start: Story["play"] = async ({ canvasElement }) => {
   );
   await waitFor(() =>
     expect(
-      within(canvasElement).getByRole("button", { name: "Retry Steam import" }),
+      within(canvasElement).getByRole("button", {
+        name: /Retry Steam import|Read Steam again/,
+      }),
     ).toBeEnabled(),
   );
 };
-export const Connected: Story = {};
-export const Disconnected: Story = { args: { connected: false } };
-export const Unavailable: Story = {
-  args: { enabled: false, connected: false },
-};
-export const Cancelled: Story = {
-  args: { connected: false, connectionResult: "failed" },
-};
+export const NotStarted: Story = {};
 export const Review: Story = {
   play: async (context) => {
     await start(context);
@@ -111,9 +103,22 @@ export const Review: Story = {
     await expect(context.args.onCommit).toHaveBeenCalledWith([1]);
     await waitFor(() =>
       expect(
-        canvas.getByRole("button", { name: "Start Steam import" }),
+        canvas.getByRole("heading", { name: "1 game added to Backlog" }),
       ).toHaveFocus(),
     );
+    await expect(
+      canvas.getByRole("link", { name: "View Backlog" }),
+    ).toHaveAttribute("href", "/library?status=backlog");
+  },
+};
+export const SomeGamesNotAdded: Story = {
+  play: async (context) => {
+    await start(context);
+    const canvas = within(context.canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add 2 to Backlog" }),
+    );
+    await expect(await canvas.findByText(/1 game not added/)).toBeVisible();
   },
 };
 export const PublicReview: Story = {
@@ -220,7 +225,7 @@ export const RereadFailureKeepsSelection: Story = {
     const canvas = within(context.canvasElement);
     await userEvent.click(canvas.getByRole("checkbox", { name: /Portal 2/ }));
     await userEvent.click(
-      canvas.getByRole("button", { name: "Retry Steam import" }),
+      canvas.getByRole("button", { name: "Read Steam again" }),
     );
     await waitFor(() =>
       expect(canvas.getByRole("status")).toHaveTextContent(
@@ -233,18 +238,5 @@ export const RereadFailureKeepsSelection: Story = {
     await expect(
       canvas.getByRole("button", { name: "Add 1 to Backlog" }),
     ).toBeEnabled();
-  },
-};
-export const DisconnectReturnsFocus: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Disconnect Steam" }),
-    );
-    await waitFor(() =>
-      expect(
-        canvas.getByRole("link", { name: "Sign in through Steam" }),
-      ).toHaveFocus(),
-    );
   },
 };

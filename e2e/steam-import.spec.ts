@@ -44,6 +44,8 @@ test("connect, hidden-then-fixed retry, review, commit and re-import preserve Jo
       .getByText("Steam connected", { exact: true })
       .filter({ visible: true }),
   ).toBeVisible();
+  await page.getByRole("link", { name: "Import Steam games" }).click();
+  await expect(page).toHaveURL(/\/settings\/steam$/);
   await page.getByRole("button", { name: "Start Steam import" }).click();
   await expect(
     page
@@ -89,7 +91,7 @@ test("connect, hidden-then-fixed retry, review, commit and re-import preserve Jo
     ],
     [email],
   );
-  await page.goto("/settings");
+  await page.goto("/settings/steam");
   await page.getByRole("button", { name: "Start Steam import" }).click();
   await expect(
     page.getByRole("checkbox", { name: /Already in Journal/ }),
@@ -100,12 +102,16 @@ test("connect, hidden-then-fixed retry, review, commit and re-import preserve Jo
   await expect(
     page.getByRole("button", { name: "Add 0 to Backlog" }),
   ).toBeDisabled();
+  await page.goto("/settings");
   await page.getByRole("button", { name: "Disconnect Steam" }).click();
   await expect(
     page
       .getByText("Steam not connected", { exact: true })
       .filter({ visible: true }),
   ).toBeVisible();
+  // Selection stays out of reach once the account is disconnected.
+  await page.goto("/settings/steam");
+  await expect(page).toHaveURL(/\/settings$/);
   await page.goto("/library?status=backlog");
   await expect(page.getByRole("link", { name: /Hades/ }).first()).toBeVisible();
 });
