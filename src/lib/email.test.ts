@@ -1,3 +1,4 @@
+import { inspect } from "node:util";
 import { afterEach, expect, test, vi } from "vitest";
 import { sendWithResend } from "./email";
 
@@ -105,4 +106,52 @@ test("email timeout aborts the transport without retrying or exposing the failur
   await assertion;
   expect(timeout).toHaveBeenCalledWith(10_000);
   expect(fetcher).toHaveBeenCalledOnce();
+});
+
+const sentinel = "PRIVATE-recipient-body-reset-token-cookie-authorization";
+const email = { to: "delivered@resend.dev", subject: "Verify", text: sentinel };
+
+test("provider rejection discards sensitive details and nested causes", async () => {
+  vi.resetModules();
+  const { sendWithResend } = await import("./email");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({ message: sentinel, name: sentinel }, { status: 400 }),
+    ),
+  );
+  const error = await sendWithResend(email).catch((error: unknown) => error);
+  expect(error).toBeInstanceOf(Error);
+  expect(error).toHaveProperty("code", "unavailable");
+  expect(error).not.toHaveProperty("cause");
+  expect(inspect(error, { showHidden: true })).not.toContain(sentinel);
+});
+
+test("network rejection discards sensitive request properties and nested causes", async () => {
+  vi.resetModules();
+  const { sendWithResend } = await import("./email");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      throw Object.assign(new Error(sentinel, { cause: new Error(sentinel) }), {
+        request: email,
+      });
+    }),
+  );
+  const error = await sendWithResend(email).catch((error: unknown) => error);
+  expect(error).toBeInstanceOf(Error);
+  expect(error).not.toHaveProperty("cause");
+  expect(error).not.toHaveProperty("request");
+  expect(inspect(error, { showHidden: true })).not.toContain(sentinel);
+});
+
+test("successful delivery preserves the email and returns without resending", async () => {
+  vi.resetModules();
+  const { sendWithResend } = await import("./email");
+  const fetcher = vi.fn(async () => Response.json({ id: "sent" }));
+  vi.stubGlobal("fetch", fetcher);
+  await expect(sendWithResend(email)).resolves.toBeUndefined();
+  expect(fetcher).toHaveBeenCalledOnce();
+  const [, options] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+  expect(JSON.parse(String(options.body))).toMatchObject(email);
 });

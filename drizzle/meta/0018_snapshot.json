@@ -1,5 +1,5 @@
 {
-  "id": "15a82182-72cf-426c-b7ab-9b499d21a016",
+  "id": "9a9d7721-63ae-478f-9697-fa093d899625",
   "prevId": "0f924303-9a2b-44d4-b242-1bc48e8900c8",
   "version": "7",
   "dialect": "postgresql",
@@ -853,64 +853,61 @@
       },
       "isRLSEnabled": false
     },
-    "public.refresh_task": {
-      "name": "refresh_task",
+    "public.rate_limit": {
+      "name": "rate_limit",
       "schema": "",
       "columns": {
-        "key": {
-          "name": "key",
+        "id": {
+          "name": "id",
           "type": "text",
           "primaryKey": true,
           "notNull": true
         },
-        "enabled_at": {
-          "name": "enabled_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "attempted_at": {
-          "name": "attempted_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "finished_at": {
-          "name": "finished_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "outcome": {
-          "name": "outcome",
+        "key": {
+          "name": "key",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "last_success_at": {
-          "name": "last_success_at",
-          "type": "timestamp",
+        "count": {
+          "name": "count",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "last_skipped_at": {
-          "name": "last_skipped_at",
-          "type": "timestamp",
+        "last_request": {
+          "name": "last_request",
+          "type": "bigint",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "rate_limit_last_request_idx": {
+          "name": "rate_limit_last_request_idx",
+          "columns": [
+            {
+              "expression": "last_request",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "rate_limit_key_unique": {
+          "name": "rate_limit_key_unique",
+          "nullsNotDistinct": false,
+          "columns": ["key"]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1291,6 +1288,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "profile_visibility": {
+          "name": "profile_visibility",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'private'"
+        },
         "region": {
           "name": "region",
           "type": "text",
@@ -1334,6 +1338,10 @@
       },
       "policies": {},
       "checkConstraints": {
+        "user_profile_visibility_known": {
+          "name": "user_profile_visibility_known",
+          "value": "\"user\".\"profile_visibility\" in ('private', 'public')"
+        },
         "user_region_known": {
           "name": "user_region_known",
           "value": "\"user\".\"region\" in ('earliest', 'north_america', 'europe', 'japan')"

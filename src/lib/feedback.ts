@@ -36,18 +36,21 @@ export function createFeedback(
     const type = input.type;
     const message = input.message.trim();
     // Separate statements under READ COMMITTED give the count a fresh snapshot after waiting for the lock.
-    const inserted = await executeBatch(db, [
-      sql`select ${user.id} from ${user} where ${user.id} = ${author.id} for update`,
-      sql`insert into ${feedback} (user_id, type, message, path, created_at)
+    let inserted: unknown[];
+    try {
+      inserted = await executeBatch(db, [
+        sql`select ${user.id} from ${user} where ${user.id} = ${author.id} for update`,
+        sql`insert into ${feedback} (user_id, type, message, path, created_at)
           select ${author.id}, ${type}, ${message}, ${path}, statement_timestamp()
           where (select count(*) from ${feedback}
                  where ${feedback.userId} = ${author.id}
                    and ${feedback.createdAt} > statement_timestamp() - interval '1 hour') < 5
           returning id`,
-    ]).catch((error) => {
+      ]);
+    } catch (error) {
       reportOperationalError("feedback.write", operationalCode(error));
-      throw error;
-    });
+      return { error: "Could not send feedback. Please try again." };
+    }
     if (!inserted.length)
       return {
         error:

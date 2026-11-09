@@ -6,6 +6,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 const database = new PGlite();
 await migrate(drizzle(database), { migrationsFolder: "./drizzle" });
 const mailbox = [];
+const mailFailures = new Set();
 const collectionDelays = new Map();
 const publicListStates = new Map();
 const discoveryState = { fail: false, hold: false };
@@ -120,8 +121,23 @@ const server = createServer(async (request, response) => {
       for (const resolve of previous?.waiters ?? []) resolve();
       response.end("{}");
     } else if (request.url === "/emails" && request.method === "POST") {
-      mailbox.push(JSON.parse(body));
+      const email = JSON.parse(body);
+      if (mailFailures.has(email.to)) {
+        response.writeHead(500).end(
+          JSON.stringify({
+            name: "application_error",
+            message: "Synthetic mail failure",
+          }),
+        );
+        return;
+      }
+      mailbox.push(email);
       response.end(JSON.stringify({ id: String(mailbox.length) }));
+    } else if (request.url === "/mail-failure" && request.method === "POST") {
+      const { email, fail } = JSON.parse(body);
+      if (fail) mailFailures.add(email);
+      else mailFailures.delete(email);
+      response.end("{}");
     } else if (request.url === "/mailbox") {
       response.end(JSON.stringify(mailbox));
     } else if (request.url === "/health") {

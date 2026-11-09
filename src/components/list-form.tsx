@@ -94,7 +94,7 @@ export function ListVisibilityFields({
           checked={value === "public"}
           onChange={() => onChange("public")}
         />
-        Public — visible to anyone and listed on your profile
+        Public — visible to anyone, and listed when your profile is Public
       </label>
     </fieldset>
   );

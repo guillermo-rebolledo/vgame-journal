@@ -8,5 +8,6 @@ CREATE TABLE "refresh_task" (
 	"last_success_at" timestamp,
 	"last_skipped_at" timestamp
 );
+
 --> statement-breakpoint
 INSERT INTO "refresh_task" ("key") VALUES ('daily'), ('wishlist'), ('recent'), ('popular');

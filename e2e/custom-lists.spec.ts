@@ -208,6 +208,12 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
 }, testInfo) => {
   const username = uniqueUsername("lists_accept_lifecycle");
   await signUp(page, request, username);
+  await page.goto("/settings");
+  const visibility = page.getByRole("form", { name: "Profile visibility" });
+  await visibility.getByRole("radio", { name: /^Public/ }).check();
+  await visibility.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(visibility.getByRole("status")).toHaveText("Saved");
+  await page.goto("/lists");
   const ownerPath = await createList(page, "LIFECYCLE_PRIVATE_88");
   await openListPanel(page, "Edit list");
   await page
@@ -510,6 +516,11 @@ test("lists preserve Journal history and account export/deletion stays complete 
       (await guest.request.get(`/u/${username}${publicPath}`)).status(),
     ).toBe(200);
     await page.goto("/settings");
+    await page.getByLabel("Current password").fill("password123");
+    await page
+      .getByRole("button", { name: "Confirm password", exact: true })
+      .click();
+    await expect(page.getByLabel("Type DELETE to confirm")).toBeFocused();
     await page.getByLabel("Type DELETE to confirm").fill("DELETE");
     await page
       .getByRole("button", { name: "Permanently delete account", exact: true })

@@ -114,3 +114,79 @@ export const SignInAfterPasswordReset: Story = {
     );
   },
 };
+
+export const SignUpWithPrivacyNotice: Story = {
+  args: {
+    title: "Create an account",
+    submitLabel: "Sign up",
+    fields: [
+      { name: "name", label: "Name", autoComplete: "name" },
+      { name: "email", label: "Email", type: "email", autoComplete: "email" },
+      {
+        name: "password",
+        label: "Password",
+        type: "password",
+        autoComplete: "new-password",
+      },
+    ],
+    onSubmit: fn<Submit>(async () => ({ error: "Please try again." })),
+    children: (
+      <p className="text-muted-foreground text-sm">
+        Before creating an account, read our{" "}
+        <a href="/privacy" className="underline underline-offset-4">
+          Privacy notice
+        </a>
+        .
+      </p>
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const link = canvas.getByRole("link", { name: "Privacy notice" });
+    await expect(link).toHaveAttribute("href", "/privacy");
+    link.focus();
+    await expect(link).toHaveFocus();
+    await expect(canvas.getByRole("button", { name: "Sign up" })).toBeEnabled();
+  },
+};
+
+export const OnboardingPrivate: Story = {
+  args: {
+    title: "Choose a username",
+    submitLabel: "Continue",
+    fields: [{ name: "username", label: "Username", autoComplete: "username" }],
+    onSubmit: fn<Submit>(async () => ({ error: "Please try again." })),
+    beforeSubmit: (
+      <p className="text-muted-foreground text-sm">
+        Your profile is Private: only you can open it. You can change profile
+        visibility in Settings.
+      </p>
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/Your profile is Private/)).toBeVisible();
+    await userEvent.type(
+      canvas.getByRole("textbox", { name: "Username" }),
+      "player",
+    );
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await expect(canvas.getByRole("alert")).toHaveTextContent(
+      "Please try again.",
+    );
+    await expect(canvas.getByRole("textbox", { name: "Username" })).toHaveValue(
+      "player",
+    );
+  },
+};
+export const OnboardingExistingPublic: Story = {
+  args: {
+    ...OnboardingPrivate.args,
+    beforeSubmit: (
+      <p className="text-muted-foreground text-sm">
+        Your profile is Public: anyone can open it. You can change profile
+        visibility in Settings.
+      </p>
+    ),
+  },
+};

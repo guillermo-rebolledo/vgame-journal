@@ -15,6 +15,7 @@ import {
 } from "@/db/schema";
 import type { RatingPoints } from "@/lib/rating";
 import { createTestDb } from "@/test/db";
+import { createAccountSecurity } from "./account-security";
 import { createJournal, JournalError } from "./journal";
 
 let db: Db;
@@ -200,7 +201,15 @@ test("account deletion requires typed confirmation and cascades only the owner's
     );
   expect((await journal.exportData("mario")).playthroughs).toHaveLength(1);
 
-  await journal.deleteAccount("mario", "DELETE");
+  await db.insert(session).values({
+    id: "deletion-session",
+    userId: "mario",
+    token: "deletion-token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
+  await createAccountSecurity(db).issue("mario", "deletion-session");
+  await journal.deleteAccount("mario", "DELETE", "deletion-session");
 
   for (const [table, ownerColumn] of [
     [user, user.id],
@@ -987,6 +996,7 @@ test("backlog history replays status events in order, including removals and re-
 });
 
 test("public profiles include the journal and playthroughs without notes or account secrets", async () => {
+  await journal.setProfileVisibility("mario", "public");
   await db
     .update(user)
     .set({
@@ -1181,7 +1191,15 @@ test("account export includes only the owner's public and private lists in saved
     /luigi|submissionId|feedToken/,
   );
   const survivor = await journal.exportData("luigi");
-  await journal.deleteAccount("mario", "DELETE");
+  await db.insert(session).values({
+    id: "deletion-session",
+    userId: "mario",
+    token: "deletion-token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
+  await createAccountSecurity(db).issue("mario", "deletion-session");
+  await journal.deleteAccount("mario", "DELETE", "deletion-session");
   expect(await lists.ownerCollection("mario")).toEqual([]);
   expect(await lists.ownerDetail("mario", ids[0])).toBeNull();
   expect(await journal.exportData("luigi")).toEqual(survivor);
@@ -1419,7 +1437,15 @@ test("deleting an account removes its Ratings from the Community rating", async 
   await journal.setRating("mario", 1, 4);
   expect(await journal.communityRating(1)).toMatchObject({ count: 5 });
 
-  await journal.deleteAccount("mario", "DELETE");
+  await db.insert(session).values({
+    id: "deletion-session",
+    userId: "mario",
+    token: "deletion-token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
+  await createAccountSecurity(db).issue("mario", "deletion-session");
+  await journal.deleteAccount("mario", "DELETE", "deletion-session");
   expect(await journal.communityRating(1)).toMatchObject({
     count: 4,
     average: null,
@@ -1427,6 +1453,7 @@ test("deleting an account removes its Ratings from the Community rating", async 
 });
 
 test("export and the entry carry each Rating and when it changed; Library entries and the public profile carry only the Rating, never notes", async () => {
+  await journal.setProfileVisibility("mario", "public");
   await db.update(user).set({ username: "mario" }).where(eq(user.id, "mario"));
   await journal.set("mario", 1, { status: "played" });
   await journal.set("mario", 2, { status: "backlog" });
@@ -1509,4 +1536,525 @@ test("unexpected Journal write failures emit safe events while validation stays 
   } finally {
     log.mockRestore();
   }
+});
+
+test("new profiles are Private, only their owner can preview them, and visibility round-trips", async () => {
+  await db.update(user).set({ username: "mario" }).where(eq(user.id, "mario"));
+  expect(await journal.profileVisibility("mario")).toBe("private");
+  expect(await journal.publicProfile("MARIO")).toBeNull();
+  expect(await journal.hasPublicProfile("MARIO")).toBe(false);
+  expect(await journal.profileForViewer("mario", null)).toBeNull();
+  expect(await journal.profileForViewer("mario", "luigi")).toBeNull();
+  expect(await journal.profileForViewer("MARIO", "mario")).toMatchObject({
+    username: "mario",
+    visibility: "private",
+  });
+  await journal.setProfileVisibility("mario", "public");
+  expect(await journal.profileVisibility("mario")).toBe("public");
+  expect(await journal.hasPublicProfile("MARIO")).toBe(true);
+  expect(await journal.publicProfile("mario")).toMatchObject({
+    username: "mario",
+  });
+  await journal.setProfileVisibility("mario", "private");
+  expect(await journal.publicProfile("mario")).toBeNull();
+  await expect(
+    journal.setProfileVisibility("mario", "friends"),
+  ).rejects.toThrow(/visibility/i);
+  expect(await journal.profileVisibility("mario")).toBe("private");
+});
+
+test("the visibility migration keeps existing shared profiles Public and new profiles Private", async () => {
+  const { PGlite } = await import("@electric-sql/pglite");
+  const { drizzle } = await import("drizzle-orm/pglite");
+  const { readMigrationFiles } = await import("drizzle-orm/migrator");
+  const client = new PGlite();
+  try {
+    const migrations = readMigrationFiles({ migrationsFolder: "drizzle" });
+    const visibilityMigration = migrations.findIndex((migration) =>
+      migration.sql.some((sql) =>
+        sql.includes('ADD COLUMN "profile_visibility"'),
+      ),
+    );
+    expect(visibilityMigration).toBeGreaterThan(0);
+    for (const migration of migrations.slice(0, visibilityMigration)) {
+      for (const statement of migration.sql) await client.exec(statement);
+    }
+    await client.exec(
+      `insert into "user" (id, name, email, username) values ('existing', 'Existing', 'existing@example.com', 'existing')`,
+    );
+    for (const migration of migrations.slice(visibilityMigration)) {
+      for (const statement of migration.sql) await client.exec(statement);
+    }
+    const migrated = createJournal(drizzle(client) as unknown as Db);
+    expect(await migrated.hasPublicProfile("existing")).toBe(true);
+    await client.exec(
+      `insert into "user" (id, name, email, username) values ('new', 'New', 'new@example.com', 'new')`,
+    );
+    expect(await migrated.profileVisibility("new")).toBe("private");
+    expect(await migrated.publicProfile("new")).toBeNull();
+    await expect(
+      client.exec(
+        `update "user" set profile_visibility = 'friends' where id = 'new'`,
+      ),
+    ).rejects.toThrow();
+  } finally {
+    await client.close();
+  }
+});
+
+test("Status and its timestamp roll back when history cannot be written; retry changes once", async () => {
+  await journal.set("mario", 1, { status: "playing" });
+  await journal.setRating("mario", 1, 8);
+  const before = await journal.exportData("mario");
+  await db.execute(
+    sql`alter table status_event add constraint test_history_failure check (status <> 'played')`,
+  );
+  await expect(
+    journal.set("mario", 1, { status: "played", completionTag: "completed" }),
+  ).rejects.toThrow();
+  expect(await journal.exportData("mario")).toEqual(before);
+  await db.execute(
+    sql`alter table status_event drop constraint test_history_failure`,
+  );
+  await journal.set("mario", 1, {
+    status: "played",
+    completionTag: "completed",
+  });
+  await journal.set("mario", 1, {
+    status: "played",
+    completionTag: "completed",
+  });
+  const after = await journal.exportData("mario");
+  expect(after.statusHistory).toHaveLength(2);
+  expect(after.entries[0].updatedAt).toEqual(after.statusHistory[1].at);
+  expect(after.entries[0].rating).toBe(8);
+});
+
+test("conditional move rolls back its version and history on failure", async () => {
+  await journal.set("mario", 1, { status: "backlog" });
+  const before = await journal.exportData("mario");
+  await db.execute(
+    sql`alter table status_event add constraint test_move_failure check (status <> 'playing')`,
+  );
+  await expect(
+    journal.move("mario", 1, { status: "backlog" }, "playing"),
+  ).rejects.toThrow();
+  expect(await journal.exportData("mario")).toEqual(before);
+  await db.execute(
+    sql`alter table status_event drop constraint test_move_failure`,
+  );
+  expect(
+    await journal.move(
+      "mario",
+      1,
+      { status: "backlog", updatedAt: before.entries[0].updatedAt },
+      "playing",
+    ),
+  ).toBeInstanceOf(Date);
+});
+
+test("recording rolls back membership, invitation and history on a later Playthrough failure", async () => {
+  const input = {
+    platform: "PlayStation 5",
+    startedOn: "2026-01-01",
+    notes: "fail",
+  };
+  const submission = randomUUID();
+  const before = await journal.exportData("mario");
+  await db.execute(
+    sql`alter table playthrough add constraint test_record_failure check (notes <> 'fail')`,
+  );
+  await expect(
+    journal.recordPlaythrough("mario", 1, input, "playing", submission),
+  ).rejects.toThrow();
+  expect(await journal.exportData("mario")).toEqual(before);
+  await db.execute(
+    sql`alter table playthrough drop constraint test_record_failure`,
+  );
+  expect(
+    await journal.recordPlaythrough("mario", 1, input, "playing", submission),
+  ).toBe(true);
+  expect(
+    await journal.recordPlaythrough("mario", 1, input, "playing", submission),
+  ).toBe(false);
+  expect((await journal.exportData("mario")).playthroughs).toHaveLength(1);
+  expect(await journal.statusEvents("mario")).toHaveLength(1);
+});
+
+test("removal rolls back entry, Rating and private Playthroughs when its event fails", async () => {
+  await journal.set("mario", 1, { status: "playing" });
+  await journal.setRating("mario", 1, 9);
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 5",
+    startedOn: "2026-01-01",
+    notes: "private",
+  });
+  const before = await journal.exportData("mario");
+  await db.execute(
+    sql`alter table status_event add constraint test_remove_failure check (status is not null)`,
+  );
+  await expect(journal.remove("mario", 1, true)).rejects.toThrow();
+  expect(await journal.exportData("mario")).toEqual(before);
+  await db.execute(
+    sql`alter table status_event drop constraint test_remove_failure`,
+  );
+  await journal.remove("mario", 1, true);
+  await journal.remove("mario", 1, true);
+  const after = await journal.exportData("mario");
+  expect(after.entries).toEqual([]);
+  expect(after.playthroughs).toEqual([]);
+  expect(after.statusHistory.map((e) => e.status)).toEqual(["playing", null]);
+});
+
+test("stale removal snapshots preserve a new Rating or changed private note", async () => {
+  await journal.set("mario", 1, { status: "playing" });
+  const initial = await journal.entry("mario", 1);
+  if (!initial) throw new Error("missing entry");
+  const empty = { ...initial, playthroughs: [] };
+  await journal.setRating("mario", 1, 8);
+  const rated = await journal.exportData("mario");
+  expect(await journal.remove("mario", 1, true, empty)).toEqual({
+    confirmationRequired: true,
+    rated: true,
+    playthroughCount: 0,
+  });
+  expect(await journal.exportData("mario")).toEqual(rated);
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 5",
+    startedOn: "2026-01-01",
+    notes: "original",
+  });
+  const entry = await journal.entry("mario", 1);
+  const runs = await journal.playthroughs("mario", 1);
+  if (!entry) throw new Error("missing entry");
+  const snapshot = { ...entry, playthroughs: runs };
+  await journal.updatePlaythrough("mario", runs[0].id, {
+    platform: "PlayStation 5",
+    startedOn: "2026-01-01",
+    notes: "new private note",
+  });
+  const edited = await journal.exportData("mario");
+  expect(await journal.remove("mario", 1, true, snapshot)).toEqual({
+    confirmationRequired: true,
+    rated: true,
+    playthroughCount: 1,
+  });
+  expect(await journal.exportData("mario")).toEqual(edited);
+  await journal.remove("mario", 1, true, {
+    ...entry,
+    playthroughs: await journal.playthroughs("mario", 1),
+  });
+  expect(await journal.entry("mario", 1)).toBeNull();
+});
+
+test("an existing-game editor cannot recreate removed membership and retains its retry identity", async () => {
+  await journal.set("mario", 1, { status: "playing" });
+  await journal.remove("mario", 1);
+  const before = await journal.exportData("mario");
+  const input = { platform: "PlayStation 5", startedOn: "2026-01-01" };
+  const submission = randomUUID();
+  await expect(
+    journal.recordPlaythrough("mario", 1, input, "playing", submission, true),
+  ).rejects.toThrow("no longer in your Journal");
+  expect(await journal.exportData("mario")).toEqual(before);
+  await journal.set("mario", 1, { status: "backlog" });
+  await journal.recordPlaythrough(
+    "mario",
+    1,
+    input,
+    "playing",
+    submission,
+    true,
+  );
+  expect(await journal.entry("mario", 1)).toMatchObject({ status: "backlog" });
+});
+
+test("identical concurrent Status saves and lost-response retries create one effective transition", async () => {
+  await Promise.all([
+    journal.set("mario", 1, { status: "played", completionTag: "completed" }),
+    journal.set("mario", 1, { status: "played", completionTag: "completed" }),
+  ]);
+  await journal.set("mario", 1, {
+    status: "played",
+    completionTag: "completed",
+  });
+  expect(await journal.statusEvents("mario")).toHaveLength(1);
+  await journal.set("mario", 1, { status: "playing" });
+  await journal.set("mario", 1, {
+    status: "played",
+    completionTag: "completed",
+  });
+  expect((await journal.statusEvents("mario")).map((e) => e.status)).toEqual([
+    "played",
+    "playing",
+    "played",
+  ]);
+});
+
+test("different concurrent sets have one coherent history order even in the same millisecond", async () => {
+  vi.setSystemTime(new Date());
+  await Promise.all([
+    journal.set("mario", 1, { status: "backlog" }),
+    journal.set("mario", 1, { status: "playing" }),
+  ]);
+  const events = await journal.statusEvents("mario");
+  expect(events).toHaveLength(2);
+  expect(new Set(events.map((e) => e.status))).toEqual(
+    new Set(["backlog", "playing"]),
+  );
+  expect(await journal.entry("mario", 1)).toMatchObject({
+    status: events[1].status,
+    updatedAt: events[1].at,
+  });
+  expect(events[1].at.getTime()).toBeGreaterThan(events[0].at.getTime());
+});
+
+test("conditional moves accept one winner and stale Undo cannot erase a later selection", async () => {
+  await journal.set("mario", 1, { status: "wishlist" });
+  const initial = await journal.entry("mario", 1);
+  if (!initial) throw new Error("missing entry");
+  const results = await Promise.all([
+    journal.move(
+      "mario",
+      1,
+      { status: "wishlist", updatedAt: initial.updatedAt },
+      "backlog",
+    ),
+    journal.move(
+      "mario",
+      1,
+      { status: "wishlist", updatedAt: initial.updatedAt },
+      "playing",
+    ),
+  ]);
+  expect(results.filter(Boolean)).toHaveLength(1);
+  const winner = await journal.entry("mario", 1);
+  if (!winner) throw new Error("missing entry");
+  await journal.set("mario", 1, { status: "played" });
+  const before = await journal.exportData("mario");
+  expect(
+    await journal.move(
+      "mario",
+      1,
+      { status: winner.status, updatedAt: winner.updatedAt },
+      "wishlist",
+    ),
+  ).toBeNull();
+  expect(await journal.exportData("mario")).toEqual(before);
+});
+
+test("concurrent recordings reuse the account submission identity and reject another game without writes", async () => {
+  const input = {
+    platform: "PlayStation 5",
+    startedOn: "2026-01-01",
+    notes: "private",
+  };
+  const id = randomUUID();
+  await Promise.all([
+    journal.recordPlaythrough("mario", 1, input, "playing", id),
+    journal.recordPlaythrough(
+      "mario",
+      1,
+      { ...input, notes: "retry" },
+      "backlog",
+      id,
+    ),
+  ]);
+  expect(await journal.playthroughs("mario", 1)).toHaveLength(1);
+  expect(await journal.statusEvents("mario")).toHaveLength(1);
+  const before = await journal.exportData("mario");
+  await expect(
+    journal.recordPlaythrough("mario", 2, input, "playing", id),
+  ).rejects.toThrow("another game");
+  expect(await journal.exportData("mario")).toEqual(before);
+  await journal.recordPlaythrough("luigi", 2, input, "backlog", id);
+  expect(await journal.playthroughs("luigi", 2)).toHaveLength(1);
+});
+
+test("recording racing a membership save preserves its choices and a possible history sequence", async () => {
+  await Promise.all([
+    journal.set("mario", 1, { status: "played", completionTag: "retired" }),
+    journal.recordPlaythrough(
+      "mario",
+      1,
+      { platform: "PlayStation 5", startedOn: "2026-01-01" },
+      "playing",
+      randomUUID(),
+    ),
+  ]);
+  expect(await journal.entry("mario", 1)).toMatchObject({
+    status: "played",
+    completionTag: "retired",
+  });
+  expect(await journal.playthroughs("mario", 1)).toHaveLength(1);
+  const events = await journal.statusEvents("mario");
+  expect(events.at(-1)).toMatchObject({
+    status: "played",
+    completionTag: "retired",
+  });
+  expect(events.length).toBeGreaterThanOrEqual(1);
+  expect(events.length).toBeLessThanOrEqual(2);
+});
+
+for (const change of ["record", "edit", "add", "delete", "rating"] as const) {
+  test(`removal racing ${change} either removes the acknowledged snapshot or preserves the newer data`, async () => {
+    await journal.set("mario", 1, { status: "playing" });
+    const input = {
+      platform: "PlayStation 5",
+      startedOn: "2026-01-01",
+      notes: "original",
+    };
+    await journal.addPlaythrough("mario", 1, input);
+    const entry = await journal.entry("mario", 1);
+    const runs = await journal.playthroughs("mario", 1);
+    if (!entry) throw new Error("missing entry");
+    const snapshot = { ...entry, playthroughs: runs };
+    const changing = () => {
+      switch (change) {
+        case "record":
+          return journal.recordPlaythrough(
+            "mario",
+            1,
+            { ...input, notes: "new" },
+            "playing",
+            randomUUID(),
+            true,
+          );
+        case "edit":
+          return journal.updatePlaythrough(
+            "mario",
+            runs[0].id,
+            { ...input, notes: "new" },
+            1,
+          );
+        case "add":
+          return journal.addPlaythrough("mario", 1, { ...input, notes: "new" });
+        case "delete":
+          return journal.removePlaythrough("mario", runs[0].id);
+        case "rating":
+          return journal.setRating("mario", 1, 8);
+      }
+    };
+    // PGlite serializes transactions. Queue the changed-data order explicitly as well
+    // as concurrent invocation; independent Postgres sessions are a separate gate.
+    const [mutation, removal] = await Promise.allSettled([
+      changing(),
+      journal.remove("mario", 1, true, snapshot),
+    ]);
+    expect(removal.status).toBe("fulfilled");
+    const after = await journal.exportData("mario");
+    if (after.entries.length === 0) {
+      expect(after.playthroughs).toEqual([]);
+      expect(after.statusHistory.map((e) => e.status)).toEqual([
+        "playing",
+        null,
+      ]);
+      if (change === "record" || change === "add")
+        expect(mutation.status).toBe("rejected");
+    } else {
+      expect(mutation.status).toBe("fulfilled");
+      expect(removal).toMatchObject({ value: { confirmationRequired: true } });
+      expect(after.statusHistory.map((e) => e.status)).toEqual(["playing"]);
+      if (change === "record" || change === "add")
+        expect(after.playthroughs).toHaveLength(2);
+      if (change === "edit") expect(after.playthroughs[0].notes).toBe("new");
+      if (change === "delete") expect(after.playthroughs).toEqual([]);
+      if (change === "rating") expect(after.entries[0].rating).toBe(8);
+    }
+  });
+}
+
+test("failed edits keep private notes and retry updates only the intended record", async () => {
+  await journal.set("mario", 1, { status: "playing" });
+  const input = {
+    platform: "PlayStation 5",
+    startedOn: "2026-01-01",
+    notes: "original",
+  };
+  await journal.addPlaythrough("mario", 1, input);
+  const [run] = await journal.playthroughs("mario", 1);
+  const before = await journal.exportData("mario");
+  await db.execute(
+    sql`alter table playthrough add constraint test_edit_failure check (notes <> 'reject')`,
+  );
+  await expect(
+    journal.updatePlaythrough(
+      "mario",
+      run.id,
+      { ...input, notes: "reject" },
+      1,
+    ),
+  ).rejects.toThrow();
+  expect(await journal.exportData("mario")).toEqual(before);
+  await db.execute(
+    sql`alter table playthrough drop constraint test_edit_failure`,
+  );
+  await journal.updatePlaythrough(
+    "mario",
+    run.id,
+    { ...input, notes: "retry" },
+    1,
+  );
+  expect(await journal.playthroughs("mario", 1)).toMatchObject([
+    { id: run.id, notes: "retry" },
+  ]);
+  await journal.remove("mario", 1, true);
+  await expect(
+    journal.updatePlaythrough("mario", run.id, input, 1),
+  ).rejects.toThrow("no longer available");
+  expect(await journal.entry("mario", 1)).toBeNull();
+});
+
+test("a status-only Home selection preserves an unchanged Played tag inside the mutation", async () => {
+  await journal.set("mario", 1, {
+    status: "played",
+    completionTag: "completed",
+  });
+  const before = await journal.exportData("mario");
+  await journal.set("mario", 1, {
+    status: "played",
+    preserveCompletionTag: true,
+  });
+  expect(await journal.exportData("mario")).toEqual(before);
+  await journal.set("mario", 1, {
+    status: "playing",
+    preserveCompletionTag: true,
+  });
+  expect(await journal.entry("mario", 1)).toMatchObject({
+    status: "playing",
+    completionTag: null,
+  });
+});
+
+test("removal and re-addition retain history order and invalidate old Undo even with a frozen clock", async () => {
+  vi.setSystemTime(new Date());
+  await journal.set("mario", 1, { status: "wishlist" });
+  const moved = await journal.move(
+    "mario",
+    1,
+    { status: "wishlist" },
+    "playing",
+  );
+  await journal.remove("mario", 1);
+  await journal.recordPlaythrough(
+    "mario",
+    1,
+    { platform: "PlayStation 5", startedOn: "2026-01-01" },
+    "playing",
+    randomUUID(),
+  );
+  expect((await journal.statusEvents("mario")).map((e) => e.status)).toEqual([
+    "wishlist",
+    "playing",
+    null,
+    "playing",
+  ]);
+  expect(
+    await journal.move(
+      "mario",
+      1,
+      { status: "playing", updatedAt: moved ?? undefined },
+      "wishlist",
+    ),
+  ).toBeNull();
 });

@@ -628,7 +628,10 @@ for (const theme of ["light", "dark"] as const) {
           page.getByRole("button", { name: "Copied", exact: true }),
         ).toBeVisible();
         await page.getByRole("radio", { name: /Japan/ }).check();
-        await page.getByRole("button", { name: "Save", exact: true }).click();
+        await page
+          .getByRole("form", { name: "Release region" })
+          .getByRole("button", { name: "Save", exact: true })
+          .click();
         await expect(page.getByRole("radio", { name: /Japan/ })).toBeChecked();
         await chooseAccountMenuItem(page, "My profile");
         await expect(

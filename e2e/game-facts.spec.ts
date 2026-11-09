@@ -158,9 +158,10 @@ test("the headline board follows the signed-in user's Region", async ({
   );
 
   await page.goto("/settings");
-  await page.getByRole("radio", { name: /Europe European/ }).check();
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  const region = page.getByRole("form", { name: "Release region" });
+  await region.getByRole("radio", { name: /Europe European/ }).check();
+  await region.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(region.getByText("Saved", { exact: true })).toBeVisible();
 
   await page.goto("/games/hades--1");
   await expect(ageRating(page)).toHaveAccessibleName(

@@ -63,3 +63,8 @@ _Avoid_: Personal recommendations when no personalization is provided.
 **Catalog**:
 The games and game information available to search and browse, including games outside your Journal.
 _Avoid_: Library when referring to all searchable games.
+
+
+**Profile visibility**:
+Whether anyone can open your profile (Public) or only you can (Private). New accounts start Private; existing accounts remain Public. Public profiles show Library, Wishlist, Stats and Playthrough dates, platforms and hours, never private notes. Each List has its own visibility, independent of your profile.
+_Avoid_: Account visibility, publishing notes, treating a Private profile as a Private List.

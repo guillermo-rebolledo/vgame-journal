@@ -63,7 +63,7 @@ Next.js uses `tsconfig.build.json` to check app sources without including storie
 
 The app's Tailwind entry scans `src/` and explicitly excludes `*.stories.tsx` and `*.stories.ts`, so story-only utility classes do not enlarge the web CSS. `.storybook/preview.css` separately generates catalog utilities using the shared app theme as a reference. It is imported only by the Storybook preview. Biome also rejects Storybook, catalog font, and story imports from production source files.
 
-The preview mounts the production `Toaster` once so product stories exercise the same completion notifications as the app. `UI/Action feedback` shows decorative state layers; `UI/Button/AsyncFeedback` exercises keyboard submission, duplicate prevention and retry. `UI/Toast` covers success, persistent recovery, dismissal and long content. Product stories for authentication, feedback, Release region, Calendar feed and Game recording cover the corresponding request outcomes with local callbacks. These catalog providers and callbacks stay outside production imports.
+The preview mounts the production `Toaster` once so product stories exercise the same completion notifications as the app. `UI/Action feedback` shows decorative state layers; `UI/Button/AsyncFeedback` exercises keyboard submission, duplicate prevention and retry. `UI/Toast` covers success, persistent recovery, dismissal and long content. Product stories for authentication, feedback, Release region, Profile visibility, Calendar feed and Game recording cover the corresponding request outcomes with local callbacks. These catalog providers and callbacks stay outside production imports.
 
 ## Agent access
 

@@ -14,6 +14,7 @@ test("large collections bound rendered rows and retain navigation, search and ed
   await seedSql(
     request,
     [
+      `update "user" set profile_visibility = 'public' where email = $1`,
       `insert into game (id, title, slug, genres, platforms, synced_at)
      select n, 'Collection game ' || n, 'collection-' || n, '{}', '{PC}', now()
      from generate_series(10000, 10999) n on conflict (id) do nothing`,
@@ -403,7 +404,7 @@ test("large collections bound rendered rows and retain navigation, search and ed
     await seedSql(
       request,
       [
-        `insert into "user" (id, name, email, username) values ($1, 'Peer', $1 || '@example.com', $1)`,
+        `insert into "user" (id, name, email, username, profile_visibility) values ($1, 'Peer', $1 || '@example.com', $1, 'public')`,
         `insert into journal_entry (user_id, game_id, status, updated_at) values ($1, 10000, 'played', now())`,
         `insert into playthrough (user_id, game_id, platform, started_on) values ($1, 10000, 'PC', date '2030-01-01')`,
       ],
@@ -560,6 +561,7 @@ test("F14 Wishlist section links retain independent pages through move, Undo and
   await seedSql(
     request,
     [
+      `update "user" set profile_visibility = 'public' where email = $1`,
       `insert into game (id, title, slug, genres, platforms, synced_at)
      select n, 'Section game ' || n, 'section-' || n, '{}', '{PC}', now()
      from generate_series(20000, 20198) n on conflict (id) do nothing`,
@@ -722,6 +724,7 @@ test("F14 Stats dataset links restore bounded personal and public rows lazily", 
   await seedSql(
     request,
     [
+      `update "user" set profile_visibility = 'public' where email = $1`,
       `insert into game (id, title, slug, genres, platforms, synced_at) values
      (30000, 'Dataset game', 'dataset-game', '{}', '{PC}', now()) on conflict (id) do nothing`,
       `insert into journal_entry (user_id, game_id, status, updated_at)

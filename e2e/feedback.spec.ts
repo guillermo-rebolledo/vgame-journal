@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
-import { signUp } from "./support/sign-up";
+import { signUp, uniqueUsername } from "./support/sign-up";
 import { snap } from "./support/snap";
 import { supportUrl } from "./support/url";
 
@@ -282,8 +282,13 @@ test("an unclaimed old-version first insertion never invites on later Status sav
   page,
   request,
 }) => {
-  const username = `unclaimed${Date.now()}`;
+  const username = uniqueUsername("unclaimed");
   await signUp(page, request, username);
+  // Populate this test's Catalog game without relying on an earlier test's visit.
+  await page.goto("/games/celeste");
+  await expect(
+    page.getByRole("heading", { name: "Celeste", exact: true }),
+  ).toBeVisible();
   // Simulate the old deployment committing its insert without claiming an invitation.
   const seeded = await request.post(supportUrl("/query"), {
     data: {

@@ -105,7 +105,7 @@ test("an empty public list can be created explicitly and has generic owner metad
     .fill("Public from creation");
   await page
     .getByRole("radio", {
-      name: "Public — visible to anyone and listed on your profile",
+      name: "Public — visible to anyone, and listed when your profile is Public",
       exact: true,
     })
     .check();
