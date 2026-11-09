@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Db } from "@/db";
 import {
@@ -1487,4 +1487,26 @@ test("stats report the owner's Rating distribution, average Rating given and num
     average: 3.3,
     distribution: [0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
   });
+});
+
+test("unexpected Journal write failures emit safe events while validation stays quiet", async () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    await expect(
+      journal.set("mario", 1, { status: "secret" as never }),
+    ).rejects.toBeInstanceOf(JournalError);
+    expect(log).not.toHaveBeenCalled();
+    await db.execute(sql`DROP TABLE status_event`);
+    await expect(
+      journal.set("mario", 1, { status: "playing" }),
+    ).rejects.toThrow();
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('"operation":"journal.set"'),
+    );
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(
+      /mario|status_event|insert into/,
+    );
+  } finally {
+    log.mockRestore();
+  }
 });

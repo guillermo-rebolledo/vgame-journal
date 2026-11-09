@@ -3,6 +3,10 @@ import { and, desc, eq, type SQL, sql } from "drizzle-orm";
 import { type Db, db } from "@/db";
 import { executeBatch } from "@/db/batch";
 import { customList, game, listEntry, user } from "@/db/schema";
+import {
+  operationalCode,
+  reportOperationalError,
+} from "@/lib/operational-errors";
 
 export type ListVisibility = "private" | "public";
 export type ListGame = {
@@ -87,7 +91,8 @@ export function createLists(db: Db) {
   async function read<T>(query: PromiseLike<T>): Promise<T> {
     try {
       return await query;
-    } catch {
+    } catch (error) {
+      reportOperationalError("lists.read", operationalCode(error));
       throw new Error("Lists are unavailable. Please try again.");
     }
   }
@@ -147,7 +152,8 @@ export function createLists(db: Db) {
             ? "Use the list's current games in the new order."
             : "List not found.",
       );
-    } catch {
+    } catch (error) {
+      reportOperationalError("lists.write", operationalCode(error));
       return unavailable();
     }
   }
@@ -401,7 +407,8 @@ export function createLists(db: Db) {
         if (!id) return unavailable();
         const value = await this.ownerDetail(actor, id);
         return value ? { ok: true, value } : unavailable();
-      } catch {
+      } catch (error) {
+        reportOperationalError("lists.write", operationalCode(error));
         return unavailable();
       }
     },

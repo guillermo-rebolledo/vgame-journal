@@ -411,7 +411,7 @@ test("discovery rank pages propagate provider errors", async () => {
   );
   await expect(
     igdbGameSource.fetchDiscoveryRanks([1, 2], new AbortController().signal),
-  ).rejects.toThrow("503");
+  ).rejects.toMatchObject({ code: "unavailable" });
 });
 
 test("discovery propagates metadata errors and cancellation", async () => {
@@ -425,7 +425,7 @@ test("discovery propagates metadata errors and cancellation", async () => {
   );
   await expect(
     igdbGameSource.fetchGames([1], new AbortController().signal),
-  ).rejects.toThrow("503");
+  ).rejects.toMatchObject({ code: "unavailable" });
   const controller = new AbortController();
   controller.abort(new DOMException("Timed out", "TimeoutError"));
   await expect(
@@ -565,8 +565,10 @@ test("recent pool and Visits lookup propagate HTTP failures and cancellation", a
   const signal = new AbortController().signal;
   await expect(
     igdbGameSource.fetchRecentCandidates(0, new Date(0), new Date(), signal),
-  ).rejects.toThrow("503");
-  await expect(igdbGameSource.fetchVisits([1], signal)).rejects.toThrow("503");
+  ).rejects.toMatchObject({ code: "unavailable" });
+  await expect(igdbGameSource.fetchVisits([1], signal)).rejects.toMatchObject({
+    code: "unavailable",
+  });
   const aborted = AbortSignal.abort(
     new DOMException("Timed out", "TimeoutError"),
   );
@@ -686,7 +688,7 @@ test("tag shelves propagate provider failures and cancellation", async () => {
   );
   await expect(
     igdbGameSource.fetchTagGames("roguelike", 24, new AbortController().signal),
-  ).rejects.toThrow("503");
+  ).rejects.toMatchObject({ code: "unavailable" });
   await expect(
     igdbGameSource.fetchTagGames(
       "roguelike",
@@ -694,4 +696,86 @@ test("tag shelves propagate provider failures and cancellation", async () => {
       AbortSignal.abort(new Error("Cancelled")),
     ),
   ).rejects.toThrow("Cancelled");
+});
+
+test.each([
+  "60",
+  new Date(Date.now() + 60_000).toUTCString(),
+])("throttling respects retry-after %s without search fallbacks", async (retryAfter) => {
+  vi.resetModules();
+  const source = (await import("./igdb")).igdbGameSource;
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  const fetcher = vi.fn(async (url: string) =>
+    url.includes("twitch")
+      ? Response.json({ access_token: "t", expires_in: 3600 })
+      : Response.json(
+          {},
+          { status: 429, headers: { "retry-after": retryAfter } },
+        ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  try {
+    await expect(source.search("private search")).rejects.toMatchObject({
+      code: "rate_limited",
+    });
+    await expect(source.search("private search")).rejects.toMatchObject({
+      code: "rate_limited",
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(log.mock.calls)).not.toContain("private search");
+  } finally {
+    log.mockRestore();
+  }
+});
+
+test("malformed provider search fails rather than claiming no results", async () => {
+  vi.resetModules();
+  const source = (await import("./igdb")).igdbGameSource;
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      Response.json(
+        url.includes("twitch")
+          ? { access_token: "t", expires_in: 3600 }
+          : { message: "private" },
+      ),
+    ),
+  );
+  try {
+    await expect(source.search("query")).rejects.toMatchObject({
+      code: "invalid_response",
+    });
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('"code":"invalid_response"'),
+    );
+  } finally {
+    log.mockRestore();
+  }
+});
+
+test("a search deadline removes queued work before it can reach the provider", async () => {
+  vi.resetModules();
+  const source = (await import("./igdb")).igdbGameSource;
+  const controller = new AbortController();
+  vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  const fetcher = vi.fn(async (url: string) =>
+    Response.json(
+      url.includes("twitch") ? { access_token: "t", expires_in: 3600 } : [],
+    ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  try {
+    // The first search consumes the instance's four starts with spelling fallbacks.
+    await source.search("one two three four");
+    const queued = source.search("another");
+    const assertion = expect(queued).rejects.toMatchObject({ code: "timeout" });
+    controller.abort(new DOMException("private timeout", "TimeoutError"));
+    await assertion;
+    expect(fetcher).toHaveBeenCalledTimes(5);
+  } finally {
+    vi.restoreAllMocks();
+    log.mockRestore();
+  }
 });

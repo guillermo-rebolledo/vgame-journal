@@ -23,6 +23,7 @@ import {
   type Status,
 } from "@/lib/library";
 import { createLists } from "@/lib/lists";
+import { observeOperation } from "@/lib/operational-errors";
 import { isRatingPoints, RATEABLE_STATUSES } from "@/lib/rating";
 import {
   compareWishlist,
@@ -238,7 +239,7 @@ export function createJournal(db: Db) {
     return feedToken;
   }
 
-  return {
+  const operations = {
     /** One statement also removes reset tokens, which have no user foreign key. */
     async deleteAccount(userId: string, confirmation: unknown) {
       if (confirmation !== "DELETE")
@@ -767,6 +768,63 @@ export function createJournal(db: Db) {
         .from(playthrough)
         .where(owned(userId, gameId, playthrough))
         .orderBy(playthrough.startedOn, playthrough.id),
+  };
+  const expected = (error: unknown) => error instanceof JournalError;
+  return {
+    ...operations,
+    set: observeOperation("journal.set", operations.set, expected),
+    move: observeOperation("journal.move", operations.move, expected),
+    setRating: observeOperation(
+      "journal.setRating",
+      operations.setRating,
+      expected,
+    ),
+    clearRating: observeOperation(
+      "journal.clearRating",
+      operations.clearRating,
+      expected,
+    ),
+    remove: observeOperation("journal.remove", operations.remove, expected),
+    addPlaythrough: observeOperation(
+      "journal.addPlaythrough",
+      operations.addPlaythrough,
+      expected,
+    ),
+    recordPlaythrough: observeOperation(
+      "journal.recordPlaythrough",
+      operations.recordPlaythrough,
+      expected,
+    ),
+    updatePlaythrough: observeOperation(
+      "journal.updatePlaythrough",
+      operations.updatePlaythrough,
+      expected,
+    ),
+    removePlaythrough: observeOperation(
+      "journal.removePlaythrough",
+      operations.removePlaythrough,
+      expected,
+    ),
+    setRegion: observeOperation(
+      "journal.setRegion",
+      operations.setRegion,
+      expected,
+    ),
+    feedToken: observeOperation(
+      "journal.feedToken",
+      operations.feedToken,
+      expected,
+    ),
+    regenerateFeedToken: observeOperation(
+      "journal.regenerateFeedToken",
+      operations.regenerateFeedToken,
+      expected,
+    ),
+    deleteAccount: observeOperation(
+      "journal.deleteAccount",
+      operations.deleteAccount,
+      expected,
+    ),
   };
 }
 

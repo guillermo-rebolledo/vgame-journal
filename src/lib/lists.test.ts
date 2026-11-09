@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { beforeEach, expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Db } from "@/db";
 import { game, user } from "@/db/schema";
 import { createTestDb } from "@/test/db";
 import { createLists } from "./lists";
+
+afterEach(() => vi.restoreAllMocks());
 
 let db: Db;
 let lists: ReturnType<typeof createLists>;
@@ -388,6 +390,7 @@ test("untrusted mutation inputs fail safely without changing persisted data", as
 });
 
 test("a failed revision write rolls back membership and returns no database details", async () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
   const list = await saved();
   const { sql } = await import("drizzle-orm");
   await db.execute(
@@ -401,6 +404,12 @@ test("a failed revision write rolls back membership and returns no database deta
     code: "unavailable",
     message: "Lists are unavailable. Please try again.",
   });
+  expect(log).toHaveBeenCalledWith(
+    expect.stringContaining('"operation":"lists.write"'),
+  );
+  expect(JSON.stringify(log.mock.calls)).not.toMatch(
+    /private database failure|mario/,
+  );
   expect(await lists.ownerDetail("mario", list.id)).toEqual(list);
   await db.execute(sql`drop trigger reject_list_write on custom_list`);
   expect(await lists.addGame("mario", list.id, 0, 1)).toEqual({

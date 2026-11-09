@@ -9,6 +9,12 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { type Email, sendWithResend } from "@/lib/email";
 
+import {
+  type Operation,
+  OperationalError,
+  operationalCode,
+  reportOperationalError,
+} from "@/lib/operational-errors";
 import { PASSWORD_POLICY } from "@/lib/password-policy";
 
 export type { Email } from "@/lib/email";
@@ -18,6 +24,16 @@ export function createAuth(
   database: Parameters<typeof drizzleAdapter>[0],
   sendEmail: (email: Email) => Promise<void> = sendWithResend,
 ) {
+  async function deliver(operation: Operation, email: Email) {
+    try {
+      await sendEmail(email);
+    } catch (error) {
+      const code = operationalCode(error);
+      reportOperationalError(operation, code);
+      // Better Auth may log callback errors; never give it provider details or tokens.
+      throw new OperationalError(code);
+    }
+  }
   return betterAuth({
     database: drizzleAdapter(database, { provider: "pg", schema }),
     // On by default in production. E2E specs sign up in parallel against one server, so they'd
@@ -29,7 +45,7 @@ export function createAuth(
       maxPasswordLength: PASSWORD_POLICY.maxLength,
       requireEmailVerification: true,
       sendResetPassword: ({ user, url }) =>
-        sendEmail({
+        deliver("account_email.password_reset", {
           to: user.email,
           subject: `Reset your ${SITE_NAME} password`,
           text: `Reset your password: ${url}`,
@@ -40,7 +56,7 @@ export function createAuth(
       sendOnSignIn: true, // The sign-in page tells unverified users a new link is on its way.
       autoSignInAfterVerification: true,
       sendVerificationEmail: ({ user, url }) =>
-        sendEmail({
+        deliver("account_email.verification", {
           to: user.email,
           subject: `Verify your ${SITE_NAME} email`,
           text: `Verify your email: ${url}`,

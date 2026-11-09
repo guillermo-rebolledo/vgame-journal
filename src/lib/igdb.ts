@@ -11,6 +11,12 @@ import {
 } from "@/lib/game-source";
 import { GAME_TAGS } from "@/lib/game-tags";
 import { IGDB_TAGS } from "@/lib/igdb-tags";
+import {
+  OperationalError,
+  operationalCode,
+  reportOperationalError,
+} from "@/lib/operational-errors";
+import { retryAfterUntil } from "@/lib/retry-after";
 
 // Server-only: the Twitch secret never reaches the browser, and no client calls IGDB.
 
@@ -44,22 +50,36 @@ export function createLimiter(perSecond: number, concurrent: number) {
     }
   }
 
-  return <T>(task: () => Promise<T>) =>
+  return <T>(task: () => Promise<T>, signal?: AbortSignal) =>
     new Promise<T>((resolve, reject) => {
-      queue.push(() =>
+      if (signal?.aborted) {
+        reject(signal.reason);
+        return;
+      }
+      const abort = () => {
+        const index = queue.indexOf(start);
+        if (index >= 0) queue.splice(index, 1);
+        reject(signal?.reason);
+      };
+      const start = () => {
+        signal?.removeEventListener("abort", abort);
         task()
           .then(resolve, reject)
           .finally(() => {
             open--;
             pump();
-          }),
-      );
+          });
+      };
+      signal?.addEventListener("abort", abort, { once: true });
+      queue.push(start);
       pump();
     });
 }
 
 // ponytail: per server instance; IGDB's 4 req/s is app-wide, so several warm instances can exceed it. Move to a shared store (e.g. Upstash) if 429s show up.
 const limit = createLimiter(4, 8);
+
+let retryAt = 0;
 
 let token: { value: string; expiresAt: number } | undefined;
 
@@ -79,13 +99,30 @@ async function accessToken(signal?: AbortSignal) {
       grant_type: "client_credentials",
     }),
   });
-  if (!res.ok) throw new Error(`Twitch token request failed: ${res.status}`);
-  const { access_token, expires_in } = await res.json();
+  checkResponse(res);
+  const { access_token, expires_in } = (await res.json()) ?? {};
+  if (
+    typeof access_token !== "string" ||
+    !access_token ||
+    !Number.isFinite(expires_in)
+  )
+    throw new OperationalError("invalid_response");
   token = {
     value: access_token,
     expiresAt: Date.now() + (expires_in - 60) * 1000,
   };
   return token.value;
+}
+
+function checkResponse(response: Response) {
+  if (response.status === 429) {
+    retryAt = Math.max(
+      retryAt,
+      retryAfterUntil(response.headers.get("retry-after")),
+    );
+    throw new OperationalError("rate_limited");
+  }
+  if (!response.ok) throw new OperationalError("unavailable");
 }
 
 /** POSTs an Apicalypse query to an IGDB endpoint. */
@@ -94,21 +131,49 @@ async function igdb<T>(
   body: string,
   signal?: AbortSignal,
 ): Promise<T[]> {
-  const res = await limit(async () =>
-    fetch(`https://api.igdb.com/v4/${endpoint}`, {
-      method: "POST",
-      signal: requestSignal(signal),
-      headers: {
-        "Client-ID": process.env.TWITCH_CLIENT_ID ?? "",
-        Authorization: `Bearer ${await accessToken(signal)}`,
-      },
-      body,
-    }),
-  );
-  if (res.status === 401) token = undefined; // Revoked early; the next call fetches a new one.
-  if (!res.ok)
-    throw new Error(`IGDB ${endpoint} request failed: ${res.status}`);
-  return res.json();
+  const deadline = requestSignal(signal);
+  try {
+    const res = await limit(async () => {
+      deadline.throwIfAborted();
+      if (Date.now() < retryAt) throw new OperationalError("rate_limited");
+      const access = await accessToken(deadline);
+      deadline.throwIfAborted();
+      return fetch(`https://api.igdb.com/v4/${endpoint}`, {
+        method: "POST",
+        signal: deadline,
+        headers: {
+          "Client-ID": process.env.TWITCH_CLIENT_ID ?? "",
+          Authorization: `Bearer ${access}`,
+        },
+        body,
+      });
+    }, deadline);
+    if (res.status === 401) token = undefined;
+    checkResponse(res);
+    const result = await res.json();
+    if (
+      !Array.isArray(result) ||
+      result.some(
+        (item) =>
+          !item ||
+          typeof item !== "object" ||
+          (endpoint === "games" &&
+            (!Number.isSafeInteger(item.id) ||
+              typeof item.name !== "string" ||
+              typeof item.slug !== "string")),
+      )
+    )
+      throw new OperationalError("invalid_response");
+    return result;
+  } catch (error) {
+    const code = deadline.aborted
+      ? "timeout"
+      : error instanceof SyntaxError
+        ? "invalid_response"
+        : operationalCode(error);
+    reportOperationalError("game_source.request", code);
+    throw new OperationalError(code);
+  }
 }
 
 // IGDB keyword ids for "unofficial", "fangame", "fanmade" and "mario fangame". Not "homebrew": that's
@@ -400,6 +465,7 @@ export const igdbGameSource: GameSource = {
     return games;
   },
   async search(query) {
+    const deadline = requestSignal();
     const q = query.replace(/["\\]/g, "").trim().replace(/\s+/g, " ");
     if (!q) return [];
     const words = q.split(" ");
@@ -418,6 +484,7 @@ export const igdbGameSource: GameSource = {
       const games = await igdb<IgdbGame>(
         "games",
         `search "${variant}"; fields ${GAME_FIELDS}; where game_type = (${STANDALONE_TYPE_IDS}) & version_parent = null & keywords != (${FAN_KEYWORD_IDS}); limit 50;`,
+        deadline,
       );
       if (games.length) return games.map(toGame);
     }
