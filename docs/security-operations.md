@@ -6,11 +6,11 @@ No production database, credential rotation, restore or provider dashboard was a
 
 ## Owner decisions blocking operational sign-off
 
-All rows below are **pending**. The service owner must name a responsible person and record dated, sanitized evidence in the restricted operations record. Do not put secrets, user records, feed URLs, email bodies or recovery links in GitHub.
+The public contact address was confirmed by the service owner on 2026-11-09. Operational checks below remain **pending**. The service owner must name a responsible person and record dated, sanitized evidence in the restricted operations record. Do not put secrets, user records, feed URLs, email bodies or recovery links in GitHub.
 
 | Area | Required owner input / evidence | Owner | Date / result |
 | --- | --- | --- | --- |
-| Privacy and incident contact | Publish a monitored confidential contact usable without signing in; identify service operator and escalation backup; test receipt and response ownership. In-app Feedback exists, but its production inbox and monitoring are unverified. | Unassigned | Pending |
+| Privacy and incident contact | Owner confirmed `memorebo.dev@gmail.com` for privacy requests and security reports on 2026-11-09; published through `PUBLIC_CONTACT_EMAIL` in `/privacy`. Identify response owner and escalation backup; verify actual receipt. In-app Feedback notification routing remains separate and unverified. | Service owner; backup unassigned | Address confirmed; delivery/escalation evidence pending |
 | Retention | Approve actual database, Neon backup/PITR, Vercel logs/telemetry, Resend delivery records and owner mailbox retention, region and deletion limits. Set a periodic review date. Update `/privacy` with verified facts. | Unassigned | Pending |
 | GitHub | Inventory organization/repository admins, outside collaborators, apps, deploy keys and tokens; MFA/recovery coverage; minimum repository permissions; protected integration/default branches; dependency/security alert recipient and escalation. | Unassigned | Pending |
 | Vercel | Inventory team/project members, deploy tokens and integrations; MFA and least privilege; production/preview/development environment scope; deployment/log access, sensitive path redaction and log retention. | Unassigned | Pending |
@@ -73,7 +73,7 @@ Calendar feed URLs are player credentials too: regenerate in Settings after acci
 
 ## Privacy requests and deletion limits
 
-1. Until a monitored public contact is confirmed, signed-in players can submit a minimal request through account-menu Feedback; production notification routing/monitoring still needs owner verification. Signed-out requests and confidential security reports need the owner-published contact. Never direct players to post personal data in public issues.
+1. Privacy requests and confidential security reports can go to the owner-confirmed public contact, `memorebo.dev@gmail.com`, without signing in. Signed-in players can also submit a minimal request through account-menu Feedback; production notification routing/monitoring still needs owner verification. Never direct players to post personal data in public issues.
 2. Verify identity through an appropriate authenticated channel before disclosing or deleting data. Do not request passwords or Calendar links. Record request scope, owner, applicable obligations and response status in a restricted tracker.
 3. Offer Settings' Journal export for its documented scope. For a broader request, separately assess feedback records, delivered mail, provider records and relevant logs; the JSON download alone is not a complete response.
 4. Explain live database deletion separately from backup expiry, Resend records, owner mailbox copies and copies held by recipients. Coordinate authorized deletion in those systems, record exceptions and actual schedules, and avoid promising immediate erasure everywhere.
