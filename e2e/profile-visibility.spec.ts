@@ -42,6 +42,9 @@ test("Private owner preview, publication and withdrawal protect documents, metad
       page.getByRole("heading", { name: username, exact: true }),
     ).toBeVisible();
     expect(await page.content()).not.toContain(secret);
+    await expect(
+      page.getByText("Private gaming journal", { exact: true }),
+    ).toBeVisible();
     await expect(page).toHaveTitle("Profile unavailable · shelve.games");
 
     const guest = await visitor.newPage();
@@ -71,6 +74,11 @@ test("Private owner preview, publication and withdrawal protect documents, metad
       await expect(guest).not.toHaveTitle(new RegExp(username));
       const listResponse = await guest.goto(`${path}/lists/${listId}`);
       expect(listResponse?.status()).toBe(200);
+      const listImage = await visitor.request.get(
+        `${path}/lists/${listId}/opengraph-image`,
+      );
+      expect(listImage.status()).toBe(200);
+      expect(listImage.headers()["cache-control"]).toContain("no-store");
       await expect(
         guest.getByRole("heading", { name: "Independent Public List" }),
       ).toBeVisible();
@@ -92,7 +100,7 @@ test("Private owner preview, publication and withdrawal protect documents, metad
       page.getByRole("link", { name: "Privacy notice", exact: true }).first(),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: /Download JSON/ }),
+      page.getByRole("button", { name: /Download JSON/ }),
     ).toBeVisible();
     for (const visibility of ["Public", "Private"] as const) {
       await form

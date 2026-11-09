@@ -32,6 +32,7 @@ export const Save: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("radio", { name: /^Public/ }));
     await userEvent.click(canvas.getByRole("button", { name: "Save" }));
+    await expect(canvas.getByRole("button", { name: "Save" })).toHaveFocus();
     await waitFor(() =>
       expect(canvas.getByRole("status")).toHaveTextContent("Saved"),
     );
@@ -82,7 +83,10 @@ export const Pending: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Save" }));
-    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
     await expect(canvas.getByRole("status")).toHaveTextContent("Saving…");
   },
 };

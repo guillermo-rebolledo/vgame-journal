@@ -250,6 +250,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | Copying and feedback | `copy-button.tsx`, `feedback.tsx` | Reuse success, failure, and manual-copy recovery. |
 | Action state cues | `ui/action-feedback.tsx` (`ActionIcon`, `ActionFeedback`) | Compose with Button and the caller's request state. Icons are decorative; keep one stable live region and the visible action label. |
 | Completion notifications | `ui/toast.tsx` (`Toaster`, `toast`) | One Base UI host in the root layout. Notify after an editor finishes closing; keep form errors and recovery beside their controls. |
+| Username onboarding | `auth-form.tsx`, `onboarding-form.tsx` | Show current Profile visibility and username guidance above Continue; associate the guidance with the username field. Auth form stories cover Private and existing Public guidance. |
 | Settings actions | `region-form.tsx`, `calendar-feed-form.tsx`, `profile-visibility-form.tsx` | Keep pending and confirmed feedback beside Save or Regenerate URL, retain choices on failure, and prevent duplicate requests. |
 | Meaningful motion | `burst-button.tsx`, `odometer.tsx`, `page-transition.tsx` | Use only for the purposes defined below. |
 
@@ -319,7 +320,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 
 ### Profile visibility
 
-- `ProfileVisibilityForm` composes the existing RegionForm radio-card and Save feedback pattern for a distinct setting. It retains the selected choice on failure, blocks duplicate saves, and announces confirmed success beside Save. No new motion is needed. Storybook: **Product/Profile visibility**, including Private, Public, pending and error/retry.
+- `ProfileVisibilityForm` composes the existing RegionForm radio-card and Save feedback pattern for a distinct setting. It retains the selected choice on failure, blocks duplicate saves, keeps Save focusable while pending, and announces confirmed success beside Save. No new motion is needed. Storybook: **Product/Profile visibility**, including Private, Public, pending and error/retry.
 - Explain the public field boundary and independent List visibility before publishing. New accounts start Private; existing accounts stay Public. Onboarding shows the current value above Continue. Private owner profiles show “Only you can see this” and a Settings link; private profiles are a generic 404 to everyone else, including shared images and metadata. Public List pages omit links to Private profiles.
 
 ### Privacy information

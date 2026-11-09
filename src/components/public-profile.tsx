@@ -68,7 +68,11 @@ export function PublicProfile({
           <h1 className="font-semibold [overflow-wrap:anywhere] text-3xl tracking-tight">
             {profile.username}
           </h1>
-          <p className="text-muted-foreground text-sm">Public gaming journal</p>
+          <p className="text-muted-foreground text-sm">
+            {profile.visibility === "private"
+              ? "Private gaming journal"
+              : "Public gaming journal"}
+          </p>
         </div>
       </div>
       <fieldset className="flex flex-wrap gap-1 border-b">

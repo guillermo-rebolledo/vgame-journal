@@ -208,6 +208,12 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
 }, testInfo) => {
   const username = uniqueUsername("lists_accept_lifecycle");
   await signUp(page, request, username);
+  await page.goto("/settings");
+  const visibility = page.getByRole("form", { name: "Profile visibility" });
+  await visibility.getByRole("radio", { name: /^Public/ }).check();
+  await visibility.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(visibility.getByRole("status")).toHaveText("Saved");
+  await page.goto("/lists");
   const ownerPath = await createList(page, "LIFECYCLE_PRIVATE_88");
   await openListPanel(page, "Edit list");
   await page

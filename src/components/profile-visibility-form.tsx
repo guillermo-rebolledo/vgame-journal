@@ -95,6 +95,7 @@ export function ProfileVisibilityForm({
         <Button
           type="submit"
           disabled={pending}
+          focusableWhenDisabled
           aria-busy={pending}
           className="min-h-11"
         >
