@@ -10,6 +10,7 @@ import {
   releaseDate,
   session,
   statusEvent,
+  steamLink,
   user,
   verification,
 } from "@/db/schema";
@@ -159,6 +160,11 @@ test("export includes the owner's profile, entries, full history and private pla
 
 test("account deletion requires typed confirmation and cascades only the owner's data", async () => {
   for (const owner of ["mario", "luigi"]) {
+    await db.insert(steamLink).values({
+      userId: owner,
+      steamId: "76561198000000000",
+      linkedAt: new Date(),
+    });
     await db.insert(verification).values({
       id: `${owner}-reset`,
       identifier: `reset-password:${owner}-token`,
@@ -194,6 +200,7 @@ test("account deletion requires typed confirmation and cascades only the owner's
   }
   const token = await journal.feedToken("mario");
   const survivor = await journal.exportData("luigi");
+  expect(survivor.steamConnection?.steamId).toBe("76561198000000000");
 
   for (const confirmation of [null, "", "delete", "DELETE ", "luigi"])
     await expect(journal.deleteAccount("mario", confirmation)).rejects.toThrow(
@@ -218,6 +225,7 @@ test("account deletion requires typed confirmation and cascades only the owner's
     [journalEntry, journalEntry.userId],
     [statusEvent, statusEvent.userId],
     [playthrough, playthrough.userId],
+    [steamLink, steamLink.userId],
   ] as const) {
     expect(
       await db.select().from(table).where(eq(ownerColumn, "mario")),
@@ -2057,4 +2065,48 @@ test("removal and re-addition retain history order and invalidate old Undo even 
       "wishlist",
     ),
   ).toBeNull();
+});
+
+test("Steam import adds only never-recorded games atomically, consumes first save, and is idempotent", async () => {
+  expect(await journal.importGames("mario", [1, 2, 1])).toEqual({
+    added: 2,
+    feedbackInvitation: true,
+  });
+  expect(await journal.importGames("mario", [1, 2])).toEqual({
+    added: 0,
+    feedbackInvitation: false,
+  });
+  const exported = await journal.exportData("mario");
+  expect(exported.entries.map((e) => [e.status, e.importSource])).toEqual([
+    ["backlog", "steam"],
+    ["backlog", "steam"],
+  ]);
+  expect(exported.statusHistory).toHaveLength(2);
+  expect(exported.playthroughs).toEqual([]);
+  await journal.remove("mario", 2);
+  expect((await journal.importGames("mario", [2])).added).toBe(0);
+  expect(await journal.set("mario", 2, { status: "playing" })).toBe(false);
+});
+
+test("Steam import leaves existing details and concurrent saves intact and rolls back failures", async () => {
+  await journal.set("mario", 1, {
+    status: "played",
+    completionTag: "completed",
+  });
+  await journal.setRating("mario", 1, 9);
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 5",
+    startedOn: "2026-01-01",
+    notes: "Keep",
+  });
+  const before = await journal.entry("mario", 1);
+  await Promise.all([
+    journal.importGames("mario", [1, 2]),
+    journal.set("mario", 2, { status: "playing" }),
+  ]);
+  expect(await journal.entry("mario", 1)).toEqual(before);
+  expect((await journal.entry("mario", 2))?.status).toBe("playing");
+  expect((await journal.playthroughs("mario", 1))[0].notes).toBe("Keep");
+  await expect(journal.importGames("luigi", [1, 999999])).rejects.toThrow();
+  expect(await journal.entry("luigi", 1)).toBeNull();
 });

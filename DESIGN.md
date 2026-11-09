@@ -253,6 +253,8 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | Action state cues | `ui/action-feedback.tsx` (`ActionIcon`, `ActionFeedback`) | Compose with Button and the caller's request state. Icons are decorative; keep one stable live region and the visible action label. |
 | Completion notifications | `ui/toast.tsx` (`Toaster`, `toast`) | One Base UI host in the root layout. Notify after an editor finishes closing; keep form errors and recovery beside their controls. |
 | Username onboarding | `auth-form.tsx`, `onboarding-form.tsx` | Show current Profile visibility and username guidance above Continue; associate the guidance with the username field. Auth form stories cover Private and existing Public guidance. |
+| Steam import | `steam-import.tsx` | Settings connection and text-only review; composes Button, Checkbox, Select, PagedList and ActionFeedback. Ready games start selected, existing and removed games are disabled, and selections survive commit failure. One live region announces pending/error outcomes; completion uses toast and the shared first-save invitation. |
+| Selection checkbox | `ui/checkbox.tsx` | Base UI checkbox from the shadcn registry; pair with a visible label and use 44px row targets. |
 | Settings actions | `region-form.tsx`, `calendar-feed-form.tsx`, `profile-visibility-form.tsx` | Keep pending and confirmed feedback beside Save or Regenerate URL, retain choices on failure, and prevent duplicate requests. |
 | Meaningful motion | `burst-button.tsx`, `odometer.tsx`, `page-transition.tsx` | Use only for the purposes defined below. |
 

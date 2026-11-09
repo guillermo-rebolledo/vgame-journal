@@ -304,6 +304,7 @@ export function createCatalog(db: Db, source: GameSource) {
   }
 
   return {
+    save,
     tagGames,
     refreshHealth: refreshState.health,
     async runScheduledRefresh(signal?: AbortSignal) {

@@ -68,3 +68,7 @@ _Avoid_: Library when referring to all searchable games.
 **Profile visibility**:
 Whether anyone can open your profile (Public) or only you can (Private). New accounts start Private; existing accounts remain Public. Public profiles show Library, Wishlist, Stats and Playthrough dates, platforms and hours, never private notes. Each List has its own visibility, independent of your profile.
 _Avoid_: Account visibility, publishing notes, treating a Private profile as a Private List.
+
+**Steam import**:
+A player-initiated flow that connects a verified Steam account, matches its games to the Catalog, and adds selected new games to the Journal as Backlog. It preserves existing entries and previously removed games. Playtime is transient sorting data, never a Status or Playthrough.
+_Avoid_: Steam Library when naming the app destination, sync when implying automatic background reads.
