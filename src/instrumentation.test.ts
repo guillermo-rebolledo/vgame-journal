@@ -14,6 +14,10 @@ test.each([
 ] as const)("server %s failures emit bounded metadata without request or error content", (kind) => {
   const log = vi.spyOn(console, "error").mockImplementation(() => {});
   vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "a".repeat(40));
+  vi.stubEnv(
+    "VERCEL_DEPLOYMENT_ID",
+    kind === "render" ? "dpl_144" : "private@example.com",
+  );
   onRequestError(
     new Error("private notes token=secret"),
     {
