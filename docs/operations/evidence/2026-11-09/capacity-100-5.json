@@ -1,0 +1,748 @@
+{
+  "startedAt": "2026-11-09T19:27:37.513Z",
+  "finishedAt": "2026-11-09T19:28:08.361Z",
+  "revision": "7c3414547e7ced1c45ac527ab2a4bd48b080e35c",
+  "environment": "loopback-next-production-build-with-PGlite-and-fake-providers",
+  "datasetGamesPerUser": 100,
+  "playthroughs": "3 per Played/Playing game",
+  "users": 5,
+  "iterations": 1,
+  "viewport": "390x844",
+  "slowNetwork": "150ms RTT, 1.6Mbps down, 750kbps up",
+  "httpRequests": 2642,
+  "httpErrors": 110,
+  "cells": [
+    {
+      "mode": "first-navigation",
+      "operation": "home",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 271,
+      "maxMs": 297
+    },
+    {
+      "mode": "first-navigation",
+      "operation": "catalog-search",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 629,
+      "maxMs": 1016
+    },
+    {
+      "mode": "first-navigation",
+      "operation": "library",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 104,
+      "maxMs": 965
+    },
+    {
+      "mode": "first-navigation",
+      "operation": "wishlist",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 87,
+      "maxMs": 206
+    },
+    {
+      "mode": "first-navigation",
+      "operation": "game",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 125,
+      "maxMs": 952
+    },
+    {
+      "mode": "first-navigation",
+      "operation": "journal-save-and-verify",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 262,
+      "maxMs": 644
+    },
+    {
+      "mode": "warm",
+      "operation": "home",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 221,
+      "maxMs": 267
+    },
+    {
+      "mode": "warm",
+      "operation": "catalog-search",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 661,
+      "maxMs": 1101
+    },
+    {
+      "mode": "warm",
+      "operation": "library",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 61,
+      "maxMs": 241
+    },
+    {
+      "mode": "warm",
+      "operation": "wishlist",
+      "attempts": 5,
+      "errors": 1,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 84,
+      "maxMs": 169
+    },
+    {
+      "mode": "warm",
+      "operation": "game",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 97,
+      "maxMs": 221
+    },
+    {
+      "mode": "warm",
+      "operation": "journal-save-and-verify",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 440,
+      "maxMs": 899
+    },
+    {
+      "mode": "slow-network",
+      "operation": "home",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 2844,
+      "maxMs": 2845
+    },
+    {
+      "mode": "slow-network",
+      "operation": "catalog-search",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 3339,
+      "maxMs": 3341
+    },
+    {
+      "mode": "slow-network",
+      "operation": "library",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 1036,
+      "maxMs": 1038
+    },
+    {
+      "mode": "slow-network",
+      "operation": "wishlist",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 1103,
+      "maxMs": 1106
+    },
+    {
+      "mode": "slow-network",
+      "operation": "game",
+      "attempts": 5,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 1143,
+      "maxMs": 1146
+    },
+    {
+      "mode": "slow-network",
+      "operation": "journal-save-and-verify",
+      "attempts": 5,
+      "errors": 5,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 10236,
+      "maxMs": 10315
+    }
+  ],
+  "samples": [
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 271,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 288,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 289,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 293,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 297,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 633,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 629,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 650,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 644,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 104,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 136,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 222,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 148,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 139,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 331,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 1016,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 206,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 184,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 312,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 660,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 281,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 952,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 965,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 87,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 950,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 262,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 125,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 644,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 414,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 583,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 221,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 223,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 224,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 260,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 267,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 661,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 672,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 123,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 116,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 84,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 89,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 102,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 97,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 1060,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 61,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 1083,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 1101,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 104,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 204,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 241,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 221,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 169,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 152,
+      "ok": false
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 143,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 204,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 890,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 899,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 497,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 447,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 440,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 2845,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 2845,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 2845,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 2845,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 2844,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 3340,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 3339,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 3341,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 3340,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 3340,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 1036,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 1036,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 1036,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 1037,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 1038,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 1105,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 1106,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 1103,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 1105,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 1103,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 1143,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 1145,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 1144,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 1145,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 1146,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10236,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10251,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10251,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10300,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10315,
+      "ok": false
+    }
+  ],
+  "providerCalls": null,
+  "databaseUsage": null,
+  "hostedColdStarts": null,
+  "fieldWebVitals": null,
+  "firstLimitingResource": "pending operator analysis"
+}
