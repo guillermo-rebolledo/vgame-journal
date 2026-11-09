@@ -27,7 +27,7 @@ async function expectNoHorizontalOverflow(page: Page) {
     .toBe(true);
 }
 
-test("Home guides new users, and search survives slow, stale and failed requests", async ({
+test("Home guides new users, and search survives slow, stale and failed requests @release-smoke", async ({
   page,
 }, testInfo) => {
   await page.goto("/");

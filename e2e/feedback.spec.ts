@@ -87,11 +87,11 @@ test("feedback stores real submissions, opens from the account menu, and limits 
   });
 });
 
-test("empty Journal invites confusion reports, preserves category drafts and restores focus", async ({
+test("empty Journal invites confusion reports, preserves category drafts and restores focus @release-smoke", async ({
   page,
   request,
 }) => {
-  await signUp(page, request, `friction${Date.now()}`);
+  await signUp(page, request, uniqueUsername("friction"));
   await page.goto("/");
   const invitation = page.getByRole("button", {
     name: "Something confusing or missing?",
@@ -145,12 +145,12 @@ test("public support is available before account setup and never includes return
   }
 });
 
-test("feedback retains server-rejected and offline drafts, retries, and rejects guests", async ({
+test("feedback retains server-rejected and offline drafts, retries, and rejects guests @release-smoke", async ({
   page,
   request,
   browser,
 }) => {
-  const username = `retry${Date.now()}`;
+  const username = uniqueUsername("retry");
   await signUp(page, request, username);
   await page.goto("/library?token=secret#private");
   await page

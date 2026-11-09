@@ -274,7 +274,7 @@ test("F06: Calendar feed copy acknowledges success and recovers from denied or u
   expect((await page.request.get(await feed.inputValue())).status()).toBe(200);
 });
 
-test("sign up, share a profile without notes, export the journal, and delete the account", async ({
+test("sign up, share a profile without notes, export the journal, and delete the account @release-smoke", async ({
   page,
   request,
   browser,
