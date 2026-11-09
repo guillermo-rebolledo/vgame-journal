@@ -37,3 +37,14 @@ Automated focus assertions and accessibility scans supplement these checks:
 - Reduced motion, touch without sticky hover, pending, error and retry states.
 
 No production account access, secret rotation or live destructive check was performed.
+
+## Local validation (2026-11-09)
+
+- Based on integration `4eefa97f9c182361ad2588a1b3497edad59175c5`; merged the newer integration work, preserving #133's database limiter, trusted-IP/E2E guard and migration 0016, plus #135's headers/redaction and privacy links.
+- `pnpm lint` and `pnpm typecheck`: passed after integration merge.
+- `pnpm test`: 45 files / 551 tests passed after integration merge, including nine proof/password/Google callback cases and all session/reset tests.
+- `pnpm test:e2e e2e/account-security.spec.ts e2e/journal.spec.ts e2e/auth.spec.ts e2e/accessibility.spec.ts --workers=2`: 32 passed after integration merge; the production-mode app build also passed.
+- `pnpm test:storybook`: initial run 194 passed. Later full runs reported 193 passed / one failure in the unchanged `Product/List creation drawer/Bottom Browser Toolbar` story: Base UI focus guards produced `aria-hidden-focus` during the accessibility scan. Focused reruns of that drawer and both changed form story files passed all 14 tests. This intermittent full-suite failure is retained as a limitation, not suppressed or fixed in an unrelated component.
+- `pnpm build-storybook`: passed after integration merge (upstream bundler/docgen warnings).
+- Automated reflow checks passed for Settings at 320, 390, 768 and 1440px with 200% root text size, both themes and reduced motion. The final confirmation state passed axe and keyboard focus assertions; 390px full-page screenshots in both themes were visually reviewed without clipped actions. Root text scaling is not a physical-browser zoom or software-keyboard check.
+- Still pending: real Google round trip, VoiceOver, physical-device/touch/software-keyboard checks and full manual keyboard/zoom review. No claim of production verification is made.
