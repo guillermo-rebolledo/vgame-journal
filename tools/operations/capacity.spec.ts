@@ -59,6 +59,9 @@ test("isolated Journal capacity measurements", async ({
   const samples: {
     operation: string;
     mode: string;
+    /** Concurrent client and round, so a read-back pairs with its own save. */
+    user: number;
+    round: number;
     ms: number;
     ok: boolean;
     failure?: string;
@@ -114,7 +117,7 @@ test("isolated Journal capacity measurements", async ({
         `Synthetic capacity: ${dataset} games, ${users} users, ${mode}`,
       );
       await Promise.all(
-        clients.map(async (context) => {
+        clients.map(async (context, user) => {
           const page = context.pages()[0];
           const cdp = await context.newCDPSession(page);
           if (mode === "slow-network")
@@ -217,6 +220,8 @@ test("isolated Journal capacity measurements", async ({
               samples.push({
                 operation,
                 mode,
+                user,
+                round,
                 ...(ok ? {} : { failure: boundedFailure(stage) }),
                 ms: Math.round(performance.now() - start),
                 ok,
@@ -232,6 +237,8 @@ test("isolated Journal capacity measurements", async ({
             samples.push({
               operation: "journal-status-ready",
               mode,
+              user,
+              round,
               ...(taps ? { taps } : { failure: boundedFailure("interactive") }),
               ms: Math.round(performance.now() - readyStart),
               ok: taps > 0,
@@ -256,6 +263,8 @@ test("isolated Journal capacity measurements", async ({
             samples.push({
               operation: "journal-save",
               mode,
+              user,
+              round,
               ...(saved ? {} : { failure: boundedFailure("status-control") }),
               ms: Math.round(performance.now() - saveStart),
               ok: saved,
@@ -284,6 +293,8 @@ test("isolated Journal capacity measurements", async ({
             samples.push({
               operation: "journal-export-verify",
               mode,
+              user,
+              round,
               ...(ok ? {} : { failure: boundedFailure(failure) }),
               ms: Math.round(performance.now() - verifyStart),
               ok,
