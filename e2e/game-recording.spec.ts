@@ -858,7 +858,7 @@ test.describe("F01: stale Journal removal on a touch screen", () => {
     reducedMotion: "reduce",
   });
 
-  test("a stale zero-Playthrough tab requires confirmation and acknowledgement covers all current Playthroughs", async ({
+  test("a stale zero-Playthrough tab rechecks confirmation after another Playthrough is added", async ({
     page,
     request,
   }) => {
@@ -911,6 +911,19 @@ test.describe("F01: stale Journal removal on a touch screen", () => {
       "all current Playthroughs and private notes",
     );
     await addInOtherTab("Another private note added after confirmation opened");
+    const changed = await (
+      await page.request.get("/api/account/export")
+    ).json();
+    await dialog
+      .getByRole("button", { name: "Remove permanently", exact: true })
+      .tap();
+    await expect(dialog).toContainText("2 Playthroughs");
+    await expect(
+      dialog.getByRole("button", { name: "Remove permanently", exact: true }),
+    ).toBeEnabled();
+    expect(
+      await (await page.request.get("/api/account/export")).json(),
+    ).toEqual(changed);
     await dialog
       .getByRole("button", { name: "Remove permanently", exact: true })
       .tap();

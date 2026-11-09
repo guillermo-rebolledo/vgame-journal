@@ -33,11 +33,12 @@ async function saveOrReturnError(
   try {
     feedbackInvitation = (await write()) === true;
   } catch (error) {
+    refresh();
     return {
       error:
         error instanceof JournalError
           ? error.message
-          : "Couldn’t save. Check your connection and try again. If the game was added to your journal, it remains there.",
+          : "Couldn’t confirm the save. Check your connection and try again.",
     };
   }
   refresh();
@@ -76,8 +77,16 @@ export async function Playthroughs({
         journal.set(owner, gameId, { status, completionTag }),
       );
     try {
-      const result = await journal.remove(owner, gameId, acknowledged);
-      if (result) return result;
+      const result = await journal.remove(
+        owner,
+        gameId,
+        acknowledged,
+        entry ? { ...entry, playthroughs } : undefined,
+      );
+      if (result) {
+        refresh();
+        return result;
+      }
       // A removed Rating stops counting toward the Community rating.
       updateTag(communityRatingTag(gameId));
     } catch {
@@ -114,6 +123,7 @@ export async function Playthroughs({
         fromForm(values),
         (values.status ?? "playing") as Status,
         values.submissionId ?? "",
+        values.membershipRequired === "true",
       ),
     );
   }
@@ -121,7 +131,7 @@ export async function Playthroughs({
     "use server";
     const owner = await ownerId();
     return saveOrReturnError(() =>
-      journal.updatePlaythrough(owner, id, fromForm(values)),
+      journal.updatePlaythrough(owner, id, fromForm(values), gameId),
     );
   }
   async function remove(id: number) {
