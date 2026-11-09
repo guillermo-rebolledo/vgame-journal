@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PUBLIC_CONTACT_EMAIL } from "@/config/site";
 
 export const metadata: Metadata = {
   title: "Privacy notice",
@@ -19,8 +20,8 @@ export default function PrivacyPage() {
         <p>
           shelve.games keeps your Journal and provides ways to share it. This
           notice explains the data used for those features and the limits of
-          export and deletion. Production retention periods and a dedicated
-          privacy contact are still awaiting confirmation by the service owner.
+          export and deletion. Production retention periods are still awaiting
+          confirmation by the service owner.
         </p>
       </header>
       <section aria-labelledby="stored-heading" className="space-y-3">
@@ -185,13 +186,17 @@ export default function PrivacyPage() {
           Privacy questions and requests
         </h2>
         <p>
-          If you can sign in, use Feedback in the account menu to submit a
-          minimal privacy question or request. Production inbox monitoring has
-          not yet been verified. A dedicated monitored contact for signed-out
-          players and confidential security reports has not yet been published.
-          Do not post personal information or security credentials in public
-          issues. We may need to verify account ownership before providing data
-          or acting on a request.
+          For privacy questions, data requests or confidential security reports,
+          email{" "}
+          <a
+            href={`mailto:${PUBLIC_CONTACT_EMAIL}`}
+            className="break-all underline underline-offset-4"
+          >
+            {PUBLIC_CONTACT_EMAIL}
+          </a>
+          . You do not need an account to contact us. Leave out passwords,
+          Calendar feed URLs and private notes. We may need to verify account
+          ownership before providing data or acting on a request.
         </p>
         <Link
           href="/settings"

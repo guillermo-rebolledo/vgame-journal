@@ -16,6 +16,9 @@ test("privacy notice is available before signup and from the footer", async ({
   );
   await expect(page.getByRole("main")).toContainText("Community rating");
   await expect(page.getByRole("main")).toContainText("mailbox");
+  await expect(
+    page.getByRole("link", { name: "memorebo.dev@gmail.com", exact: true }),
+  ).toHaveAttribute("href", "mailto:memorebo.dev@gmail.com");
   await page.goto("/");
   await page
     .getByRole("contentinfo")
