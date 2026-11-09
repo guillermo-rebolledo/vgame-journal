@@ -52,10 +52,10 @@ export async function saveHomeStatus(
       throw new JournalError(
         "This game could not be found. Search for it again.",
       );
-    const current = await journal.entry(owner, gameId);
-    // A status-only selection must preserve the completion tag on an unchanged Played entry.
-    if (current?.status !== status)
-      feedbackInvitation = await journal.set(owner, gameId, { status });
+    feedbackInvitation = await journal.set(owner, gameId, {
+      status,
+      preserveCompletionTag: true,
+    });
   } catch (error) {
     const snapshot = await readHomeJournal().catch(() => ({
       owner,
