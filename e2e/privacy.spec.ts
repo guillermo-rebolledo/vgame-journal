@@ -16,6 +16,12 @@ test("privacy notice is available before signup and from the footer", async ({
   );
   await expect(page.getByRole("main")).toContainText("Community rating");
   await expect(page.getByRole("main")).toContainText("mailbox");
+  await expect(page.getByRole("main")).toContainText(
+    "New accounts start Private. Existing accounts remain Public",
+  );
+  await expect(page.getByRole("main")).toContainText(
+    "Only you can open your Private profile",
+  );
   await expect(
     page.getByRole("link", { name: "memorebo.dev@gmail.com", exact: true }),
   ).toHaveAttribute("href", "mailto:memorebo.dev@gmail.com");

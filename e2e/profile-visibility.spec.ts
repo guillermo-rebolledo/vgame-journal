@@ -49,13 +49,18 @@ test("Private owner preview, publication and withdrawal protect documents, metad
 
     const guest = await visitor.newPage();
     const assertHidden = async () => {
+      // Warm the owner-only response before probing the same URL as outsiders.
+      const owner = await page.request.get(path);
+      expect(owner.status()).toBe(200);
+      expect(owner.headers()["cache-control"]).toContain("no-store");
+      expect(await owner.text()).toContain("Only you can see this.");
       for (const context of [visitor, other]) {
         for (const suffix of ["", "?view=stats", "/opengraph-image"]) {
           const response = await context.request.get(`${path}${suffix}`);
           expect(response.status()).toBe(404);
           expect(response.headers()["cache-control"]).toContain("no-store");
           expect(await response.text()).not.toMatch(
-            new RegExp(`${secret}|credential-|Visibility game`),
+            new RegExp(`${secret}|${email}|credential-|Visibility game`),
           );
         }
         const flight = await context.request.get(path, {
@@ -64,14 +69,33 @@ test("Private owner preview, publication and withdrawal protect documents, metad
         expect(flight.status()).toBe(404);
         expect(flight.headers()["cache-control"]).toContain("no-store");
         expect(await flight.text()).not.toMatch(
-          new RegExp(`${secret}|credential-|Visibility game`),
+          new RegExp(`${secret}|${email}|credential-|Visibility game`),
         );
+        expect(
+          (await context.request.get(`${path}/lists/${listId}`)).status(),
+        ).toBe(200);
+        for (const suffix of ["", "/opengraph-image"]) {
+          expect(
+            (
+              await context.request.get(
+                `${path}/lists/${privateListId}${suffix}`,
+              )
+            ).status(),
+          ).toBe(404);
+        }
       }
       expect((await guest.goto(path))?.status()).toBe(404);
       await expect(
         guest.getByRole("heading", { name: "404", exact: true }),
       ).toBeVisible();
-      await expect(guest).not.toHaveTitle(new RegExp(username));
+      await expect(guest).toHaveTitle("shelve.games");
+      await expect(guest.locator('meta[property="og:title"]')).toHaveAttribute(
+        "content",
+        "shelve.games",
+      );
+      await expect(
+        guest.locator(`meta[content*="/u/${username}"]`),
+      ).toHaveCount(0);
       const listResponse = await guest.goto(`${path}/lists/${listId}`);
       expect(listResponse?.status()).toBe(200);
       const listImage = await visitor.request.get(

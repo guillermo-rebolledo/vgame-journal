@@ -49,6 +49,12 @@ export default function PrivacyPage() {
           Public and private information
         </h2>
         <p>
+          New accounts start Private. Existing accounts remain Public so links
+          already shared keep working. Only you can open your Private profile;
+          other players and signed-out visitors receive a not-found page. You
+          can change Profile visibility in Settings.
+        </p>
+        <p>
           Public profiles can show your username, profile image, Library,
           Wishlist, Status, Completion tags, Ratings, Stats and Playthrough
           platforms, dates and hours. Public Lists expose their title,

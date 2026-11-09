@@ -59,7 +59,13 @@ export function createAuth(
             message: "Sign in before confirming deletion.",
           });
         await security.cancel(session.session.id);
-        ctx.body.additionalParams = { prompt: "login", max_age: "0" };
+        ctx.body.additionalParams = {
+          prompt: "login",
+          max_age: "0",
+          claims: JSON.stringify({
+            id_token: { auth_time: { essential: true } },
+          }),
+        };
         await addOAuthServerContext({
           deletionUserId: session.user.id,
           deletionStartedAt: Date.now(),

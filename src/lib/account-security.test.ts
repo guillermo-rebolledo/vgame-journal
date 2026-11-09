@@ -156,6 +156,9 @@ test.each([
   const url = new URL((await start.json()).url);
   expect(url.searchParams.get("prompt")).toBe("login");
   expect(url.searchParams.get("max_age")).toBe("0");
+  expect(JSON.parse(url.searchParams.get("claims") ?? "null")).toEqual({
+    id_token: { auth_time: { essential: true } },
+  });
   const { publicKey, privateKey } = generateKeyPairSync("rsa", {
     modulusLength: 2048,
   });

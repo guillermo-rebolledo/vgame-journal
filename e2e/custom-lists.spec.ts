@@ -516,6 +516,11 @@ test("lists preserve Journal history and account export/deletion stays complete 
       (await guest.request.get(`/u/${username}${publicPath}`)).status(),
     ).toBe(200);
     await page.goto("/settings");
+    await page.getByLabel("Current password").fill("password123");
+    await page
+      .getByRole("button", { name: "Confirm password", exact: true })
+      .click();
+    await expect(page.getByLabel("Type DELETE to confirm")).toBeFocused();
     await page.getByLabel("Type DELETE to confirm").fill("DELETE");
     await page
       .getByRole("button", { name: "Permanently delete account", exact: true })
