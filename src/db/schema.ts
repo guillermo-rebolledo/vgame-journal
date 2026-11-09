@@ -278,6 +278,20 @@ export const scheduledRefresh = pgTable("scheduled_refresh", {
   nextAttemptAt: timestamp("next_attempt_at").notNull(),
 });
 
+/** Latest durable daily task evidence; migration time starts the missing-baseline grace period. */
+export const refreshTask = pgTable("refresh_task", {
+  key: text("key").primaryKey(),
+  enabledAt: timestamp("enabled_at").defaultNow().notNull(),
+  attemptedAt: timestamp("attempted_at"),
+  startedAt: timestamp("started_at"),
+  finishedAt: timestamp("finished_at"),
+  outcome: text("outcome").$type<
+    "running" | "success" | "partial" | "failure"
+  >(),
+  lastSuccessAt: timestamp("last_success_at"),
+  lastSkippedAt: timestamp("last_skipped_at"),
+});
+
 export const feedback = pgTable(
   "feedback",
   {

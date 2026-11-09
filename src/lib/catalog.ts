@@ -20,6 +20,7 @@ import {
 } from "@/lib/game-source";
 import { GAME_TAGS, type Tag, type TagShelf } from "@/lib/game-tags";
 import { igdbGameSource } from "@/lib/igdb";
+import { createRefreshState } from "@/lib/refresh-state";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_SEARCH_CANDIDATES = 50;
@@ -41,6 +42,7 @@ export type SearchResult = {
 
 /** Tests pass their own database and a fake GameSource. */
 export function createCatalog(db: Db, source: GameSource) {
+  const refreshState = createRefreshState(db);
   /** Replaces the stored release dates of each game in the map. */
   async function replaceReleaseDates(byGame: Map<number, SourceReleaseDate[]>) {
     const ids = [...byGame.keys()];
@@ -299,6 +301,50 @@ export function createCatalog(db: Db, source: GameSource) {
 
   return {
     tagGames,
+    refreshHealth: refreshState.health,
+    async runScheduledRefresh() {
+      if (!(await this.claimScheduledRefresh())) {
+        await refreshState.skipped();
+        return { skipped: true, outcome: "skipped" as const };
+      }
+      return refreshState.run(
+        "daily",
+        async () => {
+          // Both jobs replace release dates; settle Wishlist writes before Discovery starts.
+          const [wishlist] = await Promise.allSettled([
+            this.refreshReleaseDates(),
+          ]);
+          const [discovery] = await Promise.allSettled([
+            this.refreshDiscovery(),
+          ]);
+          const checked =
+            wishlist.status === "fulfilled"
+              ? wishlist.value
+              : ("failed" as const);
+          const selections =
+            discovery.status === "fulfilled"
+              ? discovery.value
+              : ("failed" as const);
+          const tasks = [
+            checked,
+            ...(selections === "failed"
+              ? ["failed", "failed"]
+              : [selections.recent, selections.popular]),
+          ];
+          const failed = tasks.filter(
+            (result) => typeof result !== "number",
+          ).length;
+          const outcome =
+            failed === 0
+              ? ("success" as const)
+              : failed === tasks.length
+                ? ("failure" as const)
+                : ("partial" as const);
+          return { checked, discovery: selections, outcome };
+        },
+        (result) => result.outcome,
+      );
+    },
     /** Shelves stay transient; only visiting a recommended game adds it to Catalog. */
     async tagShelves(
       gameId: number,
@@ -380,12 +426,12 @@ export function createCatalog(db: Db, source: GameSource) {
           const deadline = signal
             ? AbortSignal.any([signal, AbortSignal.timeout(45000)])
             : AbortSignal.timeout(45000);
-          results[key] =
+          results[key] = await refreshState.run(key, () =>
             key === "recent"
-              ? await refreshRecent(deadline)
-              : await refreshShelf(key, deadline, getPage);
+              ? refreshRecent(deadline)
+              : refreshShelf(key, deadline, getPage),
+          );
         } catch {
-          console.error(`Discovery refresh failed: ${key}`);
           results[key] = "failed";
         }
       }
@@ -447,36 +493,40 @@ export function createCatalog(db: Db, source: GameSource) {
      * keeps the ones it has (more likely a hiccup than a game losing every date). Returns how many games were checked.
      */
     async refreshReleaseDates() {
-      const now = new Date();
-      const due = await db
-        .selectDistinct({ id: journalEntry.gameId })
-        .from(journalEntry)
-        .where(
-          and(
-            eq(journalEntry.status, "wishlist"),
-            sql`(
+      return refreshState.run("wishlist", async () => {
+        const now = new Date();
+        const due = await db
+          .selectDistinct({ id: journalEntry.gameId })
+          .from(journalEntry)
+          .where(
+            and(
+              eq(journalEntry.status, "wishlist"),
+              sql`(
               exists (
                 select 1 from ${releaseDate} where ${releaseDate.gameId} = ${journalEntry.gameId}
                 and (${releaseDate.precision} <> 'day' or ${releaseDate.date} > ${now.toISOString()})
               )
               or not exists (select 1 from ${releaseDate} where ${releaseDate.gameId} = ${journalEntry.gameId})
             )`,
-          ),
-        );
-      const ids = due.map((g) => g.id);
-      for (let i = 0; i < ids.length; i += REFRESH_BATCH) {
-        const fetched = await source.fetchReleaseDates(
-          ids.slice(i, i + REFRESH_BATCH),
-        );
-        const dated = new Map([...fetched].filter(([, dates]) => dates.length));
-        await replaceReleaseDates(dated);
-        if (dated.size)
-          await db
-            .update(game)
-            .set({ syncedAt: new Date() })
-            .where(inArray(game.id, [...dated.keys()]));
-      }
-      return ids.length;
+            ),
+          );
+        const ids = due.map((g) => g.id);
+        for (let i = 0; i < ids.length; i += REFRESH_BATCH) {
+          const fetched = await source.fetchReleaseDates(
+            ids.slice(i, i + REFRESH_BATCH),
+          );
+          const dated = new Map(
+            [...fetched].filter(([, dates]) => dates.length),
+          );
+          await replaceReleaseDates(dated);
+          if (dated.size)
+            await db
+              .update(game)
+              .set({ syncedAt: new Date() })
+              .where(inArray(game.id, [...dated.keys()]));
+        }
+        return ids.length;
+      });
     },
     /** Local-first: a query searched in the last 24h is answered from the Catalog, otherwise the GameSource. */
     async search(rawQuery: string) {
