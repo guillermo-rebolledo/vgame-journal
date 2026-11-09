@@ -1,4 +1,99 @@
-# Integrated security acceptance (#130 / PR #138)
+# Integrated security acceptance (#130 / #137)
+
+## Current acceptance scope (2026-11-09)
+
+Issue #137's five implementation dependencies (#132–#136) are closed and merged
+through [PR #138](https://github.com/guillermo-rebolledo/vgame-journal/pull/138).
+The [latest acceptance handoff](https://github.com/guillermo-rebolledo/vgame-journal/issues/137#issuecomment-6749459242)
+keeps #137 and #130 open for human/operator evidence. This follow-up verifies
+the integrated application at base `ef88dce36e87ffe3f2a8c84cc61ae295896a6e9a`
+plus the test/documentation changes in this PR. It does not replace that handoff
+or close #120's other slices.
+
+The parent-approved seams are existing production-build Playwright journeys and
+their HTTP responses, with migration-backed security modules for properties
+that cannot be established through the browser. No parallel test suite or new
+application behavior is needed. The reset journey now additionally checks two
+independent session cookie jars (the browser and Playwright request fixture):
+both can export before reset and both receive 401 on their next export request
+after reset, while the reset response is still held from the UI. This verifies
+server revocation independently of browser cookie clearing or the success page.
+
+| Acceptance boundary | Existing evidence exercised |
+| --- | --- |
+| Owner, other account and guest; Private/Public/Private; metadata, OG and Flight exclusion; independent Public Lists | `e2e/profile-visibility.spec.ts`, `e2e/custom-lists-public.spec.ts`; owner and public-field module tests |
+| Password and Google-only verified-email deletion; failure, expiry, cancellation, focus and typed DELETE | `e2e/account-security.spec.ts`, `e2e/journal.spec.ts`; `src/lib/account-security.test.ts` for proof replay, account/session mismatch, concurrency and rollback |
+| Sign out all devices; password reset revokes all sessions on the next protected request | `e2e/account-security.spec.ts`, extended `e2e/auth.spec.ts`; real Better Auth APIs in `src/lib/auth.test.ts` |
+| Journal export, account deletion, other-account preservation and List/Calendar cascades | `e2e/journal.spec.ts`, `e2e/custom-lists.spec.ts`; `src/lib/journal.test.ts` |
+| Calendar regeneration invalidates the old URL | `e2e/privacy.spec.ts` |
+| Analytics credential/path/query exclusion and safe error boundaries | `src/components/analytics.test.tsx`, auth/email/feedback logging module tests |
+| Shared throttle persistence, independent instances, concurrency, expiry/retry and hosted E2E bypass rejection | `src/lib/auth-rate-limit.test.ts`; browser auth error/retry journey |
+| Browser protections and accessibility | `e2e/security-headers.spec.ts`, `e2e/accessibility.spec.ts`, account/privacy/visibility reflow journeys and existing Storybook interactions |
+
+### Local execution evidence
+
+Actor: Codex; date: 2026-11-09 UTC; environment: local macOS, isolated PGlite
+and synthetic mailbox; deployment: none. Dependencies installed with
+`pnpm install --frozen-lockfile`. Initial check commands could not launch because
+this fresh worktree had no `node_modules`; the installed runs below supersede them.
+
+| Command | Result |
+| --- | --- |
+| `pnpm lint` | Passed; 386 files |
+| `pnpm typecheck` | Passed, including the extended reset journey |
+| `pnpm test --maxWorkers=2 --testTimeout=30000` | Passed; 57 files / 664 tests (222.29s); existing Node timer-overflow/deprecation and jsdom navigation warnings |
+| `pnpm test:storybook --maxWorkers=2` | Passed; 47 files / 233 tests |
+| `pnpm build-storybook` | Passed; upstream module-directive/docgen warnings |
+| Production-build Chromium command below | 65 passed in 3.3 minutes |
+| `E2E_PORT=3690 E2E_SUPPORT_PORT=3691 pnpm test:e2e e2e/auth.spec.ts --grep 'replacement reset' --project=chromium --workers=1` | Extended reset journey passed against a fresh production build (20.0s including build) |
+
+```sh
+E2E_PORT=3690 E2E_SUPPORT_PORT=3691 pnpm test:e2e e2e/profile-visibility.spec.ts e2e/account-security.spec.ts e2e/journal.spec.ts e2e/journal-atomicity.spec.ts e2e/auth.spec.ts e2e/privacy.spec.ts e2e/security-headers.spec.ts e2e/accessibility.spec.ts e2e/custom-lists.spec.ts e2e/custom-lists-public.spec.ts e2e/feedback.spec.ts --project=chromium --workers=2
+```
+
+The 65-journey run used the prior reset assertions; the focused run verifies the
+extended journey. Production app, dependencies and schema are unchanged by this
+follow-up. Browser builds use the existing isolated harness with empty remote
+DB/Google/Twitch credentials and synthetic local mail routing; no Neon database
+is used. Ordinary E2E throttling is intentionally bypassed, with enabled shared
+throttling checked separately at the auth module seam.
+
+Design checks performed: inspected the 390px email-code Settings screenshots in
+Light and Dark for wrapping, readable content, visible focus and unclipped
+actions. Existing journeys automate keyboard submission/focus restoration,
+320/390/768/1440px reflow, enlarged root text, reduced motion and both-theme axe
+scans. No UI component or motion changed, so no component/story extension is
+needed. Manual screen-reader announcements, exhaustive Tab traversal, physical
+touch/sticky hover, software keyboard, true browser zoom and text-enlargement
+walkthrough remain unavailable; automated equivalents do not establish them.
+Firefox/WebKit journeys were not rerun in this follow-up.
+
+### Human/operator acceptance remains pending
+
+No live provider, production record, credential, mail send, rotation or restore
+was used in this follow-up. Controlled deployed Google sign-in and real
+verified-email delivery are **pending**. The owner-approved email code replaces
+forced Google reauthentication; synthetic Google-only fixtures prove only the
+application flow. A locally passing build is not deployed acceptance.
+
+Use the existing ledgers rather than treating local evidence as an operator pass:
+
+- [Account security](account-security-verification.md): controlled email delivery,
+  sender authentication, ordinary Google sign-in and deployed deletion checks.
+- [Browser/log verification](security-browser-verification.md) and
+  [shared throttling](auth-rate-limiting.md): actual HTTPS/cookies/origins/proxy,
+  cross-origin rejection, deployed limits, report-only CSP, telemetry and logs.
+- [Security operations](security-operations.md): named access/MFA/least-privilege
+  owners, environment separation, dependency alerts, retention, isolated restore,
+  and monitored privacy/security contact and incident response.
+- [Release evidence](releases/evidence-2026-11-09.md) (#141) and
+  [operations evidence](operations/evidence-2026-11-09.md) (#145): coordinated
+  device and hosted exercises; their pending rows remain pending here.
+
+Each operator result needs a named person, deployment SHA, UTC date, observed
+pass/fail and sanitized evidence pointer. No operator sign-off is claimed.
+
+## Historical PR #138 evidence
 
 Updated 2026-11-09 for the final review corrections and the [owner-approved
 Google-only deletion replacement](https://github.com/guillermo-rebolledo/vgame-journal/issues/130#issuecomment-6748746649).

@@ -473,7 +473,7 @@ async function requestResetLink(
 }
 
 // F11 / F15 / F17: real captured email, service expiry and replacement login.
-test("expired resets preserve the old password and a replacement reset acknowledges success before login", async ({
+test("expired resets preserve the old password and a replacement reset revokes every session before login", async ({
   page,
   request,
 }) => {
@@ -534,6 +534,18 @@ test("expired resets preserve the old password and a replacement reset acknowled
     await expect(password).toHaveValue("");
     expect((await signIn("password123")).ok()).toBe(true);
   }
+  // The browser and request fixture have independent cookie jars and server sessions.
+  expect(
+    (
+      await page.request.post("/api/auth/sign-in/email", {
+        data: { email, password: "password123" },
+        headers: { origin: new URL(page.url()).origin },
+      })
+    ).ok(),
+  ).toBe(true);
+  for (const device of [page.request, request]) {
+    expect((await device.get("/api/account/export")).status()).toBe(200);
+  }
   let release!: () => void;
   const held = new Promise<void>((resolve) => {
     release = resolve;
@@ -554,6 +566,9 @@ test("expired resets preserve the old password and a replacement reset acknowled
     .click();
   try {
     await responseReceived;
+    for (const device of [page.request, request]) {
+      expect((await device.get("/api/account/export")).status()).toBe(401);
+    }
     await expect(
       page.getByRole("button", { name: "Reset password", exact: true }),
     ).toBeDisabled();
