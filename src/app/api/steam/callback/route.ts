@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const origin = process.env.BETTER_AUTH_URL ?? "";
   try {
     const session = await currentSession();
-    if (!session || !steamImportEnabled())
+    if (!session || !(await steamImportEnabled()))
       throw new Error("Steam connection unavailable");
     const steamId = await createSteamOpenId(db, origin).verify(
       { userId: session.user.id, sessionId: session.session.id },

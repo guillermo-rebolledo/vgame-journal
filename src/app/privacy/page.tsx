@@ -187,7 +187,9 @@ export default function PrivacyPage() {
           Resend for verification, recovery, account deletion confirmation and
           optional feedback emails. Google is the optional sign-in provider and
           processes that sign-in when you choose it. Better Auth runs account
-          authentication within the app.
+          authentication within the app. Vercel Flags uses your account
+          identifier to evaluate access to features under rollout; we provide no
+          email, SteamID or Journal contents as flag-targeting attributes.
         </p>
         <p>
           IGDB supplies Catalog data through its Twitch-authenticated API, and
