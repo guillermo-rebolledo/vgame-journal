@@ -21,6 +21,13 @@ export function SignOutAllForm({
           {state.error}
         </p>
       )}
+      <output
+        aria-live="polite"
+        aria-atomic="true"
+        className="text-muted-foreground text-sm"
+      >
+        {pending ? "Signing out all devices…" : ""}
+      </output>
       <Button
         type="submit"
         variant="outline"

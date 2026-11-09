@@ -4,36 +4,40 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DELETION_CALLBACK } from "@/lib/account-security-constants";
-import { authClient } from "@/lib/auth-client";
 
 export function DeleteAccountForm({
   onDelete,
   onVerify,
   onCancel,
+  onSendCode,
   verified,
   hasPassword,
   hasGoogle,
-  notice,
 }: {
   onDelete: (form: FormData) => Promise<{ error: string }>;
   onVerify: (form: FormData) => Promise<{ error?: string; verified?: true }>;
   onCancel: () => Promise<object>;
-  notice?: string;
+  onSendCode: () => Promise<{ sent?: true; error?: string }>;
   verified: boolean;
   hasPassword: boolean;
   hasGoogle: boolean;
 }) {
   const confirmationInput = useRef<HTMLInputElement>(null);
   const passwordInput = useRef<HTMLInputElement>(null);
+  const sendButton = useRef<HTMLButtonElement>(null);
   const wasVerified = useRef(verified);
   useEffect(() => {
     if (verified !== wasVerified.current) {
-      (verified ? confirmationInput : passwordInput).current?.focus();
+      (verified
+        ? confirmationInput
+        : hasPassword
+          ? passwordInput
+          : sendButton
+      ).current?.focus();
       setConfirmation("");
       wasVerified.current = verified;
     }
-  }, [verified]);
+  }, [verified, hasPassword]);
   const [confirmation, setConfirmation] = useState("");
   const [deletionError, setDeletionError] = useState("");
   const [verifyState, verifyAction, verifying] = useActionState(
@@ -43,8 +47,17 @@ export function DeleteAccountForm({
     },
     undefined,
   );
-  const [googleError, setGoogleError] = useState("");
-  const [googlePending, setGooglePending] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [sent, setSent] = useState(false);
+  const codeInput = useRef<HTMLInputElement>(null);
+  const [sendState, sendAction, sending] = useActionState(async () => {
+    const result = await onSendCode();
+    if (result.sent) setSent(true);
+    return result;
+  }, undefined);
+  useEffect(() => {
+    if (sent) codeInput.current?.focus();
+  }, [sent]);
   const [cancelling, setCancelling] = useState(false);
   const [, action, pending] = useActionState(
     async (_: unknown, form: FormData) => {
@@ -65,14 +78,9 @@ export function DeleteAccountForm({
           first if you want to keep a copy.
         </p>
       </div>
-      {notice && (
+      {verified && actionError && (
         <p role="alert" className="text-destructive text-sm">
-          {notice}
-        </p>
-      )}
-      {verified && googleError && (
-        <p role="alert" className="text-destructive text-sm">
-          {googleError}
+          {actionError}
         </p>
       )}
       {deletionError && (
@@ -80,6 +88,25 @@ export function DeleteAccountForm({
           {deletionError}
         </p>
       )}
+      <output
+        aria-live="polite"
+        aria-atomic="true"
+        className="text-muted-foreground text-sm"
+      >
+        {pending
+          ? "Deleting account…"
+          : cancelling
+            ? "Cancelling deletion…"
+            : verifying
+              ? "Confirming identity…"
+              : sending
+                ? "Sending confirmation code…"
+                : verified
+                  ? "Identity confirmed."
+                  : sent
+                    ? "Confirmation code sent. Check your email."
+                    : ""}
+      </output>
       {!verified ? (
         <>
           <p className="text-muted-foreground text-sm">
@@ -128,44 +155,103 @@ export function DeleteAccountForm({
               </a>
             </form>
           )}
-          {hasGoogle && (
-            <Button
-              type="button"
-              variant="outline"
-              className="self-start"
-              loading={googlePending}
-              onClick={async () => {
-                setGooglePending(true);
-                setGoogleError("");
-                try {
-                  const result = await authClient.signIn.social({
-                    provider: "google",
-                    callbackURL: DELETION_CALLBACK,
-                    errorCallbackURL: "/settings?deletion=failed",
-                  });
-                  if (result.error) throw new Error();
-                } catch {
-                  setGoogleError(
-                    "Could not confirm with Google. Your account has not been deleted. Try again.",
-                  );
-                  setGooglePending(false);
-                }
-              }}
-            >
-              Confirm with Google
-            </Button>
+          {!hasPassword && hasGoogle && (
+            <>
+              <p className="text-muted-foreground text-sm">
+                Send a one-use code to your verified account email. Enter it
+                here to confirm your identity.
+              </p>
+              <form action={sendAction}>
+                <Button
+                  ref={sendButton}
+                  type="submit"
+                  variant="outline"
+                  loading={sending}
+                  disabled={verifying}
+                >
+                  Send confirmation code
+                </Button>
+              </form>
+              {sendState?.error && (
+                <p role="alert" className="text-destructive text-sm">
+                  {sendState.error}
+                </p>
+              )}
+              {sent && (
+                <form action={verifyAction} className="flex flex-col gap-3">
+                  <Label htmlFor="deletion-code">Email confirmation code</Label>
+                  <Input
+                    ref={codeInput}
+                    id="deletion-code"
+                    name="code"
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    pattern="[0-9]{8}"
+                    maxLength={8}
+                    required
+                    aria-invalid={Boolean(verifyState?.error)}
+                    aria-describedby={
+                      verifyState?.error
+                        ? "deletion-code-error"
+                        : "delete-account-hint"
+                    }
+                  />
+                  {verifyState?.error && (
+                    <p
+                      id="deletion-code-error"
+                      role="alert"
+                      className="text-destructive text-sm"
+                    >
+                      {verifyState.error}
+                    </p>
+                  )}
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    className="self-start"
+                    loading={verifying}
+                    disabled={sending}
+                  >
+                    Confirm email code
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="self-start"
+                    loading={cancelling}
+                    disabled={verifying || sending}
+                    onClick={async () => {
+                      setCancelling(true);
+                      try {
+                        await onCancel();
+                        setSent(false);
+                        sendButton.current?.focus();
+                      } catch {
+                        setActionError(
+                          "Could not cancel deletion. Please try again.",
+                        );
+                      } finally {
+                        setCancelling(false);
+                      }
+                    }}
+                  >
+                    Cancel deletion
+                  </Button>
+                </form>
+              )}
+            </>
           )}
-          {googleError && (
+          {actionError && (
             <p role="alert" className="text-destructive text-sm">
-              {googleError}
+              {actionError}
             </p>
           )}
         </>
       ) : (
         <form action={action} className="flex flex-col gap-3">
-          <output className="text-sm">
-            Identity confirmed. Type DELETE within five minutes to continue.
-          </output>
+          <p className="text-sm">
+            Identity confirmed. Type DELETE before your confirmation expires.
+          </p>
           <Label htmlFor="delete-confirmation">Type DELETE to confirm</Label>
           <Input
             ref={confirmationInput}
@@ -185,7 +271,7 @@ export function DeleteAccountForm({
             loading={pending}
             disabled={pending || cancelling || confirmation !== "DELETE"}
           >
-            {pending ? "Deleting account…" : "Permanently delete account"}
+            Permanently delete account
           </Button>
           <Button
             type="button"
@@ -199,8 +285,9 @@ export function DeleteAccountForm({
               setConfirmation("");
               try {
                 await onCancel();
+                setSent(false);
               } catch {
-                setGoogleError("Could not cancel deletion. Please try again.");
+                setActionError("Could not cancel deletion. Please try again.");
               } finally {
                 setCancelling(false);
               }

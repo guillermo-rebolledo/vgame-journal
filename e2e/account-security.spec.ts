@@ -137,3 +137,145 @@ for (const theme of ["light", "dark"] as const) {
     });
   });
 }
+
+async function googleOnly(
+  page: import("@playwright/test").Page,
+  request: import("@playwright/test").APIRequestContext,
+) {
+  const email = await signUp(page, request, uniqueUsername("google_email"));
+  const response = await request.post(supportUrl("/query"), {
+    data: {
+      sql: "update account set provider_id = 'google', password = null where user_id = (select id from \"user\" where email = $1)",
+      params: [email],
+    },
+  });
+  expect(response.ok()).toBe(true);
+  await page.goto("/settings");
+  await expect(page.getByLabel("Current password")).toHaveCount(0);
+  return email;
+}
+
+async function deletionCode(
+  page: import("@playwright/test").Page,
+  request: import("@playwright/test").APIRequestContext,
+  email: string,
+) {
+  await page.getByRole("button", { name: "Send confirmation code" }).click();
+  await expect(page.getByLabel("Email confirmation code")).toBeVisible();
+  const mailbox = await (await request.get(supportUrl("/mailbox"))).json();
+  const mail = mailbox.findLast(
+    (mail: { to: string; subject: string }) =>
+      mail.to === email && mail.subject.includes("deletion"),
+  );
+  expect(mail.text).not.toMatch(/https?:/);
+  const code = mail.text.match(/\b\d{8}\b/)?.[0];
+  expect(code).toHaveLength(8);
+  expect((await page.request.get("/api/account/export")).ok()).toBe(true);
+  return code as string;
+}
+
+test("Google-only account uses the local email API and keyboard confirmation before deletion", async ({
+  page,
+  request,
+}, testInfo) => {
+  const email = await googleOnly(page, request);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const code = await deletionCode(page, request, email);
+  await expect(page.getByLabel("Email confirmation code")).toBeFocused();
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((value) => {
+      document.documentElement.classList.toggle("dark", value === "dark");
+    }, theme);
+    for (const width of [320, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "200%";
+      });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+    }
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "100%";
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({
+      path: testInfo.outputPath(`email-confirmation-${theme}.png`),
+      fullPage: true,
+    });
+  }
+  await page.getByLabel("Email confirmation code").fill(code);
+  await page.getByRole("button", { name: "Confirm email code" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("Type DELETE to confirm")).toBeFocused();
+  expect((await page.request.get("/api/account/export")).ok()).toBe(true);
+  await page.getByLabel("Type DELETE to confirm").fill("DELETE");
+  await page
+    .getByRole("button", { name: "Permanently delete account" })
+    .focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL("/");
+  expect((await page.request.get("/api/account/export")).status()).toBe(401);
+});
+
+test("Google-only email cancellation, wrong codes and expiry preserve the account", async ({
+  page,
+  request,
+}) => {
+  const email = await googleOnly(page, request);
+  const cancelled = await deletionCode(page, request, email);
+  await page.getByRole("button", { name: "Cancel deletion" }).click();
+  await expect(
+    page.getByRole("button", { name: "Send confirmation code" }),
+  ).toBeFocused();
+  await deletionCode(page, request, email);
+  await page.getByLabel("Email confirmation code").fill(cancelled);
+  await page.getByRole("button", { name: "Confirm email code" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Could not confirm the code",
+  );
+  await expect(page.getByLabel("Type DELETE to confirm")).toHaveCount(0);
+  const response = await request.post(supportUrl("/query"), {
+    data: {
+      sql: "update verification set expires_at = '2000-01-01' where identifier like 'account-deletion-code:%' and value::jsonb->>'userId' = (select id from \"user\" where email = $1)",
+      params: [email],
+    },
+  });
+  expect(response.ok()).toBe(true);
+  const mailbox = await (await request.get(supportUrl("/mailbox"))).json();
+  const code = mailbox
+    .findLast(
+      (mail: { to: string; subject: string }) =>
+        mail.to === email && mail.subject.includes("deletion"),
+    )
+    .text.match(/\b\d{8}\b/)[0];
+  await page.getByLabel("Email confirmation code").fill(code);
+  await page.getByRole("button", { name: "Confirm email code" }).click();
+  await expect(page.getByLabel("Type DELETE to confirm")).toHaveCount(0);
+  expect((await page.request.get("/api/account/export")).ok()).toBe(true);
+});
+
+test("Google-only failed email delivery permits a safe retry without identity confirmation", async ({
+  page,
+  request,
+}) => {
+  const email = await googleOnly(page, request);
+  await request.post(supportUrl("/mail-failure"), {
+    data: { email, fail: true },
+  });
+  await page.getByRole("button", { name: "Send confirmation code" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Could not send confirmation",
+  );
+  await expect(page.getByLabel("Type DELETE to confirm")).toHaveCount(0);
+  await request.post(supportUrl("/mail-failure"), {
+    data: { email, fail: false },
+  });
+  const code = await deletionCode(page, request, email);
+  await page.getByLabel("Email confirmation code").fill(code);
+  await page.getByRole("button", { name: "Confirm email code" }).click();
+  await expect(page.getByLabel("Type DELETE to confirm")).toBeVisible();
+  expect((await page.request.get("/api/account/export")).ok()).toBe(true);
+});

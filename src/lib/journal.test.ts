@@ -169,6 +169,13 @@ test("account deletion requires typed confirmation and cascades only the owner's
     );
   expect((await journal.exportData("mario")).playthroughs).toHaveLength(1);
 
+  await db.insert(session).values({
+    id: "deletion-session",
+    userId: "mario",
+    token: "deletion-token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
   await createAccountSecurity(db).issue("mario", "deletion-session");
   await journal.deleteAccount("mario", "DELETE", "deletion-session");
 
@@ -1152,6 +1159,13 @@ test("account export includes only the owner's public and private lists in saved
     /luigi|submissionId|feedToken/,
   );
   const survivor = await journal.exportData("luigi");
+  await db.insert(session).values({
+    id: "deletion-session",
+    userId: "mario",
+    token: "deletion-token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
   await createAccountSecurity(db).issue("mario", "deletion-session");
   await journal.deleteAccount("mario", "DELETE", "deletion-session");
   expect(await lists.ownerCollection("mario")).toEqual([]);
@@ -1391,6 +1405,13 @@ test("deleting an account removes its Ratings from the Community rating", async 
   await journal.setRating("mario", 1, 4);
   expect(await journal.communityRating(1)).toMatchObject({ count: 5 });
 
+  await db.insert(session).values({
+    id: "deletion-session",
+    userId: "mario",
+    token: "deletion-token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
   await createAccountSecurity(db).issue("mario", "deletion-session");
   await journal.deleteAccount("mario", "DELETE", "deletion-session");
   expect(await journal.communityRating(1)).toMatchObject({

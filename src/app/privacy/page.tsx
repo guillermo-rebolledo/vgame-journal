@@ -141,9 +141,10 @@ export default function PrivacyPage() {
         <p>
           The repository configures Vercel for hosting, Analytics and Speed
           Insights; Neon Postgres for stored account and Journal data; and
-          Resend for verification, recovery and optional feedback emails. Google
-          is the optional sign-in provider and processes that sign-in when you
-          choose it. Better Auth runs account authentication within the app.
+          Resend for verification, recovery, account deletion confirmation and
+          optional feedback emails. Google is the optional sign-in provider and
+          processes that sign-in when you choose it. Better Auth runs account
+          authentication within the app.
         </p>
         <p>
           IGDB supplies Catalog data through its Twitch-authenticated API, and

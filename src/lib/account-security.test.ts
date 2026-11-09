@@ -63,6 +63,14 @@ test("expired, cancelled and concurrent deletion attempts cannot spend the same 
   await db
     .insert(user)
     .values({ id: "owner", name: "Owner", email: "owner@example.com" });
+  const { session } = await import("@/db/schema");
+  await db.insert(session).values({
+    id: "session",
+    userId: "owner",
+    token: "token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
   const security = createAccountSecurity(db);
   const journal = createJournal(db);
   await security.issue("owner", "session", Date.now() - 300_001);
@@ -87,179 +95,6 @@ test("expired, cancelled and concurrent deletion attempts cannot spend the same 
   ).toHaveLength(1);
 });
 
-test.each([
-  "fresh",
-  "missing",
-  "stale",
-  "mismatch",
-  "forged",
-  "cancelled",
-])("Google deletion callback enforces %s provider authentication evidence (mock provider)", async (scenario) => {
-  const { generateKeyPairSync, sign } = await import("node:crypto");
-  const { vi } = await import("vitest");
-  vi.stubEnv("E2E_TEST", "1");
-  vi.stubEnv("GOOGLE_CLIENT_ID", "test-google-client");
-  vi.stubEnv("GOOGLE_CLIENT_SECRET", "test-google-secret");
-  const db = await createTestDb();
-  const inbox: Email[] = [];
-  const auth = createAuth(db, async (email) => {
-    inbox.push(email);
-  });
-  const { account } = await import("@/db/schema");
-  await auth.api.signUpEmail({
-    body: {
-      name: "Player",
-      email: "google-owner@example.com",
-      password: "password123",
-    },
-  });
-  const token =
-    new URL(inbox[0].text.match(/https?:\S+/)?.[0] ?? "").searchParams.get(
-      "token",
-    ) ?? "";
-  const verified = await auth.api.verifyEmail({
-    query: { token },
-    asResponse: true,
-  });
-  const cookie = verified.headers
-    .getSetCookie()
-    .map((value) => value.split(";", 1)[0])
-    .join("; ");
-  const original = await auth.api.getSession({
-    headers: new Headers({ cookie }),
-  });
-  if (!original) throw new Error("Expected session");
-  await db.insert(account).values({
-    id: "google-link",
-    userId: original.user.id,
-    accountId: "google-owner",
-    providerId: "google",
-  });
-  const start = await auth.handler(
-    new Request("http://localhost:3000/api/auth/sign-in/social", {
-      method: "POST",
-      headers: {
-        cookie,
-        origin: "http://localhost:3000",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        provider: "google",
-        callbackURL: "/settings?deletion=verified",
-        errorCallbackURL: "/settings?deletion=failed",
-        additionalParams: { prompt: "none" },
-        additionalData: { deletionUserId: "forged" },
-      }),
-    }),
-  );
-  expect(start.status).toBe(200);
-  const url = new URL((await start.json()).url);
-  expect(url.searchParams.get("prompt")).toBe("login");
-  expect(url.searchParams.get("max_age")).toBe("0");
-  expect(JSON.parse(url.searchParams.get("claims") ?? "null")).toEqual({
-    id_token: { auth_time: { essential: true } },
-  });
-  const { publicKey, privateKey } = generateKeyPairSync("rsa", {
-    modulusLength: 2048,
-  });
-  const jwk = {
-    ...publicKey.export({ format: "jwk" }),
-    kid: "test-key",
-    alg: "RS256",
-    use: "sig",
-  };
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: "https://accounts.google.com",
-    aud: "test-google-client",
-    sub: scenario === "mismatch" ? "other-google" : "google-owner",
-    email:
-      scenario === "mismatch"
-        ? "other-google@example.com"
-        : "google-owner@example.com",
-    email_verified: true,
-    name: "Player",
-    iat: now,
-    exp: now + 3600,
-    nonce: url.searchParams.get("nonce"),
-    ...(scenario === "missing"
-      ? {}
-      : { auth_time: scenario === "stale" ? now - 600 : now }),
-  };
-  const encoded = `${Buffer.from(JSON.stringify({ alg: "RS256", kid: "test-key" })).toString("base64url")}.${Buffer.from(JSON.stringify(payload)).toString("base64url")}`;
-  const jwt = `${encoded}.${sign("RSA-SHA256", Buffer.from(encoded), privateKey).toString("base64url")}`;
-  const realFetch = globalThis.fetch;
-  vi.stubGlobal(
-    "fetch",
-    async (input: RequestInfo | URL, init?: RequestInit) => {
-      const target = input instanceof Request ? input.url : String(input);
-      if (target === "https://oauth2.googleapis.com/token")
-        return Response.json({
-          access_token: "mock-access",
-          token_type: "Bearer",
-          expires_in: 3600,
-          id_token:
-            scenario === "forged" ? `${jwt.slice(0, -10)}aaaaaaaaaa` : jwt,
-        });
-      if (target.startsWith("https://www.googleapis.com/oauth2/v3/certs"))
-        return Response.json({ keys: [jwk] });
-      return realFetch(input, init);
-    },
-  );
-  try {
-    const callback = await auth.handler(
-      new Request(
-        `http://localhost:3000/api/auth/callback/google?${new URLSearchParams({ state: url.searchParams.get("state") ?? "", ...(scenario === "cancelled" ? { error: "access_denied" } : { code: "mock-code" }) })}`,
-        {
-          headers: {
-            cookie: [
-              cookie,
-              ...start.headers
-                .getSetCookie()
-                .map((value) => value.split(";", 1)[0]),
-            ].join("; "),
-          },
-        },
-      ),
-    );
-    expect(callback.status).toBe(302);
-    const nextHeaders = new Headers({
-      cookie: callback.headers
-        .getSetCookie()
-        .map((value) => value.split(";", 1)[0])
-        .join("; "),
-    });
-    const nextSession = await auth.api.getSession({ headers: nextHeaders });
-    const security = createAccountSecurity(db);
-    if (scenario === "fresh") {
-      expect(nextSession?.user.id).toBe(original.user.id);
-      expect(
-        await security.ready(original.user.id, nextSession?.session.id ?? ""),
-      ).toBe(true);
-      await createJournal(db).deleteAccount(
-        original.user.id,
-        "DELETE",
-        nextSession?.session.id,
-      );
-      expect(await auth.api.getSession({ headers: nextHeaders })).toBeNull();
-    } else {
-      expect(await security.ready(original.user.id, original.session.id)).toBe(
-        false,
-      );
-      if (nextSession)
-        expect(
-          await security.ready(nextSession.user.id, nextSession.session.id),
-        ).toBe(false);
-      expect(
-        (await createJournal(db).exportData(original.user.id)).profile?.email,
-      ).toBe("google-owner@example.com");
-    }
-  } finally {
-    vi.unstubAllGlobals();
-    vi.unstubAllEnvs();
-  }
-});
-
 test("a database deletion failure rolls back proof consumption and preserves the account", async () => {
   const db = await createTestDb();
   const { user } = await import("@/db/schema");
@@ -274,6 +109,14 @@ test("a database deletion failure rolls back proof consumption and preserves the
   );
   await db.execute(sql`insert into deletion_failure values ('protected')`);
   const security = createAccountSecurity(db);
+  const { session } = await import("@/db/schema");
+  await db.insert(session).values({
+    id: "session",
+    userId: "protected",
+    token: "token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
   await security.issue("protected", "session");
   await expect(
     createJournal(db).deleteAccount("protected", "DELETE", "session"),
@@ -281,5 +124,233 @@ test("a database deletion failure rolls back proof consumption and preserves the
   expect(await security.ready("protected", "session")).toBe(true);
   expect((await createJournal(db).exportData("protected")).profile?.email).toBe(
     "protected@example.com",
+  );
+});
+
+test("Google-only deletion requires a delivered email code in the initiating session before typed DELETE", async () => {
+  const db = await createTestDb();
+  const inbox: Email[] = [];
+  const auth = createAuth(db, async (email) => {
+    inbox.push(email);
+  });
+  await auth.api.signUpEmail({
+    body: {
+      name: "Player",
+      email: "email-proof@example.com",
+      password: "password123",
+    },
+  });
+  const token =
+    new URL(inbox[0].text.match(/https?:\S+/)?.[0] ?? "").searchParams.get(
+      "token",
+    ) ?? "";
+  const response = await auth.api.verifyEmail({
+    query: { token },
+    asResponse: true,
+  });
+  const headers = new Headers({
+    cookie: response.headers.get("set-cookie") ?? "",
+  });
+  const session = await auth.api.getSession({ headers });
+  if (!session) throw new Error("Expected session");
+  const { account } = await import("@/db/schema");
+  const { eq } = await import("drizzle-orm");
+  await db.delete(account).where(eq(account.userId, session.user.id));
+  await db.insert(account).values({
+    id: "google-only",
+    userId: session.user.id,
+    providerId: "google",
+    accountId: "google-only",
+  });
+  const security = createAccountSecurity(db);
+  const send = async (email: Email) => {
+    inbox.push(email);
+  };
+  await expect(
+    security.sendCode(session.user.id, session.session.id, send),
+  ).resolves.toEqual({ sent: true });
+  expect(inbox.at(-1)?.to).toBe("email-proof@example.com");
+  const code = inbox.at(-1)?.text.match(/\b\d{8}\b/)?.[0] ?? "";
+  expect(code).toHaveLength(8);
+  expect(await security.ready(session.user.id, session.session.id)).toBe(false);
+  await expect(
+    security.confirmCode(session.user.id, "other-session", code),
+  ).resolves.toHaveProperty("error");
+  await expect(
+    security.confirmCode("other-account", session.session.id, code),
+  ).resolves.toHaveProperty("error");
+  await expect(
+    security.confirmCode(session.user.id, session.session.id, code),
+  ).resolves.toEqual({ verified: true });
+  await expect(
+    security.confirmCode(session.user.id, session.session.id, code),
+  ).resolves.toHaveProperty("error");
+  await expect(
+    createJournal(db).deleteAccount(
+      session.user.id,
+      "wrong",
+      session.session.id,
+    ),
+  ).rejects.toThrow(/Type DELETE/);
+  await createJournal(db).deleteAccount(
+    session.user.id,
+    "DELETE",
+    session.session.id,
+  );
+  expect(await auth.api.getSession({ headers })).toBeNull();
+});
+
+test.each([
+  "failure",
+  "attempts",
+  "expiry",
+  "cancel",
+  "revoked",
+  "unverified",
+  "concurrent",
+])("email deletion confirmation preserves safety on %s", async (scenario) => {
+  const { account, session, user, verification } = await import("@/db/schema");
+  const { eq } = await import("drizzle-orm");
+  const db = await createTestDb();
+  await db.insert(user).values({
+    id: "owner",
+    name: "Owner",
+    email: "verified@example.com",
+    emailVerified: scenario !== "unverified",
+  });
+  await db.insert(account).values({
+    id: "google",
+    userId: "owner",
+    providerId: "google",
+    accountId: "google",
+  });
+  await db.insert(session).values({
+    id: "session",
+    userId: "owner",
+    token: "session-token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
+  const security = createAccountSecurity(db);
+  let code = "";
+  const send = async (email: Email) => {
+    code = email.text.match(/\b\d{8}\b/)?.[0] ?? "";
+  };
+  if (scenario === "failure") {
+    await expect(
+      security.sendCode("owner", "session", async (email) => {
+        await send(email);
+        throw new Error("PRIVATE-email-failure");
+      }),
+    ).resolves.toHaveProperty("error");
+    await expect(
+      security.confirmCode("owner", "session", code),
+    ).resolves.toHaveProperty("error");
+    expect(await security.ready("owner", "session")).toBe(false);
+    await expect(security.sendCode("owner", "session", send)).resolves.toEqual({
+      sent: true,
+    });
+    await expect(
+      security.confirmCode("owner", "session", code),
+    ).resolves.toEqual({ verified: true });
+    return;
+  }
+  const sent = await security.sendCode("owner", "session", send);
+  if (scenario === "unverified") {
+    expect(sent).toHaveProperty("error");
+    expect(code).toBe("");
+  } else {
+    expect(sent).toEqual({ sent: true });
+    if (scenario === "attempts")
+      for (let i = 0; i < 5; i++)
+        await security.confirmCode("owner", "session", "incorrect");
+    if (scenario === "expiry")
+      await db
+        .update(verification)
+        .set({ expiresAt: new Date(0) })
+        .where(eq(verification.id, "account-deletion-code:session"));
+    if (scenario === "cancel") await security.cancel("session");
+    if (scenario === "revoked")
+      await db.delete(session).where(eq(session.id, "session"));
+    if (scenario === "concurrent") {
+      const results = await Promise.all([
+        security.confirmCode("owner", "session", code),
+        security.confirmCode("owner", "session", code),
+      ]);
+      expect(results.filter((result) => "verified" in result)).toHaveLength(1);
+      return;
+    }
+    await expect(
+      security.confirmCode("owner", "session", code),
+    ).resolves.toHaveProperty("error");
+  }
+  expect(await security.ready("owner", "session")).toBe(false);
+  expect((await createJournal(db).exportData("owner")).profile?.email).toBe(
+    "verified@example.com",
+  );
+});
+
+test("email send budget survives cancellation and is shared across requests", async () => {
+  const { session, user } = await import("@/db/schema");
+  const db = await createTestDb();
+  await db.insert(user).values({
+    id: "owner",
+    name: "Owner",
+    email: "verified@example.com",
+    emailVerified: true,
+  });
+  await db.insert(session).values({
+    id: "session",
+    userId: "owner",
+    token: "token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
+  const security = createAccountSecurity(db);
+  let sends = 0;
+  const results = await Promise.all(
+    Array.from({ length: 6 }, () =>
+      security.sendCode("owner", "session", async () => {
+        sends++;
+      }),
+    ),
+  );
+  expect(results.filter((result) => "sent" in result)).toHaveLength(3);
+  expect(sends).toBe(3);
+  await security.cancel("session");
+  await expect(
+    security.sendCode("owner", "session", async () => {
+      sends++;
+    }),
+  ).resolves.toHaveProperty("error");
+  expect(sends).toBe(3);
+});
+
+test("revoking the initiating session also invalidates an already confirmed deletion proof", async () => {
+  const { session, user } = await import("@/db/schema");
+  const { eq } = await import("drizzle-orm");
+  const db = await createTestDb();
+  await db.insert(user).values({
+    id: "owner",
+    name: "Owner",
+    email: "owner@example.com",
+    emailVerified: true,
+  });
+  await db.insert(session).values({
+    id: "session",
+    userId: "owner",
+    token: "token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
+  const security = createAccountSecurity(db);
+  await security.issue("owner", "session");
+  await db.delete(session).where(eq(session.id, "session"));
+  expect(await security.ready("owner", "session")).toBe(false);
+  await expect(
+    createJournal(db).deleteAccount("owner", "DELETE", "session"),
+  ).rejects.toThrow(/confirm your identity/i);
+  expect((await createJournal(db).exportData("owner")).profile?.email).toBe(
+    "owner@example.com",
   );
 });

@@ -4,6 +4,16 @@ This is a runbook and evidence ledger, not evidence that production controls pas
 Repository review: 2026-11-09, ticket #132, initial base `132545f`.
 No production database, credential rotation, restore or provider dashboard was accessed for this implementation. Tests use synthetic data and isolated PGlite.
 
+## Account deletion owner decision (2026-11-09)
+
+The [owner-approved replacement](https://github.com/guillermo-rebolledo/vgame-journal/issues/130#issuecomment-6748746649)
+uses a one-use email code to the verified account address for Google-only accounts,
+then typed DELETE; password accounts retain password proof. It expires within five
+minutes and binds account, initiating session and deletion purpose. Forced Google
+reauthentication and auth_time/provider-claim configuration are no longer part of
+deletion. Local mailbox/API tests are implementation evidence; live mail delivery,
+sender authentication, deployed behavior and all operator safeguards remain pending.
+
 ## Owner decisions blocking operational sign-off
 
 The public contact address was confirmed by the service owner on 2026-11-09. Operational checks below remain **pending**. The service owner must name a responsible person and record dated, sanitized evidence in the restricted operations record. Do not put secrets, user records, feed URLs, email bodies or recovery links in GitHub.
@@ -16,6 +26,7 @@ The public contact address was confirmed by the service owner on 2026-11-09. Ope
 | Vercel | Inventory team/project members, deploy tokens and integrations; MFA and least privilege; production/preview/development environment scope; deployment/log access, sensitive path redaction and log retention. | Unassigned | Pending |
 | Neon | Inventory organization/project/database access; MFA; separate production and test credentials/targets; least-privilege application role; backup retention, restore window, restore permissions and isolated exercise. | Unassigned | Pending |
 | Email | Inventory Resend team, domain/API key scopes, delivery-log access and owner mailbox membership; MFA; verify sender domain and Feedback delivery/replies without exposing content. | Unassigned | Pending |
+| Deletion confirmation mail | Verify approved sender/domain authentication, actual delivery to a disposable verified account, failed-delivery retry, five-minute expiry, initiating-session binding, code confidentiality and final typed DELETE. Record dated sanitized nonproduction evidence. | Unassigned | Pending |
 | Google / Twitch | Inventory OAuth app owners, secrets, redirect URIs and consent scope; MFA and least privilege; verify enabled production providers. | Unassigned | Pending |
 | Production browser/auth checks (#133–#137) | HTTPS; Secure/HttpOnly/SameSite cookie behavior; allowed origins/cross-origin rejection; trusted proxy/IP behavior; shared authentication limits; recent-auth deletion and session revocation; report-only CSP compatibility before enforcement. Use controlled accounts; record actual results. | Unassigned | Pending |
 | Alerts | Enable and route dependency/security alerts, failed deployments, provider incidents and anomalous auth/error volume to a named responder. Demonstrate test alert acknowledgement without logging credentials or private text. | Unassigned | Pending |
@@ -42,7 +53,7 @@ The authoritative player-facing notice is `src/app/privacy/page.tsx`. Recheck it
 | Profile visibility and public-field exclusion | `src/lib/journal.ts` profileForViewer/publicProfile; `src/components/public-profile.tsx`; migration `0017_steep_pepper_potts.sql` | New accounts default Private; existing accounts are backfilled Public. Only the owner can preview a Private profile; other viewers receive 404, including shared images. Notes, email and feed credentials stay excluded. Public Lists retain independent visibility in `src/lib/lists.ts`. |
 | Community rating includes all players' qualifying Ratings | `src/lib/journal.ts` communityRating | Anonymous aggregate participation is independent of profile visibility; minimum threshold gates publication. |
 | Journal export | `src/lib/journal.ts` exportData; `src/app/api/account/export/route.ts` | Includes profile, entries/Ratings, Status history, Playthroughs/private notes and Lists. Excludes feedback, credentials, provider logs and mailbox copies; not a complete privacy access response. |
-| Account deletion | `src/lib/journal.ts` deleteAccount; cascading foreign keys in `src/db/schema.ts` | Removes account-linked live database records including feedback; resets removed by account id. Delivered mail, downloaded/shared copies, logs and backups are outside this operation. No immediate backup-erasure promise. |
+| Account deletion | `src/lib/journal.ts` deleteAccount; cascading foreign keys in `src/db/schema.ts` | Removes account-linked live database records including feedback; reset tokens and deletion proofs/challenges/send budgets are removed for the account. Delivered mail, downloaded/shared copies, logs and backups are outside this operation. No immediate backup-erasure promise. |
 | Calendar link secrecy and regeneration | `src/app/api/calendar/[token]/route.ts`, `src/lib/calendar-feed.ts`, `src/lib/journal.ts` feedToken/regenerateFeedToken | Token is the only authentication. Feed has exact-day Wishlist release titles/dates and game identifiers; old URL fails after regeneration, but external copies cannot be recalled. |
 | Minimized analytics | `src/components/analytics.tsx`, `src/components/analytics.test.tsx` | Vercel Analytics and Speed Insights share URL minimization: usernames/List IDs redacted, fragments and non-allowlisted queries removed. Bounded product events include booleans such as presence of notes, never note/feedback bodies. Do not assert that hosting/provider logs use this client filter. Calendar token redaction in operational tooling remains a production verification task. |
 | Feedback database vs email | `src/lib/feedback.ts`, `src/lib/email.ts`, `.env.example` | Stores account reference, type, message, page path and time; optional email includes username, path, message and reply-to account email. `FEEDBACK_EMAIL` enables notifications; deployment value/monitoring unknown. |

@@ -16,16 +16,13 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { createAccountSecurity } from "@/lib/account-security";
 import { auth, currentSession, ownerId, signedInUserId } from "@/lib/auth";
+import { sendWithResend } from "@/lib/email";
 import { JournalError, journal } from "@/lib/journal";
 import type { Region } from "@/lib/release-dates";
 
 export const metadata: Metadata = { title: "Settings" };
 
-export default function SettingsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ deletion?: string }>;
-}) {
+export default function SettingsPage() {
   return (
     <section className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-8">
       <h1 className="font-semibold text-3xl tracking-tight">Settings</h1>
@@ -41,7 +38,7 @@ export default function SettingsPage({
         <CalendarFeedSetting />
       </Suspense>
       <Suspense fallback={<SettingLoading label="Loading account data…" />}>
-        <AccountDataSetting searchParams={searchParams} />
+        <AccountDataSetting />
       </Suspense>
       <section
         aria-labelledby="privacy-heading"
@@ -65,12 +62,7 @@ export default function SettingsPage({
   );
 }
 
-async function AccountDataSetting({
-  searchParams,
-}: {
-  searchParams: Promise<{ deletion?: string }>;
-}) {
-  const failed = (await searchParams).deletion === "failed";
+async function AccountDataSetting() {
   const session = await currentSession();
   if (!session) redirect("/sign-in");
   const security = createAccountSecurity(db);
@@ -84,15 +76,27 @@ async function AccountDataSetting({
     const session = await currentSession();
     if (!session) return { error: "Sign in before confirming your identity." };
     try {
-      await createAccountSecurity(db).cancel(session.session.id);
-      await auth.api.verifyPassword({
+      const accounts = await auth.api.listUserAccounts({
         headers: await headers(),
-        body: { password: String(form.get("password") ?? "") },
       });
-      await createAccountSecurity(db).issue(
-        session.user.id,
-        session.session.id,
-      );
+      if (accounts.some((account) => account.providerId === "credential")) {
+        await createAccountSecurity(db).cancel(session.session.id);
+        await auth.api.verifyPassword({
+          headers: await headers(),
+          body: { password: String(form.get("password") ?? "") },
+        });
+        await createAccountSecurity(db).issue(
+          session.user.id,
+          session.session.id,
+        );
+      } else {
+        const result = await createAccountSecurity(db).confirmCode(
+          session.user.id,
+          session.session.id,
+          String(form.get("code") ?? ""),
+        );
+        if ("error" in result) return result;
+      }
     } catch {
       return {
         error:
@@ -101,6 +105,17 @@ async function AccountDataSetting({
     }
     refresh();
     return { verified: true as const };
+  }
+
+  async function sendDeletionCode() {
+    "use server";
+    const session = await currentSession();
+    if (!session) return { error: "Sign in before confirming your identity." };
+    return createAccountSecurity(db).sendCode(
+      session.user.id,
+      session.session.id,
+      sendWithResend,
+    );
   }
 
   async function cancelDeletion() {
@@ -184,11 +199,7 @@ async function AccountDataSetting({
         onVerify={confirmIdentity}
         onCancel={cancelDeletion}
         verified={ready}
-        notice={
-          failed
-            ? "Google confirmation was cancelled or failed. Your account has not been deleted. Try again."
-            : undefined
-        }
+        onSendCode={sendDeletionCode}
         hasPassword={accounts.some(
           (account) => account.providerId === "credential",
         )}

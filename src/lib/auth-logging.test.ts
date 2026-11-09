@@ -12,6 +12,7 @@ test.each([
   "endpoint",
   "rate-limit",
   "session",
+  "direct-session",
 ])("%s database failures retain error severity without logging sensitive error details", async (failure) => {
   // Exercise endpoint failures separately from the rate-limit store.
   vi.stubEnv("E2E_TEST", failure === "rate-limit" ? "0" : "1");
@@ -27,7 +28,7 @@ test.each([
     verification = email.text.match(/https?:\S+/)?.[0] ?? "";
   });
   let cookie = "";
-  if (failure === "session") {
+  if (failure === "session" || failure === "direct-session") {
     await auth.api.signUpEmail({
       body: {
         name: "Player",
@@ -49,6 +50,17 @@ test.each([
     throw error;
   });
 
+  if (failure === "direct-session") {
+    const error = await auth.api
+      .getSession({ headers: new Headers({ cookie }) })
+      .catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(Error);
+    expect(inspect(error, { depth: null, showHidden: true })).not.toContain(
+      sentinel,
+    );
+    expect(error).not.toHaveProperty("cause");
+    return;
+  }
   const response =
     failure === "session"
       ? await auth.handler(
@@ -113,7 +125,11 @@ test.each([
       }),
     );
     expect(start.status).toBe(200);
-    state = new URL((await start.json()).url).searchParams.get("state") ?? "";
+    const authorization = new URL((await start.json()).url);
+    expect(authorization.searchParams.get("prompt")).not.toBe("login");
+    expect(authorization.searchParams.has("max_age")).toBe(false);
+    expect(authorization.searchParams.has("claims")).toBe(false);
+    state = authorization.searchParams.get("state") ?? "";
     cookie = start.headers
       .getSetCookie()
       .map((value) => value.split(";", 1)[0])

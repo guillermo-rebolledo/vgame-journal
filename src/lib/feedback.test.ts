@@ -166,3 +166,21 @@ test("skips email with no recipient configured and cascades feedback on account 
   await db.delete(user).where(eq(user.id, "mario"));
   expect(await db.select().from(feedback)).toEqual([]);
 });
+
+test("persistence failure returns a safe retry error and never sends success mail", async () => {
+  const send = vi.fn();
+  const failure = Object.assign(
+    new Error("PRIVATE-feedback-SQL-path-message", {
+      cause: new Error("PRIVATE-feedback-SQL-path-message"),
+    }),
+    { query: "PRIVATE-feedback-SQL-path-message" },
+  );
+  vi.spyOn(db, "transaction").mockRejectedValueOnce(failure);
+  await expect(createFeedback(db, send)(author, input)).resolves.toEqual({
+    error: "Could not send feedback. Please try again.",
+  });
+  expect(send).not.toHaveBeenCalled();
+  await expect(
+    createFeedback(db, send)(author, input),
+  ).resolves.toBeUndefined();
+});

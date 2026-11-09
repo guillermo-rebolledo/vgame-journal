@@ -6,6 +6,7 @@ import {
   journalEntry,
   playthrough,
   releaseDate,
+  session,
   statusEvent,
   user,
   verification,
@@ -259,16 +260,21 @@ export function createJournal(db: Db) {
           where ${verification.id} = ${deletionProofId(sessionId)}
             and ${verification.value} = ${userId}
             and ${verification.expiresAt} > now()
+            and exists (select 1 from ${session} where ${session.id} = ${sessionId}
+              and ${session.userId} = ${userId} and ${session.expiresAt} > now())
           returning ${verification.value}
         ), deleted_user as (
           delete from ${user} where ${user.id} = ${userId}
             and ${user.id} in (select value from proof) returning ${user.id}
         ), reset_tokens as (
           delete from ${verification}
-          where ${verification.value} in (select id from deleted_user)
+          where exists (select 1 from deleted_user)
             and ${verification.id} <> ${deletionProofId(sessionId)}
-            and (${verification.identifier} like 'reset-password:%'
-              or ${verification.identifier} like 'account-deletion:%')
+            and ((${verification.value} = ${userId} and
+              (${verification.identifier} like 'reset-password:%' or ${verification.identifier} like 'account-deletion:%'))
+              or ${verification.id} = ${`account-deletion-send:${userId}`}
+              or (case when ${verification.identifier} like 'account-deletion-code:%'
+                then ${verification.value}::jsonb->>'userId' end) = ${userId})
         )
         select id from deleted_user
       `);

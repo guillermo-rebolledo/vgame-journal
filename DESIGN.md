@@ -228,7 +228,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 
 | Need | Existing implementation | Usage guidance |
 | --- | --- | --- |
-| Account deletion | `delete-account-form.tsx` | Embedded Settings authentication followed by typed DELETE; server callbacks enforce a short-lived proof. |
+| Account deletion | `delete-account-form.tsx` | Embedded Settings password verification or a verified-email code for Google-only accounts, then typed DELETE; server callbacks enforce a short-lived proof. |
 | Revoke account sessions | `sign-out-all-form.tsx` | Embedded Settings action with pending feedback, inline errors and retry. |
 | Actions and form controls | `ui/button.tsx`, `ui/input.tsx`, `ui/label.tsx`, `ui/field.tsx`, `ui/select.tsx` | Use variants and associated field messages. |
 | Menus and floating layers | `ui/dropdown-menu.tsx`, `ui/tooltip.tsx`, `ui/hover-card.tsx`, `ui/drawer.tsx` | Preserve Base UI keyboard handling, names, and focus management. |
@@ -311,6 +311,12 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 - **Creating from a game:** the action explicitly says “Create list and add [game]”. Save the list and initial entry atomically, preserve the submission key for retries, then collapse creation inside the list-picker drawer and announce the addition. Public visibility says that the List is visible to anyone and listed when the profile is Public.
 - **List creation drawer:** reuse the Playthrough editor's bottom-sheet shape and viewport handling. Keep the form in a 36rem column with optional description guidance. Closing keeps the draft; successful creation opens the new list to add games. Editor entry is 220ms and exit is 140ms, with the shared reduced-motion override.
 - **Form drawers:** on desktop and mobile, editors grow with their content rather than reserving a fixed height. On desktop, use the visible viewport minus 32px as the maximum, without a 720px cap; longer forms retain their existing contained scrolling. Vertical drawers span the full viewport width and sit flush with the bottom on desktop and mobile, with rounded top corners only. Keep the centered 36rem form column for readable fields. Feedback uses the shared Drawer's larger desktop height allowance. Mobile uses its existing keyboard-aware viewport limit as a maximum rather than a fixed height. The modal backdrop uses 60% black to suppress distracting page content while preserving swipe and dismissal behavior.
+
+### Account security feedback
+
+- DeleteAccountForm extends the existing Settings composition with verified-email code entry for Google-only accounts. Password accounts retain Current password. Reuse Button, Input and Label; AuthForm is the closest general form but serves sign-in rather than this embedded destructive flow.
+- Each deletion/sign-out flow owns one stable output for confirming, sending, cancelling, deleting or signing out. Keep action labels unchanged while Button supplies decorative loading. The email code cannot delete; typed DELETE is the final step. Email code entry receives focus after sending, typed confirmation after verification, and cancellation restores the password or send-code control.
+- Stories cover password retry, code entry/cancellation/delivery retry, all pending phases and typed confirmation. No new motion or generic primitive is introduced.
 
 ### Loading feedback
 - Use static `Skeleton` shapes for predictable initial content: Home and personal shelves, list collections/details, public profiles, Stats, Settings and account navigation. `content-loading.tsx` composes the primitive using the cover-row pattern from `CollectionLoading`; it is a distinct product responsibility rather than another mode on the Library/Wishlist component. Keep shapes decorative and provide one readable loading output per boundary. Never show invented counts or interactive placeholder controls.

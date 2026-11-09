@@ -37,4 +37,17 @@ export const Retry: Story = {
 };
 export const Pending: Story = {
   args: { onSignOut: fn(() => new Promise(() => {})) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Sign out all devices" }),
+    );
+    await expect(
+      canvas.getByRole("button", { name: "Sign out all devices" }),
+    ).toBeDisabled();
+    await expect(canvas.getAllByRole("status")).toHaveLength(1);
+    await expect(canvas.getByRole("status")).toHaveTextContent(
+      "Signing out all devices…",
+    );
+  },
 };

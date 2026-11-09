@@ -35,7 +35,25 @@ Local tests do not establish deployed HTTPS, cookie, proxy or provider behavior.
   notes, search text, feedback message, email, auth proof, feed token or raw IDs
   are added as event properties.
 
-## Source audit and cross-cutting recommendations
+## Final review corrections (2026-11-09)
+
+The direct `auth.api` boundary is now protected as well as handler/fetch. A real
+getSession call with a synthetic database failure originally retained private SQL
+in APIError.cause; the regression now verifies a fixed cause-free error before
+Next can receive it. All direct server API methods use the same boundary,
+including currentSession, proxy and Settings. Intended client errors and redirects
+retain their behavior. Feedback persistence failures now return a fixed retry
+error without raw database causes and cannot report success or send notification
+mail; existing draft/retry behavior remains.
+
+Google-only deletion now uses the owner-approved verified-email code plus typed
+DELETE. Forced OAuth reauthentication scaffolding and mocked auth_time acceptance
+claims have been removed. Local browser evidence includes the actual Resend SDK
+against a local mailbox, with safe failed-delivery retry. It does not establish
+live mail delivery or deployed Google sign-in. See `account-security-verification.md`
+and `security-review.md` for policy and evidence; all operator rows below remain pending.
+
+## Historical source audit and cross-cutting recommendations
 
 Application audit at initial base `132545f`, with the mail-logging follow-up
 implemented against integration `2754e7c` and the application-auth logging follow-up
@@ -93,7 +111,7 @@ Application-auth logging follow-up (2026-11-09):
 - After merging integration `29e0306` (including #134), all **44 tests in five
   auth/account-security files** passed with `--maxWorkers=1 --testTimeout=30000`.
   `pnpm lint`, `pnpm typecheck` and `git diff --check` passed. The source conflict
-  retained both account-security hooks/provider configuration and the log guard.
+  retained the then-current account-security hooks/provider configuration and the log guard; those forced-reauthentication hooks are now removed.
 - The broader unit run, started before the integration merge, passed **547 tests
   in 45 files** with `--maxWorkers=1 --testTimeout=30000`; the 44-test focused
   rerun above checks the final merged auth/account code. Existing Node timer
