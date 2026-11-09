@@ -103,11 +103,12 @@ export function Feedback({
           </DrawerTitle>
           <DrawerDescription>
             {sent
-              ? "Your feedback helps us improve Shelve."
-              : "Have an idea or found a bug? Tell us about it."}
+              ? "Your message was received. The team may reply to your account email."
+              : "Something confusing, hard to use, or missing? Tell us about it."}
           </DrawerDescription>
         </DrawerHeader>
         <output
+          aria-label="Feedback status"
           aria-live="polite"
           aria-atomic="true"
           className={sent ? "mx-auto w-full max-w-xl px-4 text-sm" : "sr-only"}
@@ -176,6 +177,16 @@ export function Feedback({
                   </SelectContent>
                 </Select>
               </Field>
+              <p
+                id={`${id}-guidance`}
+                className="text-muted-foreground text-sm"
+              >
+                {type === "idea"
+                  ? "What do you want to do, and how would it help?"
+                  : type === "bug"
+                    ? "What did you try, what happened, and what did you expect?"
+                    : "Tell us about anything confusing or hard to use."}
+              </p>
               <Field data-invalid={!!error}>
                 <FieldLabel htmlFor={`${id}-message`}>Message</FieldLabel>
                 <textarea
@@ -187,9 +198,7 @@ export function Feedback({
                   onChange={(event) => setMessage(event.target.value)}
                   disabled={pending}
                   aria-invalid={!!error}
-                  aria-describedby={
-                    message.length >= 1800 ? `${id}-count` : undefined
-                  }
+                  aria-describedby={`${id}-guidance ${id}-privacy${message.length >= 1800 ? ` ${id}-count` : ""}${error ? ` ${id}-error` : ""}`}
                   className="rounded-lg border border-input bg-background px-3 py-2 text-base"
                 />
                 {message.length >= 1800 && (
@@ -203,11 +212,21 @@ export function Feedback({
                 )}
               </Field>
               {error && (
-                <p role="alert" className="text-destructive text-sm">
+                <p
+                  id={`${id}-error`}
+                  role="alert"
+                  className="text-destructive text-sm"
+                >
                   {error}
                 </p>
               )}
             </FieldGroup>
+            <p id={`${id}-privacy`} className="text-muted-foreground text-sm">
+              The team receives your message, username, opening page, and
+              account reply address. Reports are private to the team and
+              relevant processors. We may reply to your account email. Leave out
+              passwords and private notes.
+            </p>
             <div className="flex justify-end gap-3">
               <DrawerClose
                 render={

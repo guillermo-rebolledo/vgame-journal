@@ -1,9 +1,10 @@
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { executeBatch } from "@/db/batch";
 import { feedback, user } from "@/db/schema";
 import type { Email } from "@/lib/email";
 import { isFeedbackType } from "@/lib/feedback-types";
+import { redactPathname } from "@/lib/pathname";
 
 type Author = { id: string; username?: string | null; email: string };
 export type FeedbackInput = { type: string; message: string; path: string };
@@ -27,13 +28,14 @@ export function createFeedback(
       !/^\/(?!\/)[^?#\s]*$/.test(input.path)
     )
       return { error: "Invalid page path. Reopen the form and try again." };
+    const path = redactPathname(input.path);
     const type = input.type;
     const message = input.message.trim();
     // Separate statements under READ COMMITTED give the count a fresh snapshot after waiting for the lock.
     const inserted = await executeBatch(db, [
       sql`select ${user.id} from ${user} where ${user.id} = ${author.id} for update`,
       sql`insert into ${feedback} (user_id, type, message, path, created_at)
-          select ${author.id}, ${type}, ${message}, ${input.path}, statement_timestamp()
+          select ${author.id}, ${type}, ${message}, ${path}, statement_timestamp()
           where (select count(*) from ${feedback}
                  where ${feedback.userId} = ${author.id}
                    and ${feedback.createdAt} > statement_timestamp() - interval '1 hour') < 5
@@ -51,11 +53,21 @@ export function createFeedback(
           to: process.env.FEEDBACK_EMAIL,
           replyTo: author.email,
           subject: `[Feedback: ${label}] @${author.username}`,
-          text: `Username: @${author.username}\nType: ${label}\nPath: ${input.path}\n\n${message}`,
+          text: `Username: @${author.username}\nType: ${label}\nPath: ${path}\n\n${message}`,
         });
-      } catch (error) {
-        console.error("Feedback email failed", error);
+      } catch {
+        console.error("Feedback email failed; reconcile stored reports.");
       }
     }
   };
+}
+
+/** Atomic account-scoped consumption; only a committed first Journal insertion makes this available. */
+export async function claimFirstSaveFeedback(db: Db, userId: string) {
+  const rows = await db
+    .update(user)
+    .set({ firstSaveFeedback: "consumed" })
+    .where(and(eq(user.id, userId), eq(user.firstSaveFeedback, "available")))
+    .returning({ id: user.id });
+  return rows.length === 1;
 }

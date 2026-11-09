@@ -1,20 +1,12 @@
+import { submitFeedback } from "@/app/feedback-actions";
 import { AccountMenu } from "@/components/account-menu";
 import { MainNav } from "@/components/main-nav";
-import { db } from "@/db";
 import { currentSession } from "@/lib/auth";
-import { sendWithResend } from "@/lib/email";
-import { createFeedback, type FeedbackInput } from "@/lib/feedback";
 
 /** Collection navigation plus the account menu; on phones the navigation wraps onto its own row. */
 export async function UserMenu() {
   const session = await currentSession();
   if (!session) return <AccountMenu user={null} />;
-
-  async function submitFeedback(input: FeedbackInput) {
-    "use server";
-    const current = await currentSession();
-    return createFeedback(db, sendWithResend)(current?.user ?? null, input);
-  }
 
   const { image, username, name } = session.user;
   return (

@@ -4,6 +4,7 @@ import { LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useDeferredValue, useEffect, useState, ViewTransition } from "react";
+import { FeedbackLink } from "@/components/feedback-channel";
 import { GameCover } from "@/components/game-cover";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformIcon, PlatformNames } from "@/components/platform";
@@ -112,6 +113,7 @@ export function Library({
         <Button render={<Link href="/?search=1" />} nativeButton={false}>
           Find a game
         </Button>
+        <FeedbackLink />
       </div>
     );
 

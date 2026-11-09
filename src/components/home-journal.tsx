@@ -30,6 +30,10 @@ import {
   saveHomeStatus,
 } from "@/app/home-actions";
 import { HomeCollectionsLoading } from "@/components/content-loading";
+import {
+  FeedbackLink,
+  useFeedbackChannel,
+} from "@/components/feedback-channel";
 import { GameCover } from "@/components/game-cover";
 import { HomeCoverLink } from "@/components/home-cover-link";
 import { HomeWishlistPreview } from "@/components/home-wishlist-preview";
@@ -135,6 +139,7 @@ export function HomeJournalProvider({
   initial: Promise<HomeSnapshot>;
   children: ReactNode;
 }) {
+  const feedbackChannel = useFeedbackChannel();
   const router = useRouter();
   const params = useSearchParams();
   const [source, setSource] = useState(initial);
@@ -327,6 +332,8 @@ export function HomeJournalProvider({
       if (confirmed) {
         setSaves((old) => ({ ...old, [game.gameId]: { status } }));
         report(`${game.title} saved to ${capitalize(status)}.`, true);
+        if ("feedbackInvitation" in result && result.feedbackInvitation)
+          feedbackChannel?.saved();
         return true;
       }
       setSaves((old) => ({
@@ -911,6 +918,7 @@ export function HomeJournal({
         <p className="text-muted-foreground">
           Your Journal is empty. Search above and add a game to Backlog or
           Wishlist.
+          <FeedbackLink />
         </p>
       ) : (
         <>

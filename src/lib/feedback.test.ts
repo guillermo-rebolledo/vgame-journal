@@ -1,9 +1,11 @@
+import { readFile } from "node:fs/promises";
+import { PGlite } from "@electric-sql/pglite";
 import { eq, sql } from "drizzle-orm";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Db } from "@/db";
-import { feedback, user } from "@/db/schema";
+import { feedback, game, journalEntry, user } from "@/db/schema";
 import { createTestDb } from "@/test/db";
-import { createFeedback } from "./feedback";
+import { claimFirstSaveFeedback, createFeedback } from "./feedback";
 
 let db: Db;
 const author = { id: "mario", username: "mario", email: "mario@example.com" };
@@ -145,11 +147,15 @@ test("keeps stored feedback and returns success when email fails", async () => {
   const log = vi.spyOn(console, "error").mockImplementation(() => {});
   await expect(
     createFeedback(db, async () => {
-      throw new Error("Resend unavailable");
+      throw new Error(
+        "Provider error containing private-message and secret-credential",
+      );
     })(author, input),
   ).resolves.toBeUndefined();
   expect(await db.select().from(feedback)).toHaveLength(1);
-  expect(log).toHaveBeenCalled();
+  expect(log).toHaveBeenCalledWith(
+    "Feedback email failed; reconcile stored reports.",
+  );
 });
 
 test("skips email with no recipient configured and cascades feedback on account deletion", async () => {
@@ -160,4 +166,83 @@ test("skips email with no recipient configured and cascades feedback on account 
   expect(await db.select().from(feedback)).toHaveLength(1);
   await db.delete(user).where(eq(user.id, "mario"));
   expect(await db.select().from(feedback)).toEqual([]);
+});
+
+test.each([
+  [
+    "/api/auth/reset-password/secret-credential",
+    "/api/auth/reset-password/[token]",
+  ],
+  [
+    "/api/auth/verify-email/secret-credential",
+    "/api/auth/verify-email/[token]",
+  ],
+  ["/api/calendar/secret-credential.ics", "/api/calendar/[token]"],
+  ["/u/private-player/lists/private-list", "/u/[username]/lists/[listId]"],
+  ["/lists/private-list", "/lists/[listId]"],
+])("normalizes private path %s before storage and notification", async (path, expected) => {
+  vi.stubEnv("FEEDBACK_EMAIL", "delivered@resend.dev");
+  const send = vi.fn();
+  await createFeedback(db, send)(author, { ...input, path });
+  expect((await db.select().from(feedback))[0].path).toBe(expected);
+  expect(send.mock.calls[0][0].text).toContain(`Path: ${expected}`);
+  expect(send.mock.calls[0][0].text).not.toContain("secret-credential");
+});
+
+test("first-save invitation can be claimed once across concurrent requests and never after re-adding", async () => {
+  expect(await claimFirstSaveFeedback(db, author.id)).toBe(false);
+  await db.insert(game).values({
+    id: 1,
+    title: "Game",
+    slug: "game",
+    genres: [],
+    platforms: [],
+    syncedAt: new Date(),
+  });
+  await db.insert(journalEntry).values({
+    userId: author.id,
+    gameId: 1,
+    status: "backlog",
+    updatedAt: new Date(),
+  });
+  const claims = await Promise.all(
+    Array.from({ length: 5 }, () => claimFirstSaveFeedback(db, author.id)),
+  );
+  expect(claims.filter(Boolean)).toHaveLength(1);
+  await db.delete(journalEntry).where(eq(journalEntry.userId, author.id));
+  await db.insert(journalEntry).values({
+    userId: author.id,
+    gameId: 1,
+    status: "playing",
+    updatedAt: new Date(),
+  });
+  expect(await claimFirstSaveFeedback(db, author.id)).toBe(false);
+});
+
+test("migration backfills existing accounts while old column-list writes remain compatible", async () => {
+  const previous = new PGlite();
+  try {
+    await previous.exec(`CREATE TABLE "user" (id text PRIMARY KEY);
+      CREATE TABLE journal_entry (user_id text REFERENCES "user"(id), game_id integer);
+      INSERT INTO "user" (id) VALUES ('existing-empty'), ('existing-saved');
+      INSERT INTO journal_entry (user_id, game_id) VALUES ('existing-saved', 1);`);
+    await previous.exec(
+      await readFile(
+        new URL("../../drizzle/0016_flaky_tomas.sql", import.meta.url),
+        "utf8",
+      ),
+    );
+    await previous.exec(`INSERT INTO "user" (id) VALUES ('new');
+      INSERT INTO journal_entry (user_id, game_id) VALUES ('existing-empty', 1), ('new', 1);`);
+    const result = await previous.query(
+      'SELECT id, first_save_feedback FROM "user" ORDER BY id',
+    );
+    expect(result.rows).toEqual([
+      { id: "existing-empty", first_save_feedback: "consumed" },
+      { id: "existing-saved", first_save_feedback: "consumed" },
+      { id: "new", first_save_feedback: "available" },
+    ]);
+  } finally {
+    await previous.close();
+  }
 });

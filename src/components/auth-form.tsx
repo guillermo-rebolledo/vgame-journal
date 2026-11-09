@@ -2,6 +2,7 @@
 
 import { ArrowRight, Check } from "lucide-react";
 import { type ReactNode, useActionState } from "react";
+import { SupportLink } from "@/components/support-link";
 import { ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -120,6 +121,7 @@ export function AuthForm({
         </form>
       )}
       {children}
+      <SupportLink />
     </section>
   );
 }
