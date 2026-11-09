@@ -228,6 +228,8 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 
 | Need | Existing implementation | Usage guidance |
 | --- | --- | --- |
+| Account deletion | `delete-account-form.tsx` | Embedded Settings authentication followed by typed DELETE; server callbacks enforce a short-lived proof. |
+| Revoke account sessions | `sign-out-all-form.tsx` | Embedded Settings action with pending feedback, inline errors and retry. |
 | Actions and form controls | `ui/button.tsx`, `ui/input.tsx`, `ui/label.tsx`, `ui/field.tsx`, `ui/select.tsx` | Use variants and associated field messages. |
 | Menus and floating layers | `ui/dropdown-menu.tsx`, `ui/tooltip.tsx`, `ui/hover-card.tsx`, `ui/drawer.tsx` | Preserve Base UI keyboard handling, names, and focus management. |
 | Loading and pending actions | `ui/spinner.tsx`, `ui/button.tsx` (`loading`), `content-loading.tsx`, `collection-loading.tsx` | Static skeletons for initial content reads; Compass with shimmering text for ongoing work. Keep each flow’s existing live feedback owner. |

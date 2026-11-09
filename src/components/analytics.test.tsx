@@ -43,6 +43,25 @@ test("Speed Insights uses URL redaction without dropping other event fields", ()
 const urlOf = (url: string) =>
   redactAnalyticsEvent({ type: "pageview", url }).url;
 
+test("telemetry hides Calendar and auth path credentials, including route fields", () => {
+  expect(
+    redactAnalyticsEvent({
+      url: "https://example.com/api/calendar/synthetic-secret?token=secret#private",
+      route: "/api/calendar/synthetic-secret",
+      type: "vital",
+    }),
+  ).toEqual({
+    url: "https://example.com/api/calendar/[token]",
+    route: "/api/calendar/[token]",
+    type: "vital",
+  });
+  expect(
+    urlOf(
+      "https://example.com/api/auth/reset-password/synthetic-secret?callbackURL=/library",
+    ),
+  ).toBe("https://example.com/api/auth/[redacted]");
+});
+
 test("redactAnalyticsEvent drops the password reset token", () => {
   expect(
     urlOf("https://example.com/reset-password?token=secret123&returnTo=%2F"),
@@ -57,14 +76,49 @@ test("redactAnalyticsEvent drops free-text search and unknown params", () => {
   ).toBe("https://example.com/library");
 });
 
-test("redactAnalyticsEvent keeps filter, paging and campaign params", () => {
+test("redactAnalyticsEvent keeps bounded filters but drops campaign and platform text", () => {
   expect(
     urlOf(
       "https://example.com/library?status=playing&platform=6&year=2024&rated=1&sort=rating&libraryPage=2&utm_source=reddit",
     ),
   ).toBe(
-    "https://example.com/library?status=playing&platform=6&year=2024&rated=1&sort=rating&libraryPage=2&utm_source=reddit",
+    "https://example.com/library?status=playing&year=2024&rated=1&sort=rating&libraryPage=2",
   );
+});
+
+test("allowed query keys cannot carry private text, duplicate values or arbitrary page keys", () => {
+  expect(
+    urlOf(
+      "https://example.com/library?status=secret&sort=private&year=secret&rated=secret&view=secret&all=secret&libraryPage=secret&utm_secret=secret&privatePage=2&status=playing",
+    ),
+  ).toBe("https://example.com/library");
+});
+
+test("telemetry removes URL credentials and fails closed for malformed URLs", () => {
+  expect(urlOf("https://private:secret@example.com/library")).toBe(
+    "https://example.com/library",
+  );
+  expect(urlOf("not a URL containing a secret")).toBe(
+    "https://redacted.invalid/[redacted]",
+  );
+});
+
+test("encoded route prefixes cannot bypass credential redaction", () => {
+  expect(urlOf("https://example.com/%61pi/%63alendar/synthetic-secret")).toBe(
+    "https://example.com/api/calendar/[token]",
+  );
+  expect(
+    urlOf("https://example.com/%75/private-person/lists/private-list"),
+  ).toBe("https://example.com/u/[username]/lists/[listId]");
+});
+
+test("encoded control characters cannot interrupt credential path redaction", () => {
+  expect(urlOf("https://example.com/api/calendar/synthetic%0Asecret")).toBe(
+    "https://example.com/api/calendar/[token]",
+  );
+  expect(
+    urlOf("https://example.com/api/auth/reset-password/synthetic%0Asecret"),
+  ).toBe("https://example.com/api/auth/[redacted]");
 });
 
 test("redactAnalyticsEvent hides usernames on public profiles", () => {

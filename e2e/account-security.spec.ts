@@ -87,3 +87,53 @@ test("Settings signs out every independently signed-in device", async ({
     await other.close();
   }
 });
+
+for (const theme of ["light", "dark"] as const) {
+  test(`account security reflows with reduced motion and enlarged text in ${theme}`, async ({
+    page,
+    request,
+  }, testInfo) => {
+    const { default: AxeBuilder } = await import("@axe-core/playwright");
+    await signUp(page, request, uniqueUsername("security_layout"));
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.evaluate((value) => localStorage.setItem("theme", value), theme);
+    await page.goto("/settings");
+    for (const width of [320, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "200%";
+      });
+      await expect(page.getByLabel("Current password")).toBeVisible();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "100%";
+    });
+    await page.getByLabel("Current password").fill("password123");
+    await page
+      .getByRole("button", { name: "Confirm password", exact: true })
+      .focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByLabel("Type DELETE to confirm")).toBeFocused();
+    const results = await new AxeBuilder({ page })
+      .include("main")
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+      .analyze();
+    expect(
+      results.violations.filter((violation) =>
+        ["serious", "critical"].includes(violation.impact ?? ""),
+      ),
+    ).toEqual([]);
+    const screenshot = testInfo.outputPath(`account-security-${theme}.png`);
+    await page.screenshot({ path: screenshot, fullPage: true });
+    await testInfo.attach(`Account security ${theme}`, {
+      path: screenshot,
+      contentType: "image/png",
+    });
+  });
+}

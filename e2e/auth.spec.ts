@@ -663,3 +663,45 @@ test("password recovery pages reflow with enlarged text and both themes", async 
     }
   }
 });
+
+// Real shared enforcement is covered at the auth-handler seam; ordinary E2E bypasses it.
+test("a throttled sign-in announces the error, keeps email and allows retry or recovery", async ({
+  page,
+}) => {
+  await page.route(
+    "**/api/auth/sign-in/email",
+    (route) =>
+      route.fulfill({
+        status: 429,
+        contentType: "application/json",
+        headers: { "X-Retry-After": "10" },
+        body: JSON.stringify({
+          message: "Too many requests. Please try again later.",
+        }),
+      }),
+    { times: 1 },
+  );
+  await page.goto("/sign-in");
+  await page.getByLabel("Email", { exact: true }).fill("throttled@example.com");
+  await page.getByLabel("Password", { exact: true }).fill("password123");
+  await page.getByRole("button", { name: "Sign in with email" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText(
+    "Too many requests. Please try again later.",
+  );
+  await expect(page.getByLabel("Email", { exact: true })).toHaveValue(
+    "throttled@example.com",
+  );
+  await expect(page.getByLabel("Password", { exact: true })).toHaveValue("");
+  await expect(
+    page.getByRole("button", { name: "Sign in with email" }),
+  ).toBeEnabled();
+  await page.getByLabel("Password", { exact: true }).fill("retry-password");
+  await page.getByRole("button", { name: "Sign in with email" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Invalid email or password",
+  );
+  await page.getByRole("link", { name: "Forgot password?" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Reset your password" }),
+  ).toBeVisible();
+});

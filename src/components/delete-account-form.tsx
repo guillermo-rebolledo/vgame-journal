@@ -35,16 +35,22 @@ export function DeleteAccountForm({
     }
   }, [verified]);
   const [confirmation, setConfirmation] = useState("");
+  const [deletionError, setDeletionError] = useState("");
   const [verifyState, verifyAction, verifying] = useActionState(
-    (_: unknown, form: FormData) => onVerify(form),
+    (_: unknown, form: FormData) => {
+      setDeletionError("");
+      return onVerify(form);
+    },
     undefined,
   );
   const [googleError, setGoogleError] = useState("");
   const [googlePending, setGooglePending] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [state, action, pending] = useActionState(
-    (_: unknown, form: FormData) => {
-      return onDelete(form);
+  const [, action, pending] = useActionState(
+    async (_: unknown, form: FormData) => {
+      const result = await onDelete(form);
+      setDeletionError(result.error);
+      return result;
     },
     undefined,
   );
@@ -69,9 +75,9 @@ export function DeleteAccountForm({
           {googleError}
         </p>
       )}
-      {state?.error && (
+      {deletionError && (
         <p role="alert" className="text-destructive text-sm">
-          {state.error}
+          {deletionError}
         </p>
       )}
       {!verified ? (
@@ -188,6 +194,7 @@ export function DeleteAccountForm({
             loading={cancelling}
             disabled={pending}
             onClick={async () => {
+              setDeletionError("");
               setCancelling(true);
               setConfirmation("");
               try {

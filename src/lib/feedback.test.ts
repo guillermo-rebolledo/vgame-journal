@@ -140,16 +140,21 @@ test("expiry frees only one slot for concurrent submissions while newer messages
   await expect(submit(author, input)).resolves.toHaveProperty("error");
 });
 
-test("keeps stored feedback and returns success when email fails", async () => {
+test("mail failure logs only a safe message and keeps one successful submission", async () => {
   vi.stubEnv("FEEDBACK_EMAIL", "delivered@resend.dev");
+  const sentinel = "PRIVATE-feedback-recipient-token-cookie-authorization";
   const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  const send = vi.fn(async () => {
+    throw new Error(sentinel, { cause: new Error(sentinel) });
+  });
   await expect(
-    createFeedback(db, async () => {
-      throw new Error("Resend unavailable");
-    })(author, input),
+    createFeedback(db, send)(author, { ...input, message: sentinel }),
   ).resolves.toBeUndefined();
-  expect(await db.select().from(feedback)).toHaveLength(1);
-  expect(log).toHaveBeenCalled();
+  expect(await db.select().from(feedback)).toEqual([
+    expect.objectContaining({ message: sentinel, userId: author.id }),
+  ]);
+  expect(send).toHaveBeenCalledTimes(1);
+  expect(log.mock.calls).toEqual([["Feedback email failed"]]);
 });
 
 test("skips email with no recipient configured and cascades feedback on account deletion", async () => {
