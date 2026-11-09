@@ -20,9 +20,18 @@ const fromForm = (values: Record<string, string>): PlaythroughInput => ({
   notes: values.notes ?? "",
 });
 
-async function saveOrReturnError(write: () => Promise<void>) {
+async function saveOrReturnError(
+  write: () => Promise<void>,
+): Promise<{ error: string } | undefined>;
+async function saveOrReturnError(
+  write: () => Promise<boolean>,
+): Promise<{ error: string } | { feedbackInvitation: true } | undefined>;
+async function saveOrReturnError(
+  write: () => Promise<void> | Promise<boolean>,
+) {
+  let feedbackInvitation = false;
   try {
-    await write();
+    feedbackInvitation = (await write()) === true;
   } catch (error) {
     return {
       error:
@@ -32,6 +41,7 @@ async function saveOrReturnError(write: () => Promise<void>) {
     };
   }
   refresh();
+  if (feedbackInvitation) return { feedbackInvitation: true as const };
 }
 
 /** A single request-scoped loading boundary for all personal game content. */

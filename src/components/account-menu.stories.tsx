@@ -38,6 +38,9 @@ export const FeedbackFromMenu: Story = {
       await body.findByRole("dialog", { name: "Send feedback" }),
     ).toBeVisible();
     await expect(body.queryByRole("menu")).not.toBeInTheDocument();
+    await expect(
+      body.getByText(/private to the team and relevant processors/),
+    ).toBeVisible();
     await userEvent.type(
       body.getByRole("textbox", { name: "Message" }),
       "Please add shelves.",

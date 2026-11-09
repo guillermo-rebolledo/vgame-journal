@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { trackEvent } from "@/components/analytics";
 import { AuthForm } from "@/components/auth-form";
+import { SupportLink } from "@/components/support-link";
 import { authClient } from "@/lib/auth-client";
 import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
 import { passwordErrorMessage } from "@/lib/password-policy";
@@ -30,6 +31,7 @@ export default function ResetPasswordPage() {
         </h1>
         <p role="alert">This reset link is invalid or expired.</p>
         {recoveryLink}
+        <SupportLink />
       </section>
     );
 

@@ -35,10 +35,16 @@ export async function saveHomeStatus(
   gameId: number,
   slug: string,
   status: Status,
-) {
+): Promise<{
+  snapshot: HomeSnapshot;
+  error?: string;
+  authRequired?: boolean;
+  feedbackInvitation?: boolean;
+}> {
   const owner = await signedInUserId();
   if (!owner || owner !== expectedOwner)
     return { snapshot: { owner, entries: null }, authRequired: true };
+  let feedbackInvitation = false;
   try {
     if (!STATUSES.includes(status))
       throw new JournalError("Choose a valid Journal status.");
@@ -49,7 +55,7 @@ export async function saveHomeStatus(
     const current = await journal.entry(owner, gameId);
     // A status-only selection must preserve the completion tag on an unchanged Played entry.
     if (current?.status !== status)
-      await journal.set(owner, gameId, { status });
+      feedbackInvitation = await journal.set(owner, gameId, { status });
   } catch (error) {
     const snapshot = await readHomeJournal().catch(() => ({
       owner,
@@ -63,5 +69,5 @@ export async function saveHomeStatus(
           : "Couldn’t confirm the save. Your Journal has been checked where possible; try again.",
     };
   }
-  return { snapshot: await readHomeJournal() };
+  return { snapshot: await readHomeJournal(), feedbackInvitation };
 }

@@ -62,6 +62,9 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     await expect(notification).toHaveCount(1);
     await expect(notification).toHaveCSS("opacity", "1");
     await expect(editor).toHaveCount(0);
+    await expect(
+      page.getByRole("complementary", { name: "First game feedback" }),
+    ).toBeVisible();
     await expect(add).toBeFocused();
     await expect(notifications).toHaveAttribute("aria-live", "polite");
     await expect(notification).toHaveCSS(
