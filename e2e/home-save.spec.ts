@@ -104,6 +104,9 @@ test("guest intent survives sign-in, restores filters and requires confirmation 
     page.getByRole("combobox", { name: "Platform", exact: true }),
   ).toContainText("PC");
   await closeCatalog(page);
+  await expect(
+    page.getByRole("complementary", { name: "First game feedback" }),
+  ).toBeVisible();
   await count(page, "Wishlist (1)").click();
   await expect(page.getByRole("link", { name: /Celeste/ })).toBeVisible();
 });

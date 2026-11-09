@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useRef, useState } from "react";
 import { trackEvent } from "@/components/analytics";
+import { useFeedbackChannel } from "@/components/feedback-channel";
 import {
   type JournalSelection,
   JournalStatus,
@@ -61,8 +62,14 @@ export function GameRecording({
   playthroughs: Playthrough[];
   gameTitle: string;
   platforms: string[];
-  onStatus: SaveJournalStatus;
-  onAdd: SavePlaythrough;
+  onStatus: (
+    ...args: Parameters<SaveJournalStatus>
+  ) => Promise<
+    Awaited<ReturnType<SaveJournalStatus>> | { feedbackInvitation: true }
+  >;
+  onAdd: (
+    values: Record<string, string>,
+  ) => Promise<{ error: string } | { feedbackInvitation: true } | undefined>;
   onUpdate: (
     id: number,
     values: Record<string, string>,
@@ -70,6 +77,7 @@ export function GameRecording({
   onRemove: (id: number) => ReturnType<SavePlaythrough>;
   onRate: SaveRating;
 }) {
+  const feedbackChannel = useFeedbackChannel();
   const signInHref = authPageHref("/sign-in", usePathname());
   const [editor, setEditor] = useState<Playthrough | "add" | null>(null);
   const [pending, setPending] = useState(false);
@@ -159,7 +167,12 @@ export function GameRecording({
               busy.current = true;
               setPending(true);
               try {
-                return await onStatus(status, tag, acknowledged);
+                const result = await onStatus(status, tag, acknowledged);
+                if (result && "feedbackInvitation" in result) {
+                  feedbackChannel?.saved();
+                  return;
+                }
+                return result;
               } finally {
                 busy.current = false;
                 setPending(false);
@@ -283,7 +296,14 @@ export function GameRecording({
               outsideJournal={!entry}
               onSave={
                 editor === "add"
-                  ? onAdd
+                  ? async (values) => {
+                      const result = await onAdd(values);
+                      if (result && "feedbackInvitation" in result) {
+                        feedbackChannel?.saved();
+                        return;
+                      }
+                      return result;
+                    }
                   : (values) => onUpdate(editor.id, values)
               }
               onSuccess={(values) => {

@@ -13,6 +13,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useRef } from "react";
 import { Feedback, type SubmitFeedback } from "@/components/feedback";
+import { useFeedbackChannel } from "@/components/feedback-channel";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -67,6 +68,7 @@ export function AccountMenu({
   user: AccountUser | null;
   onSubmitFeedback?: SubmitFeedback;
 }) {
+  const channel = useFeedbackChannel();
   const accountTrigger = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -160,6 +162,10 @@ export function AccountMenu({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+  if (channel)
+    return menu(() => {
+      if (accountTrigger.current) channel.open(accountTrigger.current);
+    });
   return user.username && onSubmitFeedback ? (
     <Feedback
       username={user.username}

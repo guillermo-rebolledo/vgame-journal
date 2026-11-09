@@ -6,6 +6,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { type ReactNode, useEffect } from "react";
 import type { FeedbackType } from "@/lib/feedback-types";
 import type { CompletionTag, Status } from "@/lib/library";
+import { redactPathname } from "@/lib/pathname";
 
 // Allowlist, not denylist: free text (search), tokens, returnTo and any future param stay out by default.
 const SAFE_PARAMS = new Set([
@@ -26,11 +27,7 @@ export function redactAnalyticsEvent<T extends { url: string }>(event: T): T {
   for (const key of [...url.searchParams.keys()])
     if (!isSafeParam(key)) url.searchParams.delete(key);
   url.hash = "";
-  url.pathname = url.pathname.replace(/^\/u\/[^/]+/, "/u/[username]");
-  url.pathname = url.pathname.replace(
-    /^(\/(?:u\/\[username\]\/)?lists)\/[^/]+/,
-    "$1/[listId]",
-  );
+  url.pathname = redactPathname(url.pathname);
   return { ...event, url: url.toString() };
 }
 

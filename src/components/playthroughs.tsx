@@ -2,7 +2,9 @@ import { refresh, updateTag } from "next/cache";
 import type { ReactNode } from "react";
 import { communityRatingTag } from "@/app/games/[slug]/game";
 import { GameRecording } from "@/components/game-recording";
+import { db } from "@/db";
 import { ownerId, signedInUserId } from "@/lib/auth";
+import { claimFirstSaveFeedback } from "@/lib/feedback";
 import {
   type CompletionTag,
   JournalError,
@@ -20,7 +22,17 @@ const fromForm = (values: Record<string, string>): PlaythroughInput => ({
   notes: values.notes ?? "",
 });
 
-async function saveOrReturnError(write: () => Promise<void>) {
+async function saveOrReturnError(
+  write: () => Promise<void>,
+): Promise<{ error: string } | undefined>;
+async function saveOrReturnError(
+  write: () => Promise<void>,
+  firstSaveOwner: string,
+): Promise<{ error: string } | { feedbackInvitation: true } | undefined>;
+async function saveOrReturnError(
+  write: () => Promise<void>,
+  firstSaveOwner?: string,
+) {
   try {
     await write();
   } catch (error) {
@@ -31,7 +43,11 @@ async function saveOrReturnError(write: () => Promise<void>) {
           : "Couldn’t save. Check your connection and try again. If the game was added to your journal, it remains there.",
     };
   }
+  const feedbackInvitation = firstSaveOwner
+    ? await claimFirstSaveFeedback(db, firstSaveOwner).catch(() => false)
+    : false;
   refresh();
+  if (feedbackInvitation) return { feedbackInvitation: true as const };
 }
 
 /** A single request-scoped loading boundary for all personal game content. */
@@ -62,8 +78,9 @@ export async function Playthroughs({
     "use server";
     const owner = await ownerId();
     if (status !== null)
-      return saveOrReturnError(() =>
-        journal.set(owner, gameId, { status, completionTag }),
+      return saveOrReturnError(
+        () => journal.set(owner, gameId, { status, completionTag }),
+        owner,
       );
     try {
       const result = await journal.remove(owner, gameId, acknowledged);
@@ -97,14 +114,16 @@ export async function Playthroughs({
   async function add(values: Record<string, string>) {
     "use server";
     const owner = await ownerId();
-    return saveOrReturnError(() =>
-      journal.recordPlaythrough(
-        owner,
-        gameId,
-        fromForm(values),
-        (values.status ?? "playing") as Status,
-        values.submissionId ?? "",
-      ),
+    return saveOrReturnError(
+      () =>
+        journal.recordPlaythrough(
+          owner,
+          gameId,
+          fromForm(values),
+          (values.status ?? "playing") as Status,
+          values.submissionId ?? "",
+        ),
+      owner,
     );
   }
   async function update(id: number, values: Record<string, string>) {

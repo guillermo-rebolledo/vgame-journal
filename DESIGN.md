@@ -247,7 +247,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | Modal editor viewport | `ui/drawer.tsx`, `use-editor-viewport.ts` and `.editor-drawer` | Drawer positions all sheets inside the visual viewport, including Feedback, when browser toolbars or the keyboard resize it. Shared editor sizing serves Playthrough and list drawers; editors fit their content on every screen up to the visible viewport limit, then scroll; sheets span the viewport and attach to its bottom edge. Keep mobile editors above the software keyboard. |
 | Header and navigation | `main-nav.tsx`, `account-menu.tsx`, `skip-link.tsx` | Maintain current-page state and keyboard access to main content. |
 | App and browser appearance | `theme-provider.tsx` | Own Light, Dark and System appearance and matching browser theme color; preserve the Dark default and saved choice. |
-| Copying and feedback | `copy-button.tsx`, `feedback.tsx` | Reuse success, failure, and manual-copy recovery. |
+| Copying and feedback | `copy-button.tsx`, `feedback.tsx`, `feedback-channel.tsx`, `support-link.tsx` | One Feedback drawer serves the account menu, empty Journal and first-save invitation, restoring focus to its origin. Public support uses one contact setting before account setup. |
 | Action state cues | `ui/action-feedback.tsx` (`ActionIcon`, `ActionFeedback`) | Compose with Button and the caller's request state. Icons are decorative; keep one stable live region and the visible action label. |
 | Completion notifications | `ui/toast.tsx` (`Toaster`, `toast`) | One Base UI host in the root layout. Notify after an editor finishes closing; keep form errors and recovery beside their controls. |
 | Settings actions | `region-form.tsx`, `calendar-feed-form.tsx` | Keep pending and confirmed feedback beside Save or Regenerate URL, retain choices on failure, and prevent duplicate requests. |
@@ -361,6 +361,13 @@ Motion is implemented in `globals.css` and the components; `.impeccable/design.j
 - Distinguish an empty Journal, no matching search results, loading content, and a failed request. Give an empty state a clear next action; give a failure a recovery action. Keep previously loaded content available when possible.
 - Explain what will be removed before destructive actions and retain the existing confirmation or undo behavior. State when notes are private. Do not imply that saving a game means owning or buying it.
 - Truncate secondary metadata only when the full value remains available. Let titles, errors, notes, and button labels wrap; test long titles, missing cover art, non-Latin text, and large counts.
+
+### Private feedback
+
+- Keep the account-menu entry permanent and add “Something confusing or missing?” as a quiet empty-Journal action. The first successful game save may show an inline, nonmodal invitation; its opportunity is consumed atomically once per account, across devices. Dismissal and closing the editor leave permanent entries available.
+- Reuse Feedback rather than introducing a second form. Category guidance describes needs, expected behavior, and usability friction without adding required fields. Keep the visible Message label, draft recovery, 2,000-character limit, single status announcement and originating-control focus return.
+- Explain the team/processors audience, username, sanitized opening page and account reply address before submission. Do not include passwords or private notes. Do not promise response times or unverified retention. The authoritative privacy notice belongs to issue #130; operational dependencies and reconciliation are in `docs/feedback-operations.md`.
+- `SupportLink` is a native email link resolved from `SUPPORT_HREF` in `src/config/site.ts`. It adds no page, credential or account context and appears in AuthForm (including onboarding), invalid reset recovery and the footer. The private notification recipient remains server-only.
 
 ## Accessibility and verification
 
