@@ -66,7 +66,35 @@ scans. No UI component or motion changed, so no component/story extension is
 needed. Manual screen-reader announcements, exhaustive Tab traversal, physical
 touch/sticky hover, software keyboard, true browser zoom and text-enlargement
 walkthrough remain unavailable; automated equivalents do not establish them.
-Firefox/WebKit journeys were not rerun in this follow-up.
+Firefox/WebKit journeys were not rerun during the initial acceptance run; see
+the WebKit CI follow-up below.
+
+### WebKit CI follow-up
+
+The [initial WebKit CI job](https://github.com/guillermo-rebolledo/vgame-journal/actions/runs/42711878564/job/129483248918)
+passed 11 smoke journeys and timed out waiting for Delete playthrough after the
+edit/save/reopen sequence in `e2e/game-recording.spec.ts`. The trace showed Edit
+clicked while the previous drawer dismissal was still settling. Five original
+journey repeats passed on local macOS WebKit and five in the Playwright 1.64.1
+Noble Linux arm64 image, so the exact lost-reopen symptom was intermittent.
+A temporary DOM probe at the reopen boundary confirmed the live popup still had
+`data-ending-style` after the row already displayed the updated hours; another
+popup was parked under a hidden ancestor. The probe and a temporary longer-exit
+experiment were removed.
+
+The existing journey now waits for the active dialog to disappear and focus to
+return to Edit before reopening. It keeps the deletion, persistence and draft
+assertions, with no application change, extra retry or longer timeout.
+
+Validation: `E2E_PORT=3690 E2E_SUPPORT_PORT=3691 pnpm test:e2e e2e/game-recording.spec.ts --project=chromium --project=firefox-smoke --project=webkit-smoke --grep 'drawer drafts' --repeat-each=5 --workers=3`
+passed all 15 runs (1.1 minutes). Lint, typecheck and `git diff --check` pass.
+The fixed journey also passed 5/5 repeats (1.2 minutes) with
+`pnpm test:e2e e2e/game-recording.spec.ts --project=webkit-smoke --grep 'drawer drafts' --repeat-each=5 --workers=4`
+inside `mcr.microsoft.com/playwright:v1.64.1-noble` on Linux arm64, using a fresh
+frozen install and synthetic local resources. This is not GitHub's x86 runner;
+the replacement hosted CI result must be checked separately.
+Unit/Storybook suites and manual device checks were not repeated for this
+test-only synchronization change; their initial evidence remains above.
 
 ### Human/operator acceptance remains pending
 
