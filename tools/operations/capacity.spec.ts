@@ -236,19 +236,36 @@ test("isolated Journal capacity measurements", async ({
               ms: Math.round(performance.now() - readyStart),
               ok: taps > 0,
             });
-            const start = performance.now();
-            let ok = false;
-            let failure = "status-control";
+            const offset =
+              mode === "first-navigation"
+                ? 0
+                : mode === "warm"
+                  ? 1
+                  : iterations + 1;
+            const playing = (round + offset) % 2 === 0;
+            // The save is measured alone: whole-Journal export verification
+            // grows with the dataset and would hide the write it checks.
+            const saveStart = performance.now();
+            let saved = false;
             try {
-              const offset =
-                mode === "first-navigation"
-                  ? 0
-                  : mode === "warm"
-                    ? 1
-                    : iterations + 1;
-              const playing = (round + offset) % 2 === 0;
               await chooseStatus(page, playing ? "playing" : "backlog");
-              failure = "export-read";
+              saved = true;
+            } catch {
+              /* Preserve failure count without recording Journal contents. */
+            }
+            samples.push({
+              operation: "journal-save",
+              mode,
+              ...(saved ? {} : { failure: boundedFailure("status-control") }),
+              ms: Math.round(performance.now() - saveStart),
+              ok: saved,
+            });
+            // Still read back after a failed save: a lost write has to show up
+            // here rather than be skipped, so one incident can count twice.
+            const verifyStart = performance.now();
+            let ok = false;
+            let failure = "export-read";
+            try {
               const response = await context.request.get(
                 `${origin}/api/account/export`,
               );
@@ -265,10 +282,10 @@ test("isolated Journal capacity measurements", async ({
               /* Preserve failure count without recording Journal contents. */
             }
             samples.push({
-              operation: "journal-save-and-verify",
+              operation: "journal-export-verify",
               mode,
               ...(ok ? {} : { failure: boundedFailure(failure) }),
-              ms: Math.round(performance.now() - start),
+              ms: Math.round(performance.now() - verifyStart),
               ok,
             });
           }
@@ -320,7 +337,8 @@ test("isolated Journal capacity measurements", async ({
     await mkdir("test-results/operations-reports", { recursive: true });
     await writeFile(
       `test-results/operations-reports/capacity-${dataset}-${users}.json`,
-      JSON.stringify(report, null, 2),
+      // Trailing newline: an archived report has to pass the repository formatter.
+      `${JSON.stringify(report, null, 2)}\n`,
     );
   }
   expect(
