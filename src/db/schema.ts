@@ -153,6 +153,8 @@ export const steamLink = pgTable(
     steamId: text("steam_id").notNull(),
     linkedAt: timestamp("linked_at").notNull(),
     nextImportAt: timestamp("next_import_at"),
+    /** A completed review may commit immediately; cooldowns and active imports may not. */
+    reviewReady: boolean("review_ready").notNull().default(false),
   },
   (t) => [check("steam_link_id_valid", sql`${t.steamId} ~ '^[0-9]{17}$'`)],
 );

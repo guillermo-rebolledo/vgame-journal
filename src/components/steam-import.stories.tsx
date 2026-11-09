@@ -109,6 +109,11 @@ export const Review: Story = {
       canvas.getByRole("button", { name: "Add 1 to Backlog" }),
     );
     await expect(context.args.onCommit).toHaveBeenCalledWith([1]);
+    await waitFor(() =>
+      expect(
+        canvas.getByRole("button", { name: "Start Steam import" }),
+      ).toHaveFocus(),
+    );
   },
 };
 export const PublicReview: Story = {
@@ -198,5 +203,45 @@ export const TenThousand: Story = {
     await expect(
       canvas.getByRole("button", { name: "Add 10000 to Backlog" }),
     ).toBeEnabled();
+  },
+};
+
+export const RereadFailureKeepsSelection: Story = {
+  beforeEach: ({ args }) => {
+    mocked(args.onRead)
+      .mockResolvedValueOnce({ kind: "review", rows })
+      .mockResolvedValueOnce({ kind: "unavailable" });
+  },
+  play: async (context) => {
+    await start(context);
+    const canvas = within(context.canvasElement);
+    await userEvent.click(canvas.getByRole("checkbox", { name: /Portal 2/ }));
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Retry Steam import" }),
+    );
+    await waitFor(() =>
+      expect(canvas.getByRole("status")).toHaveTextContent(
+        "Catalog is unavailable",
+      ),
+    );
+    await expect(
+      canvas.getByRole("checkbox", { name: /Portal 2/ }),
+    ).not.toBeChecked();
+    await expect(
+      canvas.getByRole("button", { name: "Add 1 to Backlog" }),
+    ).toBeEnabled();
+  },
+};
+export const DisconnectReturnsFocus: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Disconnect Steam" }),
+    );
+    await waitFor(() =>
+      expect(
+        canvas.getByRole("link", { name: "Sign in through Steam" }),
+      ).toHaveFocus(),
+    );
   },
 };

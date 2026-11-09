@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useId, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import {
   FirstSaveFeedback,
   useFeedbackChannel,
@@ -79,6 +79,16 @@ export function SteamImport({
   const [operation, setOperation] = useState("");
   const busy = useRef(false);
   const sortId = useId();
+  const startControl = useRef<HTMLButtonElement>(null);
+  const connectControl = useRef<HTMLAnchorElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const restoreFocus = useRef(false);
+  useEffect(() => {
+    if (pending || !restoreFocus.current) return;
+    restoreFocus.current = false;
+    (linked ? startControl.current : connectControl.current)?.focus();
+    if (!enabled) heading.current?.focus();
+  }, [pending, linked, enabled]);
   function run(label: string, work: () => Promise<void>) {
     if (busy.current) return;
     busy.current = true;
@@ -110,7 +120,12 @@ export function SteamImport({
       className="flex min-w-0 flex-col gap-4 border-t pt-6"
     >
       <div className="flex flex-col gap-1">
-        <h2 id="steam-heading" className="font-medium">
+        <h2
+          ref={heading}
+          tabIndex={-1}
+          id="steam-heading"
+          className="font-medium outline-none"
+        >
           Steam import
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -130,6 +145,7 @@ export function SteamImport({
       )}
       {!linked && enabled && (
         <a
+          ref={connectControl}
           href="/api/steam/connect"
           className="inline-flex min-h-11 self-start items-center rounded-md focus-visible:outline-2 focus-visible:outline-offset-4"
         >
@@ -144,11 +160,16 @@ export function SteamImport({
       <div className="flex flex-wrap gap-2">
         {linked && enabled && (
           <Button
+            ref={startControl}
             className="min-h-11"
             disabled={pending}
             onClick={() =>
               run("Reading and matching Steam games…", async () => {
                 const result = await onRead();
+                if (result.kind !== "review" && review?.kind === "review") {
+                  setError(messages[result.kind]);
+                  return;
+                }
                 setReview(result);
                 setSelected(
                   new Set(
@@ -177,6 +198,7 @@ export function SteamImport({
                   setError(result.error);
                   return;
                 }
+                restoreFocus.current = true;
                 setLinked(false);
                 setReview(undefined);
                 setSelected(new Set());
@@ -312,6 +334,7 @@ export function SteamImport({
                   type: "success",
                 });
                 if (result.feedbackInvitation) feedback?.saved();
+                restoreFocus.current = true;
                 setReview(undefined);
                 setSelected(new Set());
               })

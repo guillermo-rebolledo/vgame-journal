@@ -1,5 +1,5 @@
 {
-  "id": "28430082-688e-4fa1-b5bd-a5e6004777eb",
+  "id": "66edd0e2-ec95-452c-8831-7d984cb4c84b",
   "prevId": "9358d5b4-f0fc-47cf-892b-6f84815c0690",
   "version": "7",
   "dialect": "postgresql",
@@ -1322,6 +1322,13 @@
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
+        },
+        "review_ready": {
+          "name": "review_ready",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         }
       },
       "indexes": {},

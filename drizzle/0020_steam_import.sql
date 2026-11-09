@@ -3,6 +3,7 @@ CREATE TABLE "steam_link" (
 	"steam_id" text NOT NULL,
 	"linked_at" timestamp NOT NULL,
 	"next_import_at" timestamp,
+	"review_ready" boolean DEFAULT false NOT NULL,
 	CONSTRAINT "steam_link_id_valid" CHECK ("steam_link"."steam_id" ~ '^[0-9]{17}$')
 );
 --> statement-breakpoint

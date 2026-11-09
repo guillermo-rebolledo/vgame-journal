@@ -100,7 +100,12 @@ export function createSteamImport(
           .values({ userId, steamId, linkedAt: new Date() })
           .onConflictDoUpdate({
             target: steamLink.userId,
-            set: { steamId, linkedAt: new Date(), nextImportAt: null },
+            set: {
+              steamId,
+              linkedAt: new Date(),
+              nextImportAt: null,
+              reviewReady: false,
+            },
           })
           .getSQL(),
       ]);
@@ -112,9 +117,13 @@ export function createSteamImport(
       ]);
     },
     async review(userId: string): Promise<SteamReview> {
+      const windowEndsAt = new Date(Date.now() + 60_000);
       const [link] = await db
         .update(steamLink)
-        .set({ nextImportAt: new Date(Date.now() + 60_000) })
+        .set({
+          nextImportAt: windowEndsAt,
+          reviewReady: false,
+        })
         .where(
           and(
             eq(steamLink.userId, userId),
@@ -145,6 +154,18 @@ export function createSteamImport(
             .from(statusEvent)
             .where(eq(statusEvent.userId, userId)),
         ]);
+        const [readyLink] = await db
+          .update(steamLink)
+          .set({ reviewReady: true })
+          .where(
+            and(
+              eq(steamLink.userId, userId),
+              eq(steamLink.steamId, link.steamId),
+              eq(steamLink.nextImportAt, windowEndsAt),
+            ),
+          )
+          .returning();
+        if (!readyLink) return { kind: "unavailable" };
         const existing = new Set(entries.map((e) => e.gameId));
         const removed = new Set(history.map((e) => e.gameId));
         return {
@@ -172,15 +193,20 @@ export function createSteamImport(
         throw new ExpectedError("Choose up to 10,000 valid Steam games.");
       const ids = [...new Set<number>(selection)];
       if (!ids.length) throw new ExpectedError("Select at least one game.");
+      const leaseEndsAt = new Date(Date.now() + 180_000);
       const [link] = await db
         .update(steamLink)
-        .set({ nextImportAt: new Date(Date.now() + 180_000) })
+        .set({
+          nextImportAt: leaseEndsAt,
+          reviewReady: false,
+        })
         .where(
           and(
             eq(steamLink.userId, userId),
             or(
               isNull(steamLink.nextImportAt),
-              lte(steamLink.nextImportAt, new Date(Date.now() + 60_000)),
+              lte(steamLink.nextImportAt, new Date()),
+              eq(steamLink.reviewReady, true),
             ),
           ),
         )
@@ -221,6 +247,7 @@ export function createSteamImport(
             and(
               eq(steamLink.userId, userId),
               eq(steamLink.steamId, link.steamId),
+              eq(steamLink.nextImportAt, leaseEndsAt),
             ),
           );
         return result;
@@ -232,6 +259,7 @@ export function createSteamImport(
             and(
               eq(steamLink.userId, userId),
               eq(steamLink.steamId, link.steamId),
+              eq(steamLink.nextImportAt, leaseEndsAt),
             ),
           );
         throw error;

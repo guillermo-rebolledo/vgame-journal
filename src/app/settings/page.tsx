@@ -309,7 +309,6 @@ async function SteamSetting({
   ]);
   return (
     <SteamImport
-      key={link?.linkedAt.toISOString() ?? "disconnected"}
       connected={Boolean(link)}
       enabled={steamImportEnabled()}
       publicProfile={visibility === "public"}

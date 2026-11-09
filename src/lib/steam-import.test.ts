@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { steamLink, user } from "@/db/schema";
 import { createTestDb } from "@/test/db";
 import { createFakeGameSource, sourceGame } from "@/test/fake-game-source";
@@ -10,6 +10,7 @@ import { createSteamImport } from "./steam-import";
 let db: Awaited<ReturnType<typeof createTestDb>>;
 let read: ReturnType<typeof vi.fn<() => Promise<SteamRead>>>;
 let importer: ReturnType<typeof createSteamImport>;
+afterEach(() => vi.useRealTimers());
 const games = Array.from({ length: 8 }, (_, i) => sourceGame({ id: i + 1 }));
 beforeEach(async () => {
   db = await createTestDb();
@@ -150,7 +151,10 @@ test("oversized reads stop before matching and incomplete Catalog data leaves th
     createFakeGameSource([], [{ appid: 1, gameId: 999, type: "main_game" }]),
     read,
   );
-  await expect(unavailable.commit("mario", [1])).rejects.toThrow();
+  await db.update(steamLink).set({ nextImportAt: null });
+  await expect(unavailable.commit("mario", [1])).rejects.toThrow(
+    "Incomplete Catalog response",
+  );
   expect((await createJournal(db).exportData("mario")).entries).toEqual([]);
 });
 
@@ -193,3 +197,42 @@ test("10,000 imported entries keep counts, history and Library consistent", asyn
     10_000,
   );
 }, 30_000);
+
+test("successful imports enforce the entire five-minute cooldown", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  const started = Date.now();
+  await importer.commit("mario", [100]);
+  vi.setSystemTime(started + 240_000);
+  await expect(importer.commit("mario", [100])).rejects.toThrow();
+  vi.setSystemTime(started + 300_001);
+  expect((await importer.commit("mario", [100])).added).toBe(0);
+});
+
+test("a running commit blocks later commits and cannot overwrite a newer review lease", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  const now = Date.now();
+  const mapping = [{ appid: 100, gameId: 1, type: "main_game" as const }];
+  let release!: (rows: typeof mapping) => void;
+  let announce!: () => void;
+  const started = new Promise<void>((resolve) => {
+    announce = resolve;
+  });
+  const source = createFakeGameSource(games, mapping);
+  source.mapSteamApps = async () => {
+    announce();
+    return new Promise((resolve) => {
+      release = resolve;
+    });
+  };
+  const slow = createSteamImport(db, source, read);
+  const first = slow.commit("mario", [100]);
+  await started;
+  vi.setSystemTime(now + 120_000);
+  await expect(importer.commit("mario", [100])).rejects.toThrow();
+  vi.setSystemTime(now + 180_001);
+  expect((await importer.review("mario")).kind).toBe("review");
+  const before = await importer.connection("mario");
+  release(mapping);
+  expect((await first).added).toBe(1);
+  expect(await importer.connection("mario")).toEqual(before);
+});

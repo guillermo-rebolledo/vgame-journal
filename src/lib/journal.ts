@@ -290,7 +290,7 @@ export function createJournal(db: Db) {
           where exists (select 1 from deleted_user)
             and ${verification.id} <> ${deletionProofId(sessionId)}
             and ((${verification.value} = ${userId} and
-              (${verification.identifier} like 'reset-password:%' or ${verification.identifier} like 'account-deletion:%'))
+              (${verification.identifier} like 'reset-password:%' or ${verification.identifier} like 'account-deletion:%' or ${verification.identifier} like 'steam:%'))
               or ${verification.id} = ${`account-deletion-send:${userId}`}
               or (case when ${verification.identifier} like 'account-deletion-code:%'
                 then ${verification.value}::jsonb->>'userId' end) = ${userId})

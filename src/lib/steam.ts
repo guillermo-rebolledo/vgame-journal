@@ -27,6 +27,7 @@ export async function readSteamGames(
     headers: { "x-webapi-key": key },
     signal: AbortSignal.timeout(15_000),
     cache: "no-store",
+    redirect: "error",
   });
   if (!response.ok) throw new Error("Steam unavailable");
   const data = (await response.json())?.response;

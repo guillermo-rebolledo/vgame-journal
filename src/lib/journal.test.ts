@@ -166,6 +166,12 @@ test("account deletion requires typed confirmation and cascades only the owner's
       linkedAt: new Date(),
     });
     await db.insert(verification).values({
+      id: `steam-state-${owner}`,
+      identifier: `steam:${owner}-session`,
+      value: owner,
+      expiresAt: new Date("2030-01-01"),
+    });
+    await db.insert(verification).values({
       id: `${owner}-reset`,
       identifier: `reset-password:${owner}-token`,
       value: owner,
@@ -237,7 +243,7 @@ test("account deletion requires typed confirmation and cascades only the owner's
   ).toEqual([]);
   expect(
     await db.select().from(verification).where(eq(verification.value, "luigi")),
-  ).toHaveLength(1);
+  ).toHaveLength(2);
   expect(await journal.exportData("luigi")).toEqual(survivor);
   expect(
     await db.select().from(session).where(eq(session.userId, "luigi")),
