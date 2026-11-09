@@ -16,11 +16,9 @@ test("tag shelves switch instantly, support keyboard navigation and open recomme
   await expect(section.getByRole("link").first()).toHaveText("Dead Cells");
   const requests: string[] = [];
   page.on("request", (request) => {
-    // Header Link prefetches run independently of the local shelf selection.
-    const headerPrefetch =
-      request.headers()["next-router-prefetch"] &&
-      ["/", "/sign-in"].includes(new URL(request.url()).pathname);
-    if (request.resourceType() === "fetch" && !headerPrefetch)
+    // Navigation and footer prefetches run independently of the local shelf selection.
+    const routePrefetch = request.headers()["next-router-prefetch"];
+    if (request.resourceType() === "fetch" && !routePrefetch)
       requests.push(request.url());
   });
   const tag = section.getByRole("button", {

@@ -168,6 +168,30 @@ then `pnpm test:e2e e2e/accessibility.spec.ts e2e/profile-visibility.spec.ts --w
 No new physical-device, screen-reader, true browser zoom or production/provider
 checks were performed for this merge; the operator gates below remain pending.
 
+## CI E2E follow-up
+
+CI run `42686175259` on `c8a6804` failed all three Chromium shards. The exact
+failures were reproduced locally: Public List's previous label, an unscoped Save
+button after adding Profile visibility, and the new Privacy link's background
+router prefetch counted as a shelf request. The run also exposed an order-dependent
+feedback fixture: its raw first-insert query returned no rows when Celeste had
+not already been loaded into the local Catalog by another test.
+
+The four E2E specs now use the current List label, scope Region controls to their
+form, exclude only requests carrying Next's router-prefetch marker from the
+local shelf-fetch assertion, and explicitly load Celeste before simulating the
+old-version Journal insert. The feedback case uses the existing unique-account
+helper and passes alone on a fresh support database. The first fix run caught a
+missing helper import, which was corrected before final verification. No app
+behavior, retry policy, assertion timeout or CI configuration changed.
+
+Focused command (isolated ports 3590/3591):
+`pnpm test:e2e e2e/custom-lists-owner.spec.ts e2e/game-facts.spec.ts e2e/tag-shelves.spec.ts e2e/feedback.spec.ts --grep 'an empty public list|headline board|tag shelves switch|unclaimed old' --workers=2`.
+All four cases passed together (11.2s); the feedback case also passed alone.
+`pnpm lint` and `pnpm typecheck` also pass. The new CI run is the full-suite
+verification; its result must be read independently of the earlier selected
+local acceptance runs.
+
 ## Operator gates remain pending
 
 Live mail delivery/domain authentication and deployed ordinary Google sign-in
