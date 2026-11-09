@@ -46,12 +46,20 @@ export const user = pgTable(
       .notNull(),
     username: text("username").unique(),
     displayUsername: text("display_username"),
+    profileVisibility: text("profile_visibility")
+      .$type<"private" | "public">()
+      .notNull()
+      .default("private"),
     /** Whose release dates the user's Countdowns follow. */
     region: text("region").$type<Region>().notNull().default("earliest"),
     /** Secret in the user's calendar feed URL; null until they first see it. */
     feedToken: text("feed_token").unique(),
   },
   (table) => [
+    check(
+      "user_profile_visibility_known",
+      sql`${table.profileVisibility} in ('private', 'public')`,
+    ),
     check(
       "user_region_known",
       sql`${table.region} in ('earliest', 'north_america', 'europe', 'japan')`,

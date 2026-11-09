@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, inArray, type SQL, sql } from "drizzle-orm";
+import { and, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import { type Db, db } from "@/db";
 import {
   game,
@@ -30,6 +30,8 @@ import {
   type ResolvedRelease,
   resolveRelease,
 } from "@/lib/release-dates";
+
+export type ProfileVisibility = "private" | "public";
 
 export {
   COMPLETION_TAGS,
@@ -264,6 +266,7 @@ export function createJournal(db: Db) {
           username: user.username,
           displayUsername: user.displayUsername,
           region: user.region,
+          profileVisibility: user.profileVisibility,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
         })
@@ -303,20 +306,49 @@ export function createJournal(db: Db) {
     },
 
     /** Fast route check before streaming, so unknown profiles get an HTTP 404. */
-    async hasPublicProfile(username: string) {
+    hasPublicProfile(username: string) {
+      return this.hasProfileForViewer(username, null);
+    },
+
+    async hasProfileForViewer(username: string, viewerId: string | null) {
       const [found] = await db
         .select({ username: user.username })
         .from(user)
-        .where(eq(user.username, username.toLowerCase()));
+        .where(
+          and(
+            eq(user.username, username.toLowerCase()),
+            or(
+              eq(user.profileVisibility, "public"),
+              viewerId ? eq(user.id, viewerId) : undefined,
+            ),
+          ),
+        );
       return !!found;
     },
 
     /** Public allowlist: never select notes, email, auth fields or the calendar token. */
-    async publicProfile(username: string) {
+    publicProfile(username: string) {
+      return this.profileForViewer(username, null);
+    },
+
+    async profileForViewer(username: string, viewerId: string | null) {
       const [owner] = await db
-        .select({ id: user.id, username: user.username, image: user.image })
+        .select({
+          id: user.id,
+          username: user.username,
+          image: user.image,
+          visibility: user.profileVisibility,
+        })
         .from(user)
-        .where(eq(user.username, username.toLowerCase()));
+        .where(
+          and(
+            eq(user.username, username.toLowerCase()),
+            or(
+              eq(user.profileVisibility, "public"),
+              viewerId ? eq(user.id, viewerId) : undefined,
+            ),
+          ),
+        );
       if (!owner) return null;
       const [library, wishlistEntries, stats, playthroughs] = await Promise.all(
         [
@@ -337,6 +369,7 @@ export function createJournal(db: Db) {
         ],
       );
       return {
+        visibility: owner.visibility,
         username: owner.username,
         image: owner.image,
         library,
@@ -716,6 +749,23 @@ export function createJournal(db: Db) {
       });
       // ponytail: filters in memory, fine for a personal journal's hundreds of games; push into SQL if libraries get huge.
       return queryLibrary(library, filters, sort);
+    },
+
+    async profileVisibility(userId: string): Promise<ProfileVisibility> {
+      const [found] = await db
+        .select({ visibility: user.profileVisibility })
+        .from(user)
+        .where(eq(user.id, userId));
+      return found?.visibility ?? "private";
+    },
+
+    async setProfileVisibility(userId: string, visibility: unknown) {
+      if (visibility !== "private" && visibility !== "public")
+        throw new JournalError("Choose Public or Private profile visibility.");
+      await db
+        .update(user)
+        .set({ profileVisibility: visibility })
+        .where(eq(user.id, userId));
     },
 
     /** The region whose release dates the user's Countdowns follow. */

@@ -13,6 +13,7 @@ type Field = {
   label: string;
   type?: string;
   autoComplete?: string;
+  descriptionId?: string;
 };
 
 /** Resolves to an error, a success message, or nothing (when it navigated away). */
@@ -26,6 +27,7 @@ export function AuthForm({
   submitLabel,
   onSubmit,
   notice,
+  beforeSubmit,
   children,
 }: {
   title: string;
@@ -34,6 +36,7 @@ export function AuthForm({
   onSubmit: Submit;
   /** Page confirmation that keeps the form available, such as a completed password reset. */
   notice?: string;
+  beforeSubmit?: ReactNode;
   children?: ReactNode;
 }) {
   const [state, action, pending] = useActionState(
@@ -80,7 +83,7 @@ export function AuthForm({
                 aria-describedby={
                   f.autoComplete === "new-password"
                     ? `${f.name}-guidance`
-                    : undefined
+                    : f.descriptionId
                 }
                 // Form actions reset inputs; refill everything but passwords after an error.
                 defaultValue={
@@ -103,6 +106,7 @@ export function AuthForm({
               {state.error}
             </p>
           )}
+          {beforeSubmit}
           <Button
             type="submit"
             disabled={pending}

@@ -9,6 +9,7 @@ import { TrackClicks } from "@/components/analytics";
 import { CalendarFeedForm } from "@/components/calendar-feed-form";
 import { SettingLoading } from "@/components/content-loading";
 import { DeleteAccountForm } from "@/components/delete-account-form";
+import { ProfileVisibilityForm } from "@/components/profile-visibility-form";
 import { RegionForm } from "@/components/region-form";
 import { Button } from "@/components/ui/button";
 import { auth, ownerId, signedInUserId } from "@/lib/auth";
@@ -21,6 +22,11 @@ export default function SettingsPage() {
   return (
     <section className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-8">
       <h1 className="font-semibold text-3xl tracking-tight">Settings</h1>
+      <Suspense
+        fallback={<SettingLoading label="Loading profile visibility…" />}
+      >
+        <ProfileVisibilitySetting />
+      </Suspense>
       <Suspense fallback={<SettingLoading label="Loading release region…" />}>
         <RegionSetting />
       </Suspense>
@@ -154,4 +160,27 @@ async function CalendarFeedSetting() {
   }
 
   return <CalendarFeedForm url={url} onRegenerate={regenerate} />;
+}
+
+async function ProfileVisibilitySetting() {
+  const userId = await signedInUserId();
+  if (!userId) redirect("/sign-in");
+  const current = await journal.profileVisibility(userId);
+
+  async function save(form: FormData) {
+    "use server";
+    try {
+      await journal.setProfileVisibility(
+        await ownerId(),
+        form.get("visibility"),
+      );
+    } catch {
+      return {
+        error: "Could not save your profile visibility. Please try again.",
+      };
+    }
+    refresh();
+    return { saved: true as const };
+  }
+  return <ProfileVisibilityForm current={current} onSave={save} />;
 }

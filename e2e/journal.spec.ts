@@ -33,14 +33,22 @@ test("F05/F16: Release region save stays local on transport failure and retries 
     await route.abort();
   });
   try {
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page
+      .getByRole("form", { name: "Release region" })
+      .getByRole("button", { name: "Save", exact: true })
+      .click();
     await expect(
       page.getByRole("form", { name: "Release region" }).getByRole("status"),
     ).toHaveText("Saving…");
     await expect(
-      page.getByRole("button", { name: "Save", exact: true }),
+      page
+        .getByRole("form", { name: "Release region" })
+        .getByRole("button", { name: "Save", exact: true }),
     ).toBeDisabled();
-    for (const radio of await page.getByRole("radio").all())
+    for (const radio of await page
+      .getByRole("form", { name: "Release region" })
+      .getByRole("radio")
+      .all())
       await expect(radio).toBeDisabled();
     await page.keyboard.press("Enter");
     expect(submissions).toBe(1);
@@ -90,7 +98,10 @@ test("F05/F16: invalid region and expired-session action failures stay in Settin
   await japan.evaluate((input: HTMLInputElement) => {
     input.value = "mars";
   });
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page
+    .getByRole("form", { name: "Release region" })
+    .getByRole("button", { name: "Save", exact: true })
+    .click();
   await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "Could not save your release region",
   );
@@ -114,7 +125,10 @@ test("F05/F16: invalid region and expired-session action failures stay in Settin
   });
   expect(signedOut.ok()).toBe(true);
   await page.getByRole("radio", { name: /Europe European/ }).check();
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page
+    .getByRole("form", { name: "Release region" })
+    .getByRole("button", { name: "Save", exact: true })
+    .click();
   await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "Could not save your release region",
   );
@@ -302,6 +316,12 @@ test("sign up, share a profile without notes, export the journal, and delete the
   await page.goto("/");
   await viewCatalogGame(page, "Silksong");
   await chooseStatus(page, "wishlist");
+
+  await page.goto("/settings");
+  const visibility = page.getByRole("form", { name: "Profile visibility" });
+  await visibility.getByRole("radio", { name: /^Public/ }).check();
+  await visibility.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(visibility.getByRole("status")).toHaveText("Saved");
 
   const visitor = await browser.newContext();
   const publicPage = await visitor.newPage();
@@ -568,6 +588,13 @@ for (const theme of ["dark", "light"]) {
           surface.getByRole("main").locator(`img[src="${failedSource}"]`),
         ).toHaveCount(0);
       };
+      await page.goto("/settings");
+      const visibility = page.getByRole("form", { name: "Profile visibility" });
+      await visibility.getByRole("radio", { name: /^Public/ }).check();
+      await visibility
+        .getByRole("button", { name: "Save", exact: true })
+        .click();
+      await expect(visibility.getByRole("status")).toHaveText("Saved");
       await chooseAccountMenuItem(page, "My profile");
       await guest.goto(`/u/${username}`);
       await expectProfile(page, false);

@@ -17,12 +17,16 @@ export function PublicListDetail({ list }: { list: PublicList }) {
         </h1>
         <p className="text-muted-foreground text-sm">
           By{" "}
-          <Link
-            href={creatorPath}
-            className="rounded underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            @{list.creator.username}
-          </Link>
+          {list.creator.profileVisibility === "public" ? (
+            <Link
+              href={creatorPath}
+              className="rounded underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              @{list.creator.username}
+            </Link>
+          ) : (
+            <span>@{list.creator.username}</span>
+          )}
           {" · "}
           {list.gameCount} {list.gameCount === 1 ? "game" : "games"}
           {" · Updated "}

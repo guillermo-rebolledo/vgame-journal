@@ -52,6 +52,11 @@ test("signed-out readers get the ordered public list, canonical sharing metadata
 }) => {
   const username = uniqueUsername(`listpub`);
   const email = await signUp(page, request, username);
+  await query(
+    request,
+    `update "user" set profile_visibility = 'public' where email = $1`,
+    [email],
+  );
   const id = await seedList(request, email);
   const path = `/u/${username}/lists/${id}`;
   const visitor = await browser.newContext();
@@ -144,6 +149,11 @@ test("private, wrong-creator, malformed and revoked public URLs are generic real
 }) => {
   const username = uniqueUsername(`listprivacy`);
   const email = await signUp(page, request, username);
+  await query(
+    request,
+    `update "user" set profile_visibility = 'public' where email = $1`,
+    [email],
+  );
   const id = await seedList(request, email, { title: "REVOKED_LIST_TITLE_87" });
   const hiddenId = await seedList(request, email, {
     title: "HIDDEN_LIST_TITLE_87",
@@ -242,6 +252,11 @@ test("profile Lists discovers only public cards and counts while preserving URL 
 }) => {
   const username = uniqueUsername(`listprofile`);
   const email = await signUp(page, request, username);
+  await query(
+    request,
+    `update "user" set profile_visibility = 'public' where email = $1`,
+    [email],
+  );
   const id = await seedList(request, email, {
     title: "Discover this collection",
     games: 50,
@@ -364,6 +379,11 @@ test("public readers see loading, unavailable with recovery, and genuine empty c
 }) => {
   const username = uniqueUsername("listrecover");
   const email = await signUp(page, request, username);
+  await query(
+    request,
+    `update "user" set profile_visibility = 'public' where email = $1`,
+    [email],
+  );
   const id = await seedList(request, email, {
     title: "An empty collection",
     games: 0,
@@ -450,6 +470,11 @@ test("page and metadata reauthorize when visibility changes after a successful p
 }) => {
   const username = uniqueUsername(`listrace`);
   const email = await signUp(page, request, username);
+  await query(
+    request,
+    `update "user" set profile_visibility = 'public' where email = $1`,
+    [email],
+  );
   const id = await seedList(request, email, {
     title: "PREFLIGHT_MUST_NOT_AUTHORIZE_87",
   });
@@ -479,6 +504,11 @@ for (const theme of ["light", "dark"]) {
   }) => {
     const username = uniqueUsername(`listphone`);
     const email = await signUp(page, request, username);
+    await query(
+      request,
+      `update "user" set profile_visibility = 'public' where email = $1`,
+      [email],
+    );
     const title = "L".repeat(100);
     await seedList(request, email, { title });
     await query(
