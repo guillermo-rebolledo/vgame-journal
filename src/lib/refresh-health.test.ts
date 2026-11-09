@@ -98,3 +98,93 @@ test("freshness missing-baseline grace starts at migration time, never on a heal
     ),
   ).toMatchObject({ healthy: false });
 });
+
+test("telemetry failure cannot prevent refresh work or change persisted success", async () => {
+  const catalog = createCatalog(await createTestDb(), createFakeGameSource([]));
+  const log = vi.spyOn(console, "info").mockImplementation(() => {
+    throw new Error("log transport unavailable");
+  });
+  try {
+    expect(await catalog.runScheduledRefresh()).toMatchObject({
+      outcome: "success",
+    });
+    expect(
+      (await catalog.refreshHealth()).tasks.every(
+        (task) => task.outcome === "success",
+      ),
+    ).toBe(true);
+  } finally {
+    log.mockRestore();
+  }
+});
+
+test("scheduled deadline finalizes failures and ignores late Wishlist provider results", async () => {
+  const { game, journalEntry, user } = await import("@/db/schema");
+  const db = await createTestDb();
+  await db.insert(game).values({
+    id: 900,
+    title: "Synthetic",
+    slug: "synthetic",
+    genres: [],
+    platforms: [],
+    syncedAt: new Date(),
+  });
+  await db.insert(user).values({
+    id: "deadline",
+    name: "Synthetic",
+    email: "deadline@example.test",
+  });
+  await db.insert(journalEntry).values({
+    userId: "deadline",
+    gameId: 900,
+    status: "wishlist",
+    updatedAt: new Date(),
+  });
+  const source = createFakeGameSource([]);
+  const controller = new AbortController();
+  let finish!: (
+    value: Map<number, import("@/lib/game-source").SourceReleaseDate[]>,
+  ) => void;
+  vi.spyOn(source, "fetchReleaseDates").mockImplementation(() => {
+    controller.abort(new DOMException("Deadline", "TimeoutError"));
+    return new Promise((resolve) => {
+      finish = resolve;
+    });
+  });
+  const recent = vi.spyOn(source, "fetchRecentCandidates");
+  const catalog = createCatalog(db, source);
+  expect(await catalog.runScheduledRefresh(controller.signal)).toMatchObject({
+    outcome: "failure",
+    checked: "failed",
+    discovery: { recent: "failed", popular: "failed" },
+  });
+  const health = await catalog.refreshHealth();
+  expect(health.invocation).toMatchObject({
+    outcome: "failure",
+    finishedAt: expect.any(Date),
+  });
+  expect(
+    health.tasks.every(
+      (task) =>
+        task.outcome === "failure" && task.finishedAt && !task.lastSuccessAt,
+    ),
+  ).toBe(true);
+  expect(recent).not.toHaveBeenCalled();
+  finish(
+    new Map([
+      [
+        900,
+        [
+          {
+            platform: null,
+            region: "worldwide",
+            precision: "day",
+            status: null,
+            date: new Date("2030-01-01"),
+          },
+        ],
+      ],
+    ]),
+  );
+  expect((await catalog.findBySlug("synthetic"))?.releaseDates).toEqual([]);
+});

@@ -54,21 +54,19 @@ export function operationalCode(error: unknown): OperationalCode {
   return "unexpected";
 }
 
-/** Native structured logs are the alert integration point; logging must never break recovery. */
-export function reportOperationalError(
-  operation: Operation,
-  code: OperationalCode = "unexpected",
+/** Common safe envelope; telemetry must never affect the operation it observes. */
+function emitEvent(
+  level: "error" | "info",
+  fields: { event: string; operation: string; code?: string; outcome?: string },
+  correlationId?: string,
 ) {
-  if (!OPERATIONS.includes(operation) || !CODES.includes(code)) return;
   const commit = process.env.VERCEL_GIT_COMMIT_SHA;
   const deployment = process.env.VERCEL_DEPLOYMENT_ID;
   try {
-    console.error(
+    console[level](
       JSON.stringify({
-        event: "operational_error",
+        ...fields,
         version: 1,
-        operation,
-        code,
         deployment:
           deployment && /^dpl_[a-z0-9]{1,80}$/i.test(deployment)
             ? deployment
@@ -76,12 +74,47 @@ export function reportOperationalError(
               ? commit
               : "unknown",
         timestamp: new Date().toISOString(),
-        correlationId: crypto.randomUUID(),
+        correlationId: correlationId ?? crypto.randomUUID(),
       }),
     );
   } catch {
     /* Telemetry is best effort. */
   }
+}
+
+export function reportOperationalError(
+  operation: Operation,
+  code: OperationalCode = "unexpected",
+) {
+  if (!OPERATIONS.includes(operation) || !CODES.includes(code)) return;
+  emitEvent("error", { event: "operational_error", operation, code });
+}
+
+export function reportRefreshEvent(
+  operation: string,
+  outcome: string,
+  correlationId: string,
+) {
+  if (
+    !["daily", "wishlist", "recent", "popular"].includes(operation) ||
+    !["running", "success", "partial", "failure", "skipped"].includes(
+      outcome,
+    ) ||
+    !/^[a-f0-9-]{36}$/i.test(correlationId)
+  )
+    return;
+  emitEvent(
+    "info",
+    {
+      event: "scheduled_refresh",
+      operation,
+      outcome,
+      ...(outcome === "failure" || outcome === "partial"
+        ? { code: "refresh_failed" }
+        : {}),
+    },
+    correlationId,
+  );
 }
 
 export function observeOperation<Args extends unknown[], Result>(

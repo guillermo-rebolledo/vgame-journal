@@ -2,29 +2,13 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { refreshTask } from "@/db/schema";
+import { reportRefreshEvent as refreshEvent } from "@/lib/operational-errors";
+
+export { reportRefreshEvent as refreshEvent } from "@/lib/operational-errors";
 
 const DAILY_TASKS = ["wishlist", "recent", "popular"] as const;
 const FRESHNESS_MS = 30 * 60 * 60 * 1000;
 type Outcome = "success" | "partial" | "failure";
-
-/** No provider errors, URLs, or player data enter operational events. */
-export function refreshEvent(
-  operation: string,
-  outcome: string,
-  correlationId: string,
-) {
-  console.info({
-    event: "scheduled_refresh",
-    operation,
-    outcome,
-    correlationId,
-    deployment: process.env.VERCEL_DEPLOYMENT_ID ?? "local",
-    timestamp: new Date().toISOString(),
-    ...(outcome === "failure" || outcome === "partial"
-      ? { code: "refresh_failed" }
-      : {}),
-  });
-}
 
 export function createRefreshState(db: Db) {
   return {

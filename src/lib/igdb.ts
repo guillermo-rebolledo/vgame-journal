@@ -509,8 +509,8 @@ export const igdbGameSource: GameSource = {
     return game ? toGame(game) : null;
   },
 
-  async fetchReleaseDates(ids) {
-    const deadline = requestSignal();
+  async fetchReleaseDates(ids, signal) {
+    const deadline = requestSignal(signal);
     const byGame = new Map<number, SourceReleaseDate[]>(
       ids.map((id) => [id, []]),
     );

@@ -90,7 +90,9 @@ test("a failed selection returned as a value is partial HTTP failure", async () 
     checked: 0,
     discovery: { recent: "failed", popular: 0 },
   });
-  expect(events.mock.calls.flat()).toContainEqual(
+  expect(
+    events.mock.calls.flat().map((event) => JSON.parse(event)),
+  ).toContainEqual(
     expect.objectContaining({
       event: "scheduled_refresh",
       operation: "recent",

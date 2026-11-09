@@ -23,7 +23,10 @@ export interface GameSource {
   search(query: string): Promise<SourceGame[]>;
   fetchGame(id: number): Promise<SourceGame | null>;
   fetchBySlug(slug: string): Promise<SourceGame | null>;
-  fetchReleaseDates(ids: number[]): Promise<Map<number, SourceReleaseDate[]>>;
+  fetchReleaseDates(
+    ids: number[],
+    signal?: AbortSignal,
+  ): Promise<Map<number, SourceReleaseDate[]>>;
 }
 
 export type DiscoveryRank = { gameId: number; visits: number };
