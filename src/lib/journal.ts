@@ -10,6 +10,7 @@ import {
   user,
   verification,
 } from "@/db/schema";
+import { deletionProofId } from "@/lib/account-security-constants";
 import { calendarFeed } from "@/lib/calendar-feed";
 import {
   COMPLETION_TAGS,
@@ -240,18 +241,44 @@ export function createJournal(db: Db) {
   }
 
   return {
-    /** One statement also removes reset tokens, which have no user foreign key. */
-    async deleteAccount(userId: string, confirmation: unknown) {
+    /** Consume the proof and cascade deletion atomically; failed statements preserve both. */
+    async deleteAccount(
+      userId: string,
+      confirmation: unknown,
+      sessionId?: string,
+    ) {
       if (confirmation !== "DELETE")
         throw new JournalError("Type DELETE to confirm account deletion.");
-      await db.execute(sql`
-        with deleted_user as (
-          delete from ${user} where ${user.id} = ${userId} returning ${user.id}
+      if (!sessionId)
+        throw new JournalError(
+          "Confirm your identity again before deleting your account.",
+        );
+      const result = await db.execute(sql`
+        with proof as (
+          delete from ${verification}
+          where ${verification.id} = ${deletionProofId(sessionId)}
+            and ${verification.value} = ${userId}
+            and ${verification.expiresAt} > now()
+          returning ${verification.value}
+        ), deleted_user as (
+          delete from ${user} where ${user.id} = ${userId}
+            and ${user.id} in (select value from proof) returning ${user.id}
+        ), reset_tokens as (
+          delete from ${verification}
+          where ${verification.value} in (select id from deleted_user)
+            and ${verification.id} <> ${deletionProofId(sessionId)}
+            and (${verification.identifier} like 'reset-password:%'
+              or ${verification.identifier} like 'account-deletion:%')
         )
-        delete from ${verification}
-        where ${verification.value} in (select id from deleted_user)
-          and ${verification.identifier} like 'reset-password:%'
+        select id from deleted_user
       `);
+      const rows = Array.isArray(result)
+        ? result
+        : (result as { rows: unknown[] }).rows;
+      if (!rows.length)
+        throw new JournalError(
+          "Confirm your identity again before deleting your account.",
+        );
     },
 
     /** A portable copy of the whole journal, including private notes, without auth secrets. */

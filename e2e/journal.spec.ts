@@ -66,7 +66,7 @@ test("F05/F16: Release region save stays local on transport failure and retries 
   await expect(
     page.getByRole("button", { name: "Download JSON" }),
   ).toBeEnabled();
-  await expect(page.getByLabel("Type DELETE to confirm")).toBeEnabled();
+  await expect(page.getByLabel("Current password")).toBeEnabled();
   await expect(
     page.getByRole("form", { name: "Release region" }).getByRole("status"),
   ).not.toHaveText("Saved");
@@ -478,6 +478,11 @@ test("sign up, share a profile without notes, export the journal, and delete the
     }),
   ]);
 
+  await page.getByLabel("Current password").fill("password123");
+  await page
+    .getByRole("button", { name: "Confirm password", exact: true })
+    .click();
+  await expect(page.getByLabel("Type DELETE to confirm")).toBeVisible();
   const deleteButton = page.getByRole("button", {
     name: "Permanently delete account",
   });

@@ -1,12 +1,26 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import {
+  APIError,
+  addOAuthServerContext,
+  createAuthMiddleware,
+  getOAuthState,
+  getSessionFromCtx,
+} from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
+import { verifyProviderIdToken } from "better-auth/oauth2";
 import { username } from "better-auth/plugins";
+import { google } from "better-auth/social-providers";
 import { headers } from "next/headers";
 import { connection } from "next/server";
 import { SITE_NAME } from "@/config/site";
+import type { Db } from "@/db";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import {
+  createAccountSecurity,
+  DELETION_CALLBACK,
+} from "@/lib/account-security";
 import { isIsolatedE2E } from "@/lib/e2e-harness";
 import { type Email, sendWithResend } from "@/lib/email";
 
@@ -19,7 +33,53 @@ export function createAuth(
   database: Parameters<typeof drizzleAdapter>[0],
   sendEmail: (email: Email) => Promise<void> = sendWithResend,
 ) {
+  const security = createAccountSecurity(database as Db);
+  const googleOptions = {
+    clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+  };
+  const googleProvider = google(googleOptions);
   return betterAuth({
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (
+          ctx.path !== "/sign-in/social" ||
+          ctx.body?.callbackURL !== DELETION_CALLBACK
+        )
+          return;
+        const session = await getSessionFromCtx(ctx);
+        if (!session || ctx.body.provider !== "google" || ctx.body.idToken)
+          throw new APIError("UNAUTHORIZED", {
+            message: "Sign in before confirming deletion.",
+          });
+        await security.cancel(session.session.id);
+        ctx.body.additionalParams = { prompt: "login", max_age: "0" };
+        await addOAuthServerContext({
+          deletionUserId: session.user.id,
+          deletionStartedAt: Date.now(),
+        });
+      }),
+      after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/callback/:id" || ctx.params?.id !== "google") return;
+        const state = await getOAuthState();
+        const session = ctx.context.newSession;
+        const trusted = state?.serverContext;
+        if (
+          state?.callbackURL === DELETION_CALLBACK &&
+          session &&
+          trusted?.deletionUserId === session.user.id &&
+          typeof trusted.deletionStartedAt === "number"
+        ) {
+          await security.issue(
+            session.user.id,
+            session.session.id,
+            trusted.deletionStartedAt,
+          );
+        } else if (trusted?.deletionUserId) {
+          throw ctx.redirect("/settings?deletion=failed");
+        }
+      }),
+    },
     database: drizzleAdapter(database, { provider: "pg", schema }),
     advanced: {
       ipAddress: {
@@ -39,6 +99,7 @@ export function createAuth(
     },
     emailAndPassword: {
       enabled: true,
+      revokeSessionsOnPasswordReset: true,
       minPasswordLength: PASSWORD_POLICY.minLength,
       maxPasswordLength: PASSWORD_POLICY.maxLength,
       requireEmailVerification: true,
@@ -62,8 +123,34 @@ export function createAuth(
     },
     socialProviders: {
       google: {
-        clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+        ...googleOptions,
+        async getUserInfo(tokens) {
+          const state = await getOAuthState();
+          if (
+            !tokens.idToken ||
+            !(await verifyProviderIdToken(
+              googleProvider,
+              tokens.idToken,
+              state?.idTokenNonce,
+            ))
+          )
+            return null;
+          const info = await googleProvider.getUserInfo(tokens);
+          const authTime =
+            info?.data && "auth_time" in info.data
+              ? info.data.auth_time
+              : undefined;
+          const startedAt = state?.serverContext?.deletionStartedAt;
+          if (
+            typeof startedAt === "number" &&
+            (typeof authTime !== "number" ||
+              authTime < Math.floor(startedAt / 1000) ||
+              authTime > Math.floor(Date.now() / 1000) + 30)
+          ) {
+            return null;
+          }
+          return info;
+        },
       },
     },
     plugins: [
