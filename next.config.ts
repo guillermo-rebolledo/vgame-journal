@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
+import { isIsolatedE2E } from "./src/lib/e2e-harness";
+
+const e2e = isIsolatedE2E();
 
 const nextConfig: NextConfig = {
-  distDir: process.env.E2E_TEST === "1" ? ".next-e2e" : ".next",
+  distDir: e2e ? ".next-e2e" : ".next",
   cacheComponents: true,
   partialPrefetching: true,
   reactCompiler: true,
@@ -19,7 +22,7 @@ const nextConfig: NextConfig = {
     },
   ],
   turbopack: {
-    ...(process.env.E2E_TEST === "1" && {
+    ...(e2e && {
       resolveAlias: {
         "@/db": "./e2e/support/db.ts",
         "@/db/batch": "./e2e/support/batch.ts",
