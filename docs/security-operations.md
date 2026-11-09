@@ -23,6 +23,15 @@ All rows below are **pending**. The service owner must name a responsible person
 
 A completed record needs: control, environment, responsible owner, UTC date, evidence location, observed result, exceptions, next review date. A configuration screenshot alone does not prove a successful restore or delivery.
 
+## Read-only GitHub configuration observation
+
+On **2026-11-09**, `gh api repos/guillermo-rebolledo/vgame-journal --jq .security_and_analysis`
+returned `dependabot_security_updates: disabled`, `secret_scanning: enabled` and
+`secret_scanning_push_protection: enabled` (each is the returned `status` value).
+This is a configuration observation, not proof of alert ownership, routing,
+receipt or acknowledgement. GitHub access/alert sign-off above remains pending.
+No remote security settings were changed.
+
 ## Repository facts supporting the notice
 
 The authoritative player-facing notice is `src/app/privacy/page.tsx`. Recheck it whenever these boundaries change.

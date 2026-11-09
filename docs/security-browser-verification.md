@@ -38,20 +38,23 @@ Local tests do not establish deployed HTTPS, cookie, proxy or provider behavior.
 ## Source audit and cross-cutting recommendations
 
 Application audit at initial base `132545f`, with the mail-logging follow-up
-implemented against integration `2754e7c`:
+implemented against integration `2754e7c` and the application-auth logging follow-up
+against `23bb7e9`:
 
 | Path | Finding / parent action |
 | --- | --- |
 | `src/components/analytics.tsx` and its callers | Shared telemetry hook hardened here. Existing product-event callers supply bounded metadata rather than private text. No new tracking was added. |
 | `src/lib/feedback.ts` | **Resolved in source:** notification failure logs only `Feedback email failed`, without the caught value. A synthetic sensitive error/cause regression verifies one stored report, success and one delivery attempt; callers do not need to resubmit. |
 | `src/lib/email.ts` | **Resolved in source:** provider rejections and thrown network/SDK failures become a fresh `Error("Email delivery failed")`, with no raw message, properties or cause retained. The Email object is never logged. Synthetic regressions cover both failure modes and successful delivery. |
-| `src/lib/auth.ts` | **Mail failure audit resolved locally:** installed Better Auth 1.7.12 logs caught errors in `runInBackgroundOrAwait` and the router error handler. Real auth-handler regressions through the default `sendWithResend` boundary cover sign-up verification, unverified sign-in, verification resend and password reset for provider/network failures. Captured console arguments (including hidden properties/causes) contain the fixed delivery error, no recipient, email body, auth URL token or sensitive sentinel. Auth configuration is unchanged. **Remaining:** unrelated auth/database exceptions can still reach the default logger as raw errors; database-failure redaction is not established by these mail tests. Deployed forwarding/origins still need operator checks. |
+| `src/lib/auth.ts` | **Resolved locally for application auth logging:** installed Better Auth 1.7.12 logs raw database errors in OAuth `link-account.mjs` and `session.mjs`, and provider input in `callback.mjs`. A custom logger discards every message/argument/context and emits only `Authentication diagnostic` at the supplied severity (default warn/error threshold). No provider message is allowlisted. Better Call 1.4.4 also logs uncaught errors directly, bypassing that logger; supported `onAPIError.throw: true` plus the existing `createAuth` handler boundary prevents that fallback and returns an empty 500 with a static error diagnostic. Both `handler` and its `fetch` alias are protected. Known API errors/redirects retain their responses. Synthetic handler regressions cover endpoint/rate-limit/session database failures, OAuth error/warning redirects and the existing four mail-failure flows. Hosting/traces, deployed forwarding/origins and provider behavior remain operator checks. |
 | `src/lib/catalog.ts`, `src/components/discovery.tsx`, cron refresh route | Current explicit errors use fixed messages or the internal Discovery cache key; no private text or auth/feed credentials are deliberately logged. Framework/provider errors still need operator verification. |
 | Hosting/request logs and log drains | Application redaction does **not** rewrite Vercel access-log request paths, firewall events, traces, or third-party drains. `/api/calendar/<token>` remains credential-bearing at that boundary. Restrict access/retention and configure path/query suppression where supported; if raw storage cannot be suppressed, record this remaining exposure and an owner-approved mitigation. Do not claim feed credentials are absent from hosting logs. |
 | Delivered email and mailbox | Auth emails necessarily contain verification/reset links; feedback notifications contain the message, username and reply address. Provider logs and the recipient mailbox are separate retention/access surfaces, unaffected by database deletion or analytics redaction. Privacy implementer must describe verified practices. |
 
-The mail-logging follow-up changes only the email/feedback boundary and regression
-tests. Authentication configuration, Settings and the privacy notice are unchanged.
+The application-auth follow-up changes logging/error configuration and protects the
+existing request handler; Settings and the privacy notice are unchanged. Direct
+server-side `auth.api` callers still receive errors normally; callers and framework
+traces must not log raw caught values. This does not sanitize provider/hosting logs.
 
 ## Pending production evidence
 
@@ -69,7 +72,7 @@ restricted location; commit only sanitized observations and a reference.
 | Proxy/client IP trust | Record whether traffic reaches Vercel directly or through another proxy. Verify the documented forwarding header is overwritten/trusted correctly and an attacker-supplied forwarding header cannot select the rate-limit identity. Coordinate with the shared-rate-limit implementer; avoid collecting IPs in durable evidence. | Deployment + auth operator / pending / pending |
 | CSP compatibility | On the deployed report-only build, exercise email verification/reset, real Google round trip, Journal/Lists, covers/avatars/logos, themes, inline styles, rendering/navigation, Web Analytics and Speed Insights. Review console violations locally; classify allowed sources and unexpected ones. Check production and preview-toolbar differences. Record sanitized directive/origin summaries, never raw document/blocked URLs. | Browser operator / pending / pending |
 | Telemetry payloads | In DevTools inspect outgoing `/_vercel/insights` and `/_vercel/speed-insights` traffic with synthetic usernames, List IDs, query secrets and auth URLs. Confirm sanitized `url` and `route`, bounded custom properties, and no secrets/private text in other payload fields or referrers. Confirm accepted events in the provider dashboard without exporting raw events. | Analytics operator / pending / pending |
-| Application/auth/email logs | In an isolated preview, induce delivery/network/auth failures with synthetic sensitive markers. Inspect runtime logs/traces for private notes, feedback bodies, recipient addresses, reset/verification/proof tokens, cookies, authorization headers and Calendar credentials. Confirm the source email-boundary fix in deployed runtime logs before marking passed; local regression coverage does not complete this operator check. | App + email operator / pending / pending |
+| Application/auth/email logs | In an isolated preview, induce delivery/network/auth failures with synthetic sensitive markers. Inspect runtime logs/traces for private notes, feedback bodies, recipient addresses, reset/verification/proof tokens, cookies, authorization headers and Calendar credentials. Confirm the source email-boundary and application-auth fixes in deployed runtime logs before marking passed; local regression coverage does not complete this operator check. | App + email operator / pending / pending |
 | Hosting/firewall/drains | Review access to Vercel request/runtime/firewall logs and configured drains, request path/query fields, retention and deletion controls. Use synthetic feed/auth paths, verify suppression or document the credential exposure and mitigation. Inspect preview as well as production configuration. | Hosting operator / pending / pending |
 | Provider/mailbox retention | Confirm actual Resend account configuration, log/body access, retention/deletion options, recipient mailbox access and retention. Record verified values for the privacy implementer; published defaults alone do not prove account configuration or mailbox behavior. | Email operator / pending / pending |
 
@@ -118,6 +121,21 @@ any reporting design for sensitive document URLs before enabling collection.
 Local/header tests cannot authorize a claim that production safeguards passed.
 
 ## References checked
+
+- [Better Auth options](https://better-auth.com/docs/reference/options#logger)
+  documents the custom logger and `onAPIError` controls. Installed **1.7.12**
+  `@better-auth/core/dist/env/logger.{mjs,d.mts}` confirms severity filtering and
+  the `log(level, message, ...args)` signature; `types/init-options.d.mts` confirms
+  `onAPIError.throw` and `onError`. `better-auth/dist/api/index.mjs` shows an
+  `onError` hook alone cannot suppress Better Call's fallback (its result is
+  discarded and hook exceptions are caught), while `throw: true` propagates.
+- [Better Call 1.4.4 router source](https://github.com/better-auth/better-call/blob/v1.4.4/packages/better-call/src/router.ts)
+  matches installed `better-call/dist/router.mjs`: rethrown API errors become
+  responses; other rethrows escape before direct raw `console.error`. Disabling
+  the Better Auth logger alone would leave this fallback exposed.
+- Installed Next **16.4.2** Route Handlers guide:
+  `node_modules/next/dist/docs/01-app/01-getting-started/15-route-handlers.md`;
+  handlers use native Request/Response and run at request time by default.
 
 - Installed Next **16.4.2**:
   `node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/headers.md`

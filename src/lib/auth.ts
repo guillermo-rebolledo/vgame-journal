@@ -19,7 +19,13 @@ export function createAuth(
   database: Parameters<typeof drizzleAdapter>[0],
   sendEmail: (email: Email) => Promise<void> = sendWithResend,
 ) {
-  return betterAuth({
+  const instance = betterAuth({
+    logger: {
+      // Even provider messages can contain secrets; retain only severity.
+      log: (level) => console[level]("Authentication diagnostic"),
+    },
+    // Bypass Better Call's raw console.error fallback for unexpected errors.
+    onAPIError: { throw: true },
     database: drizzleAdapter(database, { provider: "pg", schema }),
     advanced: {
       ipAddress: {
@@ -75,6 +81,17 @@ export function createAuth(
       nextCookies(),
     ],
   });
+  const handler = instance.handler;
+  instance.handler = async (request) => {
+    try {
+      return await handler(request);
+    } catch {
+      console.error("Authentication diagnostic");
+      return new Response(null, { status: 500 });
+    }
+  };
+  instance.fetch = instance.handler;
+  return instance;
 }
 
 export const auth = createAuth(db);
