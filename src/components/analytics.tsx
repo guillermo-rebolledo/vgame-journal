@@ -6,6 +6,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { type ReactNode, useEffect } from "react";
 import type { FeedbackType } from "@/lib/feedback-types";
 import type { CompletionTag, Status } from "@/lib/library";
+import { redactPathname } from "@/lib/pathname";
 
 // Both names and values are bounded: even campaign/platform fields can contain personal text.
 const SAFE_PARAMS: Record<string, RegExp> = {
@@ -20,11 +21,11 @@ const PAGE_PARAM =
   /^(library|publicList|listGame|playthrough|finished|hours|backlog|ratings|picker|publicPlaythrough|lists|games|out|upcoming|tba)Page$/;
 
 function redactPath(path: string) {
-  return decodeURIComponent(path)
-    .replace(/^\/api\/calendar\/[\s\S]*$/i, "/api/calendar/[token]")
-    .replace(/^\/api\/auth\/[\s\S]*$/i, "/api/auth/[redacted]")
-    .replace(/^\/u\/[^/]+/i, "/u/[username]")
-    .replace(/^(\/(?:u\/\[username\]\/)?lists)\/[^/]+/i, "$1/[listId]");
+  return redactPathname(
+    decodeURIComponent(path)
+      .replace(/^\/api\/calendar\/[\s\S]*$/i, "/api/calendar/[token]")
+      .replace(/^\/api\/auth\/[\s\S]*$/i, "/api/auth/[redacted]"),
+  );
 }
 
 /** Strip credentials and personal identifiers from both telemetry URL fields. */

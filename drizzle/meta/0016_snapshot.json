@@ -1,5 +1,5 @@
 {
-  "id": "7c7d2aca-39c9-4b1a-ac8e-d3b7ccba6fc4",
+  "id": "f757a5ed-eae4-4e28-8a36-179bfb4a63a7",
   "prevId": "dfd9acff-6784-4dfe-a63e-0c94a4ea5d6a",
   "version": "7",
   "dialect": "postgresql",
@@ -853,65 +853,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.rate_limit": {
-      "name": "rate_limit",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "key": {
-          "name": "key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "count": {
-          "name": "count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_request": {
-          "name": "last_request",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "rate_limit_last_request_idx": {
-          "name": "rate_limit_last_request_idx",
-          "columns": [
-            {
-              "expression": "last_request",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "rate_limit_key_unique": {
-          "name": "rate_limit_key_unique",
-          "nullsNotDistinct": false,
-          "columns": ["key"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.release_date": {
       "name": "release_date",
       "schema": "",
@@ -1300,6 +1241,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "first_save_feedback": {
+          "name": "first_save_feedback",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'eligible'"
         }
       },
       "indexes": {},

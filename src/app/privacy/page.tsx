@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PUBLIC_CONTACT_EMAIL } from "@/config/site";
+import { SUPPORT_EMAIL } from "@/config/site";
 
 export const metadata: Metadata = {
   title: "Privacy notice",
@@ -196,10 +196,10 @@ export default function PrivacyPage() {
           For privacy questions, data requests or confidential security reports,
           email{" "}
           <a
-            href={`mailto:${PUBLIC_CONTACT_EMAIL}`}
+            href={`mailto:${SUPPORT_EMAIL}`}
             className="break-all underline underline-offset-4"
           >
-            {PUBLIC_CONTACT_EMAIL}
+            {SUPPORT_EMAIL}
           </a>
           . You do not need an account to contact us. Leave out passwords,
           Calendar feed URLs and private notes. We may need to verify account

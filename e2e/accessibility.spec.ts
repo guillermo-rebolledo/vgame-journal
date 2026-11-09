@@ -441,7 +441,9 @@ for (const theme of ["light", "dark"] as const) {
           ).toBeVisible();
         if (path === `/u/${username}`)
           await expect(
-            page.getByText("Only you can see this.", { exact: false }),
+            page
+              .getByRole("main")
+              .getByText("Only you can see this.", { exact: false }),
           ).toBeVisible();
         await scan(page, testInfo, path);
       }

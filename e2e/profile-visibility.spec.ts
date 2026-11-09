@@ -36,7 +36,9 @@ test("Private owner preview, publication and withdrawal protect documents, metad
 
     await chooseAccountMenuItem(page, "My profile");
     await expect(
-      page.getByText("Only you can see this.", { exact: false }),
+      page
+        .getByRole("main")
+        .getByText("Only you can see this.", { exact: false }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: username, exact: true }),
@@ -230,7 +232,9 @@ test("visibility Settings and Private owner preview reflow in both themes with e
         ).toBeVisible();
       else
         await expect(
-          page.getByText("Only you can see this.", { exact: false }),
+          page
+            .getByRole("main")
+            .getByText("Only you can see this.", { exact: false }),
         ).toBeVisible();
       for (const width of [320, 390, 768, 1440]) {
         await page.setViewportSize({ width, height: 900 });

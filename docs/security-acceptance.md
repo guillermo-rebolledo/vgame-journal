@@ -130,6 +130,44 @@ physical touch/sticky hover, mobile software keyboards, true browser zoom and
 exhaustive manual Tab traversal remain unavailable. Automation is not full
 assistive-technology or physical-device certification.
 
+## Main merge verification
+
+Merged `main` at `eb52650130f9e6522bb726c70e2c3bcda7438230` into the integration
+branch to resolve PR #138's conflicts. Main's deployed feedback migrations 0016
+and 0017 and their snapshots are unchanged. The security schema is regenerated
+as `0018_account_security_privacy.sql`, retaining the existing-account Public
+backfill and new-account Private default. A second `pnpm db:generate` reports no
+schema changes. Migration-backed tests cover both feedback and visibility.
+
+The merge preserves main's feedback session channel, first-save invitation,
+SupportLink, safe pathname normalization and atomic Journal transactions, plus
+this PR's footer privacy link, bounded telemetry values/routes and safe database
+failure boundary. Privacy uses main's existing SUPPORT_EMAIL setting rather than
+duplicating the address. Existing Link/SupportLink components fit the combined
+footer; no product component or interaction was introduced.
+
+- `pnpm lint` and `pnpm typecheck`: passed.
+- `pnpm test --maxWorkers=2 --testTimeout=30000`: 47 files / 595 tests passed.
+- `pnpm test:storybook --maxWorkers=1`: 44 files / 211 tests passed.
+- `pnpm build-storybook`: passed.
+- The 70-journey security/privacy/feedback/Home/atomicity/List run passed 67
+  tests and identified three duplicate-locator failures against Next's hidden
+  prerendered profile notice. Scoping those assertions to the main landmark
+  preserves their visible behavior contract. The final full accessibility and
+  profile rerun passed all 13 tests; all 70 selected journeys have passing
+  evidence across these runs, including the production-mode builds.
+- The drawer Visible Viewport story initially finished during its closing
+  transition and failed axe on temporary Base UI focus guards. It now waits for
+  actual dismissal and restored trigger focus before resetting viewport mocks.
+  Its six repeated executions and the complete Storybook suite pass. No
+  production drawer behavior or accessibility rule was changed.
+
+Browser commands used isolated ports 3490/3491 and the synthetic support server:
+`pnpm test:e2e e2e/profile-visibility.spec.ts e2e/account-security.spec.ts e2e/journal.spec.ts e2e/journal-atomicity.spec.ts e2e/auth.spec.ts e2e/privacy.spec.ts e2e/security-headers.spec.ts e2e/accessibility.spec.ts e2e/custom-lists.spec.ts e2e/custom-lists-public.spec.ts e2e/feedback.spec.ts e2e/home-save.spec.ts --workers=2`,
+then `pnpm test:e2e e2e/accessibility.spec.ts e2e/profile-visibility.spec.ts --workers=2`.
+No new physical-device, screen-reader, true browser zoom or production/provider
+checks were performed for this merge; the operator gates below remain pending.
+
 ## Operator gates remain pending
 
 Live mail delivery/domain authentication and deployed ordinary Google sign-in

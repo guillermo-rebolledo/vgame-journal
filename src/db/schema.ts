@@ -54,6 +54,11 @@ export const user = pgTable(
     region: text("region").$type<Region>().notNull().default("earliest"),
     /** Secret in the user's calendar feed URL; null until they first see it. */
     feedToken: text("feed_token").unique(),
+    /** First insertion binds the invitation to its transaction; later saves cannot claim it. */
+    firstSaveFeedback: text("first_save_feedback")
+      .$type<"eligible" | "available" | "consumed" | `insert:${string}`>()
+      .notNull()
+      .default("eligible"),
   },
   (table) => [
     check(

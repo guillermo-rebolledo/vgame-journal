@@ -45,6 +45,7 @@ export function PlaythroughForm({
   const id = useId();
   const [values, setValues] = useState<Values>({
     submissionId: crypto.randomUUID(),
+    membershipRequired: String(!outsideJournal),
     platform: platforms[0] ?? "",
     status: "playing",
     ...initial,
