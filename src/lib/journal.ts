@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { and, eq, inArray, type SQL, sql } from "drizzle-orm";
 import { type Db, db } from "@/db";
+import { executeBatch } from "@/db/batch";
 import {
   game,
   journalEntry,
@@ -423,7 +424,7 @@ export function createJournal(db: Db) {
     /** The user's entry for a game, or null if it isn't in their journal. */
     entry,
 
-    /** Adds the game to the user's journal, or changes its status and tag. */
+    /** Adds or changes Status/tag. Returns true only for this request's first-save invitation. */
     async set(
       userId: string,
       gameId: number,
@@ -440,23 +441,23 @@ export function createJournal(db: Db) {
         throw new JournalError("Only played games get a completion tag.");
       const current = await entry(userId, gameId);
       if (current?.status === status && current.completionTag === completionTag)
-        return;
+        return false;
       const updatedAt = new Date();
-      await db
-        .insert(journalEntry)
-        .values({
-          userId,
-          gameId,
-          status,
-          completionTag,
-          createdAt: updatedAt,
-          updatedAt,
-        })
-        .onConflictDoUpdate({
-          target: [journalEntry.userId, journalEntry.gameId],
-          set: { status, completionTag, updatedAt },
-        });
+      // The trigger binds eligibility to this transaction; a later save cannot claim it.
+      const invitation = await executeBatch(db, [
+        sql`insert into ${journalEntry}
+            (user_id, game_id, status, completion_tag, created_at, updated_at)
+            values (${userId}, ${gameId}, ${status}, ${completionTag}, ${updatedAt}, ${updatedAt})
+            on conflict (user_id, game_id) do update
+            set status = excluded.status, completion_tag = excluded.completion_tag,
+                updated_at = excluded.updated_at`,
+        sql`update ${user} set first_save_feedback = 'consumed'
+            where id = ${userId}
+              and first_save_feedback = 'insert:' || pg_current_xact_id()::text
+            returning id`,
+      ]);
       await recordStatusEvent(userId, gameId, status, completionTag, updatedAt);
+      return invitation.length === 1;
     },
 
     /**
@@ -591,7 +592,7 @@ export function createJournal(db: Db) {
       await db.insert(playthrough).values({ userId, gameId, ...values });
     },
 
-    /** Validate before any write; existing membership and completion tags stay intact. */
+    /** Validates before writing and preserves membership/tags. Returns this request’s first-save invitation. */
     async recordPlaythrough(
       userId: string,
       gameId: number,
@@ -612,17 +613,21 @@ export function createJournal(db: Db) {
         );
       const at = new Date();
       // Concurrent recording must never overwrite membership created by another tab.
-      const created = await db
-        .insert(journalEntry)
-        .values({ userId, gameId, status, createdAt: at, updatedAt: at })
-        .onConflictDoNothing({
-          target: [journalEntry.userId, journalEntry.gameId],
-        })
-        .returning();
-      // shortcut: these Neon HTTP writes are sequential; a failure can leave membership saved.
-      // The form reports this honestly and keeps the same submission ID for safe retries.
-      if (created.length)
-        await recordStatusEvent(userId, gameId, status, null, at);
+      const invitation = await executeBatch(db, [
+        sql`with inserted as (
+              insert into ${journalEntry} (user_id, game_id, status, created_at, updated_at)
+              values (${userId}, ${gameId}, ${status}, ${at}, ${at})
+              on conflict (user_id, game_id) do nothing returning user_id, game_id
+            )
+            insert into ${statusEvent} (user_id, game_id, status, at)
+            select user_id, game_id, ${status}, ${at} from inserted`,
+        sql`update ${user} set first_save_feedback = 'consumed'
+            where id = ${userId}
+              and first_save_feedback = 'insert:' || pg_current_xact_id()::text
+            returning id`,
+      ]);
+      // shortcut: the Playthrough write is separate; failure may leave membership saved.
+      // Its invitation is exhausted, and the form keeps the submission ID for safe retries.
       const saved = await db
         .insert(playthrough)
         .values({ userId, gameId, ...values, submissionId })
@@ -636,6 +641,7 @@ export function createJournal(db: Db) {
         throw new JournalError(
           "This submission belongs to another game. Cancel and start again.",
         );
+      return invitation.length === 1;
     },
 
     /** Replaces the details of one of the user's playthroughs. Others' are left alone. */

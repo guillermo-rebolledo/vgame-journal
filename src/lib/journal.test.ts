@@ -46,6 +46,38 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+test("only the first addition returns the feedback invitation, including concurrent saves", async () => {
+  const results = await Promise.all([
+    journal.set("mario", 1, { status: "backlog" }),
+    journal.set("mario", 2, { status: "playing" }),
+  ]);
+  expect(results.filter(Boolean)).toHaveLength(1);
+  expect(await journal.set("mario", 1, { status: "played" })).toBe(false);
+});
+
+test("an unclaimed old-version insertion never invites on Status change or deletion and re-add", async () => {
+  await db.insert(journalEntry).values({
+    userId: "mario",
+    gameId: 1,
+    status: "backlog",
+    updatedAt: new Date(),
+  });
+  expect(await journal.set("mario", 1, { status: "playing" })).toBe(false);
+  await journal.remove("mario", 1);
+  expect(await journal.set("mario", 1, { status: "backlog" })).toBe(false);
+});
+
+test("recording the first Playthrough invites only on the inserting request", async () => {
+  const input = { platform: "PlayStation 5", startedOn: "2026-01-01" };
+  const submissionId = randomUUID();
+  expect(
+    await journal.recordPlaythrough("mario", 1, input, "playing", submissionId),
+  ).toBe(true);
+  expect(
+    await journal.recordPlaythrough("mario", 1, input, "playing", submissionId),
+  ).toBe(false);
+});
+
 test("export includes the owner's profile, entries, full history and private playthrough notes", async () => {
   await journal.set("mario", 1, { status: "backlog" });
   await journal.set("mario", 1, {

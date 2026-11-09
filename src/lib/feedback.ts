@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { executeBatch } from "@/db/batch";
 import { feedback, user } from "@/db/schema";
@@ -60,14 +60,4 @@ export function createFeedback(
       }
     }
   };
-}
-
-/** Atomic account-scoped consumption; only a committed first Journal insertion makes this available. */
-export async function claimFirstSaveFeedback(db: Db, userId: string) {
-  const rows = await db
-    .update(user)
-    .set({ firstSaveFeedback: "consumed" })
-    .where(and(eq(user.id, userId), eq(user.firstSaveFeedback, "available")))
-    .returning({ id: user.id });
-  return rows.length === 1;
 }

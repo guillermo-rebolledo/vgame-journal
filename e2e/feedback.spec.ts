@@ -278,6 +278,40 @@ test("first successful save invites once, persists dismissal across sessions, an
   }
 });
 
+test("an unclaimed old-version first insertion never invites on later Status saves or re-add", async ({
+  page,
+  request,
+}) => {
+  const username = `unclaimed${Date.now()}`;
+  await signUp(page, request, username);
+  // Simulate the old deployment committing its insert without claiming an invitation.
+  const seeded = await request.post(supportUrl("/query"), {
+    data: {
+      sql: `insert into journal_entry (user_id, game_id, status, updated_at)
+            select u.id, g.id, 'backlog', now() from "user" u cross join game g
+            where u.username = $1 and g.slug = 'celeste' returning game_id`,
+      params: [username],
+    },
+  });
+  expect((await seeded.json()).rows).toHaveLength(1);
+  await page.goto("/games/celeste");
+  await chooseStatus(page, "playing");
+  await expect(
+    page.getByRole("complementary", { name: "First game feedback" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: /Change Journal status/ }).click();
+  await page
+    .getByRole("menuitem", { name: "Remove from journal", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: /^Add to Journal for/ }),
+  ).toBeVisible();
+  await chooseStatus(page, "backlog");
+  await expect(
+    page.getByRole("complementary", { name: "First game feedback" }),
+  ).toHaveCount(0);
+});
+
 test("concurrent first saves show one invitation across browser sessions", async ({
   page,
   request,

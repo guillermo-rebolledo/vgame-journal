@@ -2,7 +2,7 @@ import { is, type SQL } from "drizzle-orm";
 import { NeonHttpDatabase } from "drizzle-orm/neon-http";
 import type { Db } from "@/db";
 
-/** Atomically execute a lock then a write, returning the write's rows. */
+/** Atomically execute two statements, returning the second statement’s rows. */
 export async function executeBatch(db: Db, statements: [SQL, SQL]) {
   let result: unknown;
   if (is(db, NeonHttpDatabase)) {
