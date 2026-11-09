@@ -30,6 +30,8 @@ type Story = StoryObj<typeof meta>;
 export const Regenerate: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
+    await expect(canvas.getByText(/without signing in/)).toBeVisible();
+    await expect(canvas.getByText(/already downloaded/)).toBeVisible();
     await userEvent.click(
       canvas.getByRole("button", { name: "Regenerate URL" }),
     );

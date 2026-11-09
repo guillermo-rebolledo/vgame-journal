@@ -2,6 +2,7 @@ import { Download } from "lucide-react";
 import type { Metadata } from "next";
 import { refresh } from "next/cache";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { TrackClicks } from "@/components/analytics";
@@ -29,6 +30,24 @@ export default function SettingsPage() {
       <Suspense fallback={<SettingLoading label="Loading account data…" />}>
         <AccountDataSetting />
       </Suspense>
+      <section
+        aria-labelledby="privacy-heading"
+        className="flex flex-col gap-3 border-t pt-6"
+      >
+        <h2 id="privacy-heading" className="font-medium">
+          Privacy
+        </h2>
+        <p className="text-muted-foreground text-sm">
+          Review what is public, how we use your data, and the limits of export
+          and account deletion.
+        </p>
+        <Link
+          href="/privacy"
+          className="inline-flex min-h-11 items-center self-start underline underline-offset-4"
+        >
+          Privacy notice
+        </Link>
+      </section>
     </section>
   );
 }
@@ -64,8 +83,11 @@ async function AccountDataSetting() {
             Export journal
           </h2>
           <p className="text-muted-foreground text-sm">
-            Download your profile, journal entries, status history, and
-            playthroughs with private notes as JSON. Keep this file private.
+            Download your profile, Journal entries and Ratings, Status history,
+            Playthroughs with private notes, and Lists as JSON. Keep this file
+            private: it includes your email and notes. This is a Journal export,
+            not a complete privacy data-access response; feedback, mailbox
+            copies and provider logs are not included.
           </p>
         </div>
         <TrackClicks event={["account_data_exported"]}>
