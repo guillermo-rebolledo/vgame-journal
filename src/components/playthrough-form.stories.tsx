@@ -73,3 +73,24 @@ export const FailedSaveKeepsDraft: Story = {
   },
 };
 export const LightTheme: Story = { globals: { theme: "light" } };
+
+export const RemovedInAnotherTabKeepsDraft: Story = {
+  ...FailedSaveKeepsDraft,
+  args: {
+    onSave: fn<SavePlaythrough>(async () => ({
+      error:
+        "This Playthrough is no longer available. Your draft is still here.",
+    })),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const notes = canvas.getByLabelText("Notes (private, optional)");
+    await userEvent.type(notes, "Keep this draft.");
+    await userEvent.click(canvas.getByRole("button", { name: "Save" }));
+    await expect(await canvas.findByRole("alert")).toHaveTextContent(
+      "no longer available",
+    );
+    await expect(notes).toHaveValue("Keep this draft.");
+    await expect(args.onSuccess).not.toHaveBeenCalled();
+  },
+};

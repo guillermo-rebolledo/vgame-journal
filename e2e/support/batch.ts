@@ -4,7 +4,7 @@ import type { Db } from "../../src/db";
 import { supportUrl } from "./url";
 
 /** Send the whole transaction to the shared PGlite server, never separate HTTP requests. */
-export async function executeBatch(_db: Db, statements: [SQL, SQL]) {
+export async function executeBatch(_db: Db, statements: [SQL, SQL, ...SQL[]]) {
   const dialect = new PgDialect();
   const response = await fetch(supportUrl("/batch"), {
     method: "POST",

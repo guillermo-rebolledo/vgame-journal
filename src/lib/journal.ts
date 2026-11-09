@@ -95,6 +95,14 @@ export type JournalRemovalConfirmation = {
   confirmationRequired: true;
 } & JournalRemovalContents;
 
+/** Snapshot shown before removal; the server rechecks it under the owner lock. */
+export type JournalRemovalSnapshot = {
+  updatedAt: Date;
+  rating: number | null;
+  ratedAt: Date | null;
+  playthroughs: (typeof playthrough.$inferSelect)[];
+};
+
 /** What a user fills in for a Playthrough. Dates are `YYYY-MM-DD`. */
 export type PlaythroughInput = {
   platform: string;
@@ -131,17 +139,24 @@ export function createJournal(db: Db) {
     table: typeof journalEntry | typeof playthrough = journalEntry,
   ) => and(eq(table.userId, userId), eq(table.gameId, gameId));
 
-  // ponytail: entry write and its event aren't atomic (neon-http has no transactions); a crash between them loses one event.
-  const recordStatusEvent = (
-    userId: string,
-    gameId: number,
-    status: Status | null,
-    completionTag: CompletionTag | null,
-    at: Date,
-  ) =>
-    db
-      .insert(statusEvent)
-      .values({ userId, gameId, status, completionTag, at });
+  // A separate READ COMMITTED statement after this lock sees the previous owner's commit,
+  // including when the game has no entry yet. Never combine the lock and reads in one CTE.
+  const locked = (userId: string, ...statements: [SQL, ...SQL[]]) =>
+    executeBatch(db, [
+      sql`select id from ${user} where id = ${userId} for update`,
+      ...statements,
+    ]);
+
+  const consumeInvitation = (userId: string) => sql`
+    update ${user} set first_save_feedback = 'consumed'
+    where id = ${userId}
+      and first_save_feedback = 'insert:' || pg_current_xact_id()::text
+    returning id`;
+
+  // Keep re-additions ordered after removal, including equal/backwards application clocks.
+  const nextStatusAt = (userId: string, gameId: number) => sql`
+    greatest(${new Date()}::timestamp, (select max(at) + interval '1 millisecond'
+      from ${statusEvent} where user_id = ${userId} and game_id = ${gameId}))`;
 
   /** Ratings per points value among the matching rated entries. One grouped query over the partial rating index. */
   const ratingsByPoints = (where: SQL) =>
@@ -431,7 +446,12 @@ export function createJournal(db: Db) {
       {
         status,
         completionTag = null,
-      }: { status: Status; completionTag?: CompletionTag | null },
+        preserveCompletionTag = false,
+      }: {
+        status: Status;
+        completionTag?: CompletionTag | null;
+        preserveCompletionTag?: boolean;
+      },
     ) {
       if (!STATUSES.includes(status))
         throw new JournalError(`Unknown status: ${status}`);
@@ -439,24 +459,25 @@ export function createJournal(db: Db) {
         throw new JournalError(`Unknown completion tag: ${completionTag}`);
       if (completionTag !== null && status !== "played")
         throw new JournalError("Only played games get a completion tag.");
-      const current = await entry(userId, gameId);
-      if (current?.status === status && current.completionTag === completionTag)
-        return false;
-      const updatedAt = new Date();
-      // The trigger binds eligibility to this transaction; a later save cannot claim it.
-      const invitation = await executeBatch(db, [
-        sql`insert into ${journalEntry}
+      const at = nextStatusAt(userId, gameId);
+      const invitation = await locked(
+        userId,
+        sql`with changed as (
+          insert into ${journalEntry}
             (user_id, game_id, status, completion_tag, created_at, updated_at)
-            values (${userId}, ${gameId}, ${status}, ${completionTag}, ${updatedAt}, ${updatedAt})
-            on conflict (user_id, game_id) do update
-            set status = excluded.status, completion_tag = excluded.completion_tag,
-                updated_at = excluded.updated_at`,
-        sql`update ${user} set first_save_feedback = 'consumed'
-            where id = ${userId}
-              and first_save_feedback = 'insert:' || pg_current_xact_id()::text
-            returning id`,
-      ]);
-      await recordStatusEvent(userId, gameId, status, completionTag, updatedAt);
+          values (${userId}, ${gameId}, ${status}, ${completionTag}, ${at}, ${at})
+          on conflict (user_id, game_id) do update
+          set status = excluded.status,
+              completion_tag = case when ${preserveCompletionTag} and journal_entry.status = excluded.status
+                then journal_entry.completion_tag else excluded.completion_tag end,
+              updated_at = greatest(excluded.updated_at, journal_entry.updated_at + interval '1 millisecond')
+          where journal_entry.status is distinct from excluded.status
+             or (not ${preserveCompletionTag} and journal_entry.completion_tag is distinct from excluded.completion_tag)
+          returning user_id, game_id, status, completion_tag, updated_at
+        ) insert into ${statusEvent} (user_id, game_id, status, completion_tag, at)
+          select user_id, game_id, status, completion_tag, updated_at from changed`,
+        consumeInvitation(userId),
+      );
       return invitation.length === 1;
     },
 
@@ -472,41 +493,48 @@ export function createJournal(db: Db) {
     ) {
       if (!STATUSES.includes(to))
         throw new JournalError(`Unknown status: ${to}`);
-      const updatedAt = new Date();
-      const [moved] = await db
-        .update(journalEntry)
-        .set({ status: to, completionTag: null, updatedAt })
-        .where(
-          and(
-            owned(userId, gameId),
-            eq(journalEntry.status, from.status),
-            from.updatedAt && eq(journalEntry.updatedAt, from.updatedAt),
-          ),
-        )
-        .returning({ updatedAt: journalEntry.updatedAt });
-      if (!moved) return null;
-      await recordStatusEvent(userId, gameId, to, null, updatedAt);
-      return moved.updatedAt;
+      const [moved] = await locked(
+        userId,
+        sql`
+        with changed as (
+          update ${journalEntry} set status = ${to}, completion_tag = null,
+            updated_at = greatest(${new Date()}, updated_at + interval '1 millisecond')
+          where user_id = ${userId} and game_id = ${gameId} and status = ${from.status}
+            ${from.updatedAt ? sql`and updated_at = ${from.updatedAt}` : sql``}
+            and (status is distinct from ${to} or completion_tag is not null)
+          returning user_id, game_id, status, updated_at
+        ), event as (
+          insert into ${statusEvent} (user_id, game_id, status, at)
+          select user_id, game_id, status, updated_at from changed
+        ) select to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as updated_at from changed`,
+      );
+      return moved
+        ? new Date((moved as { updated_at: string }).updated_at)
+        : null;
     },
 
     /** Rates a Played or Playing game. One conditional UPDATE, so a racing Status move can't let a Rating land on another Status. */
     async setRating(userId: string, gameId: number, points: unknown) {
       if (!isRatingPoints(points))
         throw new JournalError("Choose a Rating from half a star to 5 stars.");
-      const [rated] = await db
-        .update(journalEntry)
-        // Same value keeps rated-at, so retries are idempotent. Never touch updated-at: `move` uses it as its stale-write guard.
-        .set({
-          rating: points,
-          ratedAt: sql`case when ${journalEntry.rating} = ${points} then ${journalEntry.ratedAt} else ${sql.param(new Date(), journalEntry.ratedAt)} end`,
-        })
-        .where(
-          and(
-            owned(userId, gameId),
-            inArray(journalEntry.status, [...RATEABLE_STATUSES]),
-          ),
-        )
-        .returning({ rating: journalEntry.rating });
+      const [rated] = await locked(
+        userId,
+        db
+          .update(journalEntry)
+          // Same value keeps rated-at, so retries are idempotent. Never touch updated-at: `move` uses it as its stale-write guard.
+          .set({
+            rating: points,
+            ratedAt: sql`case when ${journalEntry.rating} = ${points} then ${journalEntry.ratedAt} else ${sql.param(new Date(), journalEntry.ratedAt)} end`,
+          })
+          .where(
+            and(
+              owned(userId, gameId),
+              inArray(journalEntry.status, [...RATEABLE_STATUSES]),
+            ),
+          )
+          .returning({ rating: journalEntry.rating })
+          .getSQL(),
+      );
       if (rated) return;
       // Nothing was written; this read only picks the message.
       throw new JournalError(
@@ -526,10 +554,14 @@ export function createJournal(db: Db) {
 
     /** Removes the user's Rating for a game, in any Status. A no-op if there is none. */
     async clearRating(userId: string, gameId: number) {
-      await db
-        .update(journalEntry)
-        .set({ rating: null, ratedAt: null })
-        .where(owned(userId, gameId));
+      await locked(
+        userId,
+        db
+          .update(journalEntry)
+          .set({ rating: null, ratedAt: null })
+          .where(owned(userId, gameId))
+          .getSQL(),
+      );
     },
 
     /** Takes the game out of the user's journal. */
@@ -537,34 +569,53 @@ export function createJournal(db: Db) {
       userId: string,
       gameId: number,
       acknowledged: unknown = false,
+      expected?: JournalRemovalSnapshot,
     ): Promise<JournalRemovalConfirmation | undefined> {
-      const removed = await db
-        .delete(journalEntry)
-        .where(
-          and(
-            owned(userId, gameId),
-            // Guard in the delete itself: stale clients cannot bypass confirmation.
-            acknowledged === true
-              ? undefined
-              : sql`${journalEntry.rating} is null and not exists (select 1 from ${playthrough} where ${playthrough.userId} = ${userId} and ${playthrough.gameId} = ${gameId})`,
-          ),
-        )
-        .returning();
-      if (removed.length)
-        await recordStatusEvent(userId, gameId, null, null, new Date());
-      else {
-        const [kept] = await db
-          .select({
-            rated: sql<boolean>`${journalEntry.rating} is not null`,
-            playthroughCount:
-              sql<number>`(select count(*) from ${playthrough} where ${playthrough.userId} = ${userId} and ${playthrough.gameId} = ${gameId})`.mapWith(
-                Number,
-              ),
-          })
-          .from(journalEntry)
-          .where(owned(userId, gameId));
-        if (kept) return { confirmationRequired: true, ...kept };
-      }
+      const details = expected?.playthroughs
+        .map(({ id, platform, startedOn, endedOn, hours, notes }) => ({
+          id,
+          platform,
+          startedOn,
+          endedOn,
+          hours,
+          notes,
+        }))
+        .sort((a, b) => a.id - b.id);
+      const unchanged = expected
+        ? sql`
+        updated_at = ${expected.updatedAt}
+        and rating is not distinct from ${expected.rating}::smallint
+        and rated_at is not distinct from ${expected.ratedAt}::timestamp
+        and (select coalesce(jsonb_agg(jsonb_build_object(
+          'id', id, 'platform', platform, 'startedOn', started_on::text,
+          'endedOn', ended_on::text, 'hours', hours, 'notes', notes
+        ) order by id), '[]'::jsonb) from ${playthrough}
+          where user_id = ${userId} and game_id = ${gameId}) = ${JSON.stringify(details)}::jsonb
+      `
+        : sql`true`;
+      const [kept] = await locked(
+        userId,
+        sql`
+        with current as materialized (
+          select *, rating is not null as rated,
+            (select count(*)::int from ${playthrough} where user_id = ${userId} and game_id = ${gameId}) as "playthroughCount",
+            (${unchanged}) as unchanged
+          from ${journalEntry} where user_id = ${userId} and game_id = ${gameId}
+        ), removed as (
+          delete from ${journalEntry} where user_id = ${userId} and game_id = ${gameId}
+            and exists (select 1 from current where unchanged
+              and (${acknowledged === true} or (not rated and "playthroughCount" = 0)))
+          returning user_id, game_id, updated_at
+        ), event as (
+          insert into ${statusEvent} (user_id, game_id, status, at)
+          select user_id, game_id, null, greatest(${new Date()}, updated_at + interval '1 millisecond') from removed
+        ) select rated, "playthroughCount" from current where not exists (select 1 from removed)`,
+      );
+      if (kept)
+        return {
+          confirmationRequired: true,
+          ...(kept as JournalRemovalContents),
+        };
     },
 
     /** The user's status changes, oldest first. A null status is a removal. */
@@ -586,10 +637,18 @@ export function createJournal(db: Db) {
       gameId: number,
       input: PlaythroughInput,
     ) {
-      if (!(await entry(userId, gameId)))
-        throw new JournalError("This game is not in your journal.");
       const values = await playthroughValues(gameId, input);
-      await db.insert(playthrough).values({ userId, gameId, ...values });
+      const saved = await locked(
+        userId,
+        sql`
+        insert into ${playthrough} (user_id, game_id, platform, started_on, ended_on, hours, notes)
+        select ${userId}, ${gameId}, ${values.platform}, ${values.startedOn}::date,
+          ${values.endedOn}::date, ${values.hours}::numeric, ${values.notes}
+        from ${journalEntry} where user_id = ${userId} and game_id = ${gameId}
+        returning id`,
+      );
+      if (!saved.length)
+        throw new JournalError("This game is not in your journal.");
     },
 
     /** Validates before writing and preserves membership/tags. Returns this request’s first-save invitation. */
@@ -599,6 +658,7 @@ export function createJournal(db: Db) {
       input: PlaythroughInput,
       status: Status,
       submissionId: string,
+      requireMembership = false,
     ) {
       const values = await playthroughValues(gameId, input);
       if (!STATUSES.includes(status))
@@ -611,37 +671,44 @@ export function createJournal(db: Db) {
         throw new JournalError(
           "Invalid submission. Close the editor and start again.",
         );
-      const at = new Date();
-      // Concurrent recording must never overwrite membership created by another tab.
-      const invitation = await executeBatch(db, [
+      const at = nextStatusAt(userId, gameId);
+      const compatible = sql`not exists (select 1 from ${playthrough}
+        where user_id = ${userId} and submission_id = ${submissionId}::uuid and game_id <> ${gameId})`;
+      const [result] = await locked(
+        userId,
         sql`with inserted as (
-              insert into ${journalEntry} (user_id, game_id, status, created_at, updated_at)
-              values (${userId}, ${gameId}, ${status}, ${at}, ${at})
-              on conflict (user_id, game_id) do nothing returning user_id, game_id
-            )
-            insert into ${statusEvent} (user_id, game_id, status, at)
-            select user_id, game_id, ${status}, ${at} from inserted`,
-        sql`update ${user} set first_save_feedback = 'consumed'
-            where id = ${userId}
-              and first_save_feedback = 'insert:' || pg_current_xact_id()::text
-            returning id`,
-      ]);
-      // shortcut: the Playthrough write is separate; failure may leave membership saved.
-      // Its invitation is exhausted, and the form keeps the submission ID for safe retries.
-      const saved = await db
-        .insert(playthrough)
-        .values({ userId, gameId, ...values, submissionId })
-        .onConflictDoUpdate({
-          target: [playthrough.userId, playthrough.submissionId],
-          set: values,
-          setWhere: eq(playthrough.gameId, gameId),
-        })
-        .returning({ id: playthrough.id });
-      if (!saved.length)
+          insert into ${journalEntry} (user_id, game_id, status, created_at, updated_at)
+          select ${userId}, ${gameId}, ${status}, ${at}, ${at} where ${compatible} and ${!requireMembership}
+          on conflict (user_id, game_id) do nothing returning user_id, game_id, status, updated_at
+        ) insert into ${statusEvent} (user_id, game_id, status, at)
+          select user_id, game_id, status, updated_at from inserted`,
+        sql`insert into ${playthrough}
+          (user_id, game_id, platform, started_on, ended_on, hours, notes, submission_id)
+          select ${userId}, ${gameId}, ${values.platform}, ${values.startedOn}::date,
+            ${values.endedOn}::date, ${values.hours}::numeric, ${values.notes}, ${submissionId}::uuid
+          where ${compatible} and exists (select 1 from ${journalEntry} where user_id = ${userId} and game_id = ${gameId})
+          on conflict (user_id, submission_id) do update set
+            platform = excluded.platform, started_on = excluded.started_on,
+            ended_on = excluded.ended_on, hours = excluded.hours, notes = excluded.notes
+          where playthrough.game_id = excluded.game_id`,
+        sql`with invitation as (${consumeInvitation(userId)})
+          select ${compatible} as compatible, exists(select 1 from invitation) as invited,
+            exists(select 1 from ${journalEntry} where user_id = ${userId} and game_id = ${gameId}) as present`,
+      );
+      const saved = result as {
+        compatible: boolean;
+        invited: boolean;
+        present: boolean;
+      };
+      if (!saved.compatible)
         throw new JournalError(
           "This submission belongs to another game. Cancel and start again.",
         );
-      return invitation.length === 1;
+      if (!saved.present)
+        throw new JournalError(
+          "This game is no longer in your Journal. Your draft is still here. Save the game again before retrying.",
+        );
+      return saved.invited;
     },
 
     /** Replaces the details of one of the user's playthroughs. Others' are left alone. */
@@ -649,22 +716,43 @@ export function createJournal(db: Db) {
       userId: string,
       id: number,
       input: PlaythroughInput,
+      expectedGameId?: number,
     ) {
       const [found] = await db
         .select({ gameId: playthrough.gameId })
         .from(playthrough)
         .where(ownedPlaythrough(userId, id));
-      if (!found) return;
+      if (!found) {
+        if (expectedGameId !== undefined)
+          throw new JournalError(
+            "This Playthrough is no longer available. Your draft is still here.",
+          );
+        return;
+      }
+      if (expectedGameId !== undefined && found.gameId !== expectedGameId)
+        throw new JournalError("This Playthrough belongs to another game.");
       const values = await playthroughValues(found.gameId, input);
-      await db
-        .update(playthrough)
-        .set(values)
-        .where(ownedPlaythrough(userId, id));
+      const saved = await locked(
+        userId,
+        db
+          .update(playthrough)
+          .set(values)
+          .where(ownedPlaythrough(userId, id))
+          .returning({ id: playthrough.id })
+          .getSQL(),
+      );
+      if (!saved.length && expectedGameId !== undefined)
+        throw new JournalError(
+          "This Playthrough is no longer available. Your draft is still here.",
+        );
     },
 
     /** Deletes one of the user's playthroughs. Others' are left alone. */
     async removePlaythrough(userId: string, id: number) {
-      await db.delete(playthrough).where(ownedPlaythrough(userId, id));
+      await locked(
+        userId,
+        db.delete(playthrough).where(ownedPlaythrough(userId, id)).getSQL(),
+      );
     },
 
     /** The user's Journal as Library entries, filtered and sorted (most recently added first by default). */
