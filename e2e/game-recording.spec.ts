@@ -7,7 +7,7 @@ import { supportUrl } from "./support/url";
 test.use({ video: "on", trace: "on" });
 test.describe.configure({ timeout: 90_000 });
 
-test("detail Status remains visible after each confirmed save with one game-specific success announcement", async ({
+test("detail Status remains visible after each confirmed save with one game-specific success announcement @release-smoke", async ({
   page,
   request,
 }) => {
@@ -253,7 +253,7 @@ for (const theme of ["light", "dark"] as const) {
   });
 }
 
-test("journal choices, tags, errors and removal preserve saved state", async ({
+test("journal choices, tags, errors and removal preserve saved state @release-smoke", async ({
   page,
   request,
 }) => {
@@ -332,14 +332,18 @@ test("journal choices, tags, errors and removal preserve saved state", async ({
   ).toHaveAttribute("aria-description", "Not in your journal");
 });
 
-test("drawer drafts, validation, retry, outside-journal status, editing and deletion", async ({
+test("drawer drafts, validation, retry, outside-journal status, editing and deletion @release-smoke", async ({
   page,
   request,
 }, testInfo) => {
   await signUp(page, request, uniqueUsername(`record`));
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send("Performance.enable");
-  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+  // CDP performance sampling is Chromium-only; the journey runs on every engine.
+  const cdp =
+    page.context().browser()?.browserType().name() === "chromium"
+      ? await page.context().newCDPSession(page)
+      : undefined;
+  await cdp?.send("Performance.enable");
+  await cdp?.send("Emulation.setCPUThrottlingRate", { rate: 4 });
   await page.addInitScript(() => {
     const samples: { type: string; value: number }[] = [];
     Object.assign(window, { recordingPerformance: samples });
@@ -462,22 +466,25 @@ test("drawer drafts, validation, retry, outside-journal status, editing and dele
   await expect(
     page.getByRole("button", { name: "Add playthrough", exact: true }),
   ).toBeFocused();
-  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
-  await testInfo.attach("production-performance-4x-cpu", {
-    body: JSON.stringify(
-      {
-        metrics: await cdp.send("Performance.getMetrics"),
-        entries: await page.evaluate(
-          () =>
-            (window as unknown as { recordingPerformance: unknown })
-              .recordingPerformance,
-        ),
-      },
-      null,
-      2,
-    ),
-    contentType: "application/json",
-  });
+  await cdp?.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+  await testInfo.attach(
+    cdp ? "production-performance-4x-cpu" : "browser-performance-observations",
+    {
+      body: JSON.stringify(
+        {
+          metrics: cdp ? await cdp.send("Performance.getMetrics") : null,
+          entries: await page.evaluate(
+            () =>
+              (window as unknown as { recordingPerformance: unknown })
+                .recordingPerformance,
+          ),
+        },
+        null,
+        2,
+      ),
+      contentType: "application/json",
+    },
+  );
 });
 
 test("signed-out actions lead to sign in and no-platform games explain the limitation", async ({
@@ -640,7 +647,7 @@ test("cancel never writes and the drawer stays within a keyboard-reduced visual 
   await expect(page.getByLabel("Started", { exact: true })).toHaveValue("");
 });
 
-test("F01: cancelling or dismissing Journal removal preserves saved Playthroughs and private notes", async ({
+test("F01: cancelling or dismissing Journal removal preserves saved Playthroughs and private notes @release-smoke", async ({
   page,
   request,
 }, testInfo) => {
@@ -707,7 +714,7 @@ test("F01: cancelling or dismissing Journal removal preserves saved Playthroughs
   }
 });
 
-test("F01: confirmed removal waits for acknowledgement, recovers locally, and permanently deletes saved data", async ({
+test("F01: confirmed removal waits for acknowledgement, recovers locally, and permanently deletes saved data @release-smoke", async ({
   page,
   request,
 }, testInfo) => {

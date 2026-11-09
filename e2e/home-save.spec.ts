@@ -191,9 +191,10 @@ test("signup and onboarding preserve Backlog intent; cancellation and repeated o
   }
 });
 
-test("keyboard saves retain focus, menus restore it, and focused indicators contrast in both themes and forced colors", async ({
+test("keyboard saves retain focus, menus restore it, and focused indicators contrast in both themes and forced colors @release-smoke", async ({
   page,
   request,
+  browserName,
 }) => {
   await request.get("/api/cron/refresh-release-dates", {
     headers: { authorization: "Bearer e2e-cron-secret" },
@@ -211,13 +212,19 @@ test("keyboard saves retain focus, menus restore it, and focused indicators cont
   const change = page
     .getByRole("region", { name: "Recently released", exact: true })
     .getByRole("button", { name: /Change status for Discovery One$/ });
-  await change.click();
+  await change.focus();
+  await page.keyboard.press("Enter");
   await expect(
     page.getByRole("menuitemradio", { name: "Backlog", exact: true }),
   ).toHaveAttribute("aria-checked", "true");
   await page.keyboard.press("Escape");
   await expect(change).toBeFocused();
-  await page.keyboard.press("Shift+Tab");
+  // WebKit on macOS follows Safari’s Option+Tab link-navigation convention.
+  const tab =
+    browserName === "webkit" && process.platform === "darwin"
+      ? "Alt+Tab"
+      : "Tab";
+  await page.keyboard.press(`Shift+${tab}`);
   await expect(
     page
       .getByRole("region", { name: "Recently released", exact: true })
@@ -229,6 +236,9 @@ test("keyboard saves retain focus, menus restore it, and focused indicators cont
       .getByRole("region", { name: "Recently released", exact: true })
       .getByRole("link", { name: "Discovery One", exact: true });
     await cover.focus();
+    // Reach the link with a keypress after the mouse-driven theme selection.
+    await page.keyboard.press(tab);
+    await page.keyboard.press(`Shift+${tab}`);
     const contrast = await cover.evaluate((node) => {
       const style = getComputedStyle(node);
       const canvas = document.createElement("canvas");
