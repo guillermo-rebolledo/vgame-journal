@@ -7,6 +7,7 @@ import { connection } from "next/server";
 import { SITE_NAME } from "@/config/site";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import { isIsolatedE2E } from "@/lib/e2e-harness";
 import { type Email, sendWithResend } from "@/lib/email";
 
 import { PASSWORD_POLICY } from "@/lib/password-policy";
@@ -20,9 +21,22 @@ export function createAuth(
 ) {
   return betterAuth({
     database: drizzleAdapter(database, { provider: "pg", schema }),
-    // On by default in production. E2E specs sign up in parallel against one server, so they'd
-    // spend most of CI waiting out the 10s window; the app and preview deploys keep the limit.
-    rateLimit: { enabled: !process.env.E2E_TEST },
+    advanced: {
+      ipAddress: {
+        // Vercel overwrites this header; never fall back to a caller-supplied proxy chain.
+        ipAddressHeaders: process.env.VERCEL ? ["x-vercel-forwarded-for"] : [],
+      },
+    },
+    // Better Auth 1.7.12's pg adapter enforces shared limits with atomic conditional updates.
+    rateLimit: {
+      enabled: !isIsolatedE2E(),
+      storage: "database",
+      customRules: {
+        "/reset-password": { window: 60, max: 3 },
+        "/reset-password/*": { window: 60, max: 3 },
+        "/verify-email": { window: 60, max: 3 },
+      },
+    },
     emailAndPassword: {
       enabled: true,
       minPasswordLength: PASSWORD_POLICY.minLength,
