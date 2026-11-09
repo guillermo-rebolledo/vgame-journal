@@ -32,7 +32,9 @@ export async function signUp(
   await page.goto(link);
   await expect(page).toHaveURL(/\/onboarding$/);
   await expect(
-    page.getByText(/Your profile is Private: only you can open it/),
+    page
+      .getByText(/Your profile is Private: only you can open it/)
+      .filter({ visible: true }),
   ).toBeVisible();
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
