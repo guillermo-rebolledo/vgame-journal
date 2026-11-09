@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { catalog } from "@/lib/catalog";
+import { refreshEvent } from "@/lib/refresh-state";
 
 export const maxDuration = 180;
 
@@ -12,17 +14,20 @@ export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`)
     return new Response("Unauthorized", { status: 401 });
-  if (!(await catalog.claimScheduledRefresh()))
-    return Response.json({ skipped: true });
-  // Both jobs replace release dates; settle Wishlist writes before discovery starts.
-  const [wishlist] = await Promise.allSettled([catalog.refreshReleaseDates()]);
-  const [discovery] = await Promise.allSettled([catalog.refreshDiscovery()]);
-  if (wishlist.status === "rejected")
-    console.error("Wishlist release-date refresh failed");
-  if (discovery.status === "rejected")
-    console.error("Discovery refresh failed");
-  return Response.json({
-    checked: wishlist.status === "fulfilled" ? wishlist.value : "failed",
-    discovery: discovery.status === "fulfilled" ? discovery.value : "failed",
-  });
+  try {
+    const result = await catalog.runScheduledRefresh();
+    return Response.json(result, {
+      status:
+        result.outcome === "partial" || result.outcome === "failure"
+          ? 503
+          : 200,
+      headers: { "Cache-Control": "no-store" },
+    });
+  } catch {
+    refreshEvent("daily", "failure", randomUUID());
+    return Response.json(
+      { outcome: "failure", code: "refresh_unavailable" },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
+  }
 }

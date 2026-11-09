@@ -127,6 +127,13 @@
       "when": 1794249416603,
       "tag": "0017_bind_first_save_transaction",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794251239354,
+      "tag": "0018_huge_kitty_pryde",
+      "breakpoints": true
     }
   ]
 }
