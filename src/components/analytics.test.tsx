@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render } from "@testing-library/react";
 import { track } from "@vercel/analytics";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { afterEach, expect, test, vi } from "vitest";
 import {
   Analytics,
@@ -13,10 +14,30 @@ import {
 
 vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
 vi.mock("@vercel/analytics/next", () => ({ Analytics: () => null }));
+vi.mock("@vercel/speed-insights/next", () => ({
+  SpeedInsights: vi.fn(() => null),
+}));
 
 afterEach(() => {
   cleanup();
   vi.mocked(track).mockClear();
+  vi.mocked(SpeedInsights).mockClear();
+});
+
+test("Speed Insights uses URL redaction without dropping other event fields", () => {
+  render(<Analytics />);
+  const { beforeSend } = vi.mocked(SpeedInsights).mock.calls[0][0];
+  expect(
+    beforeSend?.({
+      type: "vital",
+      url: "https://example.com/u/jane-doe?token=secret#private",
+      route: "/u/[username]",
+    }),
+  ).toEqual({
+    type: "vital",
+    url: "https://example.com/u/[username]",
+    route: "/u/[username]",
+  });
 });
 
 const urlOf = (url: string) =>
