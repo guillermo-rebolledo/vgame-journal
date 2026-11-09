@@ -148,3 +148,70 @@ test.each([
     vi.unstubAllEnvs();
   }
 });
+
+test("account email failures emit a safe event and do not expose the provider error", async () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const failing = createAuth(await createTestDb(), async () => {
+      throw new Error("private@example.com token=secret");
+    });
+    const response = await failing.handler(
+      new Request("http://localhost:3000/api/auth/sign-up/email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: "Player",
+          email: "private@example.com",
+          password: "password123",
+        }),
+      }),
+    );
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('"operation":"account_email.verification"'),
+    );
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(
+      /private@example|token=secret/,
+    );
+    expect(await response.text()).not.toContain("token=secret");
+  } finally {
+    log.mockRestore();
+  }
+});
+
+test("password-reset delivery failure emits an operator event while the response stays generic", async () => {
+  let fail = false;
+  const failing = createAuth(await createTestDb(), async () => {
+    if (fail) throw new Error("private recipient and token");
+  });
+  await failing.api.signUpEmail({
+    body: {
+      name: "Player",
+      email: "reset@example.com",
+      password: "password123",
+    },
+  });
+  fail = true;
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const response = await failing.handler(
+      new Request("http://localhost:3000/api/auth/request-password-reset", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: "reset@example.com",
+          redirectTo: "http://localhost:3000/reset-password",
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('"operation":"account_email.password_reset"'),
+    );
+    expect(JSON.stringify(log.mock.calls)).not.toContain(
+      "private recipient and token",
+    );
+    expect(await response.text()).not.toContain("private recipient and token");
+  } finally {
+    log.mockRestore();
+  }
+});

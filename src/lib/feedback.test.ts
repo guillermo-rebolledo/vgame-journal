@@ -154,7 +154,7 @@ test("keeps stored feedback and returns success when email fails", async () => {
   ).resolves.toBeUndefined();
   expect(await db.select().from(feedback)).toHaveLength(1);
   expect(log).toHaveBeenCalledWith(
-    "Feedback email failed; reconcile stored reports.",
+    expect.stringContaining('"operation":"feedback.notification"'),
   );
 });
 
@@ -227,4 +227,18 @@ test("migration backfills existing accounts while old column-list writes remain 
   } finally {
     await previous.close();
   }
+});
+
+test("failed feedback storage emits a safe write event and never sends a notification", async () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  const send = vi.fn();
+  await db.execute(sql`drop table feedback`);
+  await expect(createFeedback(db, send)(author, input)).rejects.toThrow();
+  expect(send).not.toHaveBeenCalled();
+  expect(log).toHaveBeenCalledWith(
+    expect.stringContaining('"operation":"feedback.write"'),
+  );
+  expect(JSON.stringify(log.mock.calls)).not.toMatch(
+    /mario|The shelf is empty|insert into/,
+  );
 });
