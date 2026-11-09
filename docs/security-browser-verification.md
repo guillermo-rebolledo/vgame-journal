@@ -78,6 +78,29 @@ restricted location; commit only sanitized observations and a reference.
 
 ## Local evidence (2026-11-09)
 
+Application-auth logging follow-up (2026-11-09):
+
+- Red: the endpoint database sentinel reached the default logger and Better Call's
+  direct `# SERVER_ERROR` console fallback. A custom logger alone still failed
+  because that fallback retained the raw error, cause and hidden query property.
+  Green: static severity-preserving logging plus `onAPIError.throw` and the
+  request-handler catch removed those payloads and retained an empty 500.
+- Five new `createAuth` handler regressions cover endpoint/rate-limit/session
+  database failures, OAuth provider-error arguments and unknown-provider warning
+  context; captured console arguments retain only the static diagnostic.
+  Existing mail regressions now expect the same static diagnostic and preserve
+  their HTTP results and delivery-attempt counts.
+- After merging integration `29e0306` (including #134), all **44 tests in five
+  auth/account-security files** passed with `--maxWorkers=1 --testTimeout=30000`.
+  `pnpm lint`, `pnpm typecheck` and `git diff --check` passed. The source conflict
+  retained both account-security hooks/provider configuration and the log guard.
+- The broader unit run, started before the integration merge, passed **547 tests
+  in 45 files** with `--maxWorkers=1 --testTimeout=30000`; the 44-test focused
+  rerun above checks the final merged auth/account code. Existing Node timer
+  overflow/deprecation warnings remain.
+- No UI was changed by this follow-up; browser, Storybook, real Google, production
+  and operator checks were not run. All operator rows above remain pending.
+
 Mail-logging follow-up:
 
 - Email-boundary provider-message and network-error/cause tests each failed before

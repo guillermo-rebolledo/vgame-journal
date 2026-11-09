@@ -15,6 +15,7 @@ import {
 } from "@/db/schema";
 import type { RatingPoints } from "@/lib/rating";
 import { createTestDb } from "@/test/db";
+import { createAccountSecurity } from "./account-security";
 import { createJournal, JournalError } from "./journal";
 
 let db: Db;
@@ -168,7 +169,8 @@ test("account deletion requires typed confirmation and cascades only the owner's
     );
   expect((await journal.exportData("mario")).playthroughs).toHaveLength(1);
 
-  await journal.deleteAccount("mario", "DELETE");
+  await createAccountSecurity(db).issue("mario", "deletion-session");
+  await journal.deleteAccount("mario", "DELETE", "deletion-session");
 
   for (const [table, ownerColumn] of [
     [user, user.id],
@@ -1149,7 +1151,8 @@ test("account export includes only the owner's public and private lists in saved
     /luigi|submissionId|feedToken/,
   );
   const survivor = await journal.exportData("luigi");
-  await journal.deleteAccount("mario", "DELETE");
+  await createAccountSecurity(db).issue("mario", "deletion-session");
+  await journal.deleteAccount("mario", "DELETE", "deletion-session");
   expect(await lists.ownerCollection("mario")).toEqual([]);
   expect(await lists.ownerDetail("mario", ids[0])).toBeNull();
   expect(await journal.exportData("luigi")).toEqual(survivor);
@@ -1387,7 +1390,8 @@ test("deleting an account removes its Ratings from the Community rating", async 
   await journal.setRating("mario", 1, 4);
   expect(await journal.communityRating(1)).toMatchObject({ count: 5 });
 
-  await journal.deleteAccount("mario", "DELETE");
+  await createAccountSecurity(db).issue("mario", "deletion-session");
+  await journal.deleteAccount("mario", "DELETE", "deletion-session");
   expect(await journal.communityRating(1)).toMatchObject({
     count: 4,
     average: null,
