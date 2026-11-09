@@ -2,14 +2,20 @@ import {
   compareTagGames,
   type GameSource,
   type SourceGame,
+  type SteamMapping,
 } from "@/lib/game-source";
 
 /** In-memory GameSource: title-substring search, and logs of searches and release date fetches so tests can see what was asked. */
 export function createFakeGameSource(
   games: (SourceGame & { visits?: number })[],
+  steamMappings: SteamMapping[] = [],
 ) {
   const source = {
     searches: 0,
+    async mapSteamApps(appids: number[], signal: AbortSignal) {
+      signal.throwIfAborted();
+      return steamMappings.filter((row) => appids.includes(row.appid));
+    },
     async fetchTagGames(slug: string, limit: number, signal: AbortSignal) {
       signal.throwIfAborted();
       return games

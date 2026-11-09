@@ -8,6 +8,7 @@ import {
   type SourceLanguage,
   type SourceReleaseDate,
   STANDALONE_TYPES,
+  type SteamMapping,
 } from "@/lib/game-source";
 import { GAME_TAGS } from "@/lib/game-tags";
 import { IGDB_TAGS } from "@/lib/igdb-tags";
@@ -133,21 +134,43 @@ async function igdb<T>(
 ): Promise<T[]> {
   const deadline = requestSignal(signal);
   try {
-    const res = await limit(async () => {
-      deadline.throwIfAborted();
-      if (Date.now() < retryAt) throw new OperationalError("rate_limited");
-      const access = await accessToken(deadline);
-      deadline.throwIfAborted();
-      return fetch(`https://api.igdb.com/v4/${endpoint}`, {
-        method: "POST",
-        signal: deadline,
-        headers: {
-          "Client-ID": process.env.TWITCH_CLIENT_ID ?? "",
-          Authorization: `Bearer ${access}`,
-        },
-        body,
-      });
-    }, deadline);
+    let res: Response;
+    for (let attempt = 0; ; attempt++) {
+      const delay = retryAt - Date.now();
+      if (delay > 0 && delay <= 3000 && attempt < 3)
+        await new Promise<void>((resolve, reject) => {
+          const abort = () => {
+            clearTimeout(timer);
+            reject(deadline.reason);
+          };
+          const timer = setTimeout(() => {
+            deadline.removeEventListener("abort", abort);
+            resolve();
+          }, delay);
+          deadline.addEventListener("abort", abort, { once: true });
+        });
+      res = await limit(async () => {
+        deadline.throwIfAborted();
+        if (Date.now() < retryAt) throw new OperationalError("rate_limited");
+        const access = await accessToken(deadline);
+        deadline.throwIfAborted();
+        return fetch(`https://api.igdb.com/v4/${endpoint}`, {
+          method: "POST",
+          signal: deadline,
+          headers: {
+            "Client-ID": process.env.TWITCH_CLIENT_ID ?? "",
+            Authorization: `Bearer ${access}`,
+          },
+          body,
+        });
+      }, deadline);
+      if (res.status !== 429 || attempt >= 2) break;
+      retryAt = Math.max(
+        retryAt,
+        retryAfterUntil(res.headers.get("retry-after")),
+        Date.now() + 250 * 2 ** attempt,
+      );
+    }
     if (res.status === 401) token = undefined;
     checkResponse(res);
     const result = await res.json();
@@ -379,6 +402,51 @@ const toGame = (g: IgdbGame): SourceGame => ({
  * so DLC and fan games don't use up the results the Catalog ranks.
  */
 export const igdbGameSource: GameSource = {
+  async mapSteamApps(appids, signal) {
+    const result: SteamMapping[] = [];
+    const ids = [...new Set(appids)];
+    for (let start = 0; start < ids.length; start += 500) {
+      const batch = ids.slice(start, start + 500);
+      for (let afterId = 0; ; ) {
+        const page = await igdb<{
+          id: number;
+          uid: string;
+          game?: {
+            id: number;
+            game_type?: number;
+            version_parent?: number;
+            parent_game?: number;
+          };
+        }>(
+          "external_games",
+          `fields uid,game.id,game.game_type,game.version_parent,game.parent_game; where external_game_source = 1 & uid = (${batch.map((id) => `"${Math.trunc(id)}"`).join(",")}) & id > ${afterId}; sort id asc; limit 500;`,
+          signal,
+        );
+        for (const row of page) {
+          if (
+            !Number.isSafeInteger(row.id) ||
+            typeof row.uid !== "string" ||
+            !batch.includes(Number(row.uid)) ||
+            !row.game ||
+            !Number.isSafeInteger(row.game.id)
+          )
+            throw new OperationalError("invalid_response");
+          result.push({
+            appid: Number(row.uid),
+            gameId: row.game.id,
+            type: GAME_TYPES[row.game.game_type ?? 0] ?? "update",
+            versionParent: row.game.version_parent,
+            parentGame: row.game.parent_game,
+          });
+        }
+        if (page.length < 500) break;
+        const next = Math.max(...page.map((row) => row.id));
+        if (next <= afterId) throw new OperationalError("invalid_response");
+        afterId = next;
+      }
+    }
+    return result;
+  },
   async fetchTagGames(slug, count, signal) {
     signal.throwIfAborted();
     const known = GAME_TAGS.find((tag) => tag.slug === slug);

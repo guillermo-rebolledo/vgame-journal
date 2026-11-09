@@ -44,6 +44,49 @@ export default function PrivacyPage() {
           Wishlist, Stats, sharing and Calendar features.
         </p>
       </section>
+      <section aria-labelledby="steam-privacy-heading" className="space-y-3">
+        <h2 id="steam-privacy-heading" className="font-medium text-xl">
+          Steam import
+        </h2>
+        <p>
+          When you connect Steam, we store your verified SteamID, connection
+          time and import cooldown. We read games from Steam only when you
+          request an import. Steam names, appids, playtime and last played are
+          used transiently for review and matching, and are not stored. Imported
+          Journal entries retain a Steam source marker. Your Steam password
+          never reaches shelve.games.
+        </p>
+        <p>
+          {process.env.STEAM_STORAGE_COUNTRY
+            ? `Steam connection records are stored in ${process.env.STEAM_STORAGE_COUNTRY}.`
+            : "Steam import is unavailable until the owner verifies and names the storage country."}{" "}
+          Disconnecting removes your Steam connection and leaves Journal entries
+          unchanged. Account deletion removes the connection. Your Journal
+          export includes the SteamID and connection time.
+        </p>
+        <p>
+          Imported games follow your Profile visibility. A Public profile shows
+          them even if you later hide Steam Game details. Steam is a data source
+          and an external sign-in page for connection verification, rather than
+          a shelve.games sign-in method.
+        </p>
+        <p>
+          Steam data is provided “as is”, without warranties of accuracy,
+          availability, merchantability, fitness for a particular purpose or
+          non-infringement. To the extent permitted by law, Valve and
+          shelve.games are not liable for direct, indirect, incidental, special
+          or consequential damages arising from its use. Access may change or
+          end at any time. shelve.games is not affiliated with or endorsed by
+          Valve.{" "}
+          <a
+            href="https://store.steampowered.com/"
+            className="underline underline-offset-4"
+          >
+            Steam
+          </a>{" "}
+          is a service of Valve.
+        </p>
+      </section>
       <section aria-labelledby="sharing-heading" className="space-y-3">
         <h2 id="sharing-heading" className="font-medium text-xl">
           Public and private information
@@ -161,12 +204,12 @@ export default function PrivacyPage() {
         </h2>
         <p>
           Download JSON in Settings exports your profile, Journal entries and
-          Ratings, Status history, Playthroughs including private notes, and
-          Lists. Keep the file private: it includes your email and private
-          writing. It excludes passwords, sessions, provider tokens, Calendar
-          credentials, feedback, mailbox copies and provider logs. This is a
-          Journal export, not a complete response to every privacy data-access
-          request.
+          Ratings, Status history, Playthroughs including private notes, Lists,
+          and your Steam connection. Keep the file private: it includes your
+          email and private writing. It excludes passwords, sessions, provider
+          tokens, Calendar credentials, feedback, mailbox copies and provider
+          logs. This is a Journal export, not a complete response to every
+          privacy data-access request.
         </p>
       </section>
       <section aria-labelledby="deletion-heading" className="space-y-3">
@@ -177,8 +220,8 @@ export default function PrivacyPage() {
           The app keeps account-linked records to provide your account and
           Journal. Delete account in Settings removes your account and its
           linked Journal, Status history, Playthroughs and notes, Lists,
-          feedback and authentication records from the live database. Download
-          your Journal first if you want a copy.
+          feedback, Steam connection and authentication records from the live
+          database. Download your Journal first if you want a copy.
         </p>
         <p>
           This action cannot erase copies already downloaded or shared,

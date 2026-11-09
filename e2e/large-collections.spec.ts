@@ -935,3 +935,79 @@ test("F14 Stats dataset links restore bounded personal and public rows lazily", 
   ).toBeVisible();
   await expect(page).toHaveURL(/\/stats\?marker=keep$/);
 });
+
+for (const count of [2_000, 10_000]) {
+  test(`Steam-sized Journal (${count}) serves Library, Home and public profile with bounded rows`, async ({
+    page,
+    request,
+    browser,
+  }, testInfo) => {
+    test.setTimeout(180_000);
+    const username = uniqueUsername(`steam_scale_${count}`);
+    const email = await signUp(page, request, username);
+    await seedSql(
+      request,
+      [
+        `update "user" set profile_visibility = 'public' where email = $1`,
+        `insert into game (id, title, slug, genres, platforms, synced_at) select n, 'Import game ' || n, 'import-' || n, '{}', '{PC}', now() from generate_series(50000, ${49999 + count}) n on conflict (id) do nothing`,
+        `insert into journal_entry (user_id, game_id, status, updated_at, import_source) select u.id, n, 'backlog', now(), 'steam' from "user" u cross join generate_series(50000, ${49999 + count}) n where u.email = $1`,
+      ],
+      [email],
+    );
+    const timings: Record<string, number> = {};
+    let started = Date.now();
+    await page.goto("/library");
+    await expect(
+      page
+        .getByText(`${count} games`, { exact: true })
+        .filter({ visible: true }),
+    ).toBeVisible({ timeout: 30_000 });
+    await expect(
+      page
+        .getByRole("list", { name: "Games", exact: true })
+        .getByRole("listitem"),
+    ).toHaveCount(48);
+    timings.libraryMs = Date.now() - started;
+    await page
+      .getByRole("navigation", { name: "Library games pages" })
+      .getByRole("button", { name: "Next" })
+      .click();
+    await expect(
+      page
+        .getByRole("navigation", { name: "Library games pages" })
+        .getByRole("status"),
+    ).toHaveText(`49–96 of ${count}`);
+    started = Date.now();
+    await page.goto("/");
+    await expect(
+      page.getByRole("link", {
+        name: `All saved games (${count})`,
+        exact: true,
+      }),
+    ).toBeVisible({ timeout: 30_000 });
+    timings.homeMs = Date.now() - started;
+    const context = await browser.newContext();
+    try {
+      const visitor = await context.newPage();
+      started = Date.now();
+      await visitor.goto(`/u/${username}`);
+      await expect(
+        visitor
+          .getByText(`${count} games`, { exact: true })
+          .filter({ visible: true }),
+      ).toBeVisible({ timeout: 30_000 });
+      await expect(
+        visitor
+          .getByRole("list", { name: "Games", exact: true })
+          .getByRole("listitem"),
+      ).toHaveCount(48);
+      timings.publicProfileMs = Date.now() - started;
+    } finally {
+      await context.close();
+    }
+    await testInfo.attach("steam-import-scale.json", {
+      body: JSON.stringify({ count, ...timings }, null, 2),
+      contentType: "application/json",
+    });
+  });
+}

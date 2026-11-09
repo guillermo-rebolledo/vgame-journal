@@ -143,6 +143,22 @@ export const rateLimit = pgTable(
   (table) => [index("rate_limit_last_request_idx").on(table.lastRequest)],
 );
 
+/** Verified Steam identity, removed on disconnect or account deletion. */
+export const steamLink = pgTable(
+  "steam_link",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    steamId: text("steam_id").notNull(),
+    linkedAt: timestamp("linked_at").notNull(),
+    nextImportAt: timestamp("next_import_at"),
+    /** A completed review may commit immediately; cooldowns and active imports may not. */
+    reviewReady: boolean("review_ready").notNull().default(false),
+  },
+  (t) => [check("steam_link_id_valid", sql`${t.steamId} ~ '^[0-9]{17}$'`)],
+);
+
 // Catalog: our local copy of games, keyed by the GameSource (IGDB) id.
 export const game = pgTable(
   "game",
@@ -204,6 +220,7 @@ export const journalEntry = pgTable(
     completionTag: text("completion_tag").$type<CompletionTag>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").notNull(),
+    importSource: text("import_source").$type<"steam">(),
     /** Rating points, 1–10 (half stars: points ÷ 2). Set only while Played or Playing; kept through later Status changes. */
     rating: smallint("rating").$type<RatingPoints>(),
     /** When the Rating last changed value. */
