@@ -1,6 +1,7 @@
 "use client";
 
-import Image from "next/image";
+import { cn } from "cn";
+import { Check, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import {
@@ -8,8 +9,9 @@ import {
   useFeedbackChannel,
 } from "@/components/feedback-channel";
 import { PagedList } from "@/components/paged-list";
+import { SteamAttribution } from "@/components/steam-connection";
 import { ActionFeedback } from "@/components/ui/action-feedback";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -19,8 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "@/components/ui/toast";
-import type { SteamReview } from "@/lib/steam-import";
+import { Spinner } from "@/components/ui/spinner";
+import type { SteamReview, SteamReviewRow } from "@/lib/steam-import";
 
 const messages = {
   hidden:
@@ -41,60 +43,108 @@ const rowLabels = {
   removed: "Previously removed",
   unmatched: "No exact Catalog match",
 };
+const countLabels: Record<SteamReviewRow["state"], string> = {
+  ...rowLabels,
+  needs_look: "Needs a look",
+};
+const games = (count: number) => `${count} ${count === 1 ? "game" : "games"}`;
+
+type StepState = "waiting" | "active" | "working" | "done" | "error";
+
+function ImportSteps({
+  steps,
+}: {
+  steps: { label: string; detail: string; state: StepState }[];
+}) {
+  return (
+    <ol
+      aria-label="Steam import progress"
+      className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3"
+    >
+      {steps.map(({ label, detail, state }, index) => (
+        <li
+          key={label}
+          aria-current={
+            state === "active" || state === "working" || state === "error"
+              ? "step"
+              : undefined
+          }
+          className="flex min-w-0 items-start gap-2"
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              "grid size-6 shrink-0 place-items-center rounded-full border text-xs tabular-nums [&_svg]:size-3.5",
+              state === "done" && "bg-muted",
+              (state === "active" || state === "working") &&
+                "border-foreground",
+              state === "error" && "border-destructive text-destructive",
+              state === "waiting" && "text-muted-foreground",
+            )}
+          >
+            {state === "done" ? (
+              <Check />
+            ) : state === "working" ? (
+              <Spinner />
+            ) : state === "error" ? (
+              <CircleAlert />
+            ) : (
+              index + 1
+            )}
+          </span>
+          <span className="min-w-0 text-sm">
+            <span
+              className={cn(
+                "block",
+                state === "waiting"
+                  ? "text-muted-foreground"
+                  : state !== "done" && "font-medium",
+              )}
+            >
+              {label}
+            </span>
+            <span className="block text-muted-foreground tabular-nums">
+              {detail}
+            </span>
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export function SteamImport({
-  connected,
-  enabled,
   publicProfile,
-  connectionResult,
   onRead,
   onCommit,
-  onDisconnect,
 }: {
-  connected: boolean;
-  enabled: boolean;
   publicProfile: boolean;
-  connectionResult?: string;
   onRead: () => Promise<SteamReview>;
   onCommit: (
     appids: number[],
   ) => Promise<
     { added: number; feedbackInvitation: boolean } | { error: string }
   >;
-  onDisconnect: () => Promise<{ disconnected: true } | { error: string }>;
 }) {
-  const [linked, setLinked] = useState(connected);
   const [review, setReview] = useState<SteamReview>();
   const [selected, setSelected] = useState(new Set<number>());
   const [sort, setSort] = useState<"playtime" | "lastPlayed">("playtime");
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState(
-    connectionResult === "failed"
-      ? "Steam sign-in failed or was cancelled. Nothing was connected. Try again."
-      : connectionResult === "connected"
-        ? "Steam connected."
-        : "",
-  );
+  const [result, setResult] = useState<{ added: number; requested: number }>();
   const feedback = useFeedbackChannel();
   const [pending, startTransition] = useTransition();
-  const [operation, setOperation] = useState("");
+  const [operation, setOperation] = useState<"read" | "commit">("read");
   const busy = useRef(false);
   const sortId = useId();
-  const startControl = useRef<HTMLButtonElement>(null);
-  const connectControl = useRef<HTMLAnchorElement>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
-  const restoreFocus = useRef(false);
+  const resultHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    if (pending || !restoreFocus.current) return;
-    restoreFocus.current = false;
-    (linked ? startControl.current : connectControl.current)?.focus();
-    if (!enabled) heading.current?.focus();
-  }, [pending, linked, enabled]);
-  function run(label: string, work: () => Promise<void>) {
+    if (result) resultHeading.current?.focus();
+  }, [result]);
+  function run(next: "read" | "commit", work: () => Promise<void>) {
     if (busy.current) return;
     busy.current = true;
     setError("");
-    setNotice("");
-    setOperation(label);
+    setOperation(next);
     startTransition(async () => {
       try {
         await work();
@@ -114,67 +164,95 @@ export function SteamImport({
         )
       : [];
   const ready = rows.filter((r) => r.state === "ready");
+  const reviewing = review?.kind === "review";
+  const reading = pending && operation === "read";
+  const committing = pending && operation === "commit";
+  const skipped = result ? result.requested - result.added : 0;
   return (
-    <section
-      aria-labelledby="steam-heading"
-      className="flex min-w-0 flex-col gap-4 border-t pt-6"
-    >
-      <div className="flex flex-col gap-1">
-        <h2
-          ref={heading}
-          tabIndex={-1}
-          id="steam-heading"
-          className="font-medium outline-none"
-        >
-          Steam import
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Choose games from your Steam account to add as Backlog. Existing
-          Journal entries and previously removed games stay untouched. No
-          Playthroughs are created.
-        </p>
-      </div>
-      <p className="text-sm">
-        {linked ? "Steam connected" : "Steam not connected"}
+    <div className="flex min-w-0 flex-col gap-6">
+      <p className="text-sm text-muted-foreground">
+        Choose games from your Steam account to add as Backlog. Existing Journal
+        entries and previously removed games stay untouched. No Playthroughs are
+        created.
       </p>
-      {!enabled && (
-        <p className="text-sm text-muted-foreground">
-          Steam import is not available yet. You can keep adding games through
-          Catalog search.
-        </p>
-      )}
-      {!linked && enabled && (
-        <a
-          ref={connectControl}
-          href="/api/steam/connect"
-          className="inline-flex min-h-11 self-start items-center rounded-md focus-visible:outline-2 focus-visible:outline-offset-4"
-        >
-          <Image
-            src="/steam/sign-in.png"
-            width={180}
-            height={35}
-            alt="Sign in through Steam"
-          />
-        </a>
-      )}
-      <div className="flex flex-wrap gap-2">
-        {linked && enabled && (
+      <ImportSteps
+        steps={[
+          {
+            label: "Read Steam",
+            state: reading
+              ? "working"
+              : reviewing
+                ? "done"
+                : review
+                  ? "error"
+                  : "active",
+            detail: reading
+              ? "In progress"
+              : reviewing
+                ? `${games(rows.length)} found`
+                : review
+                  ? "Needs attention"
+                  : "Ready to start",
+          },
+          {
+            label: "Review matches",
+            state:
+              result || committing ? "done" : reviewing ? "active" : "waiting",
+            detail: reviewing
+              ? `${selected.size} of ${ready.length} selected`
+              : "Waiting",
+          },
+          {
+            label: "Add to Backlog",
+            state: result ? "done" : committing ? "working" : "waiting",
+            detail: result
+              ? `${result.added} added`
+              : committing
+                ? `Adding ${selected.size}`
+                : "Waiting",
+          },
+        ]}
+      />
+      {result ? (
+        <div className="enter flex flex-col gap-3 rounded-lg border bg-muted/40 p-4">
+          <h2
+            ref={resultHeading}
+            tabIndex={-1}
+            className="font-medium tabular-nums outline-none"
+          >
+            {games(result.added)} added to Backlog
+          </h2>
+          {skipped > 0 && (
+            <p className="text-sm text-muted-foreground tabular-nums">
+              {games(skipped)} not added. Games already in your Journal and
+              previously removed games stay untouched.
+            </p>
+          )}
+          <Link
+            href="/library?status=backlog"
+            className={buttonVariants({ className: "min-h-11 self-start" })}
+          >
+            View Backlog
+          </Link>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
           <Button
-            ref={startControl}
+            variant={reviewing ? "outline" : "default"}
             className="min-h-11"
             disabled={pending}
             onClick={() =>
-              run("Reading and matching Steam games…", async () => {
-                const result = await onRead();
-                if (result.kind !== "review" && review?.kind === "review") {
-                  setError(messages[result.kind]);
+              run("read", async () => {
+                const next = await onRead();
+                if (next.kind !== "review" && review?.kind === "review") {
+                  setError(messages[next.kind]);
                   return;
                 }
-                setReview(result);
+                setReview(next);
                 setSelected(
                   new Set(
-                    result.kind === "review"
-                      ? result.rows
+                    next.kind === "review"
+                      ? next.rows
                           .filter((r) => r.state === "ready")
                           .map((r) => r.appid)
                       : [],
@@ -183,48 +261,59 @@ export function SteamImport({
               })
             }
           >
-            {review ? "Retry Steam import" : "Start Steam import"}
+            {reviewing
+              ? "Read Steam again"
+              : review
+                ? "Retry Steam import"
+                : "Start Steam import"}
           </Button>
-        )}
-        {linked && (
-          <Button
-            variant="outline"
-            className="min-h-11"
-            disabled={pending}
-            onClick={() =>
-              run("Disconnecting Steam…", async () => {
-                const result = await onDisconnect();
-                if ("error" in result) {
-                  setError(result.error);
-                  return;
-                }
-                restoreFocus.current = true;
-                setLinked(false);
-                setReview(undefined);
-                setSelected(new Set());
-                setNotice("Steam disconnected. Your Journal is unchanged.");
-              })
-            }
-          >
-            Disconnect Steam
-          </Button>
+        </div>
+      )}
+      <div className="flex flex-col gap-1">
+        <output aria-live="polite" aria-atomic="true">
+          {reading ? (
+            <ActionFeedback state="pending">
+              Reading and matching Steam games…
+            </ActionFeedback>
+          ) : committing ? (
+            <ActionFeedback state="pending">
+              Adding selected games to Backlog…
+            </ActionFeedback>
+          ) : error ? (
+            <ActionFeedback state="error">{error}</ActionFeedback>
+          ) : review && review.kind !== "review" ? (
+            messages[review.kind]
+          ) : (
+            ""
+          )}
+        </output>
+        {pending && (
+          <p className="text-sm text-muted-foreground">
+            Large Steam accounts can take up to three minutes. Keep this page
+            open.
+          </p>
         )}
       </div>
-      <output aria-live="polite" aria-atomic="true">
-        {pending ? (
-          <ActionFeedback state="pending">{operation}</ActionFeedback>
-        ) : error ? (
-          <ActionFeedback state="error">{error}</ActionFeedback>
-        ) : (
-          notice ||
-          (review && review.kind !== "review" ? messages[review.kind] : "")
-        )}
-      </output>
-      {review?.kind === "review" && (
-        <div className="flex min-w-0 flex-col gap-4" aria-busy={pending}>
-          <p className="text-sm tabular-nums">
-            {ready.length} games ready · {selected.size} selected
-          </p>
+      {reviewing && !result && (
+        <div
+          className="flex min-w-0 flex-col gap-4 [&_:is(a,button,[role=checkbox])]:scroll-mb-28"
+          aria-busy={pending}
+        >
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums">
+            {(Object.keys(rowLabels) as SteamReviewRow["state"][]).map(
+              (state) => {
+                const count = rows.filter((r) => r.state === state).length;
+                return count ? (
+                  <li key={state}>
+                    {count}{" "}
+                    <span className="text-muted-foreground">
+                      {countLabels[state]}
+                    </span>
+                  </li>
+                ) : null;
+              },
+            )}
+          </ul>
           {publicProfile && (
             <p className="rounded-lg border bg-muted/40 p-4 text-sm">
               Your profile is Public. Imported games will appear on your Public
@@ -272,7 +361,7 @@ export function SteamImport({
               </SelectContent>
             </Select>
           </div>
-          {!rows.length && <p>No new games are ready to import.</p>}
+          {!ready.length && <p>No new games are ready to import.</p>}
           <PagedList items={rows} label="Steam games">
             {(page) => (
               <ul className="divide-y">
@@ -319,49 +408,33 @@ export function SteamImport({
               </ul>
             )}
           </PagedList>
-          <Button
-            className="min-h-11 self-start"
-            disabled={pending || !selected.size}
-            onClick={() =>
-              run("Adding selected games to Backlog…", async () => {
-                const result = await onCommit([...selected]);
-                if ("error" in result) {
-                  setError(result.error);
-                  return;
-                }
-                toast.add({
-                  title: `${result.added} ${result.added === 1 ? "game" : "games"} added to Backlog`,
-                  type: "success",
-                });
-                if (result.feedbackInvitation) feedback?.saved();
-                restoreFocus.current = true;
-                setReview(undefined);
-                setSelected(new Set());
-              })
-            }
-          >
-            Add {selected.size} to Backlog
-          </Button>
+          <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t bg-background py-3">
+            <p className="text-sm tabular-nums">
+              {selected.size} of {ready.length} selected
+            </p>
+            <Button
+              className="min-h-11"
+              disabled={pending || !selected.size}
+              onClick={() =>
+                run("commit", async () => {
+                  const requested = selected.size;
+                  const outcome = await onCommit([...selected]);
+                  if ("error" in outcome) {
+                    setError(outcome.error);
+                    return;
+                  }
+                  if (outcome.feedbackInvitation) feedback?.saved();
+                  setResult({ added: outcome.added, requested });
+                })
+              }
+            >
+              Add {selected.size} to Backlog
+            </Button>
+          </div>
         </div>
       )}
       <FirstSaveFeedback />
-      <p className="text-xs text-muted-foreground">
-        Steam data is provided “as is”, without warranties of accuracy,
-        availability or fitness for a particular purpose. To the extent
-        permitted by law, Valve and shelve.games are not liable for damages
-        arising from its use. shelve.games is not endorsed by or affiliated with
-        Valve.{" "}
-        <a
-          href="https://store.steampowered.com/"
-          className="underline underline-offset-4"
-        >
-          Steam
-        </a>{" "}
-        ·{" "}
-        <Link href="/privacy" className="underline underline-offset-4">
-          Privacy notice
-        </Link>
-      </p>
-    </section>
+      <SteamAttribution />
+    </div>
   );
 }

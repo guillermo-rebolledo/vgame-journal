@@ -857,6 +857,31 @@ test("Steam mapping batches quoted appids and cursors through duplicate uid page
   });
 });
 
+test("an IGDB retry timer firing early still waits out the 429 window", async () => {
+  vi.resetModules();
+  const source = (await import("./igdb")).igdbGameSource;
+  const realSetTimeout = setTimeout;
+  vi.stubGlobal("setTimeout", (run: () => void, ms = 0) =>
+    realSetTimeout(run, Math.max(0, ms - 5)),
+  );
+  let requests = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      requests++;
+      return requests === 1
+        ? new Response(null, { status: 429, headers: { "retry-after": "0" } })
+        : Response.json([{ id: 1, uid: "620", game: { id: 2, game_type: 0 } }]);
+    }),
+  );
+  await expect(
+    source.mapSteamApps([620], new AbortController().signal),
+  ).resolves.toHaveLength(1);
+  expect(requests).toBe(2);
+});
+
 test("short IGDB 429 retries once and returns the mapped game", async () => {
   vi.resetModules();
   const source = (await import("./igdb")).igdbGameSource;

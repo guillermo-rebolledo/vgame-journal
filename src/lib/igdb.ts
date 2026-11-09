@@ -136,8 +136,10 @@ async function igdb<T>(
   try {
     let res: Response;
     for (let attempt = 0; ; attempt++) {
-      const delay = retryAt - Date.now();
-      if (delay > 0 && delay <= 3000 && attempt < 3)
+      // Recheck after waking: a timer can fire just before Date.now() reaches retryAt.
+      while (attempt < 3) {
+        const delay = retryAt - Date.now();
+        if (delay <= 0 || delay > 3000) break;
         await new Promise<void>((resolve, reject) => {
           const abort = () => {
             clearTimeout(timer);
@@ -149,6 +151,7 @@ async function igdb<T>(
           }, delay);
           deadline.addEventListener("abort", abort, { once: true });
         });
+      }
       res = await limit(async () => {
         deadline.throwIfAborted();
         if (Date.now() < retryAt) throw new OperationalError("rate_limited");

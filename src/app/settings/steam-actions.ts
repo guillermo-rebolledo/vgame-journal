@@ -9,7 +9,7 @@ async function owner(expectedOwner: string) {
   const current = await ownerId();
   if (current !== expectedOwner)
     throw new ExpectedError(
-      "Your account changed. Reload Settings before importing.",
+      "Your account changed. Reload this page before importing.",
     );
   return current;
 }

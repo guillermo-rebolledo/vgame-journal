@@ -480,7 +480,7 @@ test("Steam review is keyboard operable and accessible at phone width", async ({
     ],
     [email],
   );
-  await page.goto("/settings");
+  await page.goto("/settings/steam");
   const start = page.getByRole("button", { name: "Start Steam import" });
   await start.focus();
   await page.keyboard.press("Enter");
