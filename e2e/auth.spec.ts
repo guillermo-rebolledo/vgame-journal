@@ -33,7 +33,7 @@ test("signed-out visitors cannot reach personal stats", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
 });
 
-test("R10 guest recording returns an existing member to the game after retry without writes", async ({
+test("R10 guest recording returns an existing member to the game after retry without writes @release-smoke", async ({
   page,
   request,
 }) => {
@@ -98,7 +98,7 @@ test("R10 guest recording returns an existing member to the game after retry wit
   }
 });
 
-test("R10 signup switching, verification resend and username retry preserve the game without writes", async ({
+test("R10 signup switching, verification resend and username retry preserve the game without writes @release-smoke", async ({
   page,
   request,
 }) => {

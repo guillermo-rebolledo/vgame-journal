@@ -27,7 +27,7 @@ async function expectNoHorizontalOverflow(page: Page) {
     .toBe(true);
 }
 
-test("Home guides new users, and search survives slow, stale and failed requests", async ({
+test("Home guides new users, and search survives slow, stale and failed requests @release-smoke", async ({
   page,
 }, testInfo) => {
   await page.goto("/");
@@ -56,16 +56,11 @@ test("Home guides new users, and search survives slow, stale and failed requests
   const held = new Promise<void>((resolve) => {
     releaseStale = resolve;
   });
-  let started!: () => void;
-  const staleRequested = new Promise<void>((resolve) => {
-    started = resolve;
-  });
   let finished!: () => void;
   const staleFinished = new Promise<void>((resolve) => {
     finished = resolve;
   });
   await page.route("**/api/games/search?q=ce", async (route) => {
-    started();
     await held;
     await route.fulfill({
       json: [
@@ -83,6 +78,14 @@ test("Home guides new users, and search survives slow, stale and failed requests
   });
   const search = page;
   const box = search.getByRole("combobox", { name: "Search games" });
+  async function fillQuery(value: string) {
+    await box.fill(value);
+    // Identical short-query guidance does not prove the prior URL update settled.
+    await expect(page).toHaveURL(
+      (url) => (url.searchParams.get("q") ?? "") === value,
+    );
+    await expect(box).toHaveValue(value);
+  }
   const updates = search.getByRole("status", {
     name: "Search updates",
     exact: true,
@@ -94,30 +97,32 @@ test("Home guides new users, and search survives slow, stale and failed requests
       catalogQueries.push(new URL(request.url()).searchParams.get("q") ?? "");
   });
   await expect(updates).toContainText("Enter at least 2 characters");
-  await box.fill("   ");
+  await fillQuery("   ");
   await expect(updates).toContainText("Enter at least 2 characters");
-  await box.fill(" c ");
+  await fillQuery(" c ");
   await expect(updates).toContainText("Enter at least 2 characters");
   await expect(search.locator(".game-catalog-results")).toBeAttached();
 
-  await box.fill("ce");
+  await Promise.all([
+    page.waitForRequest("**/api/games/search?q=ce"),
+    fillQuery("ce"),
+  ]);
   await expect(updates).toHaveText("Searching…");
-  await staleRequested;
-  await box.fill("c");
+  await fillQuery("c");
   await expect(updates).toContainText("Enter at least 2 characters");
   await expect(search.locator(".game-catalog-results")).toBeAttached();
-  await box.fill("celeste");
+  await fillQuery("celeste");
   const results = search.locator(".game-catalog-results");
   await expect(results.getByRole("link", { name: /^Celeste/ })).toBeVisible();
   releaseStale();
   await staleFinished;
   await expect(page.getByText("Stale result")).toHaveCount(0);
   await expect(updates).toHaveText("1 returned match for “celeste”.");
-  await box.fill("c");
+  await fillQuery("c");
   await expect(updates).toContainText("Enter at least 2 characters");
   await expect(results.getByRole("link")).toHaveCount(0);
 
-  await box.fill("nothing like this");
+  await fillQuery("nothing like this");
   await expect(updates).toContainText(
     "No matches returned for “nothing like this”.",
   );
@@ -126,22 +131,22 @@ test("Home guides new users, and search survives slow, stale and failed requests
   await page.route("**/api/games/search?q=hollow", (route) =>
     route.fulfill({ status: 500, json: {} }),
   );
-  await box.fill("hollow");
+  await fillQuery("hollow");
   await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
     "Search isn’t working right now.",
   );
   await snap(page, testInfo, "search-failed");
-  await box.fill("h");
+  await fillQuery("h");
   await expect(updates).toContainText("Enter at least 2 characters");
   await expect(page.getByRole("dialog").getByRole("alert")).toHaveCount(0);
-  await box.fill("hollow");
+  await fillQuery("hollow");
   await expect(page.getByRole("dialog").getByRole("alert")).toBeVisible();
 
   await page.unroute("**/api/games/search?q=hollow");
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(updates).toContainText("No matches returned");
   await expect(box).toHaveValue("hollow");
-  await box.fill("h");
+  await fillQuery("h");
   await expect(updates).toContainText("Enter at least 2 characters");
   await expect(page.getByRole("dialog").getByRole("alert")).toHaveCount(0);
   for (const theme of ["light", "dark"] as const) {

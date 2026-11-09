@@ -20,6 +20,19 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       testIgnore: "discovery.spec.ts",
     },
+    // Reuse focused journeys, keeping the complete suite on Chromium.
+    {
+      name: "firefox-smoke",
+      use: { ...devices["Desktop Firefox"] },
+      grep: /@release-smoke/,
+      retries: 0,
+    },
+    {
+      name: "webkit-smoke",
+      use: { ...devices["Desktop Safari"] },
+      grep: /@release-smoke/,
+      retries: 0,
+    },
     // Discovery specs hold, fail and empty the shared discovery feed that Home
     // tests read, so CI runs this project in its own job with its own server.
     // One worker: copies of these specs (--repeat-each) would release each other's holds.
