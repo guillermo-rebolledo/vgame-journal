@@ -53,8 +53,8 @@ export function createFeedback(
           subject: `[Feedback: ${label}] @${author.username}`,
           text: `Username: @${author.username}\nType: ${label}\nPath: ${input.path}\n\n${message}`,
         });
-      } catch (error) {
-        console.error("Feedback email failed", error);
+      } catch {
+        console.error("Feedback email failed");
       }
     }
   };
