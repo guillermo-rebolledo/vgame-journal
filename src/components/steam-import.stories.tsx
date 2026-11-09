@@ -162,8 +162,9 @@ export const Pending: Story = {
 };
 export const FailedCommit: Story = {
   beforeEach: ({ args }) => {
-    mocked(args.onCommit).mockResolvedValue({
-      error: "Catalog unavailable. Retry in one minute.",
+    mocked(args.onCommit).mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return { error: "Catalog unavailable. Retry in one minute." };
     });
   },
   play: async (context) => {
@@ -172,8 +173,10 @@ export const FailedCommit: Story = {
     await userEvent.click(
       canvas.getByRole("button", { name: "Add 2 to Backlog" }),
     );
-    await expect(canvas.getByRole("status")).toHaveTextContent(
-      "Catalog unavailable",
+    await waitFor(() =>
+      expect(canvas.getByRole("status")).toHaveTextContent(
+        "Catalog unavailable",
+      ),
     );
     await expect(
       canvas.getByRole("checkbox", { name: /Portal 2/ }),
