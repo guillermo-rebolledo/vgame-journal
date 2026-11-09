@@ -15,7 +15,7 @@ async function owner(expectedOwner: string) {
 }
 export async function readSteamImport(expectedOwner: string) {
   const id = await owner(expectedOwner);
-  if (!steamImportEnabled()) return { kind: "unavailable" as const };
+  if (!(await steamImportEnabled())) return { kind: "unavailable" as const };
   return steamImport.review(id);
 }
 export async function commitSteamImport(
@@ -24,7 +24,7 @@ export async function commitSteamImport(
 ) {
   try {
     const id = await owner(expectedOwner);
-    if (!steamImportEnabled())
+    if (!(await steamImportEnabled()))
       throw new ExpectedError("Steam import is not available yet.");
     const result = await steamImport.commit(id, appids);
     refresh();

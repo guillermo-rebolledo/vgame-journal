@@ -310,7 +310,7 @@ async function SteamSetting({
   return (
     <SteamImport
       connected={Boolean(link)}
-      enabled={steamImportEnabled()}
+      enabled={await steamImportEnabled()}
       publicProfile={visibility === "public"}
       connectionResult={params.steam}
       onRead={readSteamImport.bind(null, userId)}

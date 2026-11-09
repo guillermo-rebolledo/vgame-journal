@@ -1,6 +1,6 @@
 # Issue 151: Steam import verification and release gates
 
-Steam import stays disabled unless `STEAM_IMPORT_ENABLED=true`, `STEAM_WEB_API_KEY` and `STEAM_STORAGE_COUNTRY` are all set. The owner must complete the live checks below before enabling it. A country string is a deployment assertion, not an automatic location detector.
+Steam import is controlled by the server-side Vercel `steam-import` flag, which defaults to off if the flag is missing or evaluation fails. The Steam API credential (`STEAM_WEB_API_KEY`) and verified storage country (`STEAM_STORAGE_COUNTRY`) remain required server configuration. They do not control rollout. A country string is a deployment assertion, not an automatic location detector.
 
 ## Implemented behavior
 
@@ -23,7 +23,7 @@ The import cap is 10,000 appids. A read claims 60 seconds; commit claims a three
 - Playwright covers 2,000 and 10,000-entry Library, Home and signed-out public profiles. All collection grids mount 48 rows per page. Timing attachments are diagnostic, not production latency guarantees. These checks did not justify replacing the current collection pagination/data model in this change.
 - Component stories cover connection states, failures, pending progress, hidden/empty/over-limit responses, unmatched and removed games, Public/Private guidance, keyboard selection, commit recovery, and 10,000-row paging. The accessibility spec covers review at 320px.
 
-Component choice: SteamImport composes existing Button, Select, PagedList, ActionFeedback, toast and first-save feedback. CalendarFeedForm is the closest Settings composition, but does not own multi-game review. Checkbox is the shadcn Base UI registry primitive, with colocated states and keyboard interaction stories. No new animation system or dependency was added.
+Component choice: SteamImport composes existing Button, Select, PagedList, ActionFeedback, toast and first-save feedback. CalendarFeedForm is the closest Settings composition, but does not own multi-game review. Checkbox is the shadcn Base UI registry primitive, with colocated states and keyboard interaction stories. No new animation system was added. The Flags SDK and Vercel adapter supply the server-side rollout integration.
 
 ## Owner release checklist (not completed locally)
 
@@ -35,7 +35,7 @@ Component choice: SteamImport composes existing Button, Select, PagedList, Actio
 6. Measure the locked 10,000-row batch on an isolated Neon branch with production-like data. Do not run performance tests against a player's Journal. Lower the cap if it exceeds the database request timeout or acceptable latency.
 7. Review production Library/Home/public-profile timing and payloads at the import ceiling; local PGlite/browser checks do not establish serverless memory/network performance.
 8. Finish manual DESIGN.md QA: VoiceOver/screen-reader navigation and announcements; both themes at 320/390/768/1440px; 200% zoom and enlarged text; reduced motion; real touch input. Automated keyboard and accessibility checks do not replace these.
-9. Only after these gates pass, set `STEAM_IMPORT_ENABLED=true`.
+9. Only after these gates pass, enable `steam-import` for everyone in the Vercel Flags dashboard. Keep the default off while testing with a rule targeting only your account.
 
 No live Steam login, real-key request, Neon write/benchmark, or physical-device/screen-reader check was performed during implementation. No API key or storage-country assertion was invented.
 
@@ -48,3 +48,18 @@ Two findings, both resolved: focus after completion/disconnect now returns to a 
 One finding, resolved: one timestamp alone could not distinguish an immediately committable review from a commit cooldown. A single `review_ready` boolean on the existing connection row resolves that ambiguity without adding an import-run table. Regression tests cover the entire five-minute cooldown, overlapping slow commits, and stale finalization. No scope creep found.
 
 Review totals: Standards 2 resolved (focus/selection recovery); Spec 1 resolved (cooldown/lease distinction).
+
+## Vercel Flags rollout
+
+The managed flag is [steam-import](https://vercel.com/guillermo-ortizs-projects/vgame-journal/flag/steam-import). It starts off in Production, Preview and Development. There is no application rollout environment variable.
+
+- The Flags SDK and Vercel adapter evaluate on the server. Settings, Connect, callback, Read and Commit await the same flag. Disconnect remains available even when the flag is off.
+- Targeting receives only `user.id` from the signed-in session; no email, SteamID, Journal data or browser-supplied identity is used. To test only your account, add a targeting rule in the selected environment for User ID (`user.id`) matching your shelve.games profile `id` from Download JSON in Settings, serving On. Leave the default Off. Do not use the SteamID.
+- Vercel deployments authenticate the adapter with Vercel's managed OIDC credentials. For local development, link the project and run `vercel env pull .env.local` to retrieve local OIDC credentials. Vercel manages the Flags Explorer credential (`FLAGS_SECRET`) when the first flag is created. Never put the Steam API key in a flag.
+- `/.well-known/vercel/flags` exposes the definition to Flags Explorer through the SDK's authenticated discovery endpoint.
+- Flag changes can be made in the dashboard after deploying the integration; the app rechecks access on every server action and Steam route. A disabled flag does not remove existing Journal entries or prevent disconnect.
+- Isolated E2E builds alias the flag to a local fake rather than contacting Vercel or using a rollout environment switch. Unit tests cover user targeting, provider-failure fallback and all async server gates.
+
+References: [Vercel Flags SDK](https://vercel.com/docs/flags/vercel-flags/sdks/flags-sdk), [local OIDC setup](https://vercel.com/docs/flags/vercel-flags/quickstart).
+
+Flags integration verification: all 664 unit tests (`pnpm test --maxWorkers=2`), 233 Storybook checks, 15 Steam/privacy/accessibility Chromium E2E checks, typecheck, lint and the Storybook build passed. The managed flag was verified Off in all three environments. Live account-targeted evaluation awaits deployment and owner test-account configuration.

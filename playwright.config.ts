@@ -68,7 +68,6 @@ export default defineConfig({
         TWITCH_CLIENT_ID: "",
         TWITCH_CLIENT_SECRET: "",
         STEAM_WEB_API_KEY: "e2e-steam-key",
-        STEAM_IMPORT_ENABLED: "true",
         STEAM_STORAGE_COUNTRY: "United States (isolated test fixture)",
       },
     },

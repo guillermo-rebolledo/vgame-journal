@@ -57,6 +57,7 @@ const nextConfig: NextConfig = {
         "@/db": "./e2e/support/db.ts",
         "@/db/batch": "./e2e/support/batch.ts",
         "@/lib/igdb": "./e2e/support/game-source.ts",
+        "@/lib/flags": "./e2e/support/flags.ts",
         "@/lib/steam": "./e2e/support/steam.ts",
         "@/lib/steam-openid": "./e2e/support/steam-openid.ts",
       },

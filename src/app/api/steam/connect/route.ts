@@ -7,7 +7,7 @@ export async function GET() {
   const session = await currentSession();
   const origin = process.env.BETTER_AUTH_URL ?? "";
   if (!session) return Response.redirect(new URL("/sign-in", origin));
-  if (!steamImportEnabled())
+  if (!(await steamImportEnabled()))
     return Response.redirect(new URL("/settings?steam=unavailable", origin));
   try {
     const url = await createSteamOpenId(db, origin).start({
