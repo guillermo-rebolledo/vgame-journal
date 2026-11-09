@@ -142,20 +142,23 @@ test("expiry frees only one slot for concurrent submissions while newer messages
   await expect(submit(author, input)).resolves.toHaveProperty("error");
 });
 
-test("keeps stored feedback and returns success when email fails", async () => {
+test("mail failure logs only a safe message and keeps one successful submission", async () => {
   vi.stubEnv("FEEDBACK_EMAIL", "delivered@resend.dev");
+  const sentinel = "PRIVATE-feedback-recipient-token-cookie-authorization";
   const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  const send = vi.fn(async () => {
+    throw new Error(sentinel, { cause: new Error(sentinel) });
+  });
   await expect(
-    createFeedback(db, async () => {
-      throw new Error(
-        "Provider error containing private-message and secret-credential",
-      );
-    })(author, input),
+    createFeedback(db, send)(author, { ...input, message: sentinel }),
   ).resolves.toBeUndefined();
-  expect(await db.select().from(feedback)).toHaveLength(1);
-  expect(log).toHaveBeenCalledWith(
-    "Feedback email failed; reconcile stored reports.",
-  );
+  expect(await db.select().from(feedback)).toEqual([
+    expect.objectContaining({ message: sentinel, userId: author.id }),
+  ]);
+  expect(send).toHaveBeenCalledTimes(1);
+  expect(log.mock.calls).toEqual([
+    ["Feedback email failed; reconcile stored reports."],
+  ]);
 });
 
 test("skips email with no recipient configured and cascades feedback on account deletion", async () => {
@@ -166,6 +169,24 @@ test("skips email with no recipient configured and cascades feedback on account 
   expect(await db.select().from(feedback)).toHaveLength(1);
   await db.delete(user).where(eq(user.id, "mario"));
   expect(await db.select().from(feedback)).toEqual([]);
+});
+
+test("persistence failure returns a safe retry error and never sends success mail", async () => {
+  const send = vi.fn();
+  const failure = Object.assign(
+    new Error("PRIVATE-feedback-SQL-path-message", {
+      cause: new Error("PRIVATE-feedback-SQL-path-message"),
+    }),
+    { query: "PRIVATE-feedback-SQL-path-message" },
+  );
+  vi.spyOn(db, "transaction").mockRejectedValueOnce(failure);
+  await expect(createFeedback(db, send)(author, input)).resolves.toEqual({
+    error: "Could not send feedback. Please try again.",
+  });
+  expect(send).not.toHaveBeenCalled();
+  await expect(
+    createFeedback(db, send)(author, input),
+  ).resolves.toBeUndefined();
 });
 
 test.each([

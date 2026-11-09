@@ -1,6 +1,7 @@
 // Better Auth tables (`npx @better-auth/cli generate`), plus the username plugin columns.
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   date,
@@ -45,6 +46,10 @@ export const user = pgTable(
       .notNull(),
     username: text("username").unique(),
     displayUsername: text("display_username"),
+    profileVisibility: text("profile_visibility")
+      .$type<"private" | "public">()
+      .notNull()
+      .default("private"),
     /** Whose release dates the user's Countdowns follow. */
     region: text("region").$type<Region>().notNull().default("earliest"),
     /** Secret in the user's calendar feed URL; null until they first see it. */
@@ -56,6 +61,10 @@ export const user = pgTable(
       .default("eligible"),
   },
   (table) => [
+    check(
+      "user_profile_visibility_known",
+      sql`${table.profileVisibility} in ('private', 'public')`,
+    ),
     check(
       "user_region_known",
       sql`${table.region} in ('earliest', 'north_america', 'europe', 'japan')`,
@@ -120,6 +129,18 @@ export const verification = pgTable(
       .notNull(),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
+
+/** Better Auth's shared limiter; the unique key arbitrates concurrent first requests. */
+export const rateLimit = pgTable(
+  "rate_limit",
+  {
+    id: text("id").primaryKey(),
+    key: text("key").notNull().unique(),
+    count: integer("count").notNull(),
+    lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+  },
+  (table) => [index("rate_limit_last_request_idx").on(table.lastRequest)],
 );
 
 // Catalog: our local copy of games, keyed by the GameSource (IGDB) id.

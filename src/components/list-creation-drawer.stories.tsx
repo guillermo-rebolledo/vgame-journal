@@ -247,6 +247,10 @@ export const BottomBrowserToolbar: Story = {
         });
       }
       await userEvent.keyboard("{Escape}");
+      await waitFor(() => expect(dialog).not.toBeVisible());
+      await expect(
+        within(canvasElement).getByRole("button", { name: "Create a list" }),
+      ).toHaveFocus();
     } finally {
       if (heightDescriptor)
         Object.defineProperty(win, "innerHeight", heightDescriptor);

@@ -50,7 +50,9 @@ async function route(request: NextRequest) {
       // Let the page report a temporary failure with retry, rather than a false 404.
     }
   }
-  const segment = request.nextUrl.pathname.match(/^\/u\/([^/]+)\/?$/)?.[1];
+  const segment = request.nextUrl.pathname.match(
+    /^\/u\/([^/]+)(?:\/opengraph-image(?:\/[^/]+)?)?\/?$/,
+  )?.[1];
   if (segment) {
     let username: string;
     try {
@@ -58,7 +60,10 @@ async function route(request: NextRequest) {
     } catch {
       username = "";
     }
-    if (!username || !(await journal.hasPublicProfile(username)))
+    if (
+      !username ||
+      !(await journal.hasProfileForViewer(username, session?.user.id ?? null))
+    )
       return missing(request);
   }
   return NextResponse.next();

@@ -148,3 +148,54 @@ test.each([
     vi.unstubAllEnvs();
   }
 });
+
+test("sign out all devices revokes current and independently signed-in sessions", async () => {
+  const first = await signUpVerified("sessions@example.com");
+  const response = await auth.api.signInEmail({
+    body: { email: "sessions@example.com", password: "password123" },
+    asResponse: true,
+  });
+  const second = new Headers({
+    cookie: response.headers.get("set-cookie") ?? "",
+  });
+  expect(await auth.api.getSession({ headers: second })).not.toBeNull();
+  await auth.api.revokeSessions({ headers: first });
+  expect(await auth.api.getSession({ headers: first })).toBeNull();
+  expect(await auth.api.getSession({ headers: second })).toBeNull();
+});
+
+test("password reset revokes every existing session and requires the new password", async () => {
+  const first = await signUpVerified("reset-sessions@example.com");
+  const response = await auth.api.signInEmail({
+    body: { email: "reset-sessions@example.com", password: "password123" },
+    asResponse: true,
+  });
+  const second = new Headers({
+    cookie: response.headers.get("set-cookie") ?? "",
+  });
+  await auth.api.requestPasswordReset({
+    body: { email: "reset-sessions@example.com" },
+  });
+  const url = new URL(inbox.at(-1)?.text.match(/https?:\S+/)?.[0] ?? "");
+  const token = url.pathname.split("/").at(-1) ?? "";
+  await auth.api.resetPassword({
+    body: { token, newPassword: "replacement123" },
+  });
+  expect(await auth.api.getSession({ headers: first })).toBeNull();
+  expect(await auth.api.getSession({ headers: second })).toBeNull();
+  await expect(
+    auth.api.signInEmail({
+      body: { email: "reset-sessions@example.com", password: "password123" },
+    }),
+  ).rejects.toThrow();
+  expect(
+    (
+      await auth.api.signInEmail({
+        body: {
+          email: "reset-sessions@example.com",
+          password: "replacement123",
+        },
+      })
+    ).user.email,
+  ).toBe("reset-sessions@example.com");
+});

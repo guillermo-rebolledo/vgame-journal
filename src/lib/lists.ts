@@ -17,7 +17,11 @@ export type PublicList = {
   description: string;
   createdAt: Date;
   updatedAt: Date;
-  creator: { username: string | null; image: string | null };
+  creator: {
+    username: string | null;
+    image: string | null;
+    profileVisibility: "private" | "public";
+  };
   games: ListGame[];
   gameCount: number;
 };
@@ -74,7 +78,11 @@ const fields = {
   description: customList.description,
   createdAt: customList.createdAt,
   updatedAt: customList.updatedAt,
-  creator: { username: user.username, image: user.image },
+  creator: {
+    username: user.username,
+    image: user.image,
+    profileVisibility: user.profileVisibility,
+  },
   games: sql<ListGame[]>`coalesce((select jsonb_agg(jsonb_build_object(
     'gameId', ${game.id}, 'title', ${game.title}, 'slug', ${game.slug}, 'coverImageId', ${game.coverImageId}
   ) order by ${listEntry.position}, ${listEntry.gameId}) from ${listEntry}

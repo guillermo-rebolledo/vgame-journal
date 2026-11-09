@@ -8,27 +8,62 @@ import type { FeedbackType } from "@/lib/feedback-types";
 import type { CompletionTag, Status } from "@/lib/library";
 import { redactPathname } from "@/lib/pathname";
 
-// Allowlist, not denylist: free text (search), tokens, returnTo and any future param stay out by default.
-const SAFE_PARAMS = new Set([
-  "status",
-  "platform",
-  "year",
-  "rated",
-  "sort",
-  "view",
-  "all",
-]);
-const isSafeParam = (key: string) =>
-  SAFE_PARAMS.has(key) || /^[a-zA-Z]+Page$/.test(key) || key.startsWith("utm_");
+// Both names and values are bounded: even campaign/platform fields can contain personal text.
+const SAFE_PARAMS: Record<string, RegExp> = {
+  status: /^(played|playing|backlog|wishlist)$/,
+  year: /^(19|20|21)\d{2}$/,
+  rated: /^1$/,
+  sort: /^(added|released|title|rating)$/,
+  view: /^(grid|list|finished|lists)$/,
+  all: /^1$/,
+};
+const PAGE_PARAM =
+  /^(library|publicList|listGame|playthrough|finished|hours|backlog|ratings|picker|publicPlaythrough|lists|games|out|upcoming|tba)Page$/;
 
-/** Strip anything that could identify a person from URLs recorded by Vercel telemetry. */
-export function redactAnalyticsEvent<T extends { url: string }>(event: T): T {
-  const url = new URL(event.url);
-  for (const key of [...url.searchParams.keys()])
-    if (!isSafeParam(key)) url.searchParams.delete(key);
-  url.hash = "";
-  url.pathname = redactPathname(url.pathname);
-  return { ...event, url: url.toString() };
+function redactPath(path: string) {
+  return redactPathname(
+    decodeURIComponent(path)
+      .replace(/^\/api\/calendar\/[\s\S]*$/i, "/api/calendar/[token]")
+      .replace(/^\/api\/auth\/[\s\S]*$/i, "/api/auth/[redacted]"),
+  );
+}
+
+/** Strip credentials and personal identifiers from both telemetry URL fields. */
+export function redactAnalyticsEvent<T extends { url: string; route?: string }>(
+  event: T,
+): T {
+  try {
+    const url = new URL(event.url);
+    if (url.protocol !== "https:" && url.protocol !== "http:")
+      throw new Error();
+    url.username = "";
+    url.password = "";
+    for (const key of [...url.searchParams.keys()]) {
+      const values = url.searchParams.getAll(key);
+      const allowed = Object.hasOwn(SAFE_PARAMS, key)
+        ? SAFE_PARAMS[key]
+        : PAGE_PARAM.test(key)
+          ? /^[1-9]\d{0,3}$/
+          : undefined;
+      if (values.length !== 1 || !allowed?.test(values[0]))
+        url.searchParams.delete(key);
+    }
+    url.hash = "";
+    url.pathname = redactPath(url.pathname);
+    return {
+      ...event,
+      url: url.toString(),
+      ...(event.route !== undefined && {
+        route: redactPath(new URL(event.route, url.origin).pathname),
+      }),
+    };
+  } catch {
+    return {
+      ...event,
+      url: "https://redacted.invalid/[redacted]",
+      ...(event.route !== undefined && { route: "/[redacted]" }),
+    };
+  }
 }
 
 const GOOGLE_AUTH_PARAM = "auth";

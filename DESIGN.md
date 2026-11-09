@@ -228,6 +228,8 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 
 | Need | Existing implementation | Usage guidance |
 | --- | --- | --- |
+| Account deletion | `delete-account-form.tsx` | Embedded Settings password verification or a verified-email code for Google-only accounts, then typed DELETE; server callbacks enforce a short-lived proof. |
+| Revoke account sessions | `sign-out-all-form.tsx` | Embedded Settings action with pending feedback, inline errors and retry. |
 | Actions and form controls | `ui/button.tsx`, `ui/input.tsx`, `ui/label.tsx`, `ui/field.tsx`, `ui/select.tsx` | Use variants and associated field messages. |
 | Menus and floating layers | `ui/dropdown-menu.tsx`, `ui/tooltip.tsx`, `ui/hover-card.tsx`, `ui/drawer.tsx` | Preserve Base UI keyboard handling, names, and focus management. |
 | Loading and pending actions | `ui/spinner.tsx`, `ui/button.tsx` (`loading`), `content-loading.tsx`, `collection-loading.tsx` | Static skeletons for initial content reads; Compass with shimmering text for ongoing work. Keep each flow’s existing live feedback owner. |
@@ -250,7 +252,8 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | Copying and feedback | `copy-button.tsx`, `feedback.tsx`, `feedback-channel.tsx`, `support-link.tsx` | One Feedback drawer serves the account menu, empty Journal and first-save invitation, restoring focus to its origin. Public support uses one contact setting before account setup. |
 | Action state cues | `ui/action-feedback.tsx` (`ActionIcon`, `ActionFeedback`) | Compose with Button and the caller's request state. Icons are decorative; keep one stable live region and the visible action label. |
 | Completion notifications | `ui/toast.tsx` (`Toaster`, `toast`) | One Base UI host in the root layout. Notify after an editor finishes closing; keep form errors and recovery beside their controls. |
-| Settings actions | `region-form.tsx`, `calendar-feed-form.tsx` | Keep pending and confirmed feedback beside Save or Regenerate URL, retain choices on failure, and prevent duplicate requests. |
+| Username onboarding | `auth-form.tsx`, `onboarding-form.tsx` | Show current Profile visibility and username guidance above Continue; associate the guidance with the username field. Auth form stories cover Private and existing Public guidance. |
+| Settings actions | `region-form.tsx`, `calendar-feed-form.tsx`, `profile-visibility-form.tsx` | Keep pending and confirmed feedback beside Save or Regenerate URL, retain choices on failure, and prevent duplicate requests. |
 | Meaningful motion | `burst-button.tsx`, `odometer.tsx`, `page-transition.tsx` | Use only for the purposes defined below. |
 
 ### Cover-led Catalog search
@@ -306,9 +309,15 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 - **Empty state:** a dashed border with 16px padding (32px from `sm`), left-aligned. It has one sentence and one action.
 - **List collection:** align the page with the 72rem frame. Group the heading and explanation with 8px spacing and place “Create a list” beside them on wider screens. Cards are one link with cover previews, a wrapping title, and quiet 14px metadata; changing counts use tabular figures. Empty cards retain the preview area with “No games added yet”.
 - **List editor:** games lead the page. Group title, visibility, game count and update date closely. Keep Add games at the top as the primary action, with Edit details and List options as secondary controls. Add games opens the shared editor drawer with focused Catalog search; keep it open for multiple additions. Keep long descriptions behind “About this list” so they cannot push Add games down the page. Details and sharing open on demand. Keep the Add games trigger enabled during stale-save recovery so dismissal can return focus; block mutations inside the drawer instead. Show refresh actions only beside errors or stale-save recovery. Removal uses the destructive button treatment; list deletion remains confirmed from List options.
-- **Creating from a game:** the action explicitly says “Create list and add [game]”. Save the list and initial entry atomically, preserve the submission key for retries, then collapse creation inside the list-picker drawer and announce the addition. Public visibility says that the list is visible to anyone and listed on the profile.
+- **Creating from a game:** the action explicitly says “Create list and add [game]”. Save the list and initial entry atomically, preserve the submission key for retries, then collapse creation inside the list-picker drawer and announce the addition. Public visibility says that the List is visible to anyone and listed when the profile is Public.
 - **List creation drawer:** reuse the Playthrough editor's bottom-sheet shape and viewport handling. Keep the form in a 36rem column with optional description guidance. Closing keeps the draft; successful creation opens the new list to add games. Editor entry is 220ms and exit is 140ms, with the shared reduced-motion override.
 - **Form drawers:** on desktop and mobile, editors grow with their content rather than reserving a fixed height. On desktop, use the visible viewport minus 32px as the maximum, without a 720px cap; longer forms retain their existing contained scrolling. Vertical drawers span the full viewport width and sit flush with the bottom on desktop and mobile, with rounded top corners only. Keep the centered 36rem form column for readable fields. Feedback uses the shared Drawer's larger desktop height allowance. Mobile uses its existing keyboard-aware viewport limit as a maximum rather than a fixed height. The modal backdrop uses 60% black to suppress distracting page content while preserving swipe and dismissal behavior.
+
+### Account security feedback
+
+- DeleteAccountForm extends the existing Settings composition with verified-email code entry for Google-only accounts. Password accounts retain Current password. Reuse Button, Input and Label; AuthForm is the closest general form but serves sign-in rather than this embedded destructive flow.
+- Each deletion/sign-out flow owns one stable output for confirming, sending, cancelling, deleting or signing out. Keep action labels unchanged while Button supplies decorative loading. The email code cannot delete; typed DELETE is the final step. Email code entry receives focus after sending, typed confirmation after verification, and cancellation restores the password or send-code control.
+- Stories cover password retry, code entry/cancellation/delivery retry, all pending phases and typed confirmation. No new motion or generic primitive is introduced.
 
 ### Loading feedback
 - Use static `Skeleton` shapes for predictable initial content: Home and personal shelves, list collections/details, public profiles, Stats, Settings and account navigation. `content-loading.tsx` composes the primitive using the cover-row pattern from `CollectionLoading`; it is a distinct product responsibility rather than another mode on the Library/Wishlist component. Keep shapes decorative and provide one readable loading output per boundary. Never show invented counts or interactive placeholder controls.
@@ -317,6 +326,16 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 - Progress labels beside the Compass use the existing `shimmer` utility from `shadcn/tailwind.css`: a 2s linear sweep, applied only to a text span while work is pending. Keep the Compass outside the shimmer span, retain one copy of the text and the existing live region, and remove shimmer on completion or failure. Status text uses Pencil as its base and Ink/Chalk as the moving highlight, making the sweep visible in both themes while retaining readable text throughout. Start the band 500ms into the 2s cycle so short requests reveal it immediately. Button labels keep their inherited color and use a contrasting, bounded highlight for their surface. Reduced motion and forced colors restore stationary, solid text. This small text-only background-position effect is an intentional use of the requested upstream animation; skeletons remain static. No new component or animation dependency is needed.
 - `Button loading` extends the existing action control: retain the label inside a shimmer span, prepend the decorative Compass, set `aria-busy`, and block activation. Preserve explicit disabled/focusable behavior and use the flow’s existing output for announcements; the SVG never creates another live region. Controls that already compose `ActionIcon` keep that composition; its pending layer reuses Compass and `ActionFeedback` shimmers its pending label. Anchored Journal triggers preserve their state layers, focus and positioning.
 - Storybook: **UI/Spinner**, **UI/Button → Loading / Pending then retry**, **Product/Loading content**, and the existing search, Home Journal and editor stories demonstrate loading, resolution and failure/retry. The catalog remains local/CI-only.
+
+### Profile visibility
+
+- `ProfileVisibilityForm` composes the existing RegionForm radio-card and Save feedback pattern for a distinct setting. It retains the selected choice on failure, blocks duplicate saves, keeps Save focusable while pending, and announces confirmed success beside Save. No new motion is needed. Storybook: **Product/Profile visibility**, including Private, Public, pending and error/retry.
+- Explain the public field boundary and independent List visibility before publishing. New accounts start Private; existing accounts stay Public. Onboarding shows the current value above Continue. Private owner profiles show “Only you can see this” and a Settings link; private profiles are a generic 404 to everyone else, including shared images and metadata. Public List pages omit links to Private profiles.
+
+### Privacy information
+
+- `/privacy` is the authoritative notice. Signup composes its link through AuthForm’s existing children slot; Settings uses its existing bordered section pattern, and the root footer includes the same destination. CalendarFeedForm keeps secrecy and regeneration guidance beside the URL; export explains its Journal scope beside Download JSON. No new control or motion is needed.
+- The notice follows the focused 36rem reading column, semantic headings and paragraph spacing. Keep provider/retention/contact claims tied to repository evidence and the owner checklist in `docs/security-operations.md`.
 
 ### Navigation
 - **Style:** Pencil text-sm links with an underline on hover. The current page uses Ink, weight 500 and a 2px underline, driven by `aria-current="page"`.
@@ -419,3 +438,9 @@ For each UI change, identify the existing component and pattern being reused, up
 - **Don't** use 700-weight text or more than one display-size heading per page.
 - **Don't** hand-roll a dialog, menu, select, tooltip or drawer. Use the Base UI primitives in `src/components/ui/`.
 - **Don't** communicate status with color alone. Pair it with a label or icon.
+
+### Account security controls
+
+- Settings extends `DeleteAccountForm` with fresh password or Google authentication before typed DELETE. Proofs last at most five minutes; cancellation returns to authentication and restores focus. The final confirmation input receives focus after password verification. Errors stay beside the flow; secrets never enter analytics.
+- `DeleteAccountForm` reuses Button, Input and Label rather than adding another authentication primitive. `AuthForm` was considered, but its standalone page heading and success replacement do not fit the embedded Settings confirmation sequence. `SignOutAllForm` composes the same controls for a distinct session action, with pending feedback and inline retry.
+- Storybook: **Product/Delete account** covers password failure/retry, pending, Google cancellation and typed confirmation/cancellation. **Product/Sign out all devices** covers failure/retry and pending. No new motion is introduced.

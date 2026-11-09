@@ -15,6 +15,7 @@ import {
 } from "@/db/schema";
 import type { RatingPoints } from "@/lib/rating";
 import { createTestDb } from "@/test/db";
+import { createAccountSecurity } from "./account-security";
 import { createJournal, JournalError } from "./journal";
 
 let db: Db;
@@ -200,7 +201,15 @@ test("account deletion requires typed confirmation and cascades only the owner's
     );
   expect((await journal.exportData("mario")).playthroughs).toHaveLength(1);
 
-  await journal.deleteAccount("mario", "DELETE");
+  await db.insert(session).values({
+    id: "deletion-session",
+    userId: "mario",
+    token: "deletion-token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
+  await createAccountSecurity(db).issue("mario", "deletion-session");
+  await journal.deleteAccount("mario", "DELETE", "deletion-session");
 
   for (const [table, ownerColumn] of [
     [user, user.id],
@@ -987,6 +996,7 @@ test("backlog history replays status events in order, including removals and re-
 });
 
 test("public profiles include the journal and playthroughs without notes or account secrets", async () => {
+  await journal.setProfileVisibility("mario", "public");
   await db
     .update(user)
     .set({
@@ -1181,7 +1191,15 @@ test("account export includes only the owner's public and private lists in saved
     /luigi|submissionId|feedToken/,
   );
   const survivor = await journal.exportData("luigi");
-  await journal.deleteAccount("mario", "DELETE");
+  await db.insert(session).values({
+    id: "deletion-session",
+    userId: "mario",
+    token: "deletion-token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
+  await createAccountSecurity(db).issue("mario", "deletion-session");
+  await journal.deleteAccount("mario", "DELETE", "deletion-session");
   expect(await lists.ownerCollection("mario")).toEqual([]);
   expect(await lists.ownerDetail("mario", ids[0])).toBeNull();
   expect(await journal.exportData("luigi")).toEqual(survivor);
@@ -1419,7 +1437,15 @@ test("deleting an account removes its Ratings from the Community rating", async 
   await journal.setRating("mario", 1, 4);
   expect(await journal.communityRating(1)).toMatchObject({ count: 5 });
 
-  await journal.deleteAccount("mario", "DELETE");
+  await db.insert(session).values({
+    id: "deletion-session",
+    userId: "mario",
+    token: "deletion-token",
+    expiresAt: new Date(Date.now() + 3600000),
+    updatedAt: new Date(),
+  });
+  await createAccountSecurity(db).issue("mario", "deletion-session");
+  await journal.deleteAccount("mario", "DELETE", "deletion-session");
   expect(await journal.communityRating(1)).toMatchObject({
     count: 4,
     average: null,
@@ -1427,6 +1453,7 @@ test("deleting an account removes its Ratings from the Community rating", async 
 });
 
 test("export and the entry carry each Rating and when it changed; Library entries and the public profile carry only the Rating, never notes", async () => {
+  await journal.setProfileVisibility("mario", "public");
   await db.update(user).set({ username: "mario" }).where(eq(user.id, "mario"));
   await journal.set("mario", 1, { status: "played" });
   await journal.set("mario", 2, { status: "backlog" });
@@ -1487,6 +1514,70 @@ test("stats report the owner's Rating distribution, average Rating given and num
     average: 3.3,
     distribution: [0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
   });
+});
+
+test("new profiles are Private, only their owner can preview them, and visibility round-trips", async () => {
+  await db.update(user).set({ username: "mario" }).where(eq(user.id, "mario"));
+  expect(await journal.profileVisibility("mario")).toBe("private");
+  expect(await journal.publicProfile("MARIO")).toBeNull();
+  expect(await journal.hasPublicProfile("MARIO")).toBe(false);
+  expect(await journal.profileForViewer("mario", null)).toBeNull();
+  expect(await journal.profileForViewer("mario", "luigi")).toBeNull();
+  expect(await journal.profileForViewer("MARIO", "mario")).toMatchObject({
+    username: "mario",
+    visibility: "private",
+  });
+  await journal.setProfileVisibility("mario", "public");
+  expect(await journal.profileVisibility("mario")).toBe("public");
+  expect(await journal.hasPublicProfile("MARIO")).toBe(true);
+  expect(await journal.publicProfile("mario")).toMatchObject({
+    username: "mario",
+  });
+  await journal.setProfileVisibility("mario", "private");
+  expect(await journal.publicProfile("mario")).toBeNull();
+  await expect(
+    journal.setProfileVisibility("mario", "friends"),
+  ).rejects.toThrow(/visibility/i);
+  expect(await journal.profileVisibility("mario")).toBe("private");
+});
+
+test("the visibility migration keeps existing shared profiles Public and new profiles Private", async () => {
+  const { PGlite } = await import("@electric-sql/pglite");
+  const { drizzle } = await import("drizzle-orm/pglite");
+  const { readMigrationFiles } = await import("drizzle-orm/migrator");
+  const client = new PGlite();
+  try {
+    const migrations = readMigrationFiles({ migrationsFolder: "drizzle" });
+    const visibilityMigration = migrations.findIndex((migration) =>
+      migration.sql.some((sql) =>
+        sql.includes('ADD COLUMN "profile_visibility"'),
+      ),
+    );
+    expect(visibilityMigration).toBeGreaterThan(0);
+    for (const migration of migrations.slice(0, visibilityMigration)) {
+      for (const statement of migration.sql) await client.exec(statement);
+    }
+    await client.exec(
+      `insert into "user" (id, name, email, username) values ('existing', 'Existing', 'existing@example.com', 'existing')`,
+    );
+    for (const migration of migrations.slice(visibilityMigration)) {
+      for (const statement of migration.sql) await client.exec(statement);
+    }
+    const migrated = createJournal(drizzle(client) as unknown as Db);
+    expect(await migrated.hasPublicProfile("existing")).toBe(true);
+    await client.exec(
+      `insert into "user" (id, name, email, username) values ('new', 'New', 'new@example.com', 'new')`,
+    );
+    expect(await migrated.profileVisibility("new")).toBe("private");
+    expect(await migrated.publicProfile("new")).toBeNull();
+    await expect(
+      client.exec(
+        `update "user" set profile_visibility = 'friends' where id = 'new'`,
+      ),
+    ).rejects.toThrow();
+  } finally {
+    await client.close();
+  }
 });
 
 test("Status and its timestamp roll back when history cannot be written; retry changes once", async () => {

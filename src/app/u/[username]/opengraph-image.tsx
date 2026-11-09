@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { ImageResponse } from "next/og";
+import { connection } from "next/server";
 import { SITE_NAME } from "@/config/site";
+import { signedInUserId } from "@/lib/auth";
 import { coverUrl } from "@/lib/game-source";
 import { journal } from "@/lib/journal";
 
@@ -17,7 +19,11 @@ export default async function Image({
 }: {
   params: Promise<{ username: string }>;
 }) {
-  const profile = await journal.publicProfile((await params).username);
+  await connection();
+  const profile = await journal.profileForViewer(
+    (await params).username,
+    await signedInUserId(),
+  );
   if (!profile) notFound();
 
   const count = (status: string) =>
@@ -87,7 +93,7 @@ export default async function Image({
         ))}
       </div>
     </div>,
-    size,
+    { ...size, headers: { "Cache-Control": "private, no-store" } },
   );
 }
 

@@ -127,6 +127,13 @@
       "when": 1794249416603,
       "tag": "0017_bind_first_save_transaction",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794253026300,
+      "tag": "0018_account_security_privacy",
+      "breakpoints": true
     }
   ]
 }

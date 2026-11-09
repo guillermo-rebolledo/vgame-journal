@@ -307,6 +307,7 @@ for (const theme of ["light", "dark"] as const) {
         "/games/celeste",
         "/sign-in",
         "/sign-up",
+        "/privacy",
         "/forgot-password",
       ]) {
         await page.goto(path);
@@ -434,6 +435,16 @@ for (const theme of ["light", "dark"] as const) {
       ]) {
         await page.goto(path);
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+        if (path === "/settings")
+          await expect(
+            page.getByRole("form", { name: "Profile visibility" }),
+          ).toBeVisible();
+        if (path === `/u/${username}`)
+          await expect(
+            page
+              .getByRole("main")
+              .getByText("Only you can see this.", { exact: false }),
+          ).toBeVisible();
         await scan(page, testInfo, path);
       }
     });

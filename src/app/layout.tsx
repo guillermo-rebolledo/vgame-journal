@@ -126,7 +126,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               >
                 IGDB
               </a>
-              . <SupportLink />
+              . <SupportLink />{" "}
+              <Link
+                href="/privacy"
+                className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground"
+              >
+                Privacy notice
+              </Link>
             </footer>
             <Toaster />
           </FeedbackSessionChannel>

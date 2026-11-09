@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, inArray, type SQL, sql } from "drizzle-orm";
+import { and, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import { type Db, db } from "@/db";
 import { executeBatch } from "@/db/batch";
 import {
@@ -7,10 +7,12 @@ import {
   journalEntry,
   playthrough,
   releaseDate,
+  session,
   statusEvent,
   user,
   verification,
 } from "@/db/schema";
+import { deletionProofId } from "@/lib/account-security-constants";
 import { calendarFeed } from "@/lib/calendar-feed";
 import {
   COMPLETION_TAGS,
@@ -31,6 +33,8 @@ import {
   type ResolvedRelease,
   resolveRelease,
 } from "@/lib/release-dates";
+
+export type ProfileVisibility = "private" | "public";
 
 export {
   COMPLETION_TAGS,
@@ -254,18 +258,49 @@ export function createJournal(db: Db) {
   }
 
   return {
-    /** One statement also removes reset tokens, which have no user foreign key. */
-    async deleteAccount(userId: string, confirmation: unknown) {
+    /** Consume the proof and cascade deletion atomically; failed statements preserve both. */
+    async deleteAccount(
+      userId: string,
+      confirmation: unknown,
+      sessionId?: string,
+    ) {
       if (confirmation !== "DELETE")
         throw new JournalError("Type DELETE to confirm account deletion.");
-      await db.execute(sql`
-        with deleted_user as (
-          delete from ${user} where ${user.id} = ${userId} returning ${user.id}
+      if (!sessionId)
+        throw new JournalError(
+          "Confirm your identity again before deleting your account.",
+        );
+      const result = await db.execute(sql`
+        with proof as (
+          delete from ${verification}
+          where ${verification.id} = ${deletionProofId(sessionId)}
+            and ${verification.value} = ${userId}
+            and ${verification.expiresAt} > now()
+            and exists (select 1 from ${session} where ${session.id} = ${sessionId}
+              and ${session.userId} = ${userId} and ${session.expiresAt} > now())
+          returning ${verification.value}
+        ), deleted_user as (
+          delete from ${user} where ${user.id} = ${userId}
+            and ${user.id} in (select value from proof) returning ${user.id}
+        ), reset_tokens as (
+          delete from ${verification}
+          where exists (select 1 from deleted_user)
+            and ${verification.id} <> ${deletionProofId(sessionId)}
+            and ((${verification.value} = ${userId} and
+              (${verification.identifier} like 'reset-password:%' or ${verification.identifier} like 'account-deletion:%'))
+              or ${verification.id} = ${`account-deletion-send:${userId}`}
+              or (case when ${verification.identifier} like 'account-deletion-code:%'
+                then ${verification.value}::jsonb->>'userId' end) = ${userId})
         )
-        delete from ${verification}
-        where ${verification.value} in (select id from deleted_user)
-          and ${verification.identifier} like 'reset-password:%'
+        select id from deleted_user
       `);
+      const rows = Array.isArray(result)
+        ? result
+        : (result as { rows: unknown[] }).rows;
+      if (!rows.length)
+        throw new JournalError(
+          "Confirm your identity again before deleting your account.",
+        );
     },
 
     /** A portable copy of the whole journal, including private notes, without auth secrets. */
@@ -280,6 +315,7 @@ export function createJournal(db: Db) {
           username: user.username,
           displayUsername: user.displayUsername,
           region: user.region,
+          profileVisibility: user.profileVisibility,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
         })
@@ -319,20 +355,49 @@ export function createJournal(db: Db) {
     },
 
     /** Fast route check before streaming, so unknown profiles get an HTTP 404. */
-    async hasPublicProfile(username: string) {
+    hasPublicProfile(username: string) {
+      return this.hasProfileForViewer(username, null);
+    },
+
+    async hasProfileForViewer(username: string, viewerId: string | null) {
       const [found] = await db
         .select({ username: user.username })
         .from(user)
-        .where(eq(user.username, username.toLowerCase()));
+        .where(
+          and(
+            eq(user.username, username.toLowerCase()),
+            or(
+              eq(user.profileVisibility, "public"),
+              viewerId ? eq(user.id, viewerId) : undefined,
+            ),
+          ),
+        );
       return !!found;
     },
 
     /** Public allowlist: never select notes, email, auth fields or the calendar token. */
-    async publicProfile(username: string) {
+    publicProfile(username: string) {
+      return this.profileForViewer(username, null);
+    },
+
+    async profileForViewer(username: string, viewerId: string | null) {
       const [owner] = await db
-        .select({ id: user.id, username: user.username, image: user.image })
+        .select({
+          id: user.id,
+          username: user.username,
+          image: user.image,
+          visibility: user.profileVisibility,
+        })
         .from(user)
-        .where(eq(user.username, username.toLowerCase()));
+        .where(
+          and(
+            eq(user.username, username.toLowerCase()),
+            or(
+              eq(user.profileVisibility, "public"),
+              viewerId ? eq(user.id, viewerId) : undefined,
+            ),
+          ),
+        );
       if (!owner) return null;
       const [library, wishlistEntries, stats, playthroughs] = await Promise.all(
         [
@@ -353,6 +418,7 @@ export function createJournal(db: Db) {
         ],
       );
       return {
+        visibility: owner.visibility,
         username: owner.username,
         image: owner.image,
         library,
@@ -810,6 +876,23 @@ export function createJournal(db: Db) {
       });
       // ponytail: filters in memory, fine for a personal journal's hundreds of games; push into SQL if libraries get huge.
       return queryLibrary(library, filters, sort);
+    },
+
+    async profileVisibility(userId: string): Promise<ProfileVisibility> {
+      const [found] = await db
+        .select({ visibility: user.profileVisibility })
+        .from(user)
+        .where(eq(user.id, userId));
+      return found?.visibility ?? "private";
+    },
+
+    async setProfileVisibility(userId: string, visibility: unknown) {
+      if (visibility !== "private" && visibility !== "public")
+        throw new JournalError("Choose Public or Private profile visibility.");
+      await db
+        .update(user)
+        .set({ profileVisibility: visibility })
+        .where(eq(user.id, userId));
     },
 
     /** The region whose release dates the user's Countdowns follow. */

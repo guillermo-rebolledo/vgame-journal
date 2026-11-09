@@ -185,6 +185,10 @@ export const VisibleViewport: Story = {
         });
       }
       await userEvent.keyboard("{Escape}");
+      await waitFor(() => expect(dialog).not.toBeVisible());
+      await expect(
+        within(canvasElement).getByRole("button", { name: "Open editor" }),
+      ).toHaveFocus();
     } finally {
       Reflect.deleteProperty(viewport, "height");
       Reflect.deleteProperty(viewport, "offsetTop");
