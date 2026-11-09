@@ -1,0 +1,2387 @@
+{
+  "startedAt": "2026-11-09T19:28:16.173Z",
+  "finishedAt": "2026-11-09T19:29:44.004Z",
+  "revision": "7c3414547e7ced1c45ac527ab2a4bd48b080e35c",
+  "environment": "loopback-next-production-build-with-PGlite-and-fake-providers",
+  "datasetGamesPerUser": 100,
+  "playthroughs": "3 per Played/Playing game",
+  "users": 20,
+  "iterations": 1,
+  "viewport": "390x844",
+  "slowNetwork": "150ms RTT, 1.6Mbps down, 750kbps up",
+  "httpRequests": 10865,
+  "httpErrors": 475,
+  "cells": [
+    {
+      "mode": "first-navigation",
+      "operation": "home",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 1324,
+      "maxMs": 1614
+    },
+    {
+      "mode": "first-navigation",
+      "operation": "catalog-search",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 2901,
+      "maxMs": 3452
+    },
+    {
+      "mode": "first-navigation",
+      "operation": "library",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 908,
+      "maxMs": 2036
+    },
+    {
+      "mode": "first-navigation",
+      "operation": "wishlist",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 704,
+      "maxMs": 1368
+    },
+    {
+      "mode": "first-navigation",
+      "operation": "game",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 893,
+      "maxMs": 2111
+    },
+    {
+      "mode": "first-navigation",
+      "operation": "journal-save-and-verify",
+      "attempts": 20,
+      "errors": 6,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 673,
+      "maxMs": 10299
+    },
+    {
+      "mode": "warm",
+      "operation": "home",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 742,
+      "maxMs": 1693
+    },
+    {
+      "mode": "warm",
+      "operation": "catalog-search",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 2012,
+      "maxMs": 3360
+    },
+    {
+      "mode": "warm",
+      "operation": "library",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 846,
+      "maxMs": 1599
+    },
+    {
+      "mode": "warm",
+      "operation": "wishlist",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 1015,
+      "maxMs": 1873
+    },
+    {
+      "mode": "warm",
+      "operation": "game",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 1058,
+      "maxMs": 1861
+    },
+    {
+      "mode": "warm",
+      "operation": "journal-save-and-verify",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 819,
+      "maxMs": 3456
+    },
+    {
+      "mode": "slow-network",
+      "operation": "home",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 4125,
+      "maxMs": 4229
+    },
+    {
+      "mode": "slow-network",
+      "operation": "catalog-search",
+      "attempts": 20,
+      "errors": 1,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 7721,
+      "maxMs": 9191
+    },
+    {
+      "mode": "slow-network",
+      "operation": "library",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 3281,
+      "maxMs": 5212
+    },
+    {
+      "mode": "slow-network",
+      "operation": "wishlist",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 3174,
+      "maxMs": 4350
+    },
+    {
+      "mode": "slow-network",
+      "operation": "game",
+      "attempts": 20,
+      "errors": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 2236,
+      "maxMs": 4921
+    },
+    {
+      "mode": "slow-network",
+      "operation": "journal-save-and-verify",
+      "attempts": 20,
+      "errors": 18,
+      "p50Ms": null,
+      "p95Ms": null,
+      "minMs": 1470,
+      "maxMs": 10343
+    }
+  ],
+  "samples": [
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1324,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1380,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1556,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1558,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1555,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1555,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1571,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1571,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1570,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1569,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1570,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1569,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1571,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1586,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1586,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1606,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1611,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1613,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1612,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "first-navigation",
+      "ms": 1614,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 2901,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 2902,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 2904,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 2949,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 2953,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 2906,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 3191,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 2932,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 2911,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 2957,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 3139,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 3411,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 3415,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 3416,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 3424,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 3428,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 3452,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 3414,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 3427,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "first-navigation",
+      "ms": 3428,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 1324,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 1396,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 1397,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 1373,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 908,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 921,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 934,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 934,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 1423,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 1445,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 1444,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 1444,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 1467,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 2034,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 2036,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 2034,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 2034,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 2034,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 2032,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "first-navigation",
+      "ms": 2035,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 790,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 734,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 735,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 704,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 715,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 731,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1346,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1348,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1169,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1365,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1367,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1368,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1325,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1280,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1342,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1341,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1347,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1347,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1305,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1349,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "first-navigation",
+      "ms": 1348,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1292,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1304,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1507,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1523,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1491,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 893,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1215,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1260,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1007,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1173,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1298,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1373,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1312,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1909,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1843,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1983,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 1917,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 1791,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 1803,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 2094,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 2037,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 1889,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "first-navigation",
+      "ms": 2111,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 2380,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 2387,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 2019,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 821,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 846,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 695,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 2477,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 673,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 1560,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "first-navigation",
+      "ms": 1121,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "first-navigation",
+      "ms": 10103,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "first-navigation",
+      "ms": 10191,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "first-navigation",
+      "ms": 10172,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "first-navigation",
+      "ms": 10286,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "first-navigation",
+      "ms": 10299,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "first-navigation",
+      "ms": 10195,
+      "ok": false
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 742,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 744,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 847,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 876,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1505,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1505,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1502,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1499,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1502,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1500,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1495,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1505,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1511,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1598,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1612,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1636,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1635,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1645,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1645,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "warm",
+      "ms": 1693,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2063,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2060,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2589,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2018,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2017,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2018,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2019,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2012,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2018,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2014,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2019,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2017,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2723,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 846,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 847,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2801,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2788,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2785,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2774,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2785,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 2843,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1113,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1175,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1110,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1115,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1115,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1071,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1116,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1130,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1131,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1130,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1129,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1015,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1017,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "warm",
+      "ms": 3360,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1196,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1208,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1213,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1209,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1251,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1145,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1074,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1058,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1077,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1080,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1078,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1077,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1063,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1063,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1065,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1058,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1058,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1826,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1873,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "warm",
+      "ms": 1599,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1170,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1158,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1158,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1160,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1120,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1098,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1214,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1220,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1216,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1575,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1577,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1856,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1857,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1861,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1857,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1233,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "warm",
+      "ms": 1098,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1741,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1465,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1574,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1575,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1577,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1637,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1693,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "warm",
+      "ms": 1250,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 3424,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 3456,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 1523,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 1743,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 2420,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 1784,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 1268,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 1277,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 1179,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 1199,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 1119,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 1261,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 1210,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 2114,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 2763,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 2772,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 2421,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 2148,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 2438,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "warm",
+      "ms": 819,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4127,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4126,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4129,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4133,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4128,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4131,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4128,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4140,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4138,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4125,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4141,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4128,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4130,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4130,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4132,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4224,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4220,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4229,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4227,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "mode": "slow-network",
+      "ms": 4227,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 7721,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 7968,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 8835,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 8926,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 9003,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 9010,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 9010,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 9012,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 9011,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 8913,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 9013,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 8913,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 9015,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 8915,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 9020,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 8924,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 9034,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 9038,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 8930,
+      "ok": true
+    },
+    {
+      "operation": "catalog-search",
+      "mode": "slow-network",
+      "ms": 9191,
+      "ok": false
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4372,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 3281,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 5212,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4468,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4380,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4400,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4394,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4747,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4816,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4869,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4848,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4860,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4862,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4922,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4920,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4928,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4911,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4758,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4921,
+      "ok": true
+    },
+    {
+      "operation": "library",
+      "mode": "slow-network",
+      "ms": 4925,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 3328,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4282,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 3398,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 3182,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 3184,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 3174,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 3362,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4350,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4236,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4154,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4193,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4179,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4262,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4198,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4199,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4265,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4272,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4213,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4330,
+      "ok": true
+    },
+    {
+      "operation": "wishlist",
+      "mode": "slow-network",
+      "ms": 4213,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3732,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 4921,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3768,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3947,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3576,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 2236,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3822,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3823,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 2330,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 2368,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3380,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3381,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3387,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3373,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3383,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3427,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3432,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3423,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3442,
+      "ok": true
+    },
+    {
+      "operation": "game",
+      "mode": "slow-network",
+      "ms": 3440,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "slow-network",
+      "ms": 1470,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "mode": "slow-network",
+      "ms": 1573,
+      "ok": true
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10100,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10109,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10109,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10124,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10182,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10208,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10330,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10343,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10127,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10162,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10104,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10092,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10175,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10123,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10190,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10196,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10141,
+      "ok": false
+    },
+    {
+      "operation": "journal-save-and-verify",
+      "failure": "status-control",
+      "mode": "slow-network",
+      "ms": 10144,
+      "ok": false
+    }
+  ],
+  "providerCalls": null,
+  "databaseUsage": null,
+  "hostedColdStarts": null,
+  "fieldWebVitals": null,
+  "firstLimitingResource": "pending operator analysis"
+}

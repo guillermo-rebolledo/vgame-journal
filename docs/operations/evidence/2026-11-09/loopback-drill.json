@@ -1,0 +1,35 @@
+{
+  "kind": "loopback-model-only",
+  "timestamp": "2026-11-09T19:27:59.120Z",
+  "elapsedMs": 25,
+  "events": [
+    {
+      "check": "uptime",
+      "event": "incident",
+      "code": "synthetic",
+      "timestamp": "2026-11-09T19:27:59.114Z"
+    },
+    {
+      "check": "uptime",
+      "event": "recovery",
+      "code": "synthetic",
+      "timestamp": "2026-11-09T19:27:59.116Z"
+    },
+    {
+      "check": "freshness",
+      "event": "incident",
+      "code": "synthetic",
+      "timestamp": "2026-11-09T19:27:59.118Z"
+    },
+    {
+      "check": "freshness",
+      "event": "recovery",
+      "code": "synthetic",
+      "timestamp": "2026-11-09T19:27:59.119Z"
+    }
+  ],
+  "syntheticRecordsPreserved": 1,
+  "dataRecoveryPoint": "no writes lost in in-memory model",
+  "hostedRollback": "pending",
+  "externalAlertDelivery": "pending"
+}

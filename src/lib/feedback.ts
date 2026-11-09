@@ -4,6 +4,10 @@ import { executeBatch } from "@/db/batch";
 import { feedback, user } from "@/db/schema";
 import type { Email } from "@/lib/email";
 import { isFeedbackType } from "@/lib/feedback-types";
+import {
+  operationalCode,
+  reportOperationalError,
+} from "@/lib/operational-errors";
 import { redactPathname } from "@/lib/pathname";
 
 type Author = { id: string; username?: string | null; email: string };
@@ -43,7 +47,8 @@ export function createFeedback(
                    and ${feedback.createdAt} > statement_timestamp() - interval '1 hour') < 5
           returning id`,
       ]);
-    } catch {
+    } catch (error) {
+      reportOperationalError("feedback.write", operationalCode(error));
       return { error: "Could not send feedback. Please try again." };
     }
     if (!inserted.length)
@@ -60,8 +65,8 @@ export function createFeedback(
           subject: `[Feedback: ${label}] @${author.username}`,
           text: `Username: @${author.username}\nType: ${label}\nPath: ${path}\n\n${message}`,
         });
-      } catch {
-        console.error("Feedback email failed; reconcile stored reports.");
+      } catch (error) {
+        reportOperationalError("feedback.notification", operationalCode(error));
       }
     }
   };

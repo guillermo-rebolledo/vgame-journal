@@ -134,6 +134,13 @@
       "when": 1794253026300,
       "tag": "0018_account_security_privacy",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794254473932,
+      "tag": "0019_reflective_proudstar",
+      "breakpoints": true
     }
   ]
 }

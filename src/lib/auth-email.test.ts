@@ -4,13 +4,11 @@ import { createTestDb } from "@/test/db";
 import { createAuth } from "./auth";
 
 const { send } = vi.hoisted(() => ({ send: vi.fn() }));
-vi.mock("resend", () => ({
-  Resend: class {
-    emails = { send };
-  },
-}));
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 test.each([
   "provider",
@@ -33,7 +31,9 @@ test.each([
         body: JSON.stringify(body),
       }),
     );
-  send.mockImplementation(async (message) => {
+  vi.stubGlobal("fetch", send);
+  send.mockImplementation(async (_url, options) => {
+    const message = JSON.parse(options.body);
     const details = JSON.stringify({
       ...message,
       cookie: sentinel,
@@ -41,7 +41,7 @@ test.each([
     });
     if (failure === "network")
       throw new Error(details, { cause: new Error(sentinel) });
-    return { error: { message: details, name: sentinel } };
+    return Response.json({ message: details, name: sentinel }, { status: 400 });
   });
 
   for (const [path, body, status] of [

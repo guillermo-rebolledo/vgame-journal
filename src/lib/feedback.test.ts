@@ -156,9 +156,10 @@ test("mail failure logs only a safe message and keeps one successful submission"
     expect.objectContaining({ message: sentinel, userId: author.id }),
   ]);
   expect(send).toHaveBeenCalledTimes(1);
-  expect(log.mock.calls).toEqual([
-    ["Feedback email failed; reconcile stored reports."],
-  ]);
+  expect(log).toHaveBeenCalledWith(
+    expect.stringContaining('"operation":"feedback.notification"'),
+  );
+  expect(JSON.stringify(log.mock.calls)).not.toContain(sentinel);
 });
 
 test("skips email with no recipient configured and cascades feedback on account deletion", async () => {
@@ -248,4 +249,20 @@ test("migration backfills existing accounts while old column-list writes remain 
   } finally {
     await previous.close();
   }
+});
+
+test("failed feedback storage emits a safe write event and never sends a notification", async () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  const send = vi.fn();
+  await db.execute(sql`drop table feedback`);
+  await expect(createFeedback(db, send)(author, input)).resolves.toEqual({
+    error: "Could not send feedback. Please try again.",
+  });
+  expect(send).not.toHaveBeenCalled();
+  expect(log).toHaveBeenCalledWith(
+    expect.stringContaining('"operation":"feedback.write"'),
+  );
+  expect(JSON.stringify(log.mock.calls)).not.toMatch(
+    /mario|The shelf is empty|insert into/,
+  );
 });

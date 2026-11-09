@@ -10,7 +10,14 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { isIsolatedE2E } from "@/lib/e2e-harness";
 import { type Email, sendWithResend } from "@/lib/email";
+import { ExpectedError } from "@/lib/expected-error";
 
+import {
+  type Operation,
+  OperationalError,
+  operationalCode,
+  reportOperationalError,
+} from "@/lib/operational-errors";
 import { PASSWORD_POLICY } from "@/lib/password-policy";
 
 export type { Email } from "@/lib/email";
@@ -20,6 +27,16 @@ export function createAuth(
   database: Parameters<typeof drizzleAdapter>[0],
   sendEmail: (email: Email) => Promise<void> = sendWithResend,
 ) {
+  async function deliver(operation: Operation, email: Email) {
+    try {
+      await sendEmail(email);
+    } catch (error) {
+      const code = operationalCode(error);
+      reportOperationalError(operation, code);
+      // Better Auth may log callback errors; never give it provider details or tokens.
+      throw new OperationalError(code);
+    }
+  }
   const googleOptions = {
     clientId: process.env.GOOGLE_CLIENT_ID ?? "",
     clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
@@ -55,7 +72,7 @@ export function createAuth(
       maxPasswordLength: PASSWORD_POLICY.maxLength,
       requireEmailVerification: true,
       sendResetPassword: ({ user, url }) =>
-        sendEmail({
+        deliver("account_email.password_reset", {
           to: user.email,
           subject: `Reset your ${SITE_NAME} password`,
           text: `Reset your password: ${url}`,
@@ -66,7 +83,7 @@ export function createAuth(
       sendOnSignIn: true, // The sign-in page tells unverified users a new link is on its way.
       autoSignInAfterVerification: true,
       sendVerificationEmail: ({ user, url }) =>
-        sendEmail({
+        deliver("account_email.verification", {
           to: user.email,
           subject: `Verify your ${SITE_NAME} email`,
           text: `Verify your email: ${url}`,
@@ -134,6 +151,6 @@ export const signedInUserId = async () =>
 /** For server actions: they re-read the session, so only the signed-in owner writes their own journal. */
 export async function ownerId() {
   const userId = await signedInUserId();
-  if (!userId) throw new Error("Sign in to edit your journal.");
+  if (!userId) throw new ExpectedError("Sign in to edit your journal.");
   return userId;
 }

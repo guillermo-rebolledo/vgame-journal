@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { afterEach, expect, test, vi } from "vitest";
 import { game, journalEntry, searchCache, user } from "@/db/schema";
 import type { DatePrecision } from "@/lib/game-source";
@@ -784,4 +785,50 @@ test("saving a game again from the source, as a sync does, leaves its Ratings an
   expect(await Promise.all(players.map((id) => journal.entry(id, 7)))).toEqual(
     before.entries,
   );
+});
+
+test("a failed release-date replacement retains the last valid Catalog dates", async () => {
+  const original = {
+    platform: null,
+    region: "worldwide",
+    date: new Date("2030-01-01"),
+    precision: "day" as const,
+    status: null as string | null,
+  };
+  const candidate = sourceGame({ id: 800, releaseDates: [original] });
+  const source = createFakeGameSource([candidate]);
+  const db = await createTestDb();
+  const catalog = createCatalog(db, source);
+  await catalog.findBySlug(candidate.slug);
+  await db.insert(user).values({
+    id: "recovery",
+    name: "Synthetic",
+    email: "recovery@example.test",
+  });
+  await db.insert(journalEntry).values({
+    userId: "recovery",
+    gameId: 800,
+    status: "wishlist",
+    updatedAt: new Date(),
+  });
+  await db.execute(
+    sql`alter table release_date add constraint synthetic_fault check (status is distinct from 'synthetic-rejected')`,
+  );
+  candidate.releaseDates = [
+    { ...original, date: new Date("2031-01-01"), status: "synthetic-rejected" },
+  ];
+  await expect(catalog.refreshReleaseDates()).rejects.toThrow();
+  expect((await catalog.findBySlug(candidate.slug))?.releaseDates).toEqual([
+    expect.objectContaining(original),
+  ]);
+  await db.execute(
+    sql`alter table release_date drop constraint synthetic_fault`,
+  );
+  await catalog.refreshReleaseDates();
+  expect((await catalog.findBySlug(candidate.slug))?.releaseDates).toEqual([
+    expect.objectContaining({
+      date: new Date("2031-01-01"),
+      status: "synthetic-rejected",
+    }),
+  ]);
 });

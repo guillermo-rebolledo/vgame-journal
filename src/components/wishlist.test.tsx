@@ -159,7 +159,7 @@ test("a released game moves to Backlog or Playing once, then offers its destinat
   expect(notice.textContent).toContain("Moved Game 7 to Playing.");
   expect(
     within(notice)
-      .getByRole("link", { name: "Open Playing in Library" })
+      .getByRole("link", { name: "View in Library: Playing" })
       .getAttribute("href"),
   ).toBe("/library?status=playing");
 
@@ -329,4 +329,21 @@ test("a move that lost to a change elsewhere records nothing", async () => {
     ).not.toBe(""),
   );
   expect(track).not.toHaveBeenCalled();
+});
+
+test("release freshness is distinct from a legitimately unannounced date", () => {
+  const { rerender } = render(
+    <Wishlist entries={[entry(1, null)]} releaseDatesUnavailable />,
+  );
+  expect(screen.getByText(/Release dates may be out of date/)).toBeTruthy();
+  expect(
+    screen.getByRole("heading", { name: "Release date not announced 1" }),
+  ).toBeTruthy();
+  rerender(
+    <Wishlist entries={[entry(1, null)]} releaseDatesUnavailable={false} />,
+  );
+  expect(screen.queryByText(/Release dates may be out of date/)).toBeNull();
+  expect(
+    screen.getByRole("heading", { name: "Release date not announced 1" }),
+  ).toBeTruthy();
 });

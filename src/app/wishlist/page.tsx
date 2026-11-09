@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { CollectionLoading } from "@/components/collection-loading";
 import { Wishlist } from "@/components/wishlist";
 import { ownerId, signedInUserId } from "@/lib/auth";
+import { catalog } from "@/lib/catalog";
 import { journal, type Status } from "@/lib/journal";
 
 export const metadata: Metadata = { title: "Wishlist" };
@@ -50,5 +51,25 @@ async function UserWishlist() {
     return at;
   }
 
-  return <Wishlist entries={await journal.wishlist(userId)} onMove={move} />;
+  const [entries, releaseDatesUnavailable] = await Promise.all([
+    journal.wishlist(userId),
+    catalog
+      .refreshHealth()
+      .then((health) => {
+        const task = health.tasks.find((task) => task.key === "wishlist");
+        return (
+          !task?.lastSuccessAt ||
+          task.freshness === "stale" ||
+          task.outcome === "failure"
+        );
+      })
+      .catch(() => true),
+  ]);
+  return (
+    <Wishlist
+      entries={entries}
+      onMove={move}
+      releaseDatesUnavailable={releaseDatesUnavailable}
+    />
+  );
 }

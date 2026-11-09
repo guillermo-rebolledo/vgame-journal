@@ -50,9 +50,11 @@ const SECTIONS = [
 export function Wishlist({
   entries,
   onMove,
+  releaseDatesUnavailable = false,
 }: {
   entries: WishlistEntry[];
   onMove?: Move;
+  releaseDatesUnavailable?: boolean;
 }) {
   const day = useToday();
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -115,6 +117,15 @@ export function Wishlist({
 
   return (
     <div className="flex flex-col gap-6">
+      {entries.length > 0 && releaseDatesUnavailable && (
+        <Box>
+          <p>
+            Release dates may be out of date. Showing the last available
+            information; an unannounced date may not have been checked recently.
+            We’ll check again automatically.
+          </p>
+        </Box>
+      )}
       {onMove && (
         // biome-ignore lint/a11y/useSemanticElements: <output> may only hold phrasing content; this holds paragraphs and buttons.
         <div
@@ -238,7 +249,7 @@ function MoveNotice({
             Moved {title} to {capitalize(to)}.{" "}
             <Link
               href={`/library?status=${to}`}
-              aria-label={`Open ${capitalize(to)} in Library`}
+              aria-label={`View in Library: ${capitalize(to)}`}
               className="underline underline-offset-4"
             >
               View in Library

@@ -1516,6 +1516,28 @@ test("stats report the owner's Rating distribution, average Rating given and num
   });
 });
 
+test("unexpected Journal write failures emit safe events while validation stays quiet", async () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    await expect(
+      journal.set("mario", 1, { status: "secret" as never }),
+    ).rejects.toBeInstanceOf(JournalError);
+    expect(log).not.toHaveBeenCalled();
+    await db.execute(sql`DROP TABLE status_event`);
+    await expect(
+      journal.set("mario", 1, { status: "playing" }),
+    ).rejects.toThrow();
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('"operation":"journal.set"'),
+    );
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(
+      /mario|status_event|insert into/,
+    );
+  } finally {
+    log.mockRestore();
+  }
+});
+
 test("new profiles are Private, only their owner can preview them, and visibility round-trips", async () => {
   await db.update(user).set({ username: "mario" }).where(eq(user.id, "mario"));
   expect(await journal.profileVisibility("mario")).toBe("private");
