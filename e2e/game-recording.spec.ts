@@ -822,9 +822,11 @@ test("F01: confirmed removal waits for acknowledgement, recovers locally, and pe
   }
   await retry.click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("status")).toContainText(
-    "Celeste removed from your journal.",
-  );
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Celeste removed from your journal." }),
+  ).toHaveText("Celeste removed from your journal.");
   await page.reload();
   await expect(
     page.getByRole("button", {
@@ -913,9 +915,11 @@ test.describe("F01: stale Journal removal on a touch screen", () => {
       .getByRole("button", { name: "Remove permanently", exact: true })
       .tap();
     await expect(dialog).toHaveCount(0);
-    await expect(page.getByRole("status")).toContainText(
-      "Celeste removed from your journal.",
-    );
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: "Celeste removed from your journal." }),
+    ).toHaveText("Celeste removed from your journal.");
     await other.reload();
     await expect(
       other.getByRole("button", {
