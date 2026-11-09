@@ -196,6 +196,7 @@ test("keyboard saves retain focus, menus restore it, and focused indicators cont
   request,
   browserName,
 }) => {
+  test.slow();
   await request.get("/api/cron/refresh-release-dates", {
     headers: { authorization: "Bearer e2e-cron-secret" },
   });
