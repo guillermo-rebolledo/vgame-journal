@@ -212,7 +212,7 @@ test("first successful save invites once, persists dismissal across sessions, an
   request,
   browser,
 }) => {
-  await signUp(page, request, `firstsave${Date.now()}`);
+  await signUp(page, request, uniqueUsername("firstsave"));
   await page.goto("/games/celeste");
   await expect(
     page.getByRole("complementary", { name: "First game feedback" }),
@@ -221,6 +221,10 @@ test("first successful save invites once, persists dismissal across sessions, an
     .getByRole("button", { name: "Add playthrough", exact: true })
     .click();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Add playthrough", exact: true }),
+  ).toBeFocused();
   await expect(
     page.getByRole("complementary", { name: "First game feedback" }),
   ).toHaveCount(0);
