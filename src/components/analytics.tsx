@@ -1,10 +1,8 @@
 "use client";
 
 import { track } from "@vercel/analytics";
-import {
-  type BeforeSendEvent,
-  Analytics as VercelAnalytics,
-} from "@vercel/analytics/next";
+import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { type ReactNode, useEffect } from "react";
 import type { FeedbackType } from "@/lib/feedback-types";
 import type { CompletionTag, Status } from "@/lib/library";
@@ -22,8 +20,8 @@ const SAFE_PARAMS = new Set([
 const isSafeParam = (key: string) =>
   SAFE_PARAMS.has(key) || /^[a-zA-Z]+Page$/.test(key) || key.startsWith("utm_");
 
-/** Strip anything that could identify a person from the URL Vercel Analytics records. */
-export function redactAnalyticsEvent(event: BeforeSendEvent): BeforeSendEvent {
+/** Strip anything that could identify a person from URLs recorded by Vercel telemetry. */
+export function redactAnalyticsEvent<T extends { url: string }>(event: T): T {
   const url = new URL(event.url);
   for (const key of [...url.searchParams.keys()])
     if (!isSafeParam(key)) url.searchParams.delete(key);
@@ -75,7 +73,12 @@ export function Analytics() {
       `${url.pathname}${url.search}${url.hash}`,
     );
   }, []);
-  return <VercelAnalytics beforeSend={redactAnalyticsEvent} />;
+  return (
+    <>
+      <VercelAnalytics beforeSend={redactAnalyticsEvent} />
+      <SpeedInsights beforeSend={redactAnalyticsEvent} />
+    </>
+  );
 }
 
 /** Records `event` on any click inside; lets server components count links and submits they can't attach handlers to. */
