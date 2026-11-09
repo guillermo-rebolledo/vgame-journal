@@ -16,3 +16,23 @@ export function summarize(samples) {
     maxMs: all.length ? Math.max(...all) : null,
   };
 }
+
+/**
+ * Journey stages a sample may fail at. Reports record only these labels, so a
+ * Playwright message carrying page content or a URL can never reach evidence.
+ */
+const FAILURE_CODES = new Set([
+  "response",
+  "shell",
+  "heading",
+  "marker",
+  "interactive",
+  "status-control",
+  "export-read",
+  "export-correctness",
+]);
+export function boundedFailure(code) {
+  if (!FAILURE_CODES.has(code))
+    throw new Error("Unrecognised bounded failure label");
+  return code;
+}

@@ -1,11 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { chooseStatus } from "../../e2e/support/journal";
 import { seedSql } from "../../e2e/support/seed-sql";
 import { signUp, uniqueUsername } from "../../e2e/support/sign-up";
 import { approveTarget } from "./monitor.mjs";
-import { summarize } from "./performance.mjs";
+import { boundedFailure, summarize } from "./performance.mjs";
 
 const dataset = Number(process.env.OPS_GAMES ?? 100);
 const users = Number(process.env.OPS_USERS ?? 5);
@@ -22,6 +22,34 @@ if (
   );
 }
 
+const STATUS_TRIGGER = {
+  name: /(?:Add to Journal|Change Journal status) for /,
+  exact: true,
+} as const;
+
+/**
+ * Measures how long the Journal Status control needs before it answers a tap.
+ * The server-rendered button exists long before its client handler does, so one
+ * early tap is silently lost — a load characteristic, not a save result. Tapping
+ * until the menu opens keeps the two apart, and the budget keeps a control that
+ * never answers a failure.
+ */
+async function waitForStatusControl(page: Page, budgetMs: number) {
+  const deadline = Date.now() + budgetMs;
+  const menu = page.getByRole("menu");
+  for (let taps = 1; ; taps++) {
+    try {
+      await page.getByRole("button", STATUS_TRIGGER).click({ timeout: 2000 });
+      await expect(menu).toBeVisible({ timeout: 1000 });
+      await page.keyboard.press("Escape");
+      await expect(menu).toHaveCount(0);
+      return taps;
+    } catch (error) {
+      if (Date.now() >= deadline) throw error;
+    }
+  }
+}
+
 test("isolated Journal capacity measurements", async ({
   browser,
   request,
@@ -34,9 +62,13 @@ test("isolated Journal capacity measurements", async ({
     ms: number;
     ok: boolean;
     failure?: string;
+    /** Status-control taps needed before the menu answered. */
+    taps?: number;
   }[] = [];
   let httpRequests = 0;
   let httpErrors = 0;
+  /** Status codes only: enough to tell an asset 404 from an application 500. */
+  const httpErrorStatuses: Record<number, number> = {};
   const startedAt = new Date().toISOString();
   const revision = execFileSync("git", ["rev-parse", "HEAD"], {
     encoding: "utf8",
@@ -96,8 +128,14 @@ test("isolated Journal capacity measurements", async ({
             httpRequests++;
           });
           page.on("response", (response) => {
-            if (response.status() >= 400) httpErrors++;
+            const status = response.status();
+            if (status < 400) return;
+            httpErrors++;
+            httpErrorStatuses[status] = (httpErrorStatuses[status] ?? 0) + 1;
           });
+          // A streamed segment lands outside the landmark until React moves it
+          // in, so each marker is scoped to the content a player actually reads.
+          const main = page.locator("#main-content");
           const routes = [
             ["home", "/"],
             ["catalog-search", "/?q=Celeste"],
@@ -113,22 +151,27 @@ test("isolated Journal capacity measurements", async ({
             for (const [operation, path] of routes) {
               const start = performance.now();
               let ok = false;
+              let stage = "response";
               try {
                 const response = await page.goto(`${origin}${path}`, {
                   waitUntil: "commit",
                   timeout: 15000,
                 });
                 expect(response?.ok()).toBe(true);
-                await expect(page.locator("main")).toBeVisible();
+                stage = "shell";
+                await expect(main).toBeVisible();
+                stage = "heading";
                 await expect(
-                  page.getByRole("heading", { level: 1 }).first(),
+                  main.getByRole("heading", { level: 1 }).first(),
                 ).toBeVisible();
+                stage = "marker";
                 if (operation === "home")
                   await expect(
-                    page.getByRole("link", {
+                    main.getByRole("link", {
                       name: /^All saved games \(\d+\)$/,
                     }),
                   ).toBeVisible();
+                // Command search is a portalled dialog, outside the landmark.
                 if (operation === "catalog-search")
                   await expect(
                     page
@@ -138,7 +181,7 @@ test("isolated Journal capacity measurements", async ({
                   ).toBeVisible();
                 if (operation === "wishlist")
                   await expect(
-                    page.locator('[aria-label="Wishlist updates"]'),
+                    main.locator('[aria-label="Wishlist updates"]'),
                   ).toBeAttached();
                 if (
                   operation === "library" &&
@@ -146,11 +189,11 @@ test("isolated Journal capacity measurements", async ({
                   mode === "first-navigation"
                 )
                   await expect(
-                    page.getByText("Your library is empty.", { exact: true }),
+                    main.getByText("Your library is empty.", { exact: true }),
                   ).toBeVisible();
                 if (operation === "game")
                   await expect(
-                    page.getByRole("region", {
+                    main.getByRole("region", {
                       name: "Game journal",
                       exact: true,
                     }),
@@ -161,11 +204,11 @@ test("isolated Journal capacity measurements", async ({
                   mode !== "first-navigation"
                 )
                   await expect(
-                    page.getByText("1 game", { exact: true }).first(),
+                    main.getByText("1 game", { exact: true }).first(),
                   ).toBeVisible();
                 if (operation === "library" && dataset)
                   await expect(
-                    page.getByText(`${dataset} games`, { exact: true }).first(),
+                    main.getByText(`${dataset} games`, { exact: true }).first(),
                   ).toBeVisible();
                 ok = true;
               } catch {
@@ -174,10 +217,25 @@ test("isolated Journal capacity measurements", async ({
               samples.push({
                 operation,
                 mode,
+                ...(ok ? {} : { failure: boundedFailure(stage) }),
                 ms: Math.round(performance.now() - start),
                 ok,
               });
             }
+            const readyStart = performance.now();
+            let taps = 0;
+            try {
+              taps = await waitForStatusControl(page, 20000);
+            } catch {
+              /* Bounded: the control never answered inside its budget. */
+            }
+            samples.push({
+              operation: "journal-status-ready",
+              mode,
+              ...(taps ? { taps } : { failure: boundedFailure("interactive") }),
+              ms: Math.round(performance.now() - readyStart),
+              ok: taps > 0,
+            });
             const start = performance.now();
             let ok = false;
             let failure = "status-control";
@@ -208,8 +266,8 @@ test("isolated Journal capacity measurements", async ({
             }
             samples.push({
               operation: "journal-save-and-verify",
-              ...(!ok ? { failure } : {}),
               mode,
+              ...(ok ? {} : { failure: boundedFailure(failure) }),
               ms: Math.round(performance.now() - start),
               ok,
             });
@@ -250,6 +308,7 @@ test("isolated Journal capacity measurements", async ({
       slowNetwork: "150ms RTT, 1.6Mbps down, 750kbps up",
       httpRequests,
       httpErrors,
+      httpErrorStatuses,
       cells,
       samples,
       providerCalls: null,
