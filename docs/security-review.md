@@ -18,6 +18,14 @@
 
 An additional red/green check at the agreed proof seam showed readiness still accepted a proof after revoking the initiating session. Readiness and atomic final deletion now check that session is live. The deletion statement also removes the new account-bound verification records; lifecycle fixtures now use real session rows.
 
+## Focused independent review and cancellation correction
+
+A subsequent independent review of `7cae390` confirmed the original findings were fixed and found one additional P2: cancellation could wait on a challenge being confirmed, then miss the newly inserted proof under PostgreSQL READ COMMITTED. This was reproduced against the actual account-security module using two independent connections to disposable local PostgreSQL 17, with a third connection observing the cancellation lock wait. Before the fix, cancellation returned success while `ready()` remained true.
+
+Confirmation and cancellation now lock the same stable session row before their remaining statements. Cancellation deletes the challenge and proof using a fresh statement snapshot after acquiring that lock. The existing batch helper now supports the three statements needed by confirmation; the E2E adapter preserves the same transaction boundary. The same two-connection test passes after the fix. PGlite's existing public proof test also covers concurrent confirmation/cancellation, but its serialized transactions cannot independently reproduce PostgreSQL's snapshot race. No production or Neon connection was used.
+
+The local two-connection harness is `/tmp/vgame-cancel-race-130/check.test.ts`, run with `pnpm exec vitest run --config /tmp/vgame-cancel-race-130/vitest.config.mts`; temporary driver dependencies are outside the repository. This is a focused local experiment, not part of the migration-backed PGlite module suite. The local database is removed after verification. See `security-acceptance.md` for final follow-up checks.
+
 ## Verification boundaries
 
-See `security-acceptance.md` for final command results. No independent post-fix reviewer was run. Live mail delivery, deployed ordinary Google sign-in, production HTTPS/cookies/origins/proxy/logging/limiting, access/MFA, retention and restore safeguards require dated operator evidence. No production send, remote provider configuration, secret access, push, PR creation or issue status change occurred.
+See `security-acceptance.md` for final command results. The focused review above was independent; the final cancellation correction was verified by the implementing parent with the reproduced two-connection interleaving. Live mail delivery, deployed ordinary Google sign-in, production HTTPS/cookies/origins/proxy/logging/limiting, access/MFA, retention and restore safeguards require dated operator evidence. No production send, remote provider configuration or secret access occurred.

@@ -208,6 +208,7 @@ test.each([
   "revoked",
   "unverified",
   "concurrent",
+  "concurrent-cancel",
 ])("email deletion confirmation preserves safety on %s", async (scenario) => {
   const { account, session, user, verification } = await import("@/db/schema");
   const { eq } = await import("drizzle-orm");
@@ -279,6 +280,13 @@ test.each([
       ]);
       expect(results.filter((result) => "verified" in result)).toHaveLength(1);
       return;
+    }
+    if (scenario === "concurrent-cancel") {
+      await Promise.all([
+        security.confirmCode("owner", "session", code),
+        security.cancel("session"),
+      ]);
+      expect(await security.ready("owner", "session")).toBe(false);
     }
     await expect(
       security.confirmCode("owner", "session", code),

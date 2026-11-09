@@ -1,5 +1,5 @@
 import { createHash, randomInt } from "node:crypto";
-import { and, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { executeBatch } from "@/db/batch";
 import { session, user, verification } from "@/db/schema";
@@ -97,6 +97,8 @@ export function createAccountSecurity(db: Db) {
         const id = codeId(sessionId);
         const proof = deletionProofId(sessionId);
         const rows = await executeBatch(db, [
+          // Cancellation locks the same stable row before taking a fresh write snapshot.
+          sql`select ${session.id} from ${session} where ${session.id} = ${sessionId} and ${session.userId} = ${userId} for update`,
           sql`update ${verification} set value = jsonb_set(value::jsonb, '{attempts}', to_jsonb((value::jsonb->>'attempts')::int + 1))::text
             where id = ${id} and value::jsonb->>'userId' = ${userId}`,
           sql`with consumed as (
@@ -128,14 +130,10 @@ export function createAccountSecurity(db: Db) {
         });
     },
     async cancel(sessionId: string) {
-      await db
-        .delete(verification)
-        .where(
-          inArray(verification.id, [
-            deletionProofId(sessionId),
-            codeId(sessionId),
-          ]),
-        );
+      await executeBatch(db, [
+        sql`select ${session.id} from ${session} where ${session.id} = ${sessionId} for update`,
+        sql`delete from ${verification} where id in (${deletionProofId(sessionId)}, ${codeId(sessionId)}) returning id`,
+      ]);
     },
     async ready(userId: string, sessionId: string) {
       const rows = await db

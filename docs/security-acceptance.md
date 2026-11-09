@@ -40,7 +40,33 @@ integration SHA. Final local branch: `t3/account-deletion-review-fixes`.
 
 The supplied Standards review had one P2 and the Spec review had three P1s.
 `security-review.md` records them separately, with red/green evidence. These are
-implementation fixes and self-review; no new independent reviewer was run.
+implementation fixes. A focused independent follow-up confirmed those fixes and
+identified the cancellation race corrected below.
+
+## Final cancellation-race verification
+
+The parent reproduced the focused review's additional P2 using the actual
+account-security module and two connections to disposable local PostgreSQL 17.
+Confirmation paused after updating the challenge; cancellation was observed
+waiting on its lock. Before the fix, cancellation returned success but the proof
+remained usable. Shared session-row locking and a fresh cancellation statement
+snapshot make the same test pass, including ten repeated executions. The first
+repeat attempt retained the harness's send-budget records; fixture cleanup was
+corrected before the clean repeated run. No Neon/production database was used,
+and the disposable container was stopped and removed after verification.
+
+`pnpm test src/lib/account-security.test.ts src/lib/feedback.test.ts src/lib/lists.test.ts --maxWorkers=2 --testTimeout=30000`
+passed all 46 tests covering the changed batch helper's callers. The existing
+PGlite proof seam now includes concurrent confirmation/cancellation; PGlite's
+serialized transactions do not reproduce the two-connection snapshot anomaly.
+`pnpm lint`, `pnpm typecheck` and `git diff --check` passed.
+The final full `pnpm test --maxWorkers=2 --testTimeout=30000` run passed all
+46 files / 565 tests after this correction (110.39s).
+
+`E2E_PORT=3390 E2E_SUPPORT_PORT=3391 pnpm test:e2e e2e/account-security.spec.ts e2e/feedback.spec.ts e2e/custom-lists.spec.ts --workers=2`
+passed all 11 affected browser journeys and the production-mode app build after
+the cancellation fix. The 204-story build/test and 53-journey acceptance results
+above precede this SQL-only correction; no production UI or motion changed.
 
 ## Automated acceptance
 
