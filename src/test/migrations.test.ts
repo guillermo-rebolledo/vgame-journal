@@ -65,7 +65,8 @@ test("pending migrations preserve populated records and prior-schema reads and w
     const before = await records();
     expect(before).toHaveLength(1);
     await migrate(db, { migrationsFolder });
-    expect(await records()).toEqual(before);
+    // Preserve every prior field while allowing newly added columns.
+    expect(await records()).toMatchObject(before);
     // Prior-version column list still writes after expansion; this is not an old-artifact drill.
     await db.execute(
       sql`update playthrough set hours = 3, notes = 'Old writer after expansion' where user_id = 'release-user'`,
