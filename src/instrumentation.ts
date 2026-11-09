@@ -1,4 +1,5 @@
 import type { Instrumentation } from "next";
+import { ExpectedError } from "@/lib/expected-error";
 import {
   operationalCode,
   reportOperationalError,
@@ -9,6 +10,7 @@ export const onRequestError: Instrumentation.onRequestError = (
   _request,
   context,
 ) => {
+  if (error instanceof ExpectedError) return;
   const operation =
     context.routeType === "render"
       ? "server.render"

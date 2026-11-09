@@ -510,6 +510,7 @@ export const igdbGameSource: GameSource = {
   },
 
   async fetchReleaseDates(ids) {
+    const deadline = requestSignal();
     const byGame = new Map<number, SourceReleaseDate[]>(
       ids.map((id) => [id, []]),
     );
@@ -519,6 +520,7 @@ export const igdbGameSource: GameSource = {
       const dates = await igdb<IgdbReleaseDate>(
         "release_dates",
         `fields game,${RELEASE_DATE_FIELDS.join(",")}; where game = (${ids.map(Math.trunc).join(",")}); sort id asc; limit 500; offset ${offset};`,
+        deadline,
       );
       for (const d of dates) byGame.get(d.game)?.push(toReleaseDate(d));
       if (dates.length < 500) return byGame;

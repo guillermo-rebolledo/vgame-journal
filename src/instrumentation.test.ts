@@ -67,3 +67,19 @@ test("a logging failure cannot replace the original request failure", () => {
     ),
   ).not.toThrow();
 });
+
+test("expected Journal validation failures do not become server incidents", async () => {
+  const { JournalError } = await import("./lib/journal");
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  onRequestError(
+    new JournalError("Choose a valid Journal status."),
+    { path: "/", method: "POST", headers: {} },
+    {
+      routerKind: "App Router",
+      routePath: "/",
+      routeType: "action",
+      revalidateReason: undefined,
+    },
+  );
+  expect(log).not.toHaveBeenCalled();
+});

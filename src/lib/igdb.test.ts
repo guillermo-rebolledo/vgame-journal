@@ -779,3 +779,35 @@ test("a search deadline removes queued work before it can reach the provider", a
     log.mockRestore();
   }
 });
+
+test("release-date pagination shares one overall deadline", async () => {
+  vi.resetModules();
+  const source = (await import("./igdb")).igdbGameSource;
+  const deadlines: AbortController[] = [];
+  vi.spyOn(AbortSignal, "timeout").mockImplementation(() => {
+    const controller = new AbortController();
+    deadlines.push(controller);
+    return controller.signal;
+  });
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  let pages = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      pages++;
+      if (pages > 1) return Response.json([]);
+      deadlines[0].abort(new DOMException("deadline", "TimeoutError"));
+      return Response.json(Array.from({ length: 500 }, () => ({ game: 1 })));
+    }),
+  );
+  try {
+    await expect(source.fetchReleaseDates([1])).rejects.toMatchObject({
+      code: "timeout",
+    });
+    expect(pages).toBe(1);
+  } finally {
+    vi.restoreAllMocks();
+  }
+});

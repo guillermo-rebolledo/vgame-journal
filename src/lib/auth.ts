@@ -8,6 +8,7 @@ import { SITE_NAME } from "@/config/site";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { type Email, sendWithResend } from "@/lib/email";
+import { ExpectedError } from "@/lib/expected-error";
 
 import {
   type Operation,
@@ -94,6 +95,6 @@ export const signedInUserId = async () =>
 /** For server actions: they re-read the session, so only the signed-in owner writes their own journal. */
 export async function ownerId() {
   const userId = await signedInUserId();
-  if (!userId) throw new Error("Sign in to edit your journal.");
+  if (!userId) throw new ExpectedError("Sign in to edit your journal.");
   return userId;
 }

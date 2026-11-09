@@ -12,6 +12,7 @@ import {
   verification,
 } from "@/db/schema";
 import { calendarFeed } from "@/lib/calendar-feed";
+import { ExpectedError } from "@/lib/expected-error";
 import {
   COMPLETION_TAGS,
   type CompletionTag,
@@ -50,7 +51,7 @@ export type WishlistEntry = {
 };
 
 /** A broken Journal rule. Its message is safe to show the user. */
-export class JournalError extends Error {}
+export class JournalError extends ExpectedError {}
 
 /** Below this many Ratings a game's Community rating has no average. */
 export const COMMUNITY_RATING_THRESHOLD = 5;
