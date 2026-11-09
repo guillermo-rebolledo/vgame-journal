@@ -10,14 +10,21 @@ import { CalendarFeedForm } from "@/components/calendar-feed-form";
 import { SettingLoading } from "@/components/content-loading";
 import { DeleteAccountForm } from "@/components/delete-account-form";
 import { RegionForm } from "@/components/region-form";
+import { SignOutAllForm } from "@/components/sign-out-all-form";
 import { Button } from "@/components/ui/button";
-import { auth, ownerId, signedInUserId } from "@/lib/auth";
+import { db } from "@/db";
+import { createAccountSecurity } from "@/lib/account-security";
+import { auth, currentSession, ownerId, signedInUserId } from "@/lib/auth";
 import { JournalError, journal } from "@/lib/journal";
 import type { Region } from "@/lib/release-dates";
 
 export const metadata: Metadata = { title: "Settings" };
 
-export default function SettingsPage() {
+export default function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ deletion?: string }>;
+}) {
   return (
     <section className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-8">
       <h1 className="font-semibold text-3xl tracking-tight">Settings</h1>
@@ -28,7 +35,7 @@ export default function SettingsPage() {
         <CalendarFeedSetting />
       </Suspense>
       <Suspense fallback={<SettingLoading label="Loading account data…" />}>
-        <AccountDataSetting />
+        <AccountDataSetting searchParams={searchParams} />
       </Suspense>
       <section
         aria-labelledby="privacy-heading"
@@ -52,15 +59,76 @@ export default function SettingsPage() {
   );
 }
 
-async function AccountDataSetting() {
-  if (!(await signedInUserId())) redirect("/sign-in");
+async function AccountDataSetting({
+  searchParams,
+}: {
+  searchParams: Promise<{ deletion?: string }>;
+}) {
+  const failed = (await searchParams).deletion === "failed";
+  const session = await currentSession();
+  if (!session) redirect("/sign-in");
+  const security = createAccountSecurity(db);
+  const ready = await security.ready(session.user.id, session.session.id);
+  const accounts = await auth.api.listUserAccounts({
+    headers: await headers(),
+  });
+
+  async function confirmIdentity(form: FormData) {
+    "use server";
+    const session = await currentSession();
+    if (!session) return { error: "Sign in before confirming your identity." };
+    try {
+      await createAccountSecurity(db).cancel(session.session.id);
+      await auth.api.verifyPassword({
+        headers: await headers(),
+        body: { password: String(form.get("password") ?? "") },
+      });
+      await createAccountSecurity(db).issue(
+        session.user.id,
+        session.session.id,
+      );
+    } catch {
+      return {
+        error:
+          "Could not confirm your password. Try again or reset your password.",
+      };
+    }
+    refresh();
+    return { verified: true as const };
+  }
+
+  async function cancelDeletion() {
+    "use server";
+    const session = await currentSession();
+    if (session) await createAccountSecurity(db).cancel(session.session.id);
+    refresh();
+    return {};
+  }
+
+  async function signOutAll() {
+    "use server";
+    try {
+      const head = await headers();
+      await auth.api.revokeSessions({ headers: head });
+      await auth.api.signOut({ headers: head });
+    } catch {
+      return { error: "Could not sign out all devices. Please try again." };
+    }
+    redirect("/sign-in");
+  }
 
   async function deleteAccount(form: FormData) {
     "use server";
-    const userId = await ownerId();
+    const session = await currentSession();
+    if (!session) return { error: "Sign in before deleting your account." };
     try {
-      await journal.deleteAccount(userId, form.get("confirmation"));
+      await journal.deleteAccount(
+        session.user.id,
+        form.get("confirmation"),
+        session.session.id,
+      );
     } catch (error) {
+      refresh();
       return {
         error:
           error instanceof JournalError
@@ -104,7 +172,22 @@ async function AccountDataSetting() {
           />
         </TrackClicks>
       </section>
-      <DeleteAccountForm onDelete={deleteAccount} />
+      <SignOutAllForm onSignOut={signOutAll} />
+      <DeleteAccountForm
+        onDelete={deleteAccount}
+        onVerify={confirmIdentity}
+        onCancel={cancelDeletion}
+        verified={ready}
+        notice={
+          failed
+            ? "Google confirmation was cancelled or failed. Your account has not been deleted. Try again."
+            : undefined
+        }
+        hasPassword={accounts.some(
+          (account) => account.providerId === "credential",
+        )}
+        hasGoogle={accounts.some((account) => account.providerId === "google")}
+      />
     </>
   );
 }

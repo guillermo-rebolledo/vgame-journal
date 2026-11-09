@@ -416,3 +416,9 @@ For each UI change, identify the existing component and pattern being reused, up
 - **Don't** use 700-weight text or more than one display-size heading per page.
 - **Don't** hand-roll a dialog, menu, select, tooltip or drawer. Use the Base UI primitives in `src/components/ui/`.
 - **Don't** communicate status with color alone. Pair it with a label or icon.
+
+### Account security controls
+
+- Settings extends `DeleteAccountForm` with fresh password or Google authentication before typed DELETE. Proofs last at most five minutes; cancellation returns to authentication and restores focus. The final confirmation input receives focus after password verification. Errors stay beside the flow; secrets never enter analytics.
+- `DeleteAccountForm` reuses Button, Input and Label rather than adding another authentication primitive. `AuthForm` was considered, but its standalone page heading and success replacement do not fit the embedded Settings confirmation sequence. `SignOutAllForm` composes the same controls for a distinct session action, with pending feedback and inline retry.
+- Storybook: **Product/Delete account** covers password failure/retry, pending, Google cancellation and typed confirmation/cancellation. **Product/Sign out all devices** covers failure/retry and pending. No new motion is introduced.
