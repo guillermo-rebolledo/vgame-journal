@@ -170,6 +170,14 @@ test("Private owner preview, publication and withdrawal protect documents, metad
       }
       await guest.goto(path);
       await expect(guest).toHaveTitle(`${username}’s journal · shelve.games`);
+      await expect(guest.locator('link[rel="canonical"]')).toHaveAttribute(
+        "href",
+        `https://www.shelve.games${path}`,
+      );
+      await expect(guest.locator('meta[property="og:url"]')).toHaveAttribute(
+        "content",
+        `https://www.shelve.games${path}`,
+      );
       await guest.goto(`${path}/lists/${listId}`);
       await expect(
         guest.getByRole("link", { name: `@${username}` }),
