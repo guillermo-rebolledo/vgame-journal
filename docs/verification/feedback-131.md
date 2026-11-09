@@ -6,7 +6,7 @@ The implementation reuses Feedback and its existing Base UI Drawer, Select, Fiel
 
 - Red → green: feedback-module test observed an unredacted reset credential before the shared pathname normalizer; it now checks storage and notification for auth credentials, calendar secrets, profiles and Lists. First-save claim test initially observed no opportunity; the migration trigger now creates one, with only one successful concurrent claim and no opportunity after deleting/re-adding. Migration test verifies existing empty/populated accounts are consumed and old explicit column-list writes still work.
 - Browser journeys cover empty Home Journal and Library entries, permanent account-menu feedback, focus return, category guidance/draft preservation, privacy explanation, server rejection, offline retry, rolling throttling, persisted reports, mock notifications, and guest action rejection.
-- First-save journeys cover successful game Status and Playthrough saves, canceled and failed saves, concurrent first saves in separate sessions, dismissal, reload, another session, and deletion/re-adding. The atomic opportunity is consumed inside the authenticated save action before its response, so losing that response cannot leave a repeat invitation for a later save.
+- First-save journeys cover successful game Status and Playthrough saves, canceled and failed saves, concurrent first saves in separate sessions, dismissal, reload, another session, and deletion/re-adding. The opportunity is consumed in the first Journal insertion’s transaction and returned only by that save request. Later saves cannot recover an abandoned opportunity, including after an old deployment inserts the first game.
 - Public support journeys inspect signed-out sign-in/signup/recovery/reset/onboarding pages and an authenticated pre-username player. Every link uses the single configured address and neutral subject with no token, complete URL or personal context.
 - Feedback scans pass WCAG A/AA rules in light and dark at 320, 390, 768 and 1440px with reduced motion and a 2,000-character draft. All widths have no horizontal page overflow. Existing shared accessibility journeys cover both themes, page landmarks, Journal actions and Playthrough recording.
 - Storybook covers the production editor's success, pending, validation, network recovery, category guidance, long draft, keyboard entry and originating-control focus restoration; AccountMenu retains its existing keyboard journey.
@@ -17,8 +17,8 @@ Final checks:
 | --- | --- |
 | `pnpm lint` | Passed |
 | `pnpm typecheck` | Passed |
-| `pnpm test --maxWorkers=2` | 41 files, 522 tests passed |
-| `pnpm test:storybook --maxWorkers=1` | 40 files, 192 tests passed |
+| `pnpm test --maxWorkers=2` | 41 files, 524 tests passed |
+| `pnpm test:storybook --maxWorkers=1` | 41 files, 193 tests passed |
 | `pnpm build-storybook` | Passed; output remains local/CI-only |
 | Feedback, Home-save and action-feedback Playwright journeys | 17 passed |
 | `e2e/accessibility.spec.ts` | 10 passed in the combined verification run |
@@ -36,3 +36,5 @@ Unavailable manual checks: a physical mobile software keyboard and touch interac
 ## Operational acceptance
 
 Still unverified: a named feedback owner/backup, actual notification delivery to the monitored inbox, confirmation that the public support mailbox is monitored, mailbox readers, retention/deletion practices and the synthetic reconciliation/acknowledgement/shipped-reply rehearsal. See [the operator runbook](../feedback-operations.md). The public support address was supplied by the user; no owner, retention period or delivery success is invented. Issue #130 owns the authoritative privacy notice.
+
+Review fixes additionally passed 82 targeted module tests, the SupportLink focus story, the full Storybook suite/build, lint/typecheck, and 25 combined feedback/accessibility/Home-save browser tests. Reconciliation uses mandatory bounded full rescans against private processed-ID records so late commits cannot fall behind a persistent cursor.
