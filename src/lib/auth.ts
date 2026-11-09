@@ -39,7 +39,13 @@ export function createAuth(
     clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
   };
   const googleProvider = google(googleOptions);
-  return betterAuth({
+  const instance = betterAuth({
+    logger: {
+      // Even provider messages can contain secrets; retain only severity.
+      log: (level) => console[level]("Authentication diagnostic"),
+    },
+    // Bypass Better Call's raw console.error fallback for unexpected errors.
+    onAPIError: { throw: true },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         if (
@@ -162,6 +168,17 @@ export function createAuth(
       nextCookies(),
     ],
   });
+  const handler = instance.handler;
+  instance.handler = async (request) => {
+    try {
+      return await handler(request);
+    } catch {
+      console.error("Authentication diagnostic");
+      return new Response(null, { status: 500 });
+    }
+  };
+  instance.fetch = instance.handler;
+  return instance;
 }
 
 export const auth = createAuth(db);

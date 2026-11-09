@@ -60,7 +60,7 @@ test.each([
     logs.flatMap((log) => log.mock.calls),
     { depth: null, showHidden: true },
   );
-  expect(output).toContain("Email delivery failed");
+  expect(output).toContain("Authentication diagnostic");
   expect(output).not.toContain(sentinel);
   expect(output).not.toContain(email);
   expect(output).not.toContain("token=");
