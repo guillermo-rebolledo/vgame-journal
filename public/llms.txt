@@ -6,10 +6,10 @@ Game data is provided by IGDB (https://www.igdb.com).
 
 ## Public pages
 
-- [Home](https://shelve.games/): search the catalog and see how a Journal starts.
-- [Game pages](https://shelve.games/games/): one page per game at `/games/{slug}`, with the summary, platforms, genres, critic and user scores, and every known regional release date. Listed in the sitemap.
-- [Public profiles](https://shelve.games/u/): a member's Library, Wishlist and Stats at `/u/{username}`. Private notes are never shown.
-- [Sitemap](https://shelve.games/sitemap.xml)
+- [Home](https://www.shelve.games/): search the catalog and see how a Journal starts.
+- [Game pages](https://www.shelve.games/games/): one page per game at `/games/{slug}`, with the summary, platforms, genres, critic and user scores, and every known regional release date. Listed in the sitemap.
+- [Public profiles](https://www.shelve.games/u/): a member's Library, Wishlist and Stats at `/u/{username}`. Private notes are never shown.
+- [Sitemap](https://www.shelve.games/sitemap.xml)
 
 ## Not available to crawlers
 

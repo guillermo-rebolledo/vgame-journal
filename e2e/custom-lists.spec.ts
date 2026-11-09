@@ -286,7 +286,7 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
       exact: true,
     });
     await openListPanel(page, "Visibility and sharing");
-    await expect(sharing).toHaveValue(`https://shelve.games${path}`);
+    await expect(sharing).toHaveValue(`https://www.shelve.games${path}`);
     await guest.reload();
     await expect(
       guest.getByRole("main").getByText("1 public list", { exact: true }),
@@ -310,14 +310,14 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
       page.getByRole("heading", { name: "LIFECYCLE_RENAMED_88", exact: true }),
     ).toBeVisible();
     await openListPanel(page, "Visibility and sharing");
-    await expect(sharing).toHaveValue(`https://shelve.games${path}`);
+    await expect(sharing).toHaveValue(`https://www.shelve.games${path}`);
     await guest.reload();
     await expect(
       guest.getByRole("heading", { name: "LIFECYCLE_RENAMED_88", exact: true }),
     ).toBeVisible();
     await expect(guest.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
-      `https://shelve.games${path}`,
+      `https://www.shelve.games${path}`,
     );
     await guest.setViewportSize({ width: 320, height: 760 });
     await snap(guest, testInfo, "public-mobile", true);
@@ -353,7 +353,7 @@ test("creator publication lifecycle refreshes discovery and revokes new HTML, Fl
       .getByRole("button", { name: "Publish list", exact: true })
       .click();
     await openListPanel(page, "Visibility and sharing");
-    await expect(sharing).toHaveValue(`https://shelve.games${path}`);
+    await expect(sharing).toHaveValue(`https://www.shelve.games${path}`);
     await guest.reload();
     await expect(
       guest.getByRole("main").getByText("1 public list", { exact: true }),

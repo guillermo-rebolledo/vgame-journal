@@ -86,11 +86,11 @@ test("signed-out readers get the ordered public list, canonical sharing metadata
       "/games/public-list-game-87002",
     );
     await expect(guest.getByLabel("Public list URL")).toHaveValue(
-      `https://shelve.games${path}`,
+      `https://www.shelve.games${path}`,
     );
     await expect(guest.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
-      `https://shelve.games${path}`,
+      `https://www.shelve.games${path}`,
     );
     await expect(guest).toHaveTitle(
       `Weekend discoveries by ${username} · shelve.games`,
@@ -101,7 +101,7 @@ test("signed-out readers get the ordered public list, canonical sharing metadata
     expect(image).toContain(`${path}/opengraph-image`);
     if (!image) throw new Error("Missing share image");
     const imageResponse = await request.get(
-      image.replace("https://shelve.games", new URL(guest.url()).origin),
+      image.replace("https://www.shelve.games", new URL(guest.url()).origin),
     );
     expect(imageResponse.status()).toBe(200);
     expect(imageResponse.headers()["cache-control"]).toContain("no-store");
@@ -127,7 +127,7 @@ test("signed-out readers get the ordered public list, canonical sharing metadata
     );
     await expect(guest.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
-      `https://shelve.games${path}`,
+      `https://www.shelve.games${path}`,
     );
     await expect(guest.locator('meta[name="description"]')).toHaveAttribute(
       "content",
@@ -212,7 +212,7 @@ test("private, wrong-creator, malformed and revoked public URLs are generic real
     if (!previousImage) throw new Error("Missing share image");
     const image = await visitor.request.get(
       previousImage.replace(
-        "https://shelve.games",
+        "https://www.shelve.games",
         new URL(guest.url()).origin,
       ),
     );
@@ -456,7 +456,7 @@ test("public readers see loading, unavailable with recovery, and genuine empty c
             ...new Set(links.map((link) => link.getAttribute("href"))),
           ]),
       )
-      .toEqual([`https://shelve.games${path}`]);
+      .toEqual([`https://www.shelve.games${path}`]);
   } finally {
     await listState(request, username, {});
     await visitor.close();

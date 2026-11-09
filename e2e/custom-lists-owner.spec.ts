@@ -756,7 +756,7 @@ test("publishing is separate from metadata, links survive renames, clipboard den
   });
   const url = await sharing.inputValue();
   expect(url).toMatch(
-    new RegExp(`^https://shelve[.]games/u/${username}/lists/[a-f0-9-]+$`),
+    new RegExp(`^https://www[.]shelve[.]games/u/${username}/lists/[a-f0-9-]+$`),
   );
   await openListPanel(page, "Edit list");
   await page.getByRole("button", { name: "Save details", exact: true }).click();
