@@ -317,6 +317,11 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 - `Button loading` extends the existing action control: retain the label inside a shimmer span, prepend the decorative Compass, set `aria-busy`, and block activation. Preserve explicit disabled/focusable behavior and use the flow’s existing output for announcements; the SVG never creates another live region. Controls that already compose `ActionIcon` keep that composition; its pending layer reuses Compass and `ActionFeedback` shimmers its pending label. Anchored Journal triggers preserve their state layers, focus and positioning.
 - Storybook: **UI/Spinner**, **UI/Button → Loading / Pending then retry**, **Product/Loading content**, and the existing search, Home Journal and editor stories demonstrate loading, resolution and failure/retry. The catalog remains local/CI-only.
 
+### Privacy information
+
+- `/privacy` is the authoritative notice. Signup composes its link through AuthForm’s existing children slot; Settings uses its existing bordered section pattern, and the root footer includes the same destination. CalendarFeedForm keeps secrecy and regeneration guidance beside the URL; export explains its Journal scope beside Download JSON. No new control or motion is needed.
+- The notice follows the focused 36rem reading column, semantic headings and paragraph spacing. Keep provider/retention/contact claims tied to repository evidence and the owner checklist in `docs/security-operations.md`.
+
 ### Navigation
 - **Style:** Pencil text-sm links with an underline on hover. The current page uses Ink, weight 500 and a 2px underline, driven by `aria-current="page"`.
 - **Targets:** at least 44px. A skip link comes first in tab order.

@@ -307,6 +307,7 @@ for (const theme of ["light", "dark"] as const) {
         "/games/celeste",
         "/sign-in",
         "/sign-up",
+        "/privacy",
         "/forgot-password",
       ]) {
         await page.goto(path);

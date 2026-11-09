@@ -48,7 +48,8 @@ export function CalendarFeedForm({
         <p className="text-muted-foreground text-sm">
           Subscribe in your calendar app to see wishlisted games on their
           release day. Only games with an exact date are included. Keep this URL
-          private: anyone with it can see your Wishlist.
+          private: anyone with it can read the feed without signing in,
+          regardless of profile visibility.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -117,7 +118,7 @@ export function CalendarFeedForm({
       )}
       <p className="text-muted-foreground text-xs">
         Regenerating stops the old URL working. Subscribe again with the new
-        one.
+        one. Calendar apps may keep events they already downloaded.
       </p>
     </form>
   );

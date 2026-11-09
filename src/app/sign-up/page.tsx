@@ -37,6 +37,13 @@ export default function SignUpPage() {
       }}
     >
       <p className="text-muted-foreground text-sm">
+        Before creating an account, read our{" "}
+        <Link href="/privacy" className="underline underline-offset-4">
+          Privacy notice
+        </Link>
+        .
+      </p>
+      <p className="text-muted-foreground text-sm">
         Already have an account?{" "}
         <Link
           href={authPageHref("/sign-in", returnTo)}

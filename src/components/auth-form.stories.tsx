@@ -114,3 +114,38 @@ export const SignInAfterPasswordReset: Story = {
     );
   },
 };
+
+export const SignUpWithPrivacyNotice: Story = {
+  args: {
+    title: "Create an account",
+    submitLabel: "Sign up",
+    fields: [
+      { name: "name", label: "Name", autoComplete: "name" },
+      { name: "email", label: "Email", type: "email", autoComplete: "email" },
+      {
+        name: "password",
+        label: "Password",
+        type: "password",
+        autoComplete: "new-password",
+      },
+    ],
+    onSubmit: fn<Submit>(async () => ({ error: "Please try again." })),
+    children: (
+      <p className="text-muted-foreground text-sm">
+        Before creating an account, read our{" "}
+        <a href="/privacy" className="underline underline-offset-4">
+          Privacy notice
+        </a>
+        .
+      </p>
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const link = canvas.getByRole("link", { name: "Privacy notice" });
+    await expect(link).toHaveAttribute("href", "/privacy");
+    link.focus();
+    await expect(link).toHaveFocus();
+    await expect(canvas.getByRole("button", { name: "Sign up" })).toBeEnabled();
+  },
+};
