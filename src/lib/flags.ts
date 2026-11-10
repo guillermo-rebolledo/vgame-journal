@@ -12,3 +12,15 @@ export const steamImportFlag = flag<boolean, { user?: { id: string } }>({
     return { user: session ? { id: session.user.id } : undefined };
   },
 });
+
+export const yearInReviewFlag = flag<boolean, { user?: { id: string } }>({
+  key: "year-in-review",
+  description:
+    "Private 2026 Journal recap and PNG download. Disable in January 2027.",
+  defaultValue: false,
+  adapter: vercelAdapter(),
+  identify: async () => {
+    const session = await currentSession();
+    return { user: session ? { id: session.user.id } : undefined };
+  },
+});

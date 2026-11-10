@@ -501,6 +501,68 @@ export function createJournal(db: Db) {
       };
     },
 
+    /** Current 2026 records only; bounded display selections never include private fields. */
+    async yearInReview(userId: string, now = new Date()) {
+      const year = 2026;
+      const start = new Date("2026-01-01T00:00:00Z");
+      const end = new Date("2027-01-01T00:00:00Z");
+      const asOf = new Date(Math.min(now.getTime(), end.getTime() - 1));
+      const through = asOf.toISOString().slice(0, 10);
+      const fields = {
+        gameId: game.id,
+        title: game.title,
+        slug: game.slug,
+        coverImageId: game.coverImageId,
+      };
+      const count = sql<number>`count(*) over ()`.mapWith(Number);
+      const [logged, played] = await Promise.all([
+        db
+          .select({ ...fields, count })
+          .from(journalEntry)
+          .innerJoin(game, eq(game.id, journalEntry.gameId))
+          .where(
+            and(
+              eq(journalEntry.userId, userId),
+              sql`${journalEntry.createdAt} >= ${start} and ${journalEntry.createdAt} < ${end} and ${journalEntry.createdAt} <= ${asOf}`,
+            ),
+          )
+          .orderBy(sql`${journalEntry.createdAt} desc`, game.id)
+          .limit(12),
+        db
+          .select({ ...fields, count })
+          .from(playthrough)
+          .innerJoin(
+            journalEntry,
+            and(
+              eq(journalEntry.userId, playthrough.userId),
+              eq(journalEntry.gameId, playthrough.gameId),
+            ),
+          )
+          .innerJoin(game, eq(game.id, playthrough.gameId))
+          .where(
+            and(
+              eq(playthrough.userId, userId),
+              sql`${playthrough.startedOn} <= ${through} and (${playthrough.endedOn} is null or ${playthrough.endedOn} >= '2026-01-01')`,
+            ),
+          )
+          .groupBy(game.id)
+          .orderBy(sql`max(${playthrough.startedOn}) desc`, game.id)
+          .limit(12),
+      ]);
+      const section = (rows: typeof logged) => ({
+        count: rows[0]?.count ?? 0,
+        games: rows.map(({ count: _count, ...game }) => game),
+      });
+      return {
+        year,
+        asOf: asOf.toISOString(),
+        through,
+        inProgress: now < end,
+        logged: section(logged),
+        played: section(played),
+      };
+    },
+
     /** Games count once per end-date year; only entries currently marked Played qualify. */
     async stats(userId: string) {
       const [finishedPerYear, hoursByPlatform, events, ratings] =
@@ -1071,3 +1133,7 @@ export function createJournal(db: Db) {
 }
 
 export const journal = createJournal(db);
+
+export type YearInReview = Awaited<
+  ReturnType<ReturnType<typeof createJournal>["yearInReview"]>
+>;

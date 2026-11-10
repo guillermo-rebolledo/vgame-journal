@@ -12,11 +12,33 @@ const publicListStates = new Map();
 const discoveryState = { fail: false, hold: false };
 const discoveryWaiters = [];
 const steamFixtures = new Map();
+const reviewFixtures = new Map();
 const server = createServer(async (request, response) => {
   try {
     let body = "";
     for await (const chunk of request) body += chunk;
     response.setHeader("Content-Type", "application/json");
+    if (request.url === "/review-fixture" && request.method === "POST") {
+      const fixture = JSON.parse(body);
+      reviewFixtures.set(fixture.username, fixture);
+      response.end("{}");
+      return;
+    }
+    if (request.url.startsWith("/review-fixture?")) {
+      const username = new URL(
+        request.url,
+        "http://localhost",
+      ).searchParams.get("username");
+      response.end(
+        JSON.stringify(
+          reviewFixtures.get(username) ?? {
+            enabled: false,
+            now: "2026-12-15T12:00:00Z",
+          },
+        ),
+      );
+      return;
+    }
     if (request.url === "/steam-fixture" && request.method === "POST") {
       const fixture = JSON.parse(body);
       steamFixtures.set(fixture.steamId ?? "76561198000000000", {

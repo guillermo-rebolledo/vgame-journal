@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { readHomeJournal } from "@/app/home-actions";
 import { HomeLoading } from "@/components/content-loading";
@@ -15,6 +16,8 @@ import { JsonLd } from "@/components/json-ld";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import { signedInUserId } from "@/lib/auth";
+import { yearInReviewFlag } from "@/lib/flags";
+import { yearInReviewNow } from "@/lib/year-in-review-clock";
 
 /**
  * The site itself, for search engines and AI crawlers.
@@ -95,6 +98,11 @@ async function HomeContent() {
             <JournalExample />
           </div>
         )}
+        {userId && (
+          <Suspense fallback={null}>
+            <ReviewInvitation />
+          </Suspense>
+        )}
         <HomeCollections />
         <DiscoveryBoundary>
           <Suspense fallback={<DiscoveryLoading />}>
@@ -103,5 +111,24 @@ async function HomeContent() {
         </DiscoveryBoundary>
       </HomeJournalProvider>
     </HomeCoverTransitions>
+  );
+}
+
+async function ReviewInvitation() {
+  const now = await yearInReviewNow();
+  if (
+    now < new Date("2026-12-01T00:00:00Z") ||
+    now >= new Date("2027-01-01T00:00:00Z") ||
+    !(await yearInReviewFlag())
+  )
+    return null;
+  return (
+    <Link
+      href="/year-in-review"
+      prefetch={false}
+      className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 py-3 underline underline-offset-4 focus-visible:outline-2"
+    >
+      Your year in the Journal · See your 2026 so far
+    </Link>
   );
 }

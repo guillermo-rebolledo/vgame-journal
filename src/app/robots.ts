@@ -8,6 +8,7 @@ const PRIVATE = [
   "/lists",
   "/wishlist",
   "/stats",
+  "/year-in-review",
   "/settings",
   "/onboarding",
   "/sign-in",

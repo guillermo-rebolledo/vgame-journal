@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { StatsLoading } from "@/components/content-loading";
 import { Stats } from "@/components/stats";
 import { signedInUserId } from "@/lib/auth";
+import { yearInReviewFlag } from "@/lib/flags";
 import { journal } from "@/lib/journal";
 
 export const metadata: Metadata = { title: "Stats" };
@@ -25,5 +27,18 @@ export default function StatsPage() {
 async function UserStats() {
   const userId = await signedInUserId();
   if (!userId) redirect("/sign-in");
-  return <Stats stats={await journal.stats(userId)} />;
+  return (
+    <>
+      {(await yearInReviewFlag()) && (
+        <Link
+          href="/year-in-review"
+          prefetch={false}
+          className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 underline underline-offset-4 focus-visible:outline-2"
+        >
+          Your year in the Journal · 2026
+        </Link>
+      )}
+      <Stats stats={await journal.stats(userId)} />
+    </>
+  );
 }
