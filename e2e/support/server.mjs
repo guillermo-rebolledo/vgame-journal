@@ -18,6 +18,11 @@ const server = createServer(async (request, response) => {
     let body = "";
     for await (const chunk of request) body += chunk;
     response.setHeader("Content-Type", "application/json");
+    if (request.url === "/broken-cover") {
+      response.setHeader("Content-Type", "image/jpeg");
+      response.end(Buffer.from([0xff, 0xd8]));
+      return;
+    }
     if (request.url === "/review-fixture" && request.method === "POST") {
       const fixture = JSON.parse(body);
       reviewFixtures.set(fixture.username, fixture);

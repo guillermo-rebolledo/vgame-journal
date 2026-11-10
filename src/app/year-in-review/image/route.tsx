@@ -93,130 +93,138 @@ export async function GET(request: Request) {
       review.played.count === 1 ? "game played" : "games played";
     const inProgress = now < new Date("2027-01-01T00:00:00Z");
     const username = params.get("username") === "1" ? player.username : null;
-    const image = new ImageResponse(
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          padding: 48,
-          background: "#ebebeb",
-          color: "#171717",
-          fontFamily: "Geist",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ display: "flex", fontSize: 32 }}>
-            {review.year}
-            {inProgress ? " so far" : ""} · Your year in the Journal
-          </div>
-          <div
-            style={{
-              display: "flex",
-              fontSize: 84,
-              lineHeight: 1.1,
-              letterSpacing: -4,
-            }}
-          >
-            {`${review.logged.count.toLocaleString("en-US")} ${loggedLabel}`}
-          </div>
-          <div style={{ display: "flex", fontSize: 26, color: "#525252" }}>
-            {`Through ${review.through} (UTC)${review.played.count > 0 ? ` · ${review.played.count.toLocaleString("en-US")} ${playedLabel}` : ""}`}
-          </div>
-        </div>
+    const fontData = await font;
+    const render = (withoutCovers = false) =>
+      new ImageResponse(
         <div
           style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 16,
-            alignContent: "center",
-            justifyContent: "center",
-            flexGrow: 1,
-          }}
-        >
-          {covers.map((game) => (
-            <div
-              key={game.gameId}
-              style={{
-                display: "flex",
-                width: coverWidth,
-                height: coverHeight,
-                background: "#d4d4d4",
-                borderRadius: 10,
-                overflow: "hidden",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: game.src ? 0 : 16,
-              }}
-            >
-              {game.src ? (
-                // biome-ignore lint/performance/noImgElement: ImageResponse uses plain images and embedded CDN bytes.
-                <img
-                  src={game.src}
-                  alt=""
-                  width={coverWidth}
-                  height={coverHeight}
-                  style={{ objectFit: "cover" }}
-                />
-              ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 16,
-                    fontSize: 22,
-                    textAlign: "center",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  <span>
-                    {Array.from(game.title).slice(0, 48).join("")}
-                    {Array.from(game.title).length > 48 ? "…" : ""}
-                  </span>
-                  <span style={{ fontSize: 18, color: "#525252" }}>
-                    No cover art
-                  </span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-        <div
-          style={{
+            width: "100%",
+            height: "100%",
             display: "flex",
             flexDirection: "column",
-            gap: 12,
-            fontSize: 24,
+            padding: 48,
+            background: "#ebebeb",
+            color: "#171717",
+            fontFamily: "Geist",
+            justifyContent: "space-between",
           }}
         >
-          <div style={{ display: "flex" }}>
-            {`${selected.games.length} of ${selected.count.toLocaleString("en-US")} ${selected.count === 1 ? "game" : "games"} ${label}${review.logged.count > 0 && review.played.count > 0 ? " · Counts may overlap" : ""}`}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", fontSize: 32 }}>
+              {review.year}
+              {inProgress ? " so far" : ""} · Your year in the Journal
+            </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 84,
+                lineHeight: 1.1,
+                letterSpacing: -4,
+              }}
+            >
+              {`${review.logged.count.toLocaleString("en-US")} ${loggedLabel}`}
+            </div>
+            <div style={{ display: "flex", fontSize: 26, color: "#525252" }}>
+              {`Through ${review.through} (UTC)${review.played.count > 0 ? ` · ${review.played.count.toLocaleString("en-US")} ${playedLabel}` : ""}`}
+            </div>
           </div>
           <div
             style={{
               display: "flex",
-              justifyContent: "space-between",
-              gap: 24,
+              flexWrap: "wrap",
+              gap: 16,
+              alignContent: "center",
+              justifyContent: "center",
+              flexGrow: 1,
             }}
           >
-            <span style={{ color: "#525252" }}>shelve.games</span>
-            {username ? <span>@{username}</span> : null}
+            {covers.map((game) => (
+              <div
+                key={game.gameId}
+                style={{
+                  display: "flex",
+                  width: coverWidth,
+                  height: coverHeight,
+                  background: "#d4d4d4",
+                  borderRadius: 10,
+                  overflow: "hidden",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: game.src && !withoutCovers ? 0 : 16,
+                }}
+              >
+                {game.src && !withoutCovers ? (
+                  // biome-ignore lint/performance/noImgElement: ImageResponse uses plain images and embedded CDN bytes.
+                  <img
+                    src={game.src}
+                    alt=""
+                    width={coverWidth}
+                    height={coverHeight}
+                    style={{ objectFit: "cover" }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 16,
+                      fontSize: 22,
+                      textAlign: "center",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    <span>
+                      {Array.from(game.title).slice(0, 48).join("")}
+                      {Array.from(game.title).length > 48 ? "…" : ""}
+                    </span>
+                    <span style={{ fontSize: 18, color: "#525252" }}>
+                      No cover art
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-        </div>
-      </div>,
-      {
-        width: 1080,
-        height: 1350,
-        fonts: [
-          { name: "Geist", data: await font, weight: 400, style: "normal" },
-        ],
-        headers: privateHeaders,
-      },
-    );
-    // Consume here so rendering failures return a retryable response, not a broken PNG stream.
-    return new Response(await image.arrayBuffer(), {
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              fontSize: 24,
+            }}
+          >
+            <div style={{ display: "flex" }}>
+              {`${selected.games.length} of ${selected.count.toLocaleString("en-US")} ${selected.count === 1 ? "game" : "games"} ${label}${review.logged.count > 0 && review.played.count > 0 ? " · Counts may overlap" : ""}`}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 24,
+              }}
+            >
+              <span style={{ color: "#525252" }}>shelve.games</span>
+              {username ? <span>@{username}</span> : null}
+            </div>
+          </div>
+        </div>,
+        {
+          width: 1080,
+          height: 1350,
+          fonts: [
+            { name: "Geist", data: fontData, weight: 400, style: "normal" },
+          ],
+          headers: privateHeaders,
+        },
+      );
+    let bytes: ArrayBuffer;
+    try {
+      bytes = await render().arrayBuffer();
+    } catch {
+      // A CDN response can have valid headers but corrupt image bytes.
+      bytes = await render(true).arrayBuffer();
+    }
+    return new Response(bytes, {
       headers: { ...privateHeaders, "Content-Type": "image/png" },
     });
   } catch {

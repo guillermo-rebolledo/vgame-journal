@@ -10,7 +10,7 @@ Issue: #158. Edition: 2026. Baseline: repository HEAD before implementation (rec
 - Static Storybook build passed; catalog remains local/CI-only.
 - Existing accessibility suite and initial review journeys: 16 tests passed, including Chromium, Firefox and WebKit download journeys.
 - Production build passed. Export font appears in the route's traced server assets; no new package dependency.
-- Final follow-up coverage validates one through twelve PNG covers, full-year played-only output, populated reflow, keyboard controls and reduced motion. See the PR checks for final execution results.
+- Final follow-up coverage: 6 browser journeys passed across Chromium, Firefox and WebKit. Coverage validates one through twelve PNG covers, full-year played-only output, populated reflow, keyboard controls and reduced motion. See the PR checks for final execution results.
 
 ## Production route JavaScript
 
@@ -35,6 +35,18 @@ Three fresh Chromium contexts per route with cache disabled, 390 × 844 viewport
 | Year in Review | — | 770.7 | — | 298,964 |
 
 No material initial-load regression appeared in these local samples. This narrow DOMContentLoaded measurement is not an LCP or real-device field measurement. Development/test aliases and build hashing mean these byte totals differ from production manifest totals. No content is gated by motion; covers reserve dimensions and the PNG preview declares its fixed aspect ratio.
+
+## Review
+
+### Standards
+
+Two minor findings addressed: added the product composition to the design Component index and reused the existing cover entrance keyframe. Motion review approved the 240ms, composite-only, capped stagger and reduced-motion handling.
+
+### Spec
+
+One P2 finding addressed: a JPEG with valid magic bytes but corrupt contents could break the whole export. Rendering now retries with deliberate missing-art placeholders. The browser journey injects a truncated JPEG and still verifies a real, downloadable PNG. The fallback may replace all selected covers if one cannot be decoded; the exact resulting image is previewed before download.
+
+Review totals: Standards 2 minor findings, Spec 1 P2 finding; all addressed.
 
 ## Visual and manual limits
 

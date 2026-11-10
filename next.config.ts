@@ -57,6 +57,7 @@ const nextConfig: NextConfig = {
         "@/db": "./e2e/support/db.ts",
         "@/db/batch": "./e2e/support/batch.ts",
         "@/lib/igdb": "./e2e/support/game-source.ts",
+        "@/lib/game-source": "./e2e/support/cover-source.ts",
         "@/lib/flags": "./e2e/support/flags.ts",
         "@/lib/year-in-review-clock": "./e2e/support/year-in-review-clock.ts",
         "@/lib/steam": "./e2e/support/steam.ts",

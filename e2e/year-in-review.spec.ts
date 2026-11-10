@@ -40,6 +40,7 @@ test("review gates owners, previews the exact PNG, retries and denies download a
     request,
     [
       `insert into game (id,title,slug,genres,platforms,synced_at) values (915800,'A very long missing cover game 日本語','year-review-fixture','{}','{PC}',now()) on conflict (id) do nothing`,
+      `update game set cover_image_id = 'review_broken' where id = 915800`,
       `insert into journal_entry (user_id,game_id,status,created_at,updated_at) select id,915800,'wishlist','2026-06-01',now() from "user" where email=$1`,
       `insert into playthrough (user_id,game_id,platform,started_on,notes) select id,915800,'PC','2026-02-01','PRIVATE_RECAP_NOTE' from "user" where email=$1`,
     ],
