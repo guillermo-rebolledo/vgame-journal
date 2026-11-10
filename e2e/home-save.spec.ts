@@ -196,6 +196,7 @@ test("keyboard saves retain focus, menus restore it, and focused indicators cont
   request,
   browserName,
 }) => {
+  test.slow();
   await request.get("/api/cron/refresh-release-dates", {
     headers: { authorization: "Bearer e2e-cron-secret" },
   });
@@ -206,6 +207,8 @@ test("keyboard saves retain focus, menus restore it, and focused indicators cont
       name: "Add to backlog for Discovery One",
       exact: true,
     });
+  // Saves are ignored until the Journal read finishes (aria-disabled until then).
+  await expect(add).toBeEnabled();
   await add.focus();
   await page.keyboard.press("Space");
   await expect(count(page, "Backlog (1)")).toBeVisible();

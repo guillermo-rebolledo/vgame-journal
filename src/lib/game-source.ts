@@ -20,6 +20,7 @@ export interface GameSource {
     signal: AbortSignal,
   ): Promise<SourceGame[]>;
   fetchGames(ids: number[], signal: AbortSignal): Promise<SourceGame[]>;
+  mapSteamApps(appids: number[], signal: AbortSignal): Promise<SteamMapping[]>;
   search(query: string): Promise<SourceGame[]>;
   fetchGame(id: number): Promise<SourceGame | null>;
   fetchBySlug(slug: string): Promise<SourceGame | null>;
@@ -128,3 +129,11 @@ export const compareTagGames = (
   a: Pick<SourceGame, "id" | "popularity">,
   b: Pick<SourceGame, "id" | "popularity">,
 ) => b.popularity - a.popularity || a.id - b.id;
+
+export type SteamMapping = {
+  appid: number;
+  gameId: number;
+  type: GameType;
+  versionParent?: number | null;
+  parentGame?: number | null;
+};

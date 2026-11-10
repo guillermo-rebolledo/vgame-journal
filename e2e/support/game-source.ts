@@ -21,7 +21,7 @@ const synthetic = (
     ],
   });
 
-export const igdbGameSource = createFakeGameSource([
+const games = [
   sourceGame({
     id: 930093,
     title: "Overlay Scroll Fixture",
@@ -408,4 +408,8 @@ export const igdbGameSource = createFakeGameSource([
       },
     ],
   }),
+];
+export const igdbGameSource = createFakeGameSource(games, [
+  { appid: 620, gameId: 113112, type: "main_game" },
+  { appid: 621, gameId: 26855, type: "main_game" },
 ]);

@@ -811,3 +811,102 @@ test("release-date pagination shares one overall deadline", async () => {
     vi.restoreAllMocks();
   }
 });
+
+test("Steam mapping batches quoted appids and cursors through duplicate uid pages", async () => {
+  vi.resetModules();
+  const source = (await import("./igdb")).igdbGameSource;
+  const queries: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      const query = String(init?.body);
+      queries.push(query);
+      expect(url).toContain("external_games");
+      expect(query).toContain("external_game_source = 1");
+      expect(query).not.toContain("category =");
+      if (queries.length === 1)
+        return Response.json(
+          Array.from({ length: 500 }, (_, i) => ({
+            id: i + 1,
+            uid: "1",
+            game: { id: 10, game_type: 9, parent_game: 2 },
+          })),
+        );
+      return Response.json(
+        queries.length === 2
+          ? [{ id: 501, uid: "1", game: { id: 10, version_parent: 2 } }]
+          : [],
+      );
+    }),
+  );
+  const rows = await source.mapSteamApps(
+    Array.from({ length: 501 }, (_, i) => i + 1),
+    new AbortController().signal,
+  );
+  expect(queries).toHaveLength(3);
+  expect(queries[0]).toContain('uid = ("1","2",');
+  expect(queries[1]).toContain("id > 500");
+  expect(queries[2]).toContain('uid = ("501")');
+  expect(rows[0]).toMatchObject({
+    appid: 1,
+    gameId: 10,
+    type: "remaster",
+    parentGame: 2,
+  });
+});
+
+test("an IGDB retry timer firing early still waits out the 429 window", async () => {
+  vi.resetModules();
+  const source = (await import("./igdb")).igdbGameSource;
+  const realSetTimeout = setTimeout;
+  vi.stubGlobal("setTimeout", (run: () => void, ms = 0) =>
+    realSetTimeout(run, Math.max(0, ms - 5)),
+  );
+  let requests = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      requests++;
+      return requests === 1
+        ? new Response(null, { status: 429, headers: { "retry-after": "0" } })
+        : Response.json([{ id: 1, uid: "620", game: { id: 2, game_type: 0 } }]);
+    }),
+  );
+  await expect(
+    source.mapSteamApps([620], new AbortController().signal),
+  ).resolves.toHaveLength(1);
+  expect(requests).toBe(2);
+});
+
+test("short IGDB 429 retries once and returns the mapped game", async () => {
+  vi.resetModules();
+  const source = (await import("./igdb")).igdbGameSource;
+  let requests = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      requests++;
+      return requests === 1
+        ? new Response(null, { status: 429, headers: { "retry-after": "0" } })
+        : Response.json([{ id: 1, uid: "620", game: { id: 2, game_type: 0 } }]);
+    }),
+  );
+  expect(
+    await source.mapSteamApps([620], new AbortController().signal),
+  ).toEqual([
+    {
+      appid: 620,
+      gameId: 2,
+      type: "main_game",
+      versionParent: undefined,
+      parentGame: undefined,
+    },
+  ]);
+  expect(requests).toBe(2);
+});

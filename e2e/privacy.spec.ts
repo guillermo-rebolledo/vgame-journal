@@ -59,7 +59,10 @@ test("Settings explains Calendar secrecy and Journal export limits and links to 
     page.getByRole("textbox", { name: "Calendar feed URL" }),
   ).not.toHaveValue(oldUrl);
   expect((await request.get(oldUrl)).status()).toBe(404);
-  await main.getByRole("link", { name: "Privacy notice", exact: true }).click();
+  await page
+    .getByRole("region", { name: "Privacy", exact: true })
+    .getByRole("link", { name: "Privacy notice", exact: true })
+    .click();
   await expect(page).toHaveURL("/privacy");
   await expect(main).toContainText("not a complete response");
 });
@@ -92,9 +95,10 @@ test("privacy information reflows and remains keyboard accessible in both themes
         const link =
           path === "/privacy"
             ? page.getByRole("link", { name: "Account settings", exact: true })
-            : page
-                .getByRole("main")
-                .getByRole("link", { name: "Privacy notice", exact: true });
+            : (path === "/settings"
+                ? page.getByRole("region", { name: "Privacy", exact: true })
+                : page.getByRole("main")
+              ).getByRole("link", { name: "Privacy notice", exact: true });
         await link.focus();
         await expect(link).toBeFocused();
         if (width === 390)

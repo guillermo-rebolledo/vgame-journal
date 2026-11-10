@@ -450,3 +450,60 @@ for (const theme of ["light", "dark"] as const) {
     });
   });
 }
+
+test("Steam review is keyboard operable and accessible at phone width", async ({
+  page,
+  request,
+}) => {
+  const email = await signUp(page, request, uniqueUsername("steam_a11y"));
+  await page.setViewportSize({ width: 320, height: 780 });
+  const { supportUrl } = await import("./support/url");
+  await request.post(supportUrl("/steam-fixture"), {
+    data: {
+      steamId: "76561198000000001",
+      response: {
+        game_count: 2,
+        games: [
+          {
+            appid: 620,
+            name: "A long Steam game title that wraps on a phone with 日本語",
+          },
+          { appid: 999, name: "Unmatched Steam title" },
+        ],
+      },
+    },
+  });
+  await seedSql(
+    request,
+    [
+      `insert into steam_link (user_id, steam_id, linked_at) select id, '76561198000000001', now() from "user" where email = $1`,
+    ],
+    [email],
+  );
+  await page.goto("/settings/steam");
+  const start = page.getByRole("button", { name: "Start Steam import" });
+  await start.focus();
+  await page.keyboard.press("Enter");
+  const checkbox = page.getByRole("checkbox", {
+    name: /A long Steam game title/,
+  });
+  await expect(checkbox).toBeChecked();
+  await checkbox.focus();
+  await page.keyboard.press("Space");
+  await expect(checkbox).not.toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Add 0 to Backlog" }),
+  ).toBeDisabled();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+});

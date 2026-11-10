@@ -9,6 +9,7 @@ import {
   releaseDate,
   session,
   statusEvent,
+  steamLink,
   user,
   verification,
 } from "@/db/schema";
@@ -289,7 +290,7 @@ export function createJournal(db: Db) {
           where exists (select 1 from deleted_user)
             and ${verification.id} <> ${deletionProofId(sessionId)}
             and ((${verification.value} = ${userId} and
-              (${verification.identifier} like 'reset-password:%' or ${verification.identifier} like 'account-deletion:%'))
+              (${verification.identifier} like 'reset-password:%' or ${verification.identifier} like 'account-deletion:%' or ${verification.identifier} like 'steam:%'))
               or ${verification.id} = ${`account-deletion-send:${userId}`}
               or (case when ${verification.identifier} like 'account-deletion-code:%'
                 then ${verification.value}::jsonb->>'userId' end) = ${userId})
@@ -303,6 +304,36 @@ export function createJournal(db: Db) {
         throw new JournalError(
           "Confirm your identity again before deleting your account.",
         );
+    },
+
+    /** One locked insert; existing entries and every previously recorded game are untouched. */
+    async importGames(userId: string, gameIds: number[], steamId?: string) {
+      if (
+        gameIds.some((id) => !Number.isSafeInteger(id) || id <= 0) ||
+        gameIds.length > 10_000
+      )
+        throw new JournalError("Choose up to 10,000 valid games.");
+      if (!gameIds.length) return { added: 0, feedbackInvitation: false };
+      const ids = [...new Set(gameIds)];
+      const at = new Date();
+      const result = await locked(
+        userId,
+        sql`with inserted as (
+          insert into ${journalEntry} (user_id, game_id, status, created_at, updated_at, import_source)
+          select ${userId}, i.game_id, 'backlog', ${at}, ${at}, 'steam'
+          from unnest(${sql.param(ids)}::int[]) as i(game_id)
+          where not exists (select 1 from ${statusEvent} e where e.user_id = ${userId} and e.game_id = i.game_id)
+          and (${steamId === undefined} or exists (select 1 from ${steamLink} where user_id = ${userId} and steam_id = ${steamId ?? ""}))
+          on conflict (user_id, game_id) do nothing
+          returning user_id, game_id, status, updated_at
+        )
+        insert into ${statusEvent} (user_id, game_id, status, at)
+          select user_id, game_id, status, updated_at from inserted returning game_id`,
+        // xmin counts only this transaction’s insertions, including an empty/idempotent import.
+        sql`with invitation as (${consumeInvitation(userId)})
+          select (select count(*)::int from ${journalEntry} where user_id = ${userId} and game_id = any(${sql.param(ids)}::int[]) and import_source = 'steam' and xmin = pg_current_xact_id()::xid) as added, exists(select 1 from invitation) as "feedbackInvitation"`,
+      );
+      return result[0] as { added: number; feedbackInvitation: boolean };
     },
 
     /** A portable copy of the whole journal, including private notes, without auth secrets. */
@@ -324,36 +355,52 @@ export function createJournal(db: Db) {
         .from(user)
         .where(eq(user.id, userId));
       if (!profile) throw new JournalError("User not found.");
-      const [entries, statusHistory, playthroughs, lists] = await Promise.all([
-        db
-          .select({
-            gameId: journalEntry.gameId,
-            title: game.title,
-            slug: game.slug,
-            status: journalEntry.status,
-            completionTag: journalEntry.completionTag,
-            rating: journalEntry.rating,
-            ratedAt: journalEntry.ratedAt,
-            createdAt: journalEntry.createdAt,
-            updatedAt: journalEntry.updatedAt,
-          })
-          .from(journalEntry)
-          .innerJoin(game, eq(game.id, journalEntry.gameId))
-          .where(eq(journalEntry.userId, userId))
-          .orderBy(journalEntry.createdAt, journalEntry.gameId),
-        db
-          .select()
-          .from(statusEvent)
-          .where(eq(statusEvent.userId, userId))
-          .orderBy(statusEvent.at, statusEvent.id),
-        db
-          .select()
-          .from(playthrough)
-          .where(eq(playthrough.userId, userId))
-          .orderBy(playthrough.startedOn, playthrough.id),
-        createLists(db).ownerCollection(userId),
-      ]);
-      return { profile, entries, statusHistory, playthroughs, lists };
+      const [entries, statusHistory, playthroughs, lists, steamConnections] =
+        await Promise.all([
+          db
+            .select({
+              gameId: journalEntry.gameId,
+              title: game.title,
+              slug: game.slug,
+              status: journalEntry.status,
+              completionTag: journalEntry.completionTag,
+              rating: journalEntry.rating,
+              ratedAt: journalEntry.ratedAt,
+              importSource: journalEntry.importSource,
+              createdAt: journalEntry.createdAt,
+              updatedAt: journalEntry.updatedAt,
+            })
+            .from(journalEntry)
+            .innerJoin(game, eq(game.id, journalEntry.gameId))
+            .where(eq(journalEntry.userId, userId))
+            .orderBy(journalEntry.createdAt, journalEntry.gameId),
+          db
+            .select()
+            .from(statusEvent)
+            .where(eq(statusEvent.userId, userId))
+            .orderBy(statusEvent.at, statusEvent.id),
+          db
+            .select()
+            .from(playthrough)
+            .where(eq(playthrough.userId, userId))
+            .orderBy(playthrough.startedOn, playthrough.id),
+          createLists(db).ownerCollection(userId),
+          db
+            .select({
+              steamId: steamLink.steamId,
+              linkedAt: steamLink.linkedAt,
+            })
+            .from(steamLink)
+            .where(eq(steamLink.userId, userId)),
+        ]);
+      return {
+        profile,
+        entries,
+        statusHistory,
+        playthroughs,
+        lists,
+        steamConnection: steamConnections[0] ?? null,
+      };
     },
 
     /** Fast route check before streaming, so unknown profiles get an HTTP 404. */

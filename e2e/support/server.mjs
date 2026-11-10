@@ -11,11 +11,35 @@ const collectionDelays = new Map();
 const publicListStates = new Map();
 const discoveryState = { fail: false, hold: false };
 const discoveryWaiters = [];
+const steamFixtures = new Map();
 const server = createServer(async (request, response) => {
   try {
     let body = "";
     for await (const chunk of request) body += chunk;
     response.setHeader("Content-Type", "application/json");
+    if (request.url === "/steam-fixture" && request.method === "POST") {
+      const fixture = JSON.parse(body);
+      steamFixtures.set(fixture.steamId ?? "76561198000000000", {
+        response: fixture.response,
+      });
+      response.end(JSON.stringify({ ok: true }));
+      return;
+    }
+    if (request.url.startsWith("/steam-games?")) {
+      const id = new URL(request.url, "http://localhost").searchParams.get(
+        "steamid",
+      );
+      response.end(JSON.stringify(steamFixtures.get(id) ?? { response: {} }));
+      return;
+    }
+    if (request.url === "/steam-verify") {
+      const fields = new URLSearchParams(body);
+      response.setHeader("Content-Type", "text/plain");
+      response.end(
+        `is_valid:${fields.get("openid.mode") === "check_authentication" && fields.get("openid.sig") === "fixture-signature"}\n`,
+      );
+      return;
+    }
     if (request.url === "/query" && request.method === "POST") {
       const { sql, params } = JSON.parse(body);
       if (sql.includes('from "discovery_snapshot"')) {

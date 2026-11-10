@@ -12,6 +12,7 @@ import { DeleteAccountForm } from "@/components/delete-account-form";
 import { ProfileVisibilityForm } from "@/components/profile-visibility-form";
 import { RegionForm } from "@/components/region-form";
 import { SignOutAllForm } from "@/components/sign-out-all-form";
+import { SteamConnection } from "@/components/steam-connection";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { createAccountSecurity } from "@/lib/account-security";
@@ -19,10 +20,16 @@ import { auth, currentSession, ownerId, signedInUserId } from "@/lib/auth";
 import { sendWithResend } from "@/lib/email";
 import { JournalError, journal } from "@/lib/journal";
 import type { Region } from "@/lib/release-dates";
+import { steamImport, steamImportEnabled } from "@/lib/steam-server";
+import { disconnectSteam } from "./steam-actions";
 
 export const metadata: Metadata = { title: "Settings" };
 
-export default function SettingsPage() {
+export default function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ steam?: string }>;
+}) {
   return (
     <section className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-8">
       <h1 className="font-semibold text-3xl tracking-tight">Settings</h1>
@@ -36,6 +43,9 @@ export default function SettingsPage() {
       </Suspense>
       <Suspense fallback={<SettingLoading label="Loading calendar feed…" />}>
         <CalendarFeedSetting />
+      </Suspense>
+      <Suspense fallback={<SettingLoading label="Loading Steam connection…" />}>
+        <SteamSetting searchParams={searchParams} />
       </Suspense>
       <Suspense fallback={<SettingLoading label="Loading account data…" />}>
         <AccountDataSetting />
@@ -173,10 +183,10 @@ async function AccountDataSetting() {
           </h2>
           <p className="text-muted-foreground text-sm">
             Download your profile, Journal entries and Ratings, Status history,
-            Playthroughs with private notes, and Lists as JSON. Keep this file
-            private: it includes your email and notes. This is a Journal export,
-            not a complete privacy data-access response; feedback, mailbox
-            copies and provider logs are not included.
+            Playthroughs with private notes, Lists, and your Steam connection as
+            JSON. Keep this file private: it includes your email and notes. This
+            is a Journal export, not a complete privacy data-access response;
+            feedback, mailbox copies and provider logs are not included.
           </p>
         </div>
         <TrackClicks event={["account_data_exported"]}>
@@ -277,4 +287,26 @@ async function ProfileVisibilitySetting() {
     return { saved: true as const };
   }
   return <ProfileVisibilityForm current={current} onSave={save} />;
+}
+
+async function SteamSetting({
+  searchParams,
+}: {
+  searchParams: Promise<{ steam?: string }>;
+}) {
+  const userId = await signedInUserId();
+  if (!userId) redirect("/sign-in");
+  const [link, enabled, params] = await Promise.all([
+    steamImport.connection(userId),
+    steamImportEnabled(),
+    searchParams,
+  ]);
+  return (
+    <SteamConnection
+      connected={Boolean(link)}
+      enabled={enabled}
+      connectionResult={params.steam}
+      onDisconnect={disconnectSteam.bind(null, userId)}
+    />
+  );
 }
