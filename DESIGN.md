@@ -333,6 +333,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 
 ### Profile visibility
 
+- `ProfileVisibilitySection` (in `profile-visibility-form.tsx`) renders the heading and privacy guidance in the Settings shell outside the form's Suspense boundary. `ProfileVisibilityForm` keeps a short fieldset legend and associates that guidance with `aria-describedby`; compose both in app and catalog callers. `ProfileVisibilityLoading` (in `content-loading.tsx`) reserves the radio cards and Save control without repeating the static heading or guidance. Storybook includes the loading shell.
 - `ProfileVisibilityForm` composes the existing RegionForm radio-card and Save feedback pattern for a distinct setting. It retains the selected choice on failure, blocks duplicate saves, keeps Save focusable while pending, and announces confirmed success beside Save. No new motion is needed. Storybook: **Product/Profile visibility**, including Private, Public, pending and error/retry.
 - Explain the public field boundary and independent List visibility before publishing. New accounts start Private; existing accounts stay Public. Onboarding shows the current value above Continue. Private owner profiles show “Only you can see this” and a Settings link; private profiles are a generic 404 to everyone else, including shared images and metadata. Public List pages omit links to Private profiles.
 

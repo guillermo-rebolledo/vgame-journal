@@ -1,7 +1,7 @@
 "use client";
 
 import { Save } from "lucide-react";
-import { useRef, useState, useTransition } from "react";
+import { type ReactNode, useRef, useState, useTransition } from "react";
 import { ActionFeedback, ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import type { ProfileVisibility } from "@/lib/journal";
@@ -15,6 +15,35 @@ const VISIBILITY_LABELS: Record<
   private: ["Private", "Only you can open your profile"],
   public: ["Public", "Anyone can open your profile"],
 };
+
+export function ProfileVisibilitySection({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <section
+      aria-labelledby="profile-visibility-heading"
+      className="flex flex-col gap-3"
+    >
+      <div className="flex flex-col gap-1">
+        <h2 id="profile-visibility-heading" className="font-medium">
+          Profile visibility
+        </h2>
+        <p
+          id="profile-visibility-description"
+          className="text-muted-foreground text-sm"
+        >
+          Public profiles show your Library, Wishlist, Stats, and Playthrough
+          dates, platforms and hours. Notes always stay private. List visibility
+          is separate: Public Lists stay readable even when your profile is
+          Private.
+        </p>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export function ProfileVisibilityForm({
   current,
@@ -50,16 +79,12 @@ export function ProfileVisibilityForm({
         });
       }}
     >
-      <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
-        <legend className="mb-1 flex flex-col gap-1">
-          <span className="font-medium">Profile visibility</span>
-          <span className="text-muted-foreground text-sm">
-            Public profiles show your Library, Wishlist, Stats, and Playthrough
-            dates, platforms and hours. Notes always stay private. List
-            visibility is separate: Public Lists stay readable even when your
-            profile is Private.
-          </span>
-        </legend>
+      <fieldset
+        disabled={pending}
+        aria-describedby="profile-visibility-description"
+        className="flex min-w-0 flex-col gap-3"
+      >
+        <legend className="sr-only">Profile visibility</legend>
         {VISIBILITIES.map((visibility) => {
           const [label, hint] = VISIBILITY_LABELS[visibility];
           return (

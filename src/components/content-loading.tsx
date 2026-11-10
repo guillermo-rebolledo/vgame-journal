@@ -160,6 +160,20 @@ export function SettingLoading({ label }: { label: string }) {
   );
 }
 
+export function ProfileVisibilityLoading() {
+  return (
+    <LoadingContent label="Loading profile visibility…">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </div>
+        <Skeleton className="h-11 w-24" />
+      </div>
+    </LoadingContent>
+  );
+}
+
 export function HeaderLoading() {
   return (
     <LoadingContent label="Loading account navigation…" className="ml-auto">

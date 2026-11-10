@@ -23,6 +23,7 @@ const OPERATIONS = [
   "journal.removePlaythrough",
   "journal.setRegion",
   "journal.feedToken",
+  "journal.settings",
   "journal.regenerateFeedToken",
   "journal.deleteAccount",
   "refresh.wishlist",
