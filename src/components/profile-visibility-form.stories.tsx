@@ -1,6 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
-import { ProfileVisibilityForm } from "./profile-visibility-form";
+import { ProfileVisibilityLoading } from "./content-loading";
+import {
+  ProfileVisibilityForm,
+  ProfileVisibilitySection,
+} from "./profile-visibility-form";
 
 const meta = {
   title: "Product/Profile visibility",
@@ -12,7 +16,9 @@ const meta = {
   decorators: [
     (Story) => (
       <div className="max-w-xl">
-        <Story />
+        <ProfileVisibilitySection>
+          <Story />
+        </ProfileVisibilitySection>
       </div>
     ),
   ],
@@ -30,6 +36,9 @@ type Story = StoryObj<typeof meta>;
 export const Save: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("group", { name: "Profile visibility" }),
+    ).toHaveAccessibleDescription(/Notes always stay private/);
     await userEvent.click(canvas.getByRole("radio", { name: /^Public/ }));
     await userEvent.click(canvas.getByRole("button", { name: "Save" }));
     await expect(canvas.getByRole("button", { name: "Save" })).toHaveFocus();
@@ -92,3 +101,15 @@ export const Pending: Story = {
 };
 
 export const Public: Story = { args: { current: "public" } };
+
+export const Loading: Story = {
+  render: () => <ProfileVisibilityLoading />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("heading", { name: "Profile visibility" }),
+    ).toBeVisible();
+    await expect(canvas.getByText(/Notes always stay private/)).toBeVisible();
+    await expect(canvas.queryByRole("radio")).not.toBeInTheDocument();
+  },
+};

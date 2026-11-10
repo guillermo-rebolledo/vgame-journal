@@ -4,12 +4,18 @@ import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
 import { TrackClicks } from "@/components/analytics";
 import { CalendarFeedForm } from "@/components/calendar-feed-form";
-import { SettingLoading } from "@/components/content-loading";
+import {
+  ProfileVisibilityLoading,
+  SettingLoading,
+} from "@/components/content-loading";
 import { DeleteAccountForm } from "@/components/delete-account-form";
-import { ProfileVisibilityForm } from "@/components/profile-visibility-form";
+import {
+  ProfileVisibilityForm,
+  ProfileVisibilitySection,
+} from "@/components/profile-visibility-form";
 import { RegionForm } from "@/components/region-form";
 import { SignOutAllForm } from "@/components/sign-out-all-form";
 import { SteamConnection } from "@/components/steam-connection";
@@ -25,6 +31,12 @@ import { disconnectSteam } from "./steam-actions";
 
 export const metadata: Metadata = { title: "Settings" };
 
+const readSettings = cache(async () => {
+  const userId = await signedInUserId();
+  if (!userId) redirect("/sign-in");
+  return journal.settings(userId);
+});
+
 export default function SettingsPage({
   searchParams,
 }: {
@@ -33,11 +45,11 @@ export default function SettingsPage({
   return (
     <section className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-8">
       <h1 className="font-semibold text-3xl tracking-tight">Settings</h1>
-      <Suspense
-        fallback={<SettingLoading label="Loading profile visibility…" />}
-      >
-        <ProfileVisibilitySetting />
-      </Suspense>
+      <ProfileVisibilitySection>
+        <Suspense fallback={<ProfileVisibilityLoading />}>
+          <ProfileVisibilitySetting />
+        </Suspense>
+      </ProfileVisibilitySection>
       <Suspense fallback={<SettingLoading label="Loading release region…" />}>
         <RegionSetting />
       </Suspense>
@@ -76,10 +88,11 @@ async function AccountDataSetting() {
   const session = await currentSession();
   if (!session) redirect("/sign-in");
   const security = createAccountSecurity(db);
-  const ready = await security.ready(session.user.id, session.session.id);
-  const accounts = await auth.api.listUserAccounts({
-    headers: await headers(),
-  });
+  const head = await headers();
+  const [ready, accounts] = await Promise.all([
+    security.ready(session.user.id, session.session.id),
+    auth.api.listUserAccounts({ headers: head }),
+  ]);
 
   async function confirmIdentity(form: FormData) {
     "use server";
@@ -220,9 +233,7 @@ async function AccountDataSetting() {
 }
 
 async function RegionSetting() {
-  const userId = await signedInUserId();
-  if (!userId) redirect("/sign-in");
-  const current = await journal.region(userId);
+  const { region: current } = await readSettings();
 
   async function save(formData: FormData) {
     "use server";
@@ -242,12 +253,11 @@ async function RegionSetting() {
 }
 
 async function CalendarFeedSetting() {
-  const userId = await signedInUserId();
-  if (!userId) redirect("/sign-in");
+  const { feedToken } = await readSettings();
   const head = await headers();
   const host = head.get("host");
   const proto = head.get("x-forwarded-proto") ?? "http";
-  const path = `${host}/api/calendar/${await journal.feedToken(userId)}.ics`;
+  const path = `${host}/api/calendar/${feedToken}.ics`;
   const url = `${proto}://${path}`;
 
   async function regenerate() {
@@ -267,9 +277,7 @@ async function CalendarFeedSetting() {
 }
 
 async function ProfileVisibilitySetting() {
-  const userId = await signedInUserId();
-  if (!userId) redirect("/sign-in");
-  const current = await journal.profileVisibility(userId);
+  const { profileVisibility: current } = await readSettings();
 
   async function save(form: FormData) {
     "use server";

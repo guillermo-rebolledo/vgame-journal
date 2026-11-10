@@ -214,6 +214,30 @@ export function createJournal(db: Db) {
     return found?.region ?? "earliest";
   }
 
+  async function settings(userId: string) {
+    const [found] = await db
+      .select({
+        region: user.region,
+        profileVisibility: user.profileVisibility,
+        feedToken: user.feedToken,
+      })
+      .from(user)
+      .where(eq(user.id, userId));
+    if (!found) throw new JournalError("User not found.");
+    if (found.feedToken) return { ...found, feedToken: found.feedToken };
+
+    // Concurrent first visits must return the same token; normal reads never update the user.
+    const [created] = await db
+      .update(user)
+      .set({
+        feedToken: sql`coalesce(${user.feedToken}, ${randomBytes(24).toString("base64url")})`,
+      })
+      .where(eq(user.id, userId))
+      .returning({ feedToken: user.feedToken });
+    if (!created?.feedToken) throw new JournalError("User not found.");
+    return { ...found, feedToken: created.feedToken };
+  }
+
   /** The user's Wishlist: exact releases soonest first, then imprecise ones, then TBA. */
   async function wishlist(userId: string): Promise<WishlistEntry[]> {
     const [games, userRegion] = await Promise.all([
@@ -957,16 +981,10 @@ export function createJournal(db: Db) {
 
     /** The secret in the user's calendar feed URL, made on first use. */
     async feedToken(userId: string) {
-      const [found] = await db
-        .update(user)
-        .set({
-          feedToken: sql`coalesce(${user.feedToken}, ${randomBytes(24).toString("base64url")})`,
-        })
-        .where(eq(user.id, userId))
-        .returning({ feedToken: user.feedToken });
-      if (!found?.feedToken) throw new JournalError("User not found.");
-      return found.feedToken;
+      return (await settings(userId)).feedToken;
     },
+
+    settings,
 
     regenerateFeedToken,
 
@@ -991,6 +1009,11 @@ export function createJournal(db: Db) {
   const expected = (error: unknown) => error instanceof JournalError;
   return {
     ...operations,
+    settings: observeOperation(
+      "journal.settings",
+      operations.settings,
+      expected,
+    ),
     set: observeOperation("journal.set", operations.set, expected),
     move: observeOperation("journal.move", operations.move, expected),
     setRating: observeOperation(

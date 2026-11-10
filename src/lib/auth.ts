@@ -5,6 +5,7 @@ import { nextCookies } from "better-auth/next-js";
 import { username } from "better-auth/plugins";
 import { headers } from "next/headers";
 import { connection } from "next/server";
+import { cache } from "react";
 import { SITE_NAME } from "@/config/site";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
@@ -139,10 +140,10 @@ export function createAuth(
 export const auth = createAuth(db);
 
 /** The signed-in session, or null. Request-time only: Better Auth reads the clock, which prerendering forbids. */
-export async function currentSession() {
+export const currentSession = cache(async () => {
   await connection();
   return auth.api.getSession({ headers: await headers() });
-}
+});
 
 /** The signed-in user's id, or null. */
 export const signedInUserId = async () =>

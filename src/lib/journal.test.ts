@@ -818,9 +818,27 @@ test("the region is earliest until the user picks another one, and only known re
   expect(await journal.region("mario")).toBe("japan");
 });
 
+test("settings return the owner's preferences and keep an existing feed token without changing the profile", async () => {
+  await journal.setRegion("mario", "japan");
+  await journal.setProfileVisibility("mario", "public");
+  const token = await journal.feedToken("mario");
+  const [before] = await db.select().from(user).where(eq(user.id, "mario"));
+
+  expect(await journal.settings("mario")).toEqual({
+    region: "japan",
+    profileVisibility: "public",
+    feedToken: token,
+  });
+  expect(await journal.feedToken("mario")).toBe(token);
+  const [after] = await db.select().from(user).where(eq(user.id, "mario"));
+  expect(after).toEqual(before);
+  expect((await journal.settings("luigi")).feedToken).not.toBe(token);
+  await expect(journal.settings("missing")).rejects.toThrow("User not found.");
+});
+
 test("simultaneous first settings visits receive the same working calendar feed token", async () => {
   const tokens = await Promise.all([
-    journal.feedToken("mario"),
+    journal.settings("mario").then((settings) => settings.feedToken),
     journal.feedToken("mario"),
   ]);
 

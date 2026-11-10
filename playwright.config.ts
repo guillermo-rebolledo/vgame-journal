@@ -29,7 +29,8 @@ export default defineConfig({
     },
     {
       name: "webkit-smoke",
-      use: { ...devices["Desktop Safari"] },
+      // No retries in this project: retain the first failure's browser trace.
+      use: { ...devices["Desktop Safari"], trace: "retain-on-failure" },
       grep: /@release-smoke/,
       retries: 0,
     },
