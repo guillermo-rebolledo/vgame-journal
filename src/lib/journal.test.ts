@@ -2134,3 +2134,199 @@ test("Steam import leaves existing details and concurrent saves intact and rolls
   await expect(journal.importGames("luigi", [1, 999999])).rejects.toThrow();
   expect(await journal.entry("luigi", 1)).toBeNull();
 });
+
+test("year review counts current additions in UTC, across every Status and imports, with safe owner data", async () => {
+  await db.insert(game).values(
+    [3, 4, 5, 6, 7].map((id) => ({
+      id,
+      title: `Game ${id}`,
+      slug: `game-${id}`,
+      genres: [],
+      platforms: [],
+      syncedAt: new Date(),
+    })),
+  );
+  await db.insert(journalEntry).values([
+    {
+      userId: "mario",
+      gameId: 1,
+      updatedAt: new Date(),
+      status: "played",
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+    },
+    {
+      userId: "mario",
+      gameId: 2,
+      updatedAt: new Date(),
+      status: "playing",
+      createdAt: new Date("2026-12-01T12:00:00Z"),
+    },
+    {
+      userId: "mario",
+      gameId: 3,
+      updatedAt: new Date(),
+      status: "backlog",
+      importSource: "steam",
+      createdAt: new Date("2026-06-01T00:00:00Z"),
+    },
+    {
+      userId: "mario",
+      gameId: 4,
+      updatedAt: new Date(),
+      status: "wishlist",
+      createdAt: new Date("2026-07-01T00:00:00Z"),
+    },
+    {
+      userId: "mario",
+      gameId: 5,
+      updatedAt: new Date(),
+      status: "played",
+      createdAt: new Date("2025-12-31T23:59:59.999Z"),
+    },
+    {
+      userId: "mario",
+      gameId: 6,
+      updatedAt: new Date(),
+      status: "backlog",
+      createdAt: new Date("2026-12-01T12:00:00.001Z"),
+    },
+    {
+      userId: "mario",
+      gameId: 7,
+      updatedAt: new Date(),
+      status: "backlog",
+      createdAt: new Date("2027-01-01T00:00:00Z"),
+    },
+    {
+      userId: "luigi",
+      gameId: 1,
+      updatedAt: new Date(),
+      status: "played",
+      createdAt: new Date("2026-02-01T00:00:00Z"),
+    },
+  ]);
+  const review = await journal.yearInReview(
+    "mario",
+    new Date("2026-12-01T12:00:00Z"),
+  );
+  expect(review).toEqual({
+    year: 2026,
+    asOf: "2026-12-01T12:00:00.000Z",
+    through: "2026-12-01",
+    inProgress: true,
+    logged: {
+      count: 4,
+      games: [2, 4, 3, 1].map((gameId) => ({
+        gameId,
+        title: `Game ${gameId}`,
+        slug: `game-${gameId}`,
+        coverImageId: null,
+      })),
+    },
+    played: { count: 0, games: [] },
+  });
+  expect(
+    (await journal.yearInReview("luigi", new Date("2027-02-01"))).logged.count,
+  ).toBe(1);
+});
+
+test("year review deduplicates overlapping Playthroughs and omits future and previously finished games", async () => {
+  await journal.set("mario", 1, { status: "backlog" });
+  await journal.set("mario", 2, { status: "wishlist" });
+  await db.update(journalEntry).set({ createdAt: new Date("2025-01-01") });
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 5",
+    startedOn: "2025-12-01",
+    endedOn: "2026-01-01",
+    notes: "Secret",
+    hours: 42,
+  });
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 4",
+    startedOn: "2026-02-01",
+  });
+  await journal.addPlaythrough("mario", 1, {
+    platform: "PlayStation 5",
+    startedOn: "2026-12-31",
+  });
+  await journal.addPlaythrough("mario", 2, {
+    platform: "PlayStation 5",
+    startedOn: "2025-01-01",
+    endedOn: "2025-12-31",
+  });
+  const review = await journal.yearInReview(
+    "mario",
+    new Date("2026-12-01T12:00:00Z"),
+  );
+  expect(review.logged).toEqual({ count: 0, games: [] });
+  expect(review.played).toEqual({
+    count: 1,
+    games: [{ gameId: 1, title: "Game 1", slug: "game-1", coverImageId: null }],
+  });
+  await journal.addPlaythrough("mario", 2, {
+    platform: "PlayStation 5",
+    startedOn: "2025-01-01",
+  });
+  expect(
+    (
+      await journal.yearInReview("mario", new Date("2026-12-01"))
+    ).played.games.map((g) => g.gameId),
+  ).toEqual([1, 2]);
+  const ended = await journal.yearInReview("mario", new Date("2027-02-01"));
+  expect(ended).toMatchObject({ through: "2026-12-31", inProgress: false });
+  expect((await journal.yearInReview("luigi")).played.count).toBe(0);
+});
+
+test("year review preserves addition dates through Status and Rating edits, removes entries and counts re-additions", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2025-12-31T23:59:59Z"));
+  await journal.set("mario", 1, { status: "playing" });
+  vi.setSystemTime(new Date("2026-12-01T12:00:00Z"));
+  await journal.set("mario", 1, { status: "played" });
+  await journal.setRating("mario", 1, 8);
+  expect((await journal.yearInReview("mario")).logged.count).toBe(0);
+  await journal.remove("mario", 1, true);
+  await journal.set("mario", 1, { status: "backlog" });
+  vi.setSystemTime(new Date("2026-12-01T12:00:01Z"));
+  expect((await journal.yearInReview("mario")).logged.count).toBe(1);
+  await journal.remove("mario", 1);
+  expect((await journal.yearInReview("mario")).logged.count).toBe(0);
+});
+
+test("year review bounds cover selections while preserving totals and stable ordering", async () => {
+  await db.insert(game).values(
+    Array.from({ length: 14 }, (_, i) => ({
+      id: i + 3,
+      title: `Game ${i + 3}`,
+      slug: `game-${i + 3}`,
+      genres: [],
+      platforms: ["PC"],
+      syncedAt: new Date(),
+    })),
+  );
+  await db.insert(journalEntry).values(
+    Array.from({ length: 16 }, (_, i) => ({
+      userId: "mario",
+      gameId: i + 1,
+      status: "backlog" as const,
+      createdAt: new Date("2026-01-01"),
+      updatedAt: new Date(),
+    })),
+  );
+  await db.insert(playthrough).values(
+    Array.from({ length: 16 }, (_, i) => ({
+      userId: "mario",
+      gameId: i + 1,
+      platform: "PC",
+      startedOn: "2026-02-01",
+      updatedAt: new Date(),
+    })),
+  );
+  const review = await journal.yearInReview("mario", new Date("2026-12-01"));
+  for (const section of [review.logged, review.played]) {
+    expect(section.count).toBe(16);
+    expect(section.games.map((g) => g.gameId)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+    ]);
+  }
+});
