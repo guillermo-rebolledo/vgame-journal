@@ -46,7 +46,7 @@ From repo root, after `pnpm install --frozen-lockfile`:
 ```sh
 node --test tools/operations/*.test.mjs
 node tools/operations/drill.mjs
-OPS_GAMES=100 OPS_USERS=5 OPS_ITERATIONS=20 pnpm exec playwright test --config tools/operations/playwright.config.ts
+OPS_GAMES=100 OPS_USERS=5 OPS_ITERATIONS=24 pnpm exec playwright test --config tools/operations/playwright.config.ts
 ```
 
 The drill binds an ephemeral numeric loopback server; bad-build/known-good switches, stale task and receiver are synthetic. It checks repeated failures deduplicate and both incidents recover. Its elapsed milliseconds and retained one-record model are not Vercel rollback/Neon restore evidence. No five-minute wait is required to test the state machine; controlled time tests exercise the 30-hour boundary.
@@ -58,14 +58,28 @@ Run the full local matrix, one fresh server per cell:
 ```sh
 for games in 0 100 1000; do
   for users in 5 20; do
-    OPS_GAMES=$games OPS_USERS=$users OPS_ITERATIONS=20 pnpm exec playwright test --config tools/operations/playwright.config.ts || break 2
+    if [ "$users" = 5 ]; then iters=24; else iters=8; fi
+    OPS_GAMES=$games OPS_USERS=$users OPS_ITERATIONS=$iters pnpm exec playwright test --config tools/operations/playwright.config.ts
+    echo "cell games=$games users=$users exit=$?"
   done
 done
 ```
 
+The loop does not abort on a failing cell, because a 20-user cell is expected to exit nonzero on a single local server and aborting would silently skip every later cell. Read the printed exit lines: a **5-user** cell exiting nonzero is the one that should stop you and be investigated before anything is changed. Each cell writes its own report filename, so nothing is overwritten within a matrix run.
+
+Round counts are chosen so a cell clears the 100-successful-sample percentile gate with margin: 5 users × 24 rounds and 20 users × 8 rounds both exceed it for the repeated `warm` and `slow-network` modes. `first-navigation` runs exactly one round per browser by construction, so its 5 or 20 samples keep p50/p95 null; a first navigation cannot be repeated in the same context, and raising rounds will not make that percentile appear. Do not lower rounds to shorten a run and then quote a percentile.
+
 Each user has a distinct synthetic account and starting Journal, mixed Statuses, and three Playthroughs for every Played/Playing game (0/150/1500 Playthroughs at 0/100/1000). Each user navigates Home, provider-fixture-backed Catalog search, Library, Wishlist and game page, then saves and verifies an exported game/status without persisting the export. The empty Journal becomes one game after its first save. Five or twenty users run concurrently, with sequential journeys per user. Library assertions use settled data; save correctness uses public HTTP export, not direct SQL inspection. Seed SQL uses existing isolated support fixtures only.
 
-JSON in `test-results/operations-reports/capacity-{games}-{users}.json` records revision, timestamps, dataset, concurrent users, raw samples, HTTP request/error counts and per-operation/mode attempts/errors/min/max. p50/p95 use nearest rank only with 100 successful samples per cell; fewer samples stay null. Failure samples are counted separately and never hidden by success percentiles. Preserve reports after reviewing for safe content; later same-cell runs overwrite this diagnostic file. Browser routing disables HTTP cache (installed Playwright type documentation); warm here means repeated application/server-cache journeys, not a browser HTTP-cache benchmark. Setup/signup/seeding is excluded; elapsed samples include full navigation readiness, menu interactions and save export verification, so they are journey latency, **not** isolated server/query latency. HTTP counters cover browser traffic, not setup or export API traffic. Caught failures remain counted; setup/assertion failures make the run fail.
+JSON in `test-results/operations-reports/capacity-{games}-{users}.json` records revision, timestamps, dataset, concurrent users, raw samples, HTTP request/error counts and per-operation/mode attempts/errors/min/max. p50/p95 use nearest rank only with 100 successful samples per cell; fewer samples stay null. Failure samples are counted separately and never hidden by success percentiles. Preserve reports after reviewing for safe content; later same-cell runs overwrite this diagnostic file. Browser routing disables HTTP cache (installed Playwright type documentation); warm here means repeated application/server-cache journeys, not a browser HTTP-cache benchmark. Setup/signup/seeding is excluded. A navigation sample runs from the request to the semantic marker, so it is journey latency, **not** isolated server/query latency; the Status control's wait, the save and the export read-back are three separate operations rather than one combined sample. HTTP counters cover browser traffic, not setup or export API traffic. Caught failures remain counted; setup/assertion failures make the run fail.
+
+Every failed sample carries a `failure` label from a fixed allowlist in `tools/operations/performance.mjs`: `response`, `shell`, `heading`, `marker`, `interactive`, `status-control`, `export-read` or `export-correctness`. The label says which journey stage gave way without copying a Playwright message, page text or URL into evidence; an unrecognised label is rejected rather than written. `httpErrorStatuses` breaks the error counter down by status code, which is what separates an asset 404 from an application 500 — read it before calling an HTTP error count an application failure. In this harness the counter is dominated by two expected 404s per page load, `/_vercel/insights/script.js` and `/_vercel/speed-insights/script.js`, which the platform serves only on a Vercel deployment; identified 2026-11-09, and not an application defect. Any status other than 404 appearing there does deserve investigation.
+
+Every sample carries its concurrent `user` and `round`. Under 20 users the samples of different clients interleave, so without those two numbers a read-back cannot be attributed to the save it checks — and the question "did a save that failed to acknowledge still lose the write?" becomes unanswerable exactly in the cells where saves fail. Pair `journal-save` with the `journal-export-verify` of the same `user`, `round` and mode before making any claim about lost or duplicate writes; a save that failed to acknowledge while its read-back passed had its write land without a confirmed acknowledgement, which is a finding for #140, not a lost write.
+
+`journal-status-ready` measures the Journal Status control separately from the save: elapsed time until the control answered a tap, plus the `taps` it took. The server-rendered button exists long before its client handler does, so one tap placed too early is silently lost; measuring that wait keeps "not interactive yet" out of the save latency instead of charging a load characteristic to the write path. Treat a rising readiness time as a load finding for the application maintainer, and never report the save figure without it.
+
+When extending the harness, scope markers to `#main-content`. React delivers a streamed segment outside the landmark and moves it in afterwards, so a page-wide locator transiently matches two identical copies and a strict-mode violation fails the sample for a reason that has nothing to do with the application. Command search is the deliberate exception: its dialog is portalled outside the landmark, so its marker stays page-wide.
 
 `first-navigation` is reported separately from warm navigation and 390×844 slow-network navigation (150ms emulated latency, 1.6Mbps down/750kbps up). Browser-cache condition is not a hosted function/Neon cold start. Reports deliberately mark provider calls, DB usage, hosted cold starts and field vitals null. Local results cannot establish production capacity, app-wide quota behavior or a hosted two-second server-read budget.
 
