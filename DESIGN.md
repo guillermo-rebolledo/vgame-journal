@@ -167,7 +167,7 @@ The palette is a strictly achromatic gray ramp in OKLCH, with zero chroma. It's 
 ### Named Rules
 **The Covers Carry Color Rule.** Interface chrome stays achromatic. The only hues on screen come from cover art, Ember for destructive or error states, and celebration particles. A new accent color needs a deliberate decision and an update to this file. It never appears as a one-off.
 
-**The Keepsake Exception.** The Year in Review sheet is a printed object, not chrome. It uses three tokens that are the same in both themes: **Keepsake Paper** (warm off-white), **Keepsake Ink** (text, rules and the hero block) and **Keepsake Marker** (one highlighter yellow, for the hero count, the logo cell and the busiest month). They appear only inside that sheet. Links on the sheet take an Ink focus outline, because the theme foreground disappears against Paper in Dark.
+**The Keepsake Exception.** The Year in Review sheet is a printed object, not chrome. It uses three tokens that are the same in both themes: **Keepsake Paper** (warm off-white), **Keepsake Ink** (text, rules and the hero block) and **Keepsake Marker** (one highlighter yellow, for the hero count, the logo cell and the busiest month). They appear inside that sheet and its matching Home invitation. Links on the sheet take an Ink focus outline, because the theme foreground disappears against Paper in Dark.
 
 **The Celebration Exception.** The finish-game confetti (`burst-button.tsx`) uses the raw Tailwind amber, emerald, sky, rose and violet `400` colors. It's the only place raw palette classes are allowed, because a celebration is a moment, not chrome.
 
@@ -239,6 +239,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | Menus and floating layers | `ui/dropdown-menu.tsx`, `ui/tooltip.tsx`, `ui/hover-card.tsx`, `ui/drawer.tsx` | Preserve Base UI keyboard handling, names, and focus management. |
 | Loading and pending actions | `ui/spinner.tsx`, `ui/button.tsx` (`loading`), `content-loading.tsx`, `collection-loading.tsx` | Static skeletons for initial content reads; Compass with shimmering text for ongoing work. Keep each flow’s existing live feedback owner. |
 | Avatars, dividers, placeholders | `ui/avatar.tsx`, `ui/separator.tsx`, `ui/skeleton.tsx` | Shared visual primitives. Skeletons fit their containing column, including with enlarged text. |
+| Seasonal Home invitation | `review-invitation.tsx` | Composes Button and Link; a real review visit reveals session dismissal and an account-wide, year-scoped hide choice. |
 | Seasonal Journal keepsake | `year-in-review.tsx` | Owner-only 2026 page in Geist Mono: a ruled 4:5 sheet in the Keepsake tokens beside the deferred exact-PNG preview/download. Separate from Stats charts; reuse its existing primitives. |
 | Covers and failed media | `game-cover.tsx`, `fallback-image.tsx`, `tilt-cover.tsx` | Reuse the cover ratio, missing-art fallback, and reduced-motion behavior. |
 | Game identity and facts | `game-identification-metadata.tsx`, `platform.tsx`, `game-facts.tsx`, `game-facts-grid.tsx` | GameFactsGrid composes known cards and compact unavailable metadata, with a server-rendered regional age-rating slot. Facts and remaining platforms reuse HoverCard through `useHoverDisclosure` with a visible disclosure cue; Languages owns its scroll containment. |
@@ -466,3 +467,9 @@ For each UI change, identify the existing component and pattern being reused, up
 - The 1080 × 1350 PNG matches the sheet’s ruled layout, Keepsake colors, Geist Mono, counts, monthly chart and cover selections. ImageResponse uses fixed cells because it does not support CSS grid. Optional username appears in the PNG header only; the exact image is always previewed before download.
 - The sheet enters once as a single object: 240ms opacity and an 8px rise with the existing cover easing. It never gates actions and does not replay when toggling username or retrying. Reduced motion removes the entrance. Fan covers lift 6px on hover for fine pointers only; no animation dependency is added.
 - Preparing the PNG is an explicit action. The exact returned image is previewed before download. Username is off by default; changing it clears the preview. Preparation/download have duplicate guards, feedback and retry. The server rechecks access before a prepared image can be downloaded.
+
+### Year in Review invitation
+
+- Home shows ReviewInvitation only for a signed-in player with the review flag enabled. It reuses Button and Link in a ruled bento: an Ink year tile, a Paper copy tile, and a separate action row with a Marker View cell, all in Geist Mono. It follows the Keepsake Exception; the existing plain ReviewInvitation link was extended into a product composition. It is independent of Stats navigation and does not prevent opening the review after dismissal.
+- A client mount records a real review visit, so prefetching does not mark it opened. After opening, View remains alongside Dismiss (the current sign-in across tabs) and Don’t show again (this review year, across all devices). Nullable year fields on the user and session retain these choices without browser storage; next year’s invitation compares a new campaign year.
+- Hiding waits for a confirmed save; failure preserves the banner with a polite retry message. Dismissing returns focus to the Home heading. No new motion is introduced.

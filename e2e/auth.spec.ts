@@ -37,6 +37,8 @@ test("R10 guest recording returns an existing member to the game after retry wit
   page,
   request,
 }) => {
+  // This journey includes account setup and four separate password sign-ins.
+  test.slow();
   const { signUp } = await import("./support/sign-up");
   const email = await signUp(page, request, uniqueUsername(`continuation`));
   await page.context().clearCookies();
@@ -102,6 +104,8 @@ test("R10 signup switching, verification resend and username retry preserve the 
   page,
   request,
 }) => {
+  // Verification resend and onboarding retry share this journey's test budget.
+  test.slow();
   const username = uniqueUsername(`new_game`);
   const email = `${username}@example.com`;
   const destination = "?returnTo=%2Fgames%2Fceleste";

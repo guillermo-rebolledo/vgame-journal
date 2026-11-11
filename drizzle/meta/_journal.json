@@ -148,6 +148,13 @@
       "when": 1794257658440,
       "tag": "0020_steam_import",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794437086600,
+      "tag": "0021_outgoing_katie_power",
+      "breakpoints": true
     }
   ]
 }

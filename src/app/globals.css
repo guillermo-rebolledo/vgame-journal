@@ -518,9 +518,42 @@ body {
     animation: none;
   }
 }
-/* The sheet's rules are drawn with backgrounds, which forced colors removes. */
+/* Ruled action cells override Button's surface styles, including in the catalog. */
+.review-invitation :is(a, button) {
+  border-radius: 0;
+  background: var(--keepsake-paper);
+  color: var(--keepsake-ink);
+}
+.review-invitation a {
+  background: var(--keepsake-marker);
+}
+.review-invitation :is(a, button):focus-visible {
+  border-color: var(--keepsake-ink);
+  --tw-ring-color: var(--keepsake-ink);
+}
+.review-invitation-actions {
+  grid-template-columns: 1fr;
+}
+.review-invitation-actions[data-viewed="true"] {
+  grid-template-columns: 1fr 1fr;
+}
+.review-invitation-actions .review-invitation-view {
+  grid-column: 1 / -1;
+}
+@media (width >= 40rem) {
+  .review-invitation-actions[data-viewed="true"] {
+    grid-template-columns: 1fr 1fr 1.5fr;
+  }
+  .review-invitation-actions[data-viewed="true"] .review-invitation-view {
+    grid-column: auto;
+  }
+}
+/* Keepsake rules use backgrounds, which forced colors removes. */
 @media (forced-colors: active) {
-  .review-tile > * {
+  .review-tile > *,
+  .review-invitation > *,
+  .review-invitation a,
+  .review-invitation button {
     border: 1px solid CanvasText;
   }
 }

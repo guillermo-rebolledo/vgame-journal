@@ -27,7 +27,7 @@ test("review gates owners, previews the exact PNG, retries and denies download a
   await page.goto("/");
   await expect(
     page.getByRole("link", { name: /Your year in the Journal/ }),
-  ).toHaveCount(0);
+  ).toHaveCount(1);
   await page.goto("/stats");
   await page.getByRole("link", { name: /Your year in the Journal/ }).click();
   await expect(
@@ -68,7 +68,11 @@ test("review gates owners, previews the exact PNG, retries and denies download a
     } else await route.continue();
   });
   await page.getByRole("button", { name: "Preview PNG" }).click();
+  await expect(page.getByRole("button", { name: "Retry image" })).toBeVisible();
+  // Rendering may outlast a DOM assertion's five seconds on a shared CI runner.
+  const retriedImage = page.waitForResponse("**/year-in-review/image?*");
   await page.getByRole("button", { name: "Retry image" }).click();
+  expect((await retriedImage).status()).toBe(200);
   const preview = page.getByRole("img", { name: /PNG preview/ });
   await expect(preview).toBeVisible();
   await expect(preview).toHaveAttribute("alt", /without your username/);
@@ -115,7 +119,9 @@ test("review gates owners, previews the exact PNG, retries and denies download a
   });
   await page.getByRole("checkbox", { name: /Include username/ }).check();
   await expect(preview).toHaveCount(0);
+  const namedImage = page.waitForResponse("**/year-in-review/image?*");
   await page.getByRole("button", { name: "Preview PNG" }).click();
+  expect((await namedImage).status()).toBe(200);
   await expect(
     page.getByRole("img", {
       name: `PNG preview of your 2026 Journal review for @${username}`,
@@ -237,12 +243,111 @@ test("PNG stays bounded for one through twelve covers, including a full-year pla
   await page.goto("/");
   await expect(
     page.getByRole("link", { name: /Your year in the Journal/ }),
-  ).toHaveCount(0);
+  ).toHaveCount(1);
   await page.goto("/year-in-review");
   await expect(
     page.getByRole("heading", { name: "2026", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "12 games played" }),
+  ).toBeVisible();
+});
+
+test("Home invitation tracks real visits and persists session and year choices independently", async ({
+  page,
+  request,
+  browser,
+}) => {
+  const username = uniqueUsername("recap_banner");
+  const email = await signUp(page, request, username);
+  await request.post(supportUrl("/review-fixture"), {
+    data: { username, enabled: true, now: "2026-11-15T12:00:00Z" },
+  });
+  await page.goto("/");
+  const banner = page.getByRole("region", { name: "Your 2026 in the Journal" });
+  await expect(banner).toBeVisible();
+  await expect(banner.getByRole("button", { name: "Dismiss" })).toHaveCount(0);
+  // Server rendering/prefetching the destination is not a real visit.
+  expect((await page.request.get("/year-in-review")).status()).toBe(200);
+  await page.reload();
+  await expect(banner.getByRole("button", { name: "Dismiss" })).toHaveCount(0);
+  const viewed = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/year-in-review",
+  );
+  await banner.getByRole("link", { name: /View/ }).click();
+  await viewed;
+  await page.goto("/");
+  await expect(banner.getByRole("button", { name: "Dismiss" })).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 900 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await banner.getByRole("button", { name: "Dismiss" }).click();
+  await expect(banner).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Your Journal", exact: true }),
+  ).toBeFocused();
+  await page.reload();
+  await expect(banner).toHaveCount(0);
+  const tab = await page.context().newPage();
+  await tab.goto("/");
+  await expect(
+    tab.getByRole("region", { name: "Your 2026 in the Journal" }),
+  ).toHaveCount(0);
+  await tab.close();
+
+  const origin = new URL(page.url()).origin;
+  const other = await browser.newContext({ baseURL: origin });
+  try {
+    expect(
+      (
+        await other.request.post("/api/auth/sign-in/email", {
+          headers: { origin },
+          data: { email, password: "password123" },
+        })
+      ).ok(),
+    ).toBe(true);
+    const otherPage = await other.newPage();
+    await otherPage.goto("/");
+    const otherBanner = otherPage.getByRole("region", {
+      name: "Your 2026 in the Journal",
+    });
+    await expect(
+      otherBanner.getByRole("button", { name: "Dismiss" }),
+    ).toBeVisible();
+    await otherBanner.getByRole("button", { name: "Don’t show again" }).click();
+    await expect(otherBanner).toHaveCount(0);
+    await otherPage.reload();
+    await expect(otherBanner).toHaveCount(0);
+  } finally {
+    await other.close();
+  }
+
+  // A fresh sign-in has no session dismissal, but still respects the account preference.
+  await page.request.post("/api/auth/sign-out", { headers: { origin } });
+  expect(
+    (
+      await page.request.post("/api/auth/sign-in/email", {
+        headers: { origin },
+        data: { email, password: "password123" },
+      })
+    ).ok(),
+  ).toBe(true);
+  await page.reload();
+  await expect(banner).toHaveCount(0);
+  await page.goto("/stats");
+  await expect(
+    page.getByRole("link", { name: /Your year in the Journal/ }),
   ).toBeVisible();
 });
