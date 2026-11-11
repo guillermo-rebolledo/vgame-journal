@@ -2224,7 +2224,14 @@ test("year review counts current additions in UTC, across every Status and impor
       })),
     },
     played: { count: 0, games: [] },
+    loggedByMonth: [1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1],
+    hours: 0,
+    topPlatform: null,
   });
+  expect(
+    (await journal.yearInReview("mario", new Date("2026-06-15T00:00:00Z")))
+      .loggedByMonth,
+  ).toEqual([1, 0, 0, 0, 0, 1]);
   expect(
     (await journal.yearInReview("luigi", new Date("2027-02-01"))).logged.count,
   ).toBe(1);
@@ -2263,9 +2270,21 @@ test("year review deduplicates overlapping Playthroughs and omits future and pre
     count: 1,
     games: [{ gameId: 1, title: "Game 1", slug: "game-1", coverImageId: null }],
   });
+  // One game on each platform: the tie goes to the name, and whole-Playthrough hours count.
+  expect(review).toMatchObject({
+    hours: 42,
+    topPlatform: { name: "PlayStation 4", games: 1 },
+  });
   await journal.addPlaythrough("mario", 2, {
     platform: "PlayStation 5",
     startedOn: "2025-01-01",
+    hours: 0.5,
+  });
+  expect(
+    await journal.yearInReview("mario", new Date("2026-12-01")),
+  ).toMatchObject({
+    hours: 42.5,
+    topPlatform: { name: "PlayStation 5", games: 2 },
   });
   expect(
     (

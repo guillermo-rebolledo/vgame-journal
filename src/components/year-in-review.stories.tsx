@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn, mocked, userEvent, within } from "storybook/test";
+import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 import type { YearInReview } from "@/lib/journal";
 import { YearInReviewPage } from "./year-in-review";
 
@@ -19,6 +19,9 @@ const review: YearInReview = {
   inProgress: true,
   logged: { count: 47, games },
   played: { count: 3, games: games.slice(0, 3) },
+  loggedByMonth: [3, 5, 9, 4, 2, 6, 7, 3, 4, 3, 1, 0],
+  hours: 212.5,
+  topPlatform: { name: "Nintendo Switch", games: 2 },
 };
 const png = async () => (await fetch("/logo.png")).blob();
 const meta = {
@@ -38,7 +41,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Owner-only seasonal bento recap, distinct from Stats charts. Composes GameCover, Button, Checkbox and Label. Image preparation is deferred; the preview is the exact returned PNG. Stories use a local placeholder image, never a production export handler. The CSS tile entrance runs once per mount and honors reduced motion.",
+          "Owner-only seasonal recap, distinct from Stats charts: a ruled 4:5 sheet in Geist Mono with Keepsake Paper, Ink and Marker, beside the keepsake controls. Composes GameCover, Button, Checkbox and Label. Image preparation is deferred; the preview is the exact returned PNG, matching the sheet. Stories use a local placeholder image, never a production export handler. The sheet entrance runs once per mount and honors reduced motion.",
       },
     },
   },
@@ -53,11 +56,40 @@ export const Empty: Story = {
       ...review,
       logged: { count: 0, games: [] },
       played: { count: 0, games: [] },
+      loggedByMonth: Array(12).fill(0),
+      hours: 0,
+      topPlatform: null,
     },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Every sheet cell says what is missing, and there is nothing to export.
+    // The sheet fades in, so the first check waits for its entrance.
+    await waitFor(() =>
+      expect(canvas.getByText("No games added in 2026 yet.")).toBeVisible(),
+    );
+    await expect(
+      canvas.getByText("No dated Playthroughs in 2026 yet."),
+    ).toBeVisible();
+    await expect(canvas.getByText("None yet")).toBeVisible();
+    await expect(
+      canvas.getByRole("heading", {
+        name: "A year still waiting to be recorded",
+      }),
+    ).toBeVisible();
+    await expect(
+      canvas.queryByRole("button", { name: "Preview PNG" }),
+    ).toBeNull();
   },
 };
 export const PlayedOnly: Story = {
-  args: { review: { ...review, logged: { count: 0, games: [] } } },
+  args: {
+    review: {
+      ...review,
+      logged: { count: 0, games: [] },
+      loggedByMonth: Array(12).fill(0),
+    },
+  },
 };
 export const OneGameMissingArt: Story = {
   args: {
@@ -77,7 +109,32 @@ export const FullYearLargeCount: Story = {
       through: "2026-12-31",
       inProgress: false,
       logged: { count: 10000, games },
+      played: { count: 1234, games },
+      hours: 98765.4,
+      topPlatform: { name: "Nintendo Entertainment System", games: 400 },
     },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const fits = (el: HTMLElement) => {
+      const cell = el.closest(".review-tile > *");
+      if (!cell) throw new Error("Not in a sheet cell");
+      const box = cell.getBoundingClientRect();
+      // Measure the glyphs: the element itself is a block as wide as its cell.
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const text = range.getBoundingClientRect();
+      return text.left >= box.left && text.right <= box.right;
+    };
+    // Counts shrink to stay inside their cell; hours round to whole numbers.
+    await expect(fits(canvas.getByText("10,000", { exact: true }))).toBe(true);
+    await expect(fits(canvas.getByText("98,765", { exact: true }))).toBe(true);
+    await waitFor(() =>
+      expect(
+        canvas.getByRole("heading", { name: "1,234 games played" }),
+      ).toBeVisible(),
+    );
+    await expect(canvas.getByRole("heading", { name: "2026" })).toBeVisible();
   },
 };
 export const PreviewAndUsername: Story = {

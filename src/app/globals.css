@@ -20,6 +20,9 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-keepsake-paper: var(--keepsake-paper);
+  --color-keepsake-ink: var(--keepsake-ink);
+  --color-keepsake-marker: var(--keepsake-marker);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -75,6 +78,10 @@
 }
 
 :root {
+  /* Year in Review sheet: a printed object, so the same in both themes. */
+  --keepsake-paper: oklch(0.97 0.012 95);
+  --keepsake-ink: oklch(0.2 0 0);
+  --keepsake-marker: oklch(0.93 0.15 108);
   --image-outline: oklch(0 0 0 / 0.1);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -502,18 +509,18 @@ body {
   }
 }
 
-/* A seasonal keepsake entrance: three tiles at most, independent of cover count. */
+/* A seasonal keepsake entrance: the sheet arrives once, as one object. */
 .review-tile {
   animation: cover-in 240ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
-}
-.review-tile:nth-child(2) {
-  animation-delay: 60ms;
-}
-.review-tile:nth-child(3) {
-  animation-delay: 120ms;
 }
 @media (prefers-reduced-motion: reduce) {
   .review-tile {
     animation: none;
+  }
+}
+/* The sheet's rules are drawn with backgrounds, which forced colors removes. */
+@media (forced-colors: active) {
+  .review-tile > * {
+    border: 1px solid CanvasText;
   }
 }
