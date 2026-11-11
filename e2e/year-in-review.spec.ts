@@ -68,7 +68,11 @@ test("review gates owners, previews the exact PNG, retries and denies download a
     } else await route.continue();
   });
   await page.getByRole("button", { name: "Preview PNG" }).click();
+  await expect(page.getByRole("button", { name: "Retry image" })).toBeVisible();
+  // Rendering may outlast a DOM assertion's five seconds on a shared CI runner.
+  const retriedImage = page.waitForResponse("**/year-in-review/image?*");
   await page.getByRole("button", { name: "Retry image" }).click();
+  expect((await retriedImage).status()).toBe(200);
   const preview = page.getByRole("img", { name: /PNG preview/ });
   await expect(preview).toBeVisible();
   await expect(preview).toHaveAttribute("alt", /without your username/);
@@ -115,7 +119,9 @@ test("review gates owners, previews the exact PNG, retries and denies download a
   });
   await page.getByRole("checkbox", { name: /Include username/ }).check();
   await expect(preview).toHaveCount(0);
+  const namedImage = page.waitForResponse("**/year-in-review/image?*");
   await page.getByRole("button", { name: "Preview PNG" }).click();
+  expect((await namedImage).status()).toBe(200);
   await expect(
     page.getByRole("img", {
       name: `PNG preview of your 2026 Journal review for @${username}`,
