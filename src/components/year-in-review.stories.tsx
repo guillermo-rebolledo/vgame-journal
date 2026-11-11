@@ -41,7 +41,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Owner-only seasonal recap, distinct from Stats charts: a ruled 4:5 sheet in Geist Mono with Keepsake Paper, Ink and Marker, beside the keepsake controls. Composes GameCover, Button, Checkbox and Label. Image preparation is deferred; the preview is the exact returned PNG, which has its own layout. Stories use a local placeholder image, never a production export handler. The sheet entrance runs once per mount and honors reduced motion.",
+          "Owner-only seasonal recap, distinct from Stats charts: a ruled 4:5 sheet in Geist Mono with Keepsake Paper, Ink and Marker, beside the keepsake controls. Composes GameCover, Button, Checkbox and Label. Image preparation is deferred; the preview is the exact returned PNG, matching the sheet. Stories use a local placeholder image, never a production export handler. The sheet entrance runs once per mount and honors reduced motion.",
       },
     },
   },

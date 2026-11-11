@@ -94,7 +94,7 @@ function CoverFan({ games }: { games: Game[] }) {
 
 /**
  * Private seasonal recap: a ruled 4:5 sheet beside the keepsake controls.
- * Export is prepared on demand and previewed as the actual PNG, which has its own layout.
+ * Export is prepared on demand and previewed as the actual PNG, matching the sheet.
  */
 export function YearInReviewPage({
   review,

@@ -75,6 +75,29 @@ test("review gates owners, previews the exact PNG, retries and denies download a
   const expected = await preview.evaluate(async (img: HTMLImageElement) =>
     Array.from(new Uint8Array(await (await fetch(img.src)).arrayBuffer())),
   );
+  // Check the ruled poster's actual pixels so reverting to the old export fails.
+  expect(
+    await preview.evaluate(async (img: HTMLImageElement) => {
+      await img.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas unavailable");
+      context.drawImage(img, 0, 0);
+      return [
+        [20, 20],
+        [20, 400],
+        [850, 30],
+        [543, 900],
+      ].map(([x, y]) => Array.from(context.getImageData(x, y, 1, 1).data));
+    }),
+  ).toEqual([
+    [247, 245, 236, 255], // Keepsake Paper
+    [22, 22, 22, 255], // Ink hero
+    [242, 239, 111, 255], // Marker logo cell
+    [22, 22, 22, 255], // Vertical rule
+  ]);
   const downloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download PNG" }).click();
   const download = await downloadEvent;
