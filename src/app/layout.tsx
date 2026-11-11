@@ -11,8 +11,8 @@ import {
   FirstSaveFeedback,
 } from "@/components/feedback-channel";
 import { PageTransition } from "@/components/page-transition";
+import { SiteFooter } from "@/components/site-footer";
 import { SkipLink } from "@/components/skip-link";
-import { SupportLink } from "@/components/support-link";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Spinner } from "@/components/ui/spinner";
 import { Toaster } from "@/components/ui/toast";
@@ -116,24 +116,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 </PageTransition>
               </Suspense>
             </main>
-            <footer className="mx-auto w-full max-w-6xl px-4 py-6 text-muted-foreground text-sm">
-              Game data provided by{" "}
-              <a
-                href="https://www.igdb.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline underline-offset-4 hover:text-foreground"
-              >
-                IGDB
-              </a>
-              . <SupportLink />{" "}
-              <Link
-                href="/privacy"
-                className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground"
-              >
-                Privacy notice
-              </Link>
-            </footer>
+            <SiteFooter />
             <Toaster />
           </FeedbackSessionChannel>
         </ThemeProvider>
