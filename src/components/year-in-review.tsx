@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { GameCover } from "@/components/game-cover";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -99,14 +99,26 @@ function CoverFan({ games }: { games: Game[] }) {
 export function YearInReviewPage({
   review,
   username,
+  onOpened,
   onPrepare = prepareImage,
   onAuthorizeDownload = authorizeDownload,
 }: {
+  onOpened?: () => Promise<void>;
   review: YearInReview;
   username: string | null;
   onPrepare?: (includeUsername: boolean, asOf: string) => Promise<Blob>;
   onAuthorizeDownload?: () => Promise<void>;
 }) {
+  const [, startVisit] = useTransition();
+  useEffect(() => {
+    if (onOpened)
+      startVisit(async () => {
+        // A failed visit marker must not prevent viewing or exporting; retry on the next visit.
+        try {
+          await onOpened();
+        } catch {}
+      });
+  }, [onOpened]);
   const [includeUsername, setIncludeUsername] = useState(false);
   const [image, setImage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);

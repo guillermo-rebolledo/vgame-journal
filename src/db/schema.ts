@@ -50,6 +50,9 @@ export const user = pgTable(
       .$type<"private" | "public">()
       .notNull()
       .default("private"),
+    /** Home's review invitation is scoped to a campaign year, not a device. */
+    reviewViewedYear: integer("review_viewed_year"),
+    reviewHiddenYear: integer("review_hidden_year"),
     /** Whose release dates the user's Countdowns follow. */
     region: text("region").$type<Region>().notNull().default("earliest"),
     /** Secret in the user's calendar feed URL; null until they first see it. */
@@ -82,6 +85,7 @@ export const session = pgTable(
     updatedAt: timestamp("updated_at")
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
+    reviewDismissedYear: integer("review_dismissed_year"),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
     userId: text("user_id")

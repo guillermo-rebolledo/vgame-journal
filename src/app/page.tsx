@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { readHomeJournal } from "@/app/home-actions";
+import { dismissReviewInvitation } from "@/app/year-in-review/actions";
 import { HomeLoading } from "@/components/content-loading";
 import { Discovery, DiscoveryLoading } from "@/components/discovery";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
@@ -13,11 +13,12 @@ import {
 } from "@/components/home-journal";
 import { HomeSearch } from "@/components/home-search";
 import { JsonLd } from "@/components/json-ld";
+import { ReviewInvitation } from "@/components/review-invitation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
-import { signedInUserId } from "@/lib/auth";
+import { currentSession, signedInUserId } from "@/lib/auth";
 import { yearInReviewFlag } from "@/lib/flags";
-import { yearInReviewNow } from "@/lib/year-in-review-clock";
+import { REVIEW_YEAR, reviewInvitation } from "@/lib/review-invitation";
 
 /**
  * The site itself, for search engines and AI crawlers.
@@ -62,7 +63,11 @@ async function HomeContent() {
       >
         {userId ? (
           <div className="flex flex-col gap-3">
-            <h1 className="font-semibold text-3xl tracking-tight [overflow-wrap:anywhere]">
+            <h1
+              id="home-journal-heading"
+              tabIndex={-1}
+              className="font-semibold text-3xl tracking-tight [overflow-wrap:anywhere]"
+            >
               Your Journal
             </h1>
             <p className="max-w-xl text-lg text-muted-foreground">
@@ -100,7 +105,7 @@ async function HomeContent() {
         )}
         {userId && (
           <Suspense fallback={null}>
-            <ReviewInvitation />
+            <ReviewBanner />
           </Suspense>
         )}
         <HomeCollections />
@@ -114,21 +119,20 @@ async function HomeContent() {
   );
 }
 
-async function ReviewInvitation() {
-  const now = await yearInReviewNow();
-  if (
-    now < new Date("2026-12-01T00:00:00Z") ||
-    now >= new Date("2027-01-01T00:00:00Z") ||
-    !(await yearInReviewFlag())
-  )
-    return null;
+async function ReviewBanner() {
+  if (!(await yearInReviewFlag())) return null;
+  const session = await currentSession();
+  if (!session) return null;
+  // A failed promotional read must not take Home down.
+  const state = await reviewInvitation
+    .read(session.user.id, session.session.id)
+    .catch(() => null);
+  if (!state?.visible) return null;
   return (
-    <Link
-      href="/year-in-review"
-      prefetch={false}
-      className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 py-3 underline underline-offset-4 focus-visible:outline-2"
-    >
-      Your year in the Journal · See your 2026 so far
-    </Link>
+    <ReviewInvitation
+      year={REVIEW_YEAR}
+      viewed={state.viewed}
+      onDismiss={dismissReviewInvitation.bind(null, session.user.id)}
+    />
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { markReviewViewed } from "@/app/year-in-review/actions";
 import { YearInReviewPage } from "@/components/year-in-review";
 import { currentSession } from "@/lib/auth";
 import { yearInReviewFlag } from "@/lib/flags";
@@ -18,6 +19,7 @@ export default async function ReviewPage() {
   if (!(await yearInReviewFlag())) notFound();
   return (
     <YearInReviewPage
+      onOpened={markReviewViewed.bind(null, session.user.id)}
       review={
         await journal.yearInReview(session.user.id, await yearInReviewNow())
       }
