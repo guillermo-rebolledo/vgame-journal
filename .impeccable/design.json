@@ -128,6 +128,21 @@
         "role": "neutral",
         "displayName": "Content-image outline (Dark)",
         "canonical": "oklch(1 0 0 / 0.1)"
+      },
+      "keepsake-paper": {
+        "role": "neutral",
+        "displayName": "Keepsake Paper (Year in Review sheet, both themes)",
+        "canonical": "oklch(0.97 0.012 95)"
+      },
+      "keepsake-ink": {
+        "role": "neutral",
+        "displayName": "Keepsake Ink (Year in Review sheet, both themes)",
+        "canonical": "oklch(0.2 0 0)"
+      },
+      "keepsake-marker": {
+        "role": "accent",
+        "displayName": "Keepsake Marker (Year in Review sheet, both themes)",
+        "canonical": "oklch(0.93 0.15 108)"
       }
     },
     "typographyMeta": {

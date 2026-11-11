@@ -515,39 +515,59 @@ export function createJournal(db: Db) {
         coverImageId: game.coverImageId,
       };
       const count = sql<number>`count(*) over ()`.mapWith(Number);
-      const [logged, played] = await Promise.all([
+      const loggedThisYear = and(
+        eq(journalEntry.userId, userId),
+        sql`${journalEntry.createdAt} >= ${start} and ${journalEntry.createdAt} < ${end} and ${journalEntry.createdAt} <= ${asOf}`,
+      );
+      const playedThisYear = and(
+        eq(playthrough.userId, userId),
+        sql`${playthrough.startedOn} <= ${through} and (${playthrough.endedOn} is null or ${playthrough.endedOn} >= '2026-01-01')`,
+      );
+      const stillInJournal = and(
+        eq(journalEntry.userId, playthrough.userId),
+        eq(journalEntry.gameId, playthrough.gameId),
+      );
+      const month = sql<number>`extract(month from ${journalEntry.createdAt})`;
+      const distinctGames = sql<number>`count(distinct ${playthrough.gameId})`;
+      const [logged, played, months, platforms] = await Promise.all([
         db
           .select({ ...fields, count })
           .from(journalEntry)
           .innerJoin(game, eq(game.id, journalEntry.gameId))
-          .where(
-            and(
-              eq(journalEntry.userId, userId),
-              sql`${journalEntry.createdAt} >= ${start} and ${journalEntry.createdAt} < ${end} and ${journalEntry.createdAt} <= ${asOf}`,
-            ),
-          )
+          .where(loggedThisYear)
           .orderBy(sql`${journalEntry.createdAt} desc`, game.id)
           .limit(12),
         db
           .select({ ...fields, count })
           .from(playthrough)
-          .innerJoin(
-            journalEntry,
-            and(
-              eq(journalEntry.userId, playthrough.userId),
-              eq(journalEntry.gameId, playthrough.gameId),
-            ),
-          )
+          .innerJoin(journalEntry, stillInJournal)
           .innerJoin(game, eq(game.id, playthrough.gameId))
-          .where(
-            and(
-              eq(playthrough.userId, userId),
-              sql`${playthrough.startedOn} <= ${through} and (${playthrough.endedOn} is null or ${playthrough.endedOn} >= '2026-01-01')`,
-            ),
-          )
+          .where(playedThisYear)
           .groupBy(game.id)
           .orderBy(sql`max(${playthrough.startedOn}) desc`, game.id)
           .limit(12),
+        db
+          .select({
+            month: month.mapWith(Number),
+            games: sql<number>`count(*)`.mapWith(Number),
+          })
+          .from(journalEntry)
+          .where(loggedThisYear)
+          .groupBy(month),
+        // The same Playthroughs as `played`, by platform: most games first, then by name.
+        db
+          .select({
+            name: playthrough.platform,
+            games: distinctGames.mapWith(Number),
+            hours: sql<number>`coalesce(sum(${playthrough.hours}), 0)`.mapWith(
+              Number,
+            ),
+          })
+          .from(playthrough)
+          .innerJoin(journalEntry, stillInJournal)
+          .where(playedThisYear)
+          .groupBy(playthrough.platform)
+          .orderBy(sql`${distinctGames} desc`, playthrough.platform),
       ]);
       const section = (rows: typeof logged) => ({
         count: rows[0]?.count ?? 0,
@@ -560,6 +580,18 @@ export function createJournal(db: Db) {
         inProgress: now < end,
         logged: section(logged),
         played: section(played),
+        /** January first, through the cutoff month. */
+        loggedByMonth: Array.from(
+          { length: asOf.getUTCMonth() + 1 },
+          (_, i) => months.find((row) => row.month === i + 1)?.games ?? 0,
+        ),
+        /** Hours entered on the Playthroughs behind `played`, whole Playthroughs included. */
+        hours:
+          Math.round(platforms.reduce((sum, row) => sum + row.hours, 0) * 100) /
+          100,
+        topPlatform: platforms[0]
+          ? { name: platforms[0].name, games: platforms[0].games }
+          : null,
       };
     },
 

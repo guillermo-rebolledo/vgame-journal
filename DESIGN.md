@@ -19,6 +19,9 @@ colors:
   ring-dark: "oklch(0.556 0 0)"
   ember: "oklch(0.5 0.2 27.325)"
   ember-dark: "oklch(0.704 0.191 22.216)"
+  keepsake-paper: "oklch(0.97 0.012 95)"
+  keepsake-ink: "oklch(0.2 0 0)"
+  keepsake-marker: "oklch(0.93 0.15 108)"
 typography:
   display:
     fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
@@ -164,6 +167,8 @@ The palette is a strictly achromatic gray ramp in OKLCH, with zero chroma. It's 
 ### Named Rules
 **The Covers Carry Color Rule.** Interface chrome stays achromatic. The only hues on screen come from cover art, Ember for destructive or error states, and celebration particles. A new accent color needs a deliberate decision and an update to this file. It never appears as a one-off.
 
+**The Keepsake Exception.** The Year in Review sheet is a printed object, not chrome. It uses three tokens that are the same in both themes: **Keepsake Paper** (warm off-white), **Keepsake Ink** (text, rules and the hero block) and **Keepsake Marker** (one highlighter yellow, for the hero count, the logo cell and the busiest month). They appear only inside that sheet. Links on the sheet take an Ink focus outline, because the theme foreground disappears against Paper in Dark.
+
 **The Celebration Exception.** The finish-game confetti (`burst-button.tsx`) uses the raw Tailwind amber, emerald, sky, rose and violet `400` colors. It's the only place raw palette classes are allowed, because a celebration is a moment, not chrome.
 
 **The Semantic Tokens Only Rule.** Components use semantic utilities such as `bg-primary`, `text-muted-foreground` and `border-border`. Never use raw palette classes like `bg-zinc-800`, and define OKLCH values as tokens. Content-image edges use the deliberately pure black/white `--image-outline` token, rather than a palette gray. Every token is defined in `src/app/globals.css`, in `:root` and `.dark`.
@@ -171,7 +176,7 @@ The palette is a strictly achromatic gray ramp in OKLCH, with zero chroma. It's 
 ## Typography
 
 **Display, body and label font:** Geist, loaded with `next/font` as `--font-sans`, with system-ui fallbacks
-**Mono font:** Geist Mono, for technical strings like export tokens and IDs
+**Mono font:** Geist Mono, for technical strings like export tokens and IDs, and for the whole Year in Review page
 
 **Character:** One neutral grotesk carries everything. Hierarchy comes from weight and tracking, not from mixing typefaces. Headings are semibold with slightly tight tracking (-0.025em). Body text stays at a regular weight.
 
@@ -234,7 +239,7 @@ Paths below are relative to `src/components/`. Read the implementation and an ex
 | Menus and floating layers | `ui/dropdown-menu.tsx`, `ui/tooltip.tsx`, `ui/hover-card.tsx`, `ui/drawer.tsx` | Preserve Base UI keyboard handling, names, and focus management. |
 | Loading and pending actions | `ui/spinner.tsx`, `ui/button.tsx` (`loading`), `content-loading.tsx`, `collection-loading.tsx` | Static skeletons for initial content reads; Compass with shimmering text for ongoing work. Keep each flow’s existing live feedback owner. |
 | Avatars, dividers, placeholders | `ui/avatar.tsx`, `ui/separator.tsx`, `ui/skeleton.tsx` | Shared visual primitives. Skeletons fit their containing column, including with enlarged text. |
-| Seasonal Journal keepsake | `year-in-review.tsx` | Owner-only 2026 bento composition with optional Playthroughs and deferred exact-PNG preview/download. Separate from Stats charts; reuse its existing primitives. |
+| Seasonal Journal keepsake | `year-in-review.tsx` | Owner-only 2026 page in Geist Mono: a ruled 4:5 sheet in the Keepsake tokens beside the deferred exact-PNG preview/download. Separate from Stats charts; reuse its existing primitives. |
 | Covers and failed media | `game-cover.tsx`, `fallback-image.tsx`, `tilt-cover.tsx` | Reuse the cover ratio, missing-art fallback, and reduced-motion behavior. |
 | Game identity and facts | `game-identification-metadata.tsx`, `platform.tsx`, `game-facts.tsx`, `game-facts-grid.tsx` | GameFactsGrid composes known cards and compact unavailable metadata, with a server-rendered regional age-rating slot. Facts and remaining platforms reuse HoverCard through `useHoverDisclosure` with a visible disclosure cue; Languages owns its scroll containment. |
 | Save or change Status | `journal-status.tsx`, `game-recording.tsx`, `home-cover-link.tsx` | Separate the game link from its recording actions. Detail pages compose list controls through GameRecording; JournalStatus groups additional actions before its feedback. |
@@ -453,6 +458,10 @@ For each UI change, identify the existing component and pattern being reused, up
 
 ### Year in Review
 
-- **Product/Year in Review** is a distinct seasonal composition; Stats charts were considered but represent different measurements. It reuses GameCover, Button, Checkbox and Label, with the existing Stats loading pattern. The responsive bento keeps document order: year/logged total, latest additions, optional distinct played games, then keepsake controls. Covers supply color; no new primitive or hue is introduced.
-- A single 240ms opacity/8px entrance with 60ms tile stagger uses the existing cover easing, completes within 360ms, and never gates actions. It does not replay when toggling username or retrying. Reduced motion removes the entrance. No hover motion or animation dependency is added.
+- **Product/Year in Review** is a distinct seasonal composition; Stats charts were considered but represent different measurements. It reuses GameCover, Button, Checkbox and Label, with the existing Stats loading pattern. The whole page is set in Geist Mono at weights 400 and 500.
+- The page is one ruled 4:5 sheet with a rail beside it on desktop and below it on phones. Document order is the page title, the sheet, the keepsake controls, the six latest games logged, then how the numbers are counted. The sheet is a four-by-five grid of cells separated by 1px Ink rules: the year, the logo, Games logged as the hero, up to three latest covers, Games logged by month, Games played, Hours recorded, up to five played covers and Top platform. It follows the Keepsake Exception; covers are the only other color.
+- Sheet type is sized in container units so the sheet scales as one object, with a 10px floor for labels. Counts shrink to fit their cell, so large numbers never clip. Text-only enlargement does not resize sheet text; browser zoom does. Every count on the sheet is also defined in plain text in the rail.
+- Sheet covers are links named by a hidden title; the rail list shows the visible titles. Empty cells say what is missing instead of leaving a blank.
+- The sheet is not the exported image. The PNG keeps its own layout and is always previewed before download.
+- The sheet enters once as a single object: 240ms opacity and an 8px rise with the existing cover easing. It never gates actions and does not replay when toggling username or retrying. Reduced motion removes the entrance. Fan covers lift 6px on hover for fine pointers only; no animation dependency is added.
 - Preparing the PNG is an explicit action. The exact returned image is previewed before download. Username is off by default; changing it clears the preview. Preparation/download have duplicate guards, feedback and retry. The server rechecks access before a prepared image can be downloaded.

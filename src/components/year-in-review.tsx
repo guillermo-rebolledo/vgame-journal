@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { GameCover } from "@/components/game-cover";
@@ -24,44 +25,77 @@ async function authorizeDownload() {
   if (!response.ok) throw new Error("Review unavailable");
 }
 
-function Covers({
-  section,
-  label,
-}: {
-  section: YearInReview["logged"];
-  label: string;
-}) {
+type Game = YearInReview["logged"]["games"][number];
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+// Sheet type is sized in cqw so the sheet scales as one object, like the print it imitates.
+// One class per property in these strings: a later utility does not reliably win over an earlier one.
+const box = "min-h-0 min-w-0 overflow-hidden p-[3cqw]";
+const cell = `${box} flex flex-col`;
+const paper = `${cell} bg-keepsake-paper`;
+const label =
+  "font-medium text-[clamp(0.625rem,2.1cqw,0.8125rem)] uppercase leading-tight tracking-wide";
+const figure = "font-medium tabular-nums tracking-tighter";
+const title = "font-medium text-lg tracking-tight";
+const railLink =
+  "inline-flex min-h-11 items-center rounded-md underline underline-offset-4 focus-visible:outline-2";
+// Ink, not the theme foreground: Chalk disappears against the paper in the Dark theme.
+const sheetLink =
+  "block rounded-sm outline-keepsake-ink focus-visible:outline-3 focus-visible:outline-offset-2";
+
+/** Largest size, in cqw, at which a number still fits its cell. Geist Mono digits are 0.6em wide. */
+const fit = (text: string, largest: number, room: number) =>
+  `${Math.min(largest, room / (text.length * 0.62)).toFixed(2)}cqw`;
+
+/** Up to three overlapping covers; each is its own link, named by its hidden title. */
+function CoverFan({ games }: { games: Game[] }) {
+  const shown = games.slice(0, 3);
+  const left = "-mr-[10%] w-[36%] translate-y-[4%] -rotate-6";
+  const right = "-ml-[10%] w-[36%] translate-y-[4%] rotate-6";
+  const tilt = [
+    [],
+    ["z-10 w-[42%]"],
+    [left, right],
+    [left, "z-10 w-[42%]", right],
+  ];
   return (
-    <div className="space-y-4">
-      <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-        {section.games.map((game) => (
-          <li key={game.gameId} className="min-w-0">
-            <Link
-              href={`/games/${game.slug}`}
-              className="journal-action block rounded-lg"
-            >
-              <GameCover
-                imageId={game.coverImageId}
-                className="w-full rounded-lg"
-              />
-              <span className="mt-2 block break-words text-sm">
-                {game.title}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {section.count > section.games.length && (
-        <p className="text-muted-foreground text-sm">
-          {section.games.length} of {section.count.toLocaleString("en-US")}{" "}
-          games {label}.
-        </p>
-      )}
-    </div>
+    <ul className="flex min-h-0 flex-1 items-center justify-center">
+      {shown.map((game, i) => (
+        <li key={game.gameId} className={tilt[shown.length][i]}>
+          <Link
+            href={`/games/${game.slug}`}
+            className={`${sheetLink} rounded-lg transition-[translate] duration-150 ease-out motion-reduce:transition-none [@media(hover:hover)_and_(pointer:fine)]:hover:-translate-y-1.5`}
+          >
+            <GameCover
+              imageId={game.coverImageId}
+              className="w-full overflow-hidden rounded-lg shadow-lg"
+            />
+            <span className="sr-only">{game.title}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 
-/** Private seasonal recap. Export is prepared on demand and previewed as the actual PNG. */
+/**
+ * Private seasonal recap: a ruled 4:5 sheet beside the keepsake controls.
+ * Export is prepared on demand and previewed as the actual PNG, which has its own layout.
+ */
 export function YearInReviewPage({
   review,
   username,
@@ -134,179 +168,312 @@ export function YearInReviewPage({
     }
   }
 
+  const { logged, played } = review;
+  const loggedCount = logged.count.toLocaleString("en-US");
+  const playedCount = played.count.toLocaleString("en-US");
+  const hours = Math.round(review.hours).toLocaleString("en-US");
+  const busiest = Math.max(...review.loggedByMonth, 1);
+  // The year is the largest thing on the sheet, so the date beside it drops it.
+  const through = new Date(`${review.through}T00:00:00Z`).toLocaleDateString(
+    "en-US",
+    { month: "short", day: "numeric", timeZone: "UTC" },
+  );
+  const platformWord = Math.max(
+    ...(review.topPlatform?.name ?? "").split(/\s+/).map((word) => word.length),
+    1,
+  );
+
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8">
-      <header className="space-y-3">
-        <Link
-          href="/stats"
-          className="inline-flex min-h-11 items-center rounded-md underline underline-offset-4 focus-visible:outline-2"
-        >
+    <div className="mx-auto grid w-full max-w-6xl gap-x-10 gap-y-6 px-4 py-8 font-mono lg:grid-cols-[minmax(0,35rem)_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
+      <header className="space-y-3 lg:col-start-2">
+        <Link href="/stats" className={railLink}>
           Back to Stats
         </Link>
-        <h1 className="font-semibold text-3xl tracking-tight">
+        <h1 className="text-balance font-medium text-2xl tracking-tighter sm:text-3xl">
           Your year in the Journal
         </h1>
-        <p className="max-w-2xl text-muted-foreground">
-          Games you logged, and the playing you recorded. Only you can open this
-          review. Downloading an image leaves your Profile visibility unchanged.
+        <p className="max-w-prose text-muted-foreground text-sm">
+          Games you logged, and the playing you recorded, through{" "}
+          <time dateTime={review.through} className="whitespace-nowrap">
+            {review.through}
+          </time>{" "}
+          (UTC). Only you can open this review. Downloading an image leaves your
+          Profile visibility unchanged.
         </p>
       </header>
-      <div className="grid gap-4 md:grid-cols-3">
-        <section
-          className="review-tile space-y-4 rounded-xl bg-muted p-6 md:col-span-1"
-          aria-labelledby="review-year"
-        >
-          <h2 id="review-year" className="font-medium text-xl">
-            {review.year}
-            {review.inProgress ? " so far" : ""}
-          </h2>
-          <p className="text-foreground text-sm">
-            Through <time dateTime={review.through}>{review.through}</time>{" "}
-            (UTC)
-          </p>
-          <p className="break-words font-semibold text-5xl tabular-nums tracking-tight">
-            {review.logged.count.toLocaleString("en-US")}
-          </p>
-          <p className="text-lg">Games logged</p>
-          <p className="text-foreground text-sm">
-            Added to your Journal this year, in any Status. Edits do not count
-            as new additions. Removing or re-adding a game changes this review.
-          </p>
-        </section>
-        <section
-          className="review-tile space-y-4 rounded-xl border border-border p-6 md:col-span-2"
-          aria-labelledby="review-logged"
-        >
-          <h2 id="review-logged" className="font-medium text-xl">
-            Latest games logged
-          </h2>
-          {review.logged.count ? (
-            <Covers section={review.logged} label="logged" />
+
+      <div className="@container mx-auto w-full max-w-[35rem] lg:col-start-1 lg:row-span-2 lg:row-start-1">
+        <div className="review-tile grid aspect-[4/5] grid-cols-4 grid-rows-5 gap-px overflow-hidden rounded-lg border border-keepsake-ink bg-keepsake-ink text-keepsake-ink">
+          <div className={`${paper} col-span-3 justify-between`}>
+            <p className={label}>Your year in the Journal</p>
+            <div className="flex items-end gap-[2cqw]">
+              <h2 className={`${figure} text-[14cqw] leading-[0.8]`}>
+                {review.year}
+              </h2>
+              <p className={label}>
+                {review.inProgress ? "so far, " : ""}through{" "}
+                <time dateTime={review.through}>{through}</time>
+              </p>
+            </div>
+          </div>
+          <div
+            className={`${cell} items-center justify-center gap-[1cqw] bg-keepsake-marker`}
+          >
+            <Image
+              src="/logo-light.png"
+              alt=""
+              width={192}
+              height={132}
+              className="h-[8cqw] w-auto"
+            />
+            <span className="font-medium text-[clamp(0.625rem,2.1cqw,0.8125rem)] @max-md:hidden">
+              shelve.games
+            </span>
+          </div>
+
+          <section
+            className={`${cell} col-span-2 row-span-2 justify-between bg-keepsake-ink text-keepsake-marker`}
+          >
+            <h2 className={label}>Games logged</h2>
+            <p
+              className={`${figure} leading-[0.8]`}
+              style={{ fontSize: fit(loggedCount, 32, 43) }}
+            >
+              {loggedCount}
+            </p>
+            <p className={label}>Added to your Journal, in any Status</p>
+          </section>
+          <section className={`${paper} col-span-2 row-span-2 gap-[2cqw]`}>
+            <h2 className={label}>Latest logged</h2>
+            {logged.count ? (
+              <CoverFan games={logged.games} />
+            ) : (
+              <p className={`${label} my-auto`}>
+                No games added in {review.year} yet.
+              </p>
+            )}
+          </section>
+
+          <section className={`${paper} col-span-2 gap-[1.5cqw]`}>
+            <h2 className={label}>Logged by month</h2>
+            <div
+              role="img"
+              aria-label={`Games logged by month: ${review.loggedByMonth.map((games, i) => `${MONTHS[i]} ${games}`).join(", ")}`}
+              className="flex min-h-0 flex-1 items-end gap-[1cqw]"
+            >
+              {MONTHS.map((month, i) => {
+                const games = review.loggedByMonth[i] ?? 0;
+                return (
+                  <span
+                    key={month}
+                    className={`min-h-px flex-1 ${games === busiest ? "border border-keepsake-ink bg-keepsake-marker" : "bg-keepsake-ink"}`}
+                    style={{ height: `${(games / busiest) * 100}%` }}
+                  />
+                );
+              })}
+            </div>
+          </section>
+          <section className={paper}>
+            <h2 className="flex flex-1 flex-col justify-between">
+              <span
+                className={`${figure} leading-none`}
+                style={{ fontSize: fit(playedCount, 9.5, 18.5) }}
+              >
+                {playedCount}
+              </span>{" "}
+              <span className={label}>
+                {played.count === 1 ? "game" : "games"} played
+              </span>
+            </h2>
+          </section>
+          <section className={`${paper} justify-between`}>
+            <p
+              className={`${figure} leading-none`}
+              style={{ fontSize: fit(hours, 9.5, 18.5) }}
+            >
+              {hours}
+            </p>
+            <h2 className={label}>Hours recorded</h2>
+          </section>
+
+          {played.count ? (
+            <ul
+              aria-label="Games played"
+              className={`${box} col-span-3 flex items-center gap-[1.5cqw] bg-keepsake-paper`}
+            >
+              {played.games.slice(0, 5).map((game) => (
+                <li key={game.gameId} className="w-[calc((100%-6cqw)/5)]">
+                  <Link href={`/games/${game.slug}`} className={sheetLink}>
+                    <GameCover
+                      imageId={game.coverImageId}
+                      className="w-full overflow-hidden rounded-sm [&>span]:hidden"
+                    />
+                    <span className="sr-only">{game.title}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           ) : (
-            <p className="text-muted-foreground">
-              No games added in {review.year} yet.
+            <p className={`${paper} ${label} col-span-3 justify-center`}>
+              No dated Playthroughs in {review.year} yet.
             </p>
           )}
-        </section>
-        {review.played.count > 0 && (
-          <section
-            className="review-tile space-y-4 rounded-xl border border-border p-6 md:col-span-3"
-            aria-labelledby="review-played"
-          >
-            <h2 id="review-played" className="font-medium text-xl">
-              {review.played.count.toLocaleString("en-US")}{" "}
-              {review.played.count === 1 ? "game" : "games"} played
+          <section className={`${paper} justify-between`}>
+            <h2 className={label}>Top platform</h2>
+            <p
+              className="line-clamp-3 break-words font-medium leading-tight tracking-tight"
+              style={{
+                fontSize: `clamp(0.625rem, ${fit("x".repeat(platformWord), 3, 18.5)}, 1.125rem)`,
+              }}
+            >
+              {review.topPlatform?.name ?? "None yet"}
+            </p>
+          </section>
+        </div>
+      </div>
+
+      <div className="space-y-8 lg:col-start-2">
+        {!hasGames ? (
+          <section className="space-y-4">
+            <h2 className={title}>A year still waiting to be recorded</h2>
+            <p className="text-muted-foreground">
+              Add a game, or open a game in your Library to record a dated
+              Playthrough.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Link href="/" className={railLink}>
+                Find a game
+              </Link>
+              <Link href="/library" className={railLink}>
+                Open Library
+              </Link>
+            </div>
+          </section>
+        ) : (
+          <section className="space-y-4" aria-labelledby="review-keepsake">
+            <h2 id="review-keepsake" className={title}>
+              Keep a little of your year
             </h2>
             <p className="max-w-2xl text-muted-foreground text-sm">
-              Based on recorded Playthrough date ranges overlapping this year
-              through {review.through}, including open Playthroughs. Each game
-              counts once. These games may also appear in Games logged; the
-              totals are separate.
+              A portrait PNG with your counts and selected covers. No private
+              notes or account details. You choose where to share it.
             </p>
-            <Covers section={review.played} label="played" />
+            {username && (
+              <div className="flex min-h-11 items-center gap-3">
+                <Checkbox
+                  id="review-username"
+                  checked={includeUsername}
+                  disabled={pending}
+                  onCheckedChange={(checked) => {
+                    setIncludeUsername(checked);
+                    setImage(null);
+                    setMessage("");
+                    setFailed(false);
+                  }}
+                />
+                <Label
+                  htmlFor="review-username"
+                  className="min-h-11 break-all leading-normal"
+                >
+                  Include username (@{username})
+                </Label>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={prepare}
+                loading={pending}
+                className="min-h-11"
+                variant={image ? "outline" : "default"}
+              >
+                {failed && !image
+                  ? "Retry image"
+                  : image
+                    ? "Refresh preview"
+                    : "Preview PNG"}
+              </Button>
+              {image && (
+                <Button
+                  onClick={download}
+                  disabled={pending}
+                  className="min-h-11"
+                >
+                  {failed ? "Retry download" : "Download PNG"}
+                </Button>
+              )}
+            </div>
+            <output
+              aria-live="polite"
+              className="text-muted-foreground text-sm"
+            >
+              {message}
+            </output>
+            {image && (
+              <figure className="max-w-md space-y-2">
+                {/* biome-ignore lint/performance/noImgElement: the preview is the exact on-demand PNG blob, not a Next image asset. */}
+                <img
+                  src={image}
+                  alt={`PNG preview of your ${review.year} Journal review${includeUsername && username ? ` for @${username}` : ", without your username"}`}
+                  width={1080}
+                  height={1350}
+                  className="h-auto w-full rounded-xl"
+                />
+                <figcaption className="text-muted-foreground text-sm">
+                  This is the image you will download. 1080 × 1350 pixels.
+                </figcaption>
+              </figure>
+            )}
           </section>
         )}
-      </div>
-      {!hasGames ? (
-        <section className="space-y-4">
-          <h2 className="font-medium text-xl">
-            A year still waiting to be recorded
-          </h2>
-          <p className="text-muted-foreground">
-            Add a game, or open a game in your Library to record a dated
-            Playthrough.
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <Link
-              href="/"
-              className="inline-flex min-h-11 items-center underline underline-offset-4"
-            >
-              Find a game
-            </Link>
-            <Link
-              href="/library"
-              className="inline-flex min-h-11 items-center underline underline-offset-4"
-            >
-              Open Library
-            </Link>
-          </div>
-        </section>
-      ) : (
-        <section
-          className="space-y-4 border-border border-t pt-8"
-          aria-labelledby="review-keepsake"
-        >
-          <h2 id="review-keepsake" className="font-medium text-xl">
-            Keep a little of your year
-          </h2>
-          <p className="max-w-2xl text-muted-foreground text-sm">
-            A portrait PNG with your counts and selected covers. No private
-            notes or account details. You choose where to share it.
-          </p>
-          {username && (
-            <div className="flex min-h-11 items-center gap-3">
-              <Checkbox
-                id="review-username"
-                checked={includeUsername}
-                disabled={pending}
-                onCheckedChange={(checked) => {
-                  setIncludeUsername(checked);
-                  setImage(null);
-                  setMessage("");
-                  setFailed(false);
-                }}
-              />
-              <Label
-                htmlFor="review-username"
-                className="min-h-11 break-all leading-normal"
-              >
-                Include username (@{username})
-              </Label>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-3">
-            <Button
-              onClick={prepare}
-              loading={pending}
-              className="min-h-11"
-              variant={image ? "outline" : "default"}
-            >
-              {failed && !image
-                ? "Retry image"
-                : image
-                  ? "Refresh preview"
-                  : "Preview PNG"}
-            </Button>
-            {image && (
-              <Button
-                onClick={download}
-                disabled={pending}
-                className="min-h-11"
-              >
-                {failed ? "Retry download" : "Download PNG"}
-              </Button>
+        {logged.count > 0 && (
+          <section className="space-y-2 border-border border-t pt-6">
+            <h2 className={title}>Latest games logged</h2>
+            <ul className="divide-y divide-border">
+              {logged.games.slice(0, 6).map((game) => (
+                <li key={game.gameId}>
+                  <Link
+                    href={`/games/${game.slug}`}
+                    className="flex min-h-11 items-center gap-3 rounded-md py-2 text-sm underline-offset-4 hover:underline focus-visible:outline-2"
+                  >
+                    <GameCover
+                      imageId={game.coverImageId}
+                      size="cover_small"
+                      className="w-12 rounded-md"
+                    />
+                    <span className="min-w-0 break-words">{game.title}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {logged.count > Math.min(logged.games.length, 6) && (
+              <p className="text-muted-foreground text-sm">
+                {Math.min(logged.games.length, 6)} of {loggedCount} games
+                logged.
+              </p>
             )}
-          </div>
-          <output aria-live="polite" className="text-muted-foreground text-sm">
-            {message}
-          </output>
-          {image && (
-            <figure className="max-w-md space-y-2">
-              {/* biome-ignore lint/performance/noImgElement: the preview is the exact on-demand PNG blob, not a Next image asset. */}
-              <img
-                src={image}
-                alt={`PNG preview of your ${review.year} Journal review${includeUsername && username ? ` for @${username}` : ", without your username"}`}
-                width={1080}
-                height={1350}
-                className="h-auto w-full rounded-xl"
-              />
-              <figcaption className="text-muted-foreground text-sm">
-                This is the image you will download. 1080 × 1350 pixels.
-              </figcaption>
-            </figure>
-          )}
+          </section>
+        )}
+        <section className="space-y-2 border-border border-t pt-6">
+          <h2 className={title}>How these are counted</h2>
+          <p className="text-muted-foreground text-sm">
+            Games logged were added to your Journal this year, in any Status.
+            Edits do not count as new additions. Removing or re-adding a game
+            changes this review.
+          </p>
+          <p className="text-muted-foreground text-sm">
+            Games played are based on recorded Playthrough date ranges
+            overlapping this year through {review.through}, including open
+            Playthroughs. Each game counts once. These games may also appear in
+            Games logged; the totals are separate.
+          </p>
+          <p className="text-muted-foreground text-sm">
+            Hours and Top platform come from those same Playthroughs. Hours are
+            the totals you entered, including any time before this year on a
+            Playthrough that carried over. Top platform is the one with the most
+            games played.
+          </p>
         </section>
-      )}
+      </div>
     </div>
   );
 }
