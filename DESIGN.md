@@ -167,7 +167,7 @@ The palette is a strictly achromatic gray ramp in OKLCH, with zero chroma. It's 
 ### Named Rules
 **The Covers Carry Color Rule.** Interface chrome stays achromatic. The only hues on screen come from cover art, Ember for destructive or error states, and celebration particles. A new accent color needs a deliberate decision and an update to this file. It never appears as a one-off.
 
-**The Keepsake Exception.** The Year in Review sheet is a printed object, not chrome. It uses three tokens that are the same in both themes: **Keepsake Paper** (warm off-white), **Keepsake Ink** (text, rules and the hero block) and **Keepsake Marker** (one highlighter yellow, for the hero count, the logo cell and the busiest month). They appear only inside that sheet. Links on the sheet take an Ink focus outline, because the theme foreground disappears against Paper in Dark.
+**The Keepsake Exception.** The Year in Review sheet is a printed object, not chrome. It uses three tokens that are the same in both themes: **Keepsake Paper** (warm off-white), **Keepsake Ink** (text, rules and the hero block) and **Keepsake Marker** (one highlighter yellow, for the hero count, the logo cell and the busiest month). They appear inside that sheet and its matching Home invitation. Links on the sheet take an Ink focus outline, because the theme foreground disappears against Paper in Dark.
 
 **The Celebration Exception.** The finish-game confetti (`burst-button.tsx`) uses the raw Tailwind amber, emerald, sky, rose and violet `400` colors. It's the only place raw palette classes are allowed, because a celebration is a moment, not chrome.
 
@@ -469,6 +469,6 @@ For each UI change, identify the existing component and pattern being reused, up
 
 ### Year in Review invitation
 
-- Home shows ReviewInvitation only for a signed-in player with the review flag enabled. It reuses Button and Link in a muted, bordered notice; the existing plain ReviewInvitation link was extended into a product composition. It is independent of Stats navigation and does not prevent opening the review after dismissal.
+- Home shows ReviewInvitation only for a signed-in player with the review flag enabled. It reuses Button and Link in a ruled bento: an Ink year tile, a Paper copy tile, and a separate action row with a Marker View cell, all in Geist Mono. It follows the Keepsake Exception; the existing plain ReviewInvitation link was extended into a product composition. It is independent of Stats navigation and does not prevent opening the review after dismissal.
 - A client mount records a real review visit, so prefetching does not mark it opened. After opening, View remains alongside Dismiss (the current sign-in across tabs) and Don’t show again (this review year, across all devices). Nullable year fields on the user and session retain these choices without browser storage; next year’s invitation compares a new campaign year.
 - Hiding waits for a confirmed save; failure preserves the banner with a polite retry message. Dismissing returns focus to the Home heading. No new motion is introduced.

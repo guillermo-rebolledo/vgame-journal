@@ -17,7 +17,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Home's flag-gated Year in Review promotion, composed from Button and Link. A recorded visit reveals session dismissal and a year-scoped account preference. Hiding waits for the server to confirm the save; failures retain the banner and can be retried. Session dismissal lasts for the current sign-in, across tabs. No browser storage or credentials are exposed.",
+          "Home's flag-gated Year in Review promotion: a ruled Keepsake bento in Geist Mono, composed from Button and Link. A recorded visit reveals session dismissal and a year-scoped account preference. Hiding waits for the server to confirm the save; failures retain the banner and can be retried. Session dismissal lasts for the current sign-in, across tabs. No browser storage or credentials are exposed.",
       },
     },
   },
