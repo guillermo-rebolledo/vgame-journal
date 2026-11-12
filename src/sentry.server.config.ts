@@ -4,7 +4,8 @@ import { monitoringConfig } from "./lib/monitoring-config";
 import { monitoringOptions } from "./lib/monitoring-options";
 import { installErrorCapture } from "./lib/operational-errors";
 
-const config = monitoringConfig();
+const config =
+  process.env.NEXT_PUBLIC_SENTRY_ENABLED === "1" ? monitoringConfig() : null;
 if (config) {
   try {
     Sentry.init({
