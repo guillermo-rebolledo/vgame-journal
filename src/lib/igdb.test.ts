@@ -910,3 +910,84 @@ test("short IGDB 429 retries once and returns the mapped game", async () => {
   ]);
   expect(requests).toBe(2);
 });
+
+test("Play next retrieves relationships, released version dates and most-rated pages without hype", async () => {
+  const bodies: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      bodies.push(String(init?.body));
+      return Response.json([
+        {
+          id: 1,
+          name: "Base",
+          slug: "base",
+          similar_games: [2],
+          collections: [3],
+          franchises: [4],
+          genres: [{ id: 5, name: "Adventure" }],
+          themes: [6],
+          player_perspectives: [7],
+          game_modes: [8],
+          total_rating_count: 10,
+          hypes: 900,
+          platforms: [{ name: "PC" }],
+          ports: [
+            {
+              platforms: [{ name: "Switch" }],
+              release_dates: [
+                { date: 1893456000, platform: { name: "Switch" } },
+              ],
+            },
+          ],
+          release_dates: [{ date: 1577836800, platform: { name: "PC" } }],
+        },
+      ]);
+    }),
+  );
+  const signal = new AbortController().signal;
+  const seeds = await igdbGameSource.fetchRecommendationSeeds([1], signal);
+  expect(seeds[0]).toMatchObject({
+    similar: [2],
+    series: [3],
+    franchises: [4],
+    genres: [5],
+    themes: [6],
+    perspectives: [7],
+    modes: [8],
+  });
+  expect(seeds[0].game.popularity).toBe(10);
+  expect(seeds[0].game.releaseDates.map((date) => date.platform)).toEqual([
+    "PC",
+    "Switch",
+  ]);
+  const result = await igdbGameSource.fetchRecommendationPage(
+    {
+      platform: "Switch",
+      genre: "Adventure",
+      popular: false,
+      similar: [2],
+      series: [3],
+      franchises: [4],
+      genres: [5],
+      themes: [6],
+      perspectives: [7],
+      modes: [8],
+    },
+    1,
+    signal,
+  );
+  expect(result.games[0].game.platforms).toEqual(["PC", "Switch"]);
+  expect(bodies[1]).toContain('ports.platforms.name = "Switch"');
+  expect(bodies[1]).toContain('remasters.platforms.name = "Switch"');
+  expect(bodies[1]).toContain('genres.name = "Adventure"');
+  expect(bodies[1]).toContain(
+    "sort total_rating_count desc; limit 100; offset 100;",
+  );
+  expect(bodies[1]).toContain(
+    "id = (2) | collections = (3) | franchises = (4) | genres = (5)",
+  );
+  expect(bodies[1]).toContain("ports.release_dates.date");
+});

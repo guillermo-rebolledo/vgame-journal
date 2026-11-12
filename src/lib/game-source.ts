@@ -1,5 +1,36 @@
 /** The external game catalog (IGDB). The real implementation is `igdb.ts`; tests use `src/test/fake-game-source.ts`. */
+export type PlayNextFilters = { platform: string; genre: string };
+export type RecommendationGame = {
+  game: SourceGame;
+  similar: number[];
+  series: number[];
+  franchises: number[];
+  genres: number[];
+  themes: number[];
+  perspectives: number[];
+  modes: number[];
+};
+export type RecommendationQuery = PlayNextFilters & {
+  similar: number[];
+  series: number[];
+  franchises: number[];
+  genres: number[];
+  themes: number[];
+  perspectives: number[];
+  modes: number[];
+  popular: boolean;
+};
+
 export interface GameSource {
+  fetchRecommendationSeeds(
+    ids: number[],
+    signal: AbortSignal,
+  ): Promise<RecommendationGame[]>;
+  fetchRecommendationPage(
+    query: RecommendationQuery,
+    page: number,
+    signal: AbortSignal,
+  ): Promise<{ games: RecommendationGame[]; hasMore: boolean }>;
   /** Next Visits page in descending score order, excluding all previously seen canonical IDs. */
   fetchDiscoveryRanks(
     excludedIds: number[],

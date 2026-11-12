@@ -714,6 +714,31 @@ export function createJournal(db: Db) {
       return invitation.length === 1;
     },
 
+    /** A recommendation can add a new entry, but must never overwrite a save from another tab. */
+    async addRecommendation(
+      userId: string,
+      gameId: number,
+      status: "backlog" | "playing",
+    ) {
+      if (status !== "backlog" && status !== "playing")
+        throw new JournalError("Choose Backlog or Playing.");
+      const at = nextStatusAt(userId, gameId);
+      const [result] = await locked(
+        userId,
+        sql`with inserted as (
+          insert into ${journalEntry} (user_id, game_id, status, created_at, updated_at)
+          values (${userId}, ${gameId}, ${status}, ${at}, ${at})
+          on conflict (user_id, game_id) do nothing
+          returning user_id, game_id, status, updated_at
+        ), event as (
+          insert into ${statusEvent} (user_id, game_id, status, at)
+          select user_id, game_id, status, updated_at from inserted
+        ), invitation as (${consumeInvitation(userId)})
+        select exists(select 1 from inserted) as added, exists(select 1 from invitation) as invited`,
+      );
+      return (result as { added: boolean }).added;
+    },
+
     /**
      * Changes the status only if the entry is still as the caller saw it: in `from.status`, and, given `from.updatedAt`, untouched since then.
      * Returns the change's time (pass it back to undo), or null if the entry had changed. One conditional UPDATE, so racing writes can't both win.

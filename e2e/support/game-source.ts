@@ -2,6 +2,7 @@ import {
   createFakeGameSource,
   sourceGame,
 } from "../../src/test/fake-game-source";
+import { supportUrl } from "./url";
 
 // Fictional games with synthetic dates for Wishlist sections; not real release announcements.
 const todayUtc = new Date(new Date().toISOString().slice(0, 10));
@@ -22,6 +23,32 @@ const synthetic = (
   });
 
 const games = [
+  ...Array.from({ length: 9 }, (_, i) =>
+    sourceGame({
+      id: 940001 + i,
+      title: `Play Next Fixture ${i + 1}`,
+      slug: `play-next-fixture-${i + 1}`,
+      platforms: ["PC", "Play Next Future Port"],
+      genres: [i === 8 ? "Puzzle" : "Adventure"],
+      popularity: 2000 - i,
+      releaseDates: [
+        {
+          platform: "PC",
+          region: "worldwide",
+          date: new Date("2020-01-01"),
+          precision: "day",
+          status: null,
+        },
+        {
+          platform: "Play Next Future Port",
+          region: "worldwide",
+          date: new Date("2099-01-01"),
+          precision: "day",
+          status: null,
+        },
+      ],
+    }),
+  ),
   sourceGame({
     id: 930093,
     title: "Overlay Scroll Fixture",
@@ -409,7 +436,28 @@ const games = [
     ],
   }),
 ];
-export const igdbGameSource = createFakeGameSource(games, [
-  { appid: 620, gameId: 113112, type: "main_game" },
-  { appid: 621, gameId: 26855, type: "main_game" },
-]);
+export const igdbGameSource = createFakeGameSource(
+  games,
+  [
+    { appid: 620, gameId: 113112, type: "main_game" },
+    { appid: 621, gameId: 26855, type: "main_game" },
+  ],
+  {
+    940001: { similar: [940002, 940003, 940004, 940005], series: [9400] },
+    940002: { series: [9400] },
+    940006: { series: [9400] },
+  },
+);
+
+const readRecommendationPage = igdbGameSource.fetchRecommendationPage;
+igdbGameSource.fetchRecommendationPage = async (query, page, signal) => {
+  if (query.platform.startsWith("Play Next Control ")) {
+    const response = await fetch(
+      supportUrl(`/play-next-source?key=${encodeURIComponent(query.platform)}`),
+      { signal },
+    );
+    if ((await response.json()).fail)
+      throw new Error("Synthetic recommendation failure");
+  }
+  return readRecommendationPage(query, page, signal);
+};

@@ -157,6 +157,17 @@ export function Library({
 
   return (
     <div className="flex flex-col gap-6">
+      {!readOnly && filters.status === "backlog" && (
+        <Link
+          href="/play-next"
+          className={buttonVariants({
+            variant: "outline",
+            className: "min-h-11 self-start",
+          })}
+        >
+          What should I play next?
+        </Link>
+      )}
       <div className="flex flex-col gap-3">
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3 sm:flex sm:flex-wrap sm:items-end">
           <div className="col-span-full flex min-w-0 flex-col gap-1.5 sm:w-64">

@@ -5,6 +5,7 @@ import { SITE_URL } from "@/config/site";
 const PRIVATE = [
   "/api/",
   "/library",
+  "/play-next",
   "/lists",
   "/wishlist",
   "/stats",
