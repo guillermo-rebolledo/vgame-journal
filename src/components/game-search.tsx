@@ -92,7 +92,7 @@ export function GameSearch({
     else if (presentation === "catalog") {
       // Let route focus restoration finish before focusing the inline search.
       const frame = requestAnimationFrame(() => {
-        input.current?.focus();
+        input.current?.focus({ preventScroll: true });
         if (window.innerWidth <= 640)
           input.current?.scrollIntoView({
             block: "center",

@@ -1,6 +1,8 @@
 import {
   compareTagGames,
   type GameSource,
+  type RecommendationGame,
+  type RecommendationQuery,
   type SourceGame,
   type SteamMapping,
 } from "@/lib/game-source";
@@ -9,8 +11,60 @@ import {
 export function createFakeGameSource(
   games: (SourceGame & { visits?: number })[],
   steamMappings: SteamMapping[] = [],
+  relationships: Partial<
+    Record<number, Partial<Omit<RecommendationGame, "game">>>
+  > = {},
 ) {
+  const recommendation = (game: SourceGame): RecommendationGame => ({
+    game,
+    similar: [],
+    series: [],
+    franchises: [],
+    genres: [],
+    themes: [],
+    perspectives: [],
+    modes: [],
+    ...relationships[game.id],
+  });
   const source = {
+    async fetchRecommendationSeeds(ids: number[], signal: AbortSignal) {
+      signal.throwIfAborted();
+      return games.filter((game) => ids.includes(game.id)).map(recommendation);
+    },
+    async fetchRecommendationPage(
+      query: RecommendationQuery,
+      page: number,
+      signal: AbortSignal,
+    ) {
+      signal.throwIfAborted();
+      const pool = games
+        .map(recommendation)
+        .filter(
+          (candidate) =>
+            (!query.platform ||
+              candidate.game.platforms.includes(query.platform)) &&
+            (!query.genre || candidate.game.genres.includes(query.genre)) &&
+            (query.popular ||
+              query.similar.includes(candidate.game.id) ||
+              (
+                [
+                  "series",
+                  "franchises",
+                  "genres",
+                  "themes",
+                  "perspectives",
+                  "modes",
+                ] as const
+              ).some((key) =>
+                candidate[key].some((id) => query[key].includes(id)),
+              )),
+        )
+        .sort((a, b) => compareTagGames(a.game, b.game));
+      return {
+        games: pool.slice(page * 100, (page + 1) * 100),
+        hasMore: pool.length > (page + 1) * 100,
+      };
+    },
     searches: 0,
     async mapSteamApps(appids: number[], signal: AbortSignal) {
       signal.throwIfAborted();

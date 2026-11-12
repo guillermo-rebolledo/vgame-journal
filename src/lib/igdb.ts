@@ -3,6 +3,7 @@ import {
   type DatePrecision,
   GAME_TYPES,
   type GameSource,
+  type RecommendationGame,
   type SourceAgeRating,
   type SourceGame,
   type SourceLanguage,
@@ -241,8 +242,18 @@ type IgdbGame = {
   genres?: { id: number; name: string }[];
   player_perspectives?: number[];
   platforms?: { name: string }[];
-  remasters?: { platforms?: { name: string }[] }[];
-  ports?: { platforms?: { name: string }[] }[];
+  remasters?: {
+    platforms?: { name: string }[];
+    release_dates?: IgdbReleaseDate[];
+  }[];
+  ports?: {
+    platforms?: { name: string }[];
+    release_dates?: IgdbReleaseDate[];
+  }[];
+  similar_games?: number[];
+  collections?: number[];
+  franchises?: number[];
+  game_modes?: number[];
   release_dates?: IgdbReleaseDate[];
   aggregated_rating?: number;
   aggregated_rating_count?: number;
@@ -301,6 +312,9 @@ const GAME_FIELDS = [
   "language_supports.language.name",
   "language_supports.language_support_type.name",
   ...RELEASE_DATE_FIELDS.map((f) => `release_dates.${f}`),
+  ...["ports", "remasters"].flatMap((relation) =>
+    RELEASE_DATE_FIELDS.map((field) => `${relation}.release_dates.${field}`),
+  ),
 ].join(",");
 
 const toReleaseDate = (d: IgdbReleaseDate): SourceReleaseDate => ({
@@ -383,7 +397,9 @@ const toGame = (g: IgdbGame): SourceGame => ({
       ),
     ),
   ],
-  releaseDates: g.release_dates?.map(toReleaseDate) ?? [],
+  releaseDates: [g, ...(g.ports ?? []), ...(g.remasters ?? [])].flatMap(
+    (version) => version.release_dates?.map(toReleaseDate) ?? [],
+  ),
   criticScore: g.aggregated_rating ?? null,
   criticScoreCount: g.aggregated_rating_count ?? null,
   userScore: g.rating ?? null,
@@ -404,7 +420,79 @@ const toGame = (g: IgdbGame): SourceGame => ({
  * The live GameSource. Search already asks IGDB for standalone, official, non-version games only,
  * so DLC and fan games don't use up the results the Catalog ranks.
  */
+const RECOMMENDATION_FIELDS = [
+  GAME_FIELDS,
+  "similar_games",
+  "collections",
+  "franchises",
+  "game_modes",
+].join(",");
+const toRecommendation = (g: IgdbGame): RecommendationGame => ({
+  game: {
+    ...toGame(g),
+    popularity: g.total_rating_count ?? 0,
+  },
+  similar: g.similar_games ?? [],
+  series: g.collections ?? [],
+  franchises: g.franchises ?? [],
+  genres: g.genres?.map((genre) => genre.id) ?? [],
+  themes: g.themes ?? [],
+  perspectives: g.player_perspectives ?? [],
+  modes: g.game_modes ?? [],
+});
+
 export const igdbGameSource: GameSource = {
+  async fetchRecommendationSeeds(ids, signal) {
+    if (!ids.length) return [];
+    const games = await igdb<IgdbGame>(
+      "games",
+      `fields ${RECOMMENDATION_FIELDS}; where id = (${ids.slice(0, 12).map(Math.trunc).join(",")}); limit 12;`,
+      signal,
+    );
+    return games.map(toRecommendation);
+  },
+  async fetchRecommendationPage(query, page, signal) {
+    const routes = [
+      ["id", query.similar],
+      ["collections", query.series],
+      ["franchises", query.franchises],
+      ["genres", query.genres],
+      ["themes", query.themes],
+      ["player_perspectives", query.perspectives],
+      ["game_modes", query.modes],
+    ] as const;
+    const relationships = routes
+      .filter(([, ids]) => ids.length)
+      .map(
+        ([field, ids]) =>
+          `${field} = (${ids.slice(0, 120).map(Math.trunc).join(",")})`,
+      );
+    if (!query.popular && !relationships.length)
+      return { games: [], hasMore: false };
+    const filters = [
+      `game_type = (${STANDALONE_TYPE_IDS})`,
+      "version_parent = null",
+      `keywords != (${FAN_KEYWORD_IDS})`,
+      "themes != (42)",
+      `first_release_date <= ${Math.floor(Date.now() / 1000)}`,
+      ...(!query.popular ? [`(${relationships.join(" | ")})`] : []),
+      ...(query.genre ? [`genres.name = ${JSON.stringify(query.genre)}`] : []),
+      ...(query.platform
+        ? [
+            `(platforms.name = ${JSON.stringify(query.platform)} | ports.platforms.name = ${JSON.stringify(query.platform)} | remasters.platforms.name = ${JSON.stringify(query.platform)})`,
+          ]
+        : []),
+    ];
+    const games = await igdb<IgdbGame>(
+      "games",
+      `fields ${RECOMMENDATION_FIELDS}; where ${filters.join(" & ")}; sort total_rating_count desc; limit 100; offset ${Math.max(0, Math.min(3, Math.trunc(page))) * 100};`,
+      signal,
+    );
+    return {
+      games: games.map(toRecommendation),
+      hasMore: games.length === 100,
+    };
+  },
   async mapSteamApps(appids, signal) {
     const result: SteamMapping[] = [];
     const ids = [...new Set(appids)];

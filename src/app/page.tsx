@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { readHomeJournal } from "@/app/home-actions";
 import { dismissReviewInvitation } from "@/app/year-in-review/actions";
@@ -14,6 +15,7 @@ import {
 import { HomeSearch } from "@/components/home-search";
 import { JsonLd } from "@/components/json-ld";
 import { ReviewInvitation } from "@/components/review-invitation";
+import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import { currentSession, signedInUserId } from "@/lib/auth";
@@ -88,6 +90,17 @@ async function HomeContent() {
         >
           <HomeSearch guidance="Search the Catalog. Choose a game to open its page." />
         </Suspense>
+        {userId && (
+          <Link
+            href="/play-next"
+            className={buttonVariants({
+              variant: "outline",
+              className: "min-h-11 self-start",
+            })}
+          >
+            What should I play next?
+          </Link>
+        )}
         {!userId && (
           <div className="flex flex-col gap-4">
             <Suspense

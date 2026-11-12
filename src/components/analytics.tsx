@@ -130,6 +130,10 @@ export function TrackClicks({
 
 // Vercel Pro allows 2 properties per event. Values are enums, booleans or buckets only: never free text or ids.
 type ProductEvents = {
+  play_next_action: {
+    source: "backlog" | "discover";
+    action: "reroll" | "reshuffle" | "started" | "saved";
+  };
   feedback_submitted: { type: FeedbackType };
   sign_up_completed: { method: "email" | "google" };
   sign_in_completed: { method: "email" | "google" };

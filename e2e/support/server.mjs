@@ -12,6 +12,7 @@ const publicListStates = new Map();
 const discoveryState = { fail: false, hold: false };
 const discoveryWaiters = [];
 const steamFixtures = new Map();
+const playNextFixtures = new Map();
 const steamFlags = new Map();
 const reviewFixtures = new Map();
 const server = createServer(async (request, response) => {
@@ -19,6 +20,22 @@ const server = createServer(async (request, response) => {
     let body = "";
     for await (const chunk of request) body += chunk;
     response.setHeader("Content-Type", "application/json");
+    if (request.url === "/play-next-source" && request.method === "POST") {
+      const fixture = JSON.parse(body);
+      playNextFixtures.set(fixture.key, fixture);
+      response.end("{}");
+      return;
+    }
+    if (request.url.startsWith("/play-next-source?")) {
+      const key = new URL(request.url, "http://localhost").searchParams.get(
+        "key",
+      );
+      const fixture = playNextFixtures.get(key) ?? {};
+      if (fixture.delay)
+        await new Promise((resolve) => setTimeout(resolve, fixture.delay));
+      response.end(JSON.stringify({ fail: fixture.fail ?? false }));
+      return;
+    }
     if (request.url === "/steam-flag" && request.method === "POST") {
       const fixture = JSON.parse(body);
       steamFlags.set(fixture.username, fixture.enabled);

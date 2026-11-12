@@ -306,6 +306,47 @@ export function createCatalog(db: Db, source: GameSource) {
   return {
     save,
     tagGames,
+    playNextSeeds: (ids: number[]) =>
+      source.fetchRecommendationSeeds(ids, AbortSignal.timeout(15000)),
+    playNextPage: (
+      query: import("./game-source").RecommendationQuery,
+      page: number,
+    ) =>
+      source.fetchRecommendationPage(query, page, AbortSignal.timeout(15000)),
+    async playNextJournal(owner: string) {
+      const entries = await db
+        .select({
+          id: journalEntry.gameId,
+          status: journalEntry.status,
+          updatedAt: journalEntry.updatedAt,
+        })
+        .from(journalEntry)
+        .where(eq(journalEntry.userId, owner));
+      const backlog = await db
+        .select({ game })
+        .from(journalEntry)
+        .innerJoin(game, eq(game.id, journalEntry.gameId))
+        .where(
+          and(
+            eq(journalEntry.userId, owner),
+            eq(journalEntry.status, "backlog"),
+          ),
+        );
+      const ids = backlog.map((row) => row.game.id);
+      const dates = ids.length
+        ? await db
+            .select()
+            .from(releaseDate)
+            .where(inArray(releaseDate.gameId, ids))
+        : [];
+      return {
+        entries,
+        backlog: backlog.map(({ game }) => ({
+          ...game,
+          releaseDates: dates.filter((date) => date.gameId === game.id),
+        })),
+      };
+    },
     refreshHealth: refreshState.health,
     async runScheduledRefresh(signal?: AbortSignal) {
       // Leave half the 180s hosting budget for bounded database writes and outcome persistence.
