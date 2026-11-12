@@ -9,7 +9,9 @@ const { decide, wrap, init, capture, flush } = vi.hoisted(() => ({
   capture: vi.fn(),
   flush: vi.fn().mockResolvedValue(true),
   decide: vi.fn(),
-  wrap: vi.fn((config) => config),
+  wrap: vi.fn(
+    (config, _options?: { errorHandler?: (error: Error) => void }) => config,
+  ),
 }));
 vi.mock("@sentry/nextjs", () => ({ init, captureException: capture, flush }));
 vi.mock("@flags-sdk/vercel", () => ({
@@ -148,4 +150,13 @@ test.each([
   expect(init).toHaveBeenCalledTimes(enabled === "1" ? 1 : 0);
   expect(capture).toHaveBeenCalledTimes(enabled === "1" ? 1 : 0);
   expect(decide).not.toHaveBeenCalled();
+});
+
+test("source-map upload failures stop the build without exposing provider errors", async () => {
+  await configure();
+  const handler = wrap.mock.calls[0][1]?.errorHandler;
+  expect(handler).toBeTypeOf("function");
+  expect(() => handler?.(new Error("provider-token-private-detail"))).toThrow(
+    /^Private source-map upload failed$/,
+  );
 });

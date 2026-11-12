@@ -58,6 +58,10 @@ export default async function configureNext(phase: string) {
           { key: "Content-Security-Policy-Report-Only", value: reportOnlyCsp },
         ],
       },
+      {
+        source: "/internal/sentry-verification/:path*",
+        headers: [{ key: "Cache-Control", value: "private, no-store" }],
+      },
       // Rating logos never change; a new logo gets a new filename.
       {
         source: "/ratings/:file*",
@@ -106,6 +110,10 @@ export default async function configureNext(phase: string) {
         authToken: process.env.SENTRY_AUTH_TOKEN,
         telemetry: false,
         silent: true,
+        // The SDK otherwise logs upload failures and allows the deployment to continue.
+        errorHandler: () => {
+          throw new Error("Private source-map upload failed");
+        },
         widenClientFileUpload: false,
         webpack: {
           automaticVercelMonitors: false,
