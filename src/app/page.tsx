@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { readHomeJournal } from "@/app/home-actions";
 import { dismissReviewInvitation } from "@/app/year-in-review/actions";
-import { HomeLoading } from "@/components/content-loading";
+import { HomeLoading, HomeSearchLoading } from "@/components/content-loading";
 import { Discovery, DiscoveryLoading } from "@/components/discovery";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
 import { HomeAuthActions } from "@/components/home-auth-actions";
@@ -81,7 +81,7 @@ async function HomeContent() {
           fallback={
             <div>
               <output className="sr-only">Loading game search…</output>
-              <Skeleton className="h-11 w-40" />
+              <HomeSearchLoading />
             </div>
           }
         >

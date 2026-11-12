@@ -901,7 +901,8 @@ export function HomeJournal({
               href={href}
               className={buttonVariants({
                 variant: "outline",
-                className: "min-h-11 h-auto whitespace-normal py-2",
+                className:
+                  "min-h-11 h-auto whitespace-normal py-2 tabular-nums",
               })}
             >
               {label} ({count})
@@ -990,7 +991,7 @@ function PersonalShelf({
                   imageId={entry.coverImageId}
                   size={compact ? "cover_small" : undefined}
                   className={
-                    compact ? "w-12 rounded" : "w-full rounded-lg shadow-lg"
+                    compact ? "w-12 rounded-sm" : "w-full rounded-lg shadow-lg"
                   }
                 />
               }

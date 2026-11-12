@@ -1,8 +1,10 @@
 import { connection } from "next/server";
+import { CoverTiles } from "@/components/content-loading";
 import {
   DiscoveryContent,
   type DiscoveryResult,
 } from "@/components/discovery-content";
+import { Skeleton } from "@/components/ui/skeleton";
 import { catalog } from "@/lib/catalog";
 
 /** Reads durable snapshots only; retries never refresh the provider or write to the Catalog. */
@@ -26,16 +28,9 @@ export function DiscoveryLoading() {
       </output>
       {["recent", "popular"].map((key) => (
         <div key={key} aria-hidden="true" className="flex flex-col gap-3">
-          <div className="h-7 w-44 max-w-full rounded bg-muted" />
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {[1, 2, 3, 4].map((tile) => (
-              <div key={tile} className="flex flex-col gap-2">
-                <div className="aspect-[264/374] rounded-lg bg-muted" />
-                <div className="h-5 w-3/4 rounded bg-muted" />
-              </div>
-            ))}
-          </div>
-          <div className="h-4 w-32 rounded bg-muted" />
+          <Skeleton className="h-7 w-44" />
+          <CoverTiles />
+          <Skeleton className="h-4 w-32" />
         </div>
       ))}
     </div>

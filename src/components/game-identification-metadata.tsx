@@ -50,7 +50,7 @@ export function GameIdentificationMetadata({
               render={<button ref={trigger} type="button" />}
               aria-label={`+${remaining.length} ${remaining.length === 1 ? "platform" : "platforms"} — More platforms for ${title}`}
               aria-controls={open ? id : undefined}
-              className="flex min-h-11 cursor-pointer items-center gap-1 rounded-md py-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="-my-3 flex min-h-11 cursor-pointer items-center gap-1 rounded-md py-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               +{remaining.length}{" "}
               {remaining.length === 1 ? "platform" : "platforms"}
