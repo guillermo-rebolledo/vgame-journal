@@ -2,6 +2,10 @@
 export function monitoringConfig(
   env: Record<string, string | undefined> = process.env,
 ) {
+  // Vercel sets CI=1 for production builds too; require its deployment identity.
+  const vercelBuild =
+    env.CI === "1" &&
+    /^dpl_[a-z0-9]{1,80}$/i.test(env.VERCEL_DEPLOYMENT_ID ?? "");
   if (
     !["https://shelve.games", "https://www.shelve.games"].includes(
       env.BETTER_AUTH_URL ?? "",
@@ -10,7 +14,8 @@ export function monitoringConfig(
     env.VERCEL !== "1" ||
     env.VERCEL_ENV !== "production" ||
     env.NODE_ENV !== "production" ||
-    env.CI ||
+    env.GITHUB_ACTIONS ||
+    (env.CI && !vercelBuild) ||
     env.VITEST ||
     env.STORYBOOK ||
     env.E2E_TEST ||

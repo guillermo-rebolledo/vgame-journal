@@ -45,6 +45,11 @@ test.each([
   { VERCEL_ENV: "preview" },
   { NODE_ENV: "development" },
   { CI: "true" },
+  { CI: "1" },
+  { CI: "1", VERCEL_DEPLOYMENT_ID: "invalid" },
+  { CI: "1", VERCEL_DEPLOYMENT_ID: "dpl_test123", GITHUB_ACTIONS: "true" },
+  { CI: "1", VERCEL_DEPLOYMENT_ID: "dpl_test123", VERCEL_ENV: "preview" },
+  { CI: "1", VERCEL_DEPLOYMENT_ID: "dpl_test123", E2E_TEST: "1" },
   { VITEST: "true" },
   { STORYBOOK: "1" },
   { E2E_TEST: "1" },
@@ -62,6 +67,16 @@ test.each([
     vi.stubEnv(key, value);
   await register();
   expect(fetch).not.toHaveBeenCalled();
+});
+
+test("Vercel production builds may derive browser config despite CI=1", () => {
+  expect(
+    monitoringConfig({
+      ...production,
+      CI: "1",
+      VERCEL_DEPLOYMENT_ID: "dpl_test123",
+    }),
+  ).toEqual({ dsn, release, origin: "https://o123.ingest.us.sentry.io" });
 });
 
 test("only the exact approved HTTPS origin and same commit are exposed", () => {
@@ -336,12 +351,15 @@ test("build gate exposes only public config, exact CSP origin and no map plugin 
   for (const [key, value] of Object.entries(production)) vi.stubEnv(key, value);
   for (const key of [
     "CI",
+    "GITHUB_ACTIONS",
     "VITEST",
     "STORYBOOK",
     "E2E_TEST",
     "SENTRY_AUTH_TOKEN",
   ])
     vi.stubEnv(key, "");
+  vi.stubEnv("CI", "1");
+  vi.stubEnv("VERCEL_DEPLOYMENT_ID", "dpl_test123");
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.resetModules();
   const { default: config } = await import("../../next.config");
