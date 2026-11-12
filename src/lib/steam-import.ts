@@ -7,6 +7,10 @@ import { ExpectedError } from "@/lib/expected-error";
 import { type GameSource, STANDALONE_TYPES } from "@/lib/game-source";
 import { createJournal } from "@/lib/journal";
 import {
+  operationalCode,
+  reportOperationalError,
+} from "@/lib/operational-errors";
+import {
   STEAM_IMPORT_LIMIT,
   type SteamGame,
   type SteamRead,
@@ -180,7 +184,8 @@ export function createSteamImport(
                   : r.state,
           })),
         };
-      } catch {
+      } catch (error) {
+        reportOperationalError("steam.review", operationalCode(error), error);
         return { kind: "unavailable" };
       }
     },

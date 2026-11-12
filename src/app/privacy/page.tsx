@@ -16,7 +16,7 @@ export default function PrivacyPage() {
         <h1 className="font-semibold text-3xl tracking-tight">
           Privacy notice
         </h1>
-        <p className="text-muted-foreground">Updated November 9, 2026</p>
+        <p className="text-muted-foreground">Updated November 12, 2026</p>
         <p>
           shelve.games keeps your Journal and provides ways to share it. This
           notice explains the data used for those features and the limits of
@@ -138,6 +138,28 @@ export default function PrivacyPage() {
           The app’s analytics filtering does not establish what provider or
           hosting logs retain. Their production retention settings have not yet
           been confirmed for this notice.
+        </p>
+      </section>
+      <section aria-labelledby="diagnostics-heading" className="space-y-3">
+        <h2 id="diagnostics-heading" className="font-medium text-xl">
+          Error diagnostics
+        </h2>
+        <p>
+          The app includes Sentry error monitoring, disabled until the owner
+          verifies its free Developer plan, processing region and privacy
+          settings. When enabled, it sends fixed error labels, production
+          release information and sanitized code stack locations to diagnose
+          failures. It excludes private writing, Feedback, account identity,
+          navigation URLs, cookies and request contents. No session recording is
+          used.
+        </p>
+        <p>
+          Network delivery exposes the connecting IP address to Sentry. Private
+          source-map uploads process application source with Sentry. The
+          Developer plan advertises a 30-day error lookback; source artifacts
+          have separate retention and deletion controls. Region, IP storage and
+          artifact retention must be verified and this notice updated before
+          enablement. App account deletion does not erase all provider records.
         </p>
       </section>
       <section aria-labelledby="calendar-heading" className="space-y-3">

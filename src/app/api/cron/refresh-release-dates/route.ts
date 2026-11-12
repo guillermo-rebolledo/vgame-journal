@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { catalog } from "@/lib/catalog";
+import {
+  operationalCode,
+  reportOperationalError,
+} from "@/lib/operational-errors";
 import { refreshEvent } from "@/lib/refresh-state";
 
 export const maxDuration = 180;
@@ -23,7 +27,8 @@ export async function GET(request: Request) {
           : 200,
       headers: { "Cache-Control": "no-store" },
     });
-  } catch {
+  } catch (error) {
+    reportOperationalError("refresh.daily", operationalCode(error), error);
     refreshEvent("daily", "failure", randomUUID());
     return Response.json(
       { outcome: "failure", code: "refresh_unavailable" },

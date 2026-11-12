@@ -48,7 +48,7 @@ export function createFeedback(
           returning id`,
       ]);
     } catch (error) {
-      reportOperationalError("feedback.write", operationalCode(error));
+      reportOperationalError("feedback.write", operationalCode(error), error);
       return { error: "Could not send feedback. Please try again." };
     }
     if (!inserted.length)
@@ -66,7 +66,11 @@ export function createFeedback(
           text: `Username: @${author.username}\nType: ${label}\nPath: ${path}\n\n${message}`,
         });
       } catch (error) {
-        reportOperationalError("feedback.notification", operationalCode(error));
+        reportOperationalError(
+          "feedback.notification",
+          operationalCode(error),
+          error,
+        );
       }
     }
   };

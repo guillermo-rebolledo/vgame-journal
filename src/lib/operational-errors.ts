@@ -1,43 +1,13 @@
-/** Fixed vocabulary only: never pass paths, user identifiers, input, or raw errors. */
-const OPERATIONS = [
-  "server.render",
-  "server.action",
-  "server.route",
-  "server.proxy",
-  "database.request",
-  "game_source.request",
-  "account_email.verification",
-  "account_email.password_reset",
-  "feedback.write",
-  "feedback.notification",
-  "lists.read",
-  "lists.write",
-  "journal.set",
-  "journal.move",
-  "journal.setRating",
-  "journal.clearRating",
-  "journal.remove",
-  "journal.addPlaythrough",
-  "journal.recordPlaythrough",
-  "journal.updatePlaythrough",
-  "journal.removePlaythrough",
-  "journal.setRegion",
-  "journal.feedToken",
-  "journal.settings",
-  "journal.regenerateFeedToken",
-  "journal.deleteAccount",
-  "refresh.wishlist",
-  "refresh.discovery",
-] as const;
-export type Operation = (typeof OPERATIONS)[number];
-const CODES = [
-  "unexpected",
-  "timeout",
-  "rate_limited",
-  "unavailable",
-  "invalid_response",
-] as const;
-export type OperationalCode = (typeof CODES)[number];
+import { expectedMonitoringError } from "./error-monitoring";
+
+import {
+  CODES,
+  OPERATIONS,
+  type Operation,
+  type OperationalCode,
+} from "./operational-vocabulary";
+
+export type { Operation, OperationalCode } from "./operational-vocabulary";
 
 export class OperationalError extends Error {
   constructor(public readonly code: OperationalCode) {
@@ -83,12 +53,26 @@ function emitEvent(
   }
 }
 
+let capture:
+  | ((error: unknown, operation: Operation, code: OperationalCode) => void)
+  | undefined;
+export function installErrorCapture(sink: NonNullable<typeof capture>) {
+  capture = sink;
+}
+
 export function reportOperationalError(
   operation: Operation,
   code: OperationalCode = "unexpected",
+  error?: unknown,
 ) {
   if (!OPERATIONS.includes(operation) || !CODES.includes(code)) return;
   emitEvent("error", { event: "operational_error", operation, code });
+  try {
+    if (operation !== "database.request" && !expectedMonitoringError(error))
+      capture?.(error, operation, code);
+  } catch {
+    /* Preserve the original result even if the SDK fails. */
+  }
 }
 
 export function reportRefreshEvent(
@@ -128,7 +112,7 @@ export function observeOperation<Args extends unknown[], Result>(
       return await run(...args);
     } catch (error) {
       if (!expected(error))
-        reportOperationalError(operation, operationalCode(error));
+        reportOperationalError(operation, operationalCode(error), error);
       throw error;
     }
   };

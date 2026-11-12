@@ -3,6 +3,10 @@
 import { refresh } from "next/cache";
 import { ownerId } from "@/lib/auth";
 import { ExpectedError } from "@/lib/expected-error";
+import {
+  operationalCode,
+  reportOperationalError,
+} from "@/lib/operational-errors";
 import { steamImport, steamImportEnabled } from "@/lib/steam-server";
 
 async function owner(expectedOwner: string) {
@@ -30,6 +34,8 @@ export async function commitSteamImport(
     refresh();
     return result;
   } catch (error) {
+    if (!(error instanceof ExpectedError))
+      reportOperationalError("steam.commit", operationalCode(error), error);
     return {
       error:
         error instanceof ExpectedError
@@ -43,7 +49,9 @@ export async function disconnectSteam(expectedOwner: string) {
     await steamImport.unlink(await owner(expectedOwner));
     refresh();
     return { disconnected: true as const };
-  } catch {
+  } catch (error) {
+    if (!(error instanceof ExpectedError))
+      reportOperationalError("steam.disconnect", operationalCode(error), error);
     return { error: "Could not disconnect Steam. Please try again." };
   }
 }

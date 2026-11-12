@@ -57,6 +57,10 @@ export default defineConfig({
       timeout: 180_000,
       env: {
         E2E_TEST: "1",
+        SENTRY_ENABLED: "",
+        NEXT_PUBLIC_SENTRY_ENABLED: "",
+        NEXT_PUBLIC_SENTRY_DSN: "",
+        SENTRY_AUTH_TOKEN: "sentry-e2e-upload-token-sentinel",
         CRON_SECRET: "e2e-cron-secret",
         BETTER_AUTH_URL: `http://localhost:${port}`,
         BETTER_AUTH_SECRET: "e2e-only-secret-at-least-32-characters-long",
