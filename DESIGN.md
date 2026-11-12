@@ -478,3 +478,10 @@ For each UI change, identify the existing component and pattern being reused, up
 - Home shows ReviewInvitation only for a signed-in player with the review flag enabled. It reuses Button and Link in a ruled bento: an Ink year tile, a Paper copy tile, and a separate action row with a Marker View cell, all in Geist Mono. It follows the Keepsake Exception; the existing plain ReviewInvitation link was extended into a product composition. It is independent of Stats navigation and does not prevent opening the review after dismissal.
 - A client mount records a real review visit, so prefetching does not mark it opened. After opening, View remains alongside Dismiss (the current sign-in across tabs) and Don’t show again (this review year, across all devices). Nullable year fields on the user and session retain these choices without browser storage; next year’s invitation compares a new campaign year.
 - Hiding waits for a confirmed save; failure preserves the banner with a polite retry message. Dismissing returns focus to the Home heading. No new motion is introduced.
+
+### Error recovery
+
+`app/global-error.tsx` uses the existing Button and Year in Review error layout as
+its closest composition: a heading, reassurance and a 44px retry target. It owns a
+full document because root layout failures cannot rely on the normal shell.
+`components/year-in-review-error.stories.tsx` exercises keyboard retry without telemetry.

@@ -1,3 +1,4 @@
+import { linkMonitoringError } from "@/lib/error-monitoring";
 import {
   compareTagGames,
   type DatePrecision,
@@ -198,8 +199,8 @@ async function igdb<T>(
       : error instanceof SyntaxError
         ? "invalid_response"
         : operationalCode(error);
-    reportOperationalError("game_source.request", code);
-    throw new OperationalError(code);
+    reportOperationalError("game_source.request", code, error);
+    throw linkMonitoringError(new OperationalError(code), error);
   }
 }
 

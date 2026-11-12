@@ -3,6 +3,7 @@ import { and, desc, eq, type SQL, sql } from "drizzle-orm";
 import { type Db, db } from "@/db";
 import { executeBatch } from "@/db/batch";
 import { customList, game, listEntry, user } from "@/db/schema";
+import { linkMonitoringError } from "@/lib/error-monitoring";
 import {
   operationalCode,
   reportOperationalError,
@@ -100,8 +101,11 @@ export function createLists(db: Db) {
     try {
       return await query;
     } catch (error) {
-      reportOperationalError("lists.read", operationalCode(error));
-      throw new Error("Lists are unavailable. Please try again.");
+      reportOperationalError("lists.read", operationalCode(error), error);
+      throw linkMonitoringError(
+        new Error("Lists are unavailable. Please try again."),
+        error,
+      );
     }
   }
   async function mutate(
@@ -161,7 +165,7 @@ export function createLists(db: Db) {
             : "List not found.",
       );
     } catch (error) {
-      reportOperationalError("lists.write", operationalCode(error));
+      reportOperationalError("lists.write", operationalCode(error), error);
       return unavailable();
     }
   }
@@ -416,7 +420,7 @@ export function createLists(db: Db) {
         const value = await this.ownerDetail(actor, id);
         return value ? { ok: true, value } : unavailable();
       } catch (error) {
-        reportOperationalError("lists.write", operationalCode(error));
+        reportOperationalError("lists.write", operationalCode(error), error);
         return unavailable();
       }
     },

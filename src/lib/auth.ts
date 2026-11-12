@@ -11,6 +11,7 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { isIsolatedE2E } from "@/lib/e2e-harness";
 import { type Email, sendWithResend } from "@/lib/email";
+import { linkMonitoringError } from "@/lib/error-monitoring";
 import { ExpectedError } from "@/lib/expected-error";
 
 import {
@@ -33,9 +34,9 @@ export function createAuth(
       await sendEmail(email);
     } catch (error) {
       const code = operationalCode(error);
-      reportOperationalError(operation, code);
+      reportOperationalError(operation, code, error);
       // Better Auth may log callback errors; never give it provider details or tokens.
-      throw new OperationalError(code);
+      throw linkMonitoringError(new OperationalError(code), error);
     }
   }
   const googleOptions = {
@@ -104,7 +105,8 @@ export function createAuth(
   instance.handler = async (request) => {
     try {
       return await handler(request);
-    } catch {
+    } catch (error) {
+      reportOperationalError("auth.provider", operationalCode(error), error);
       console.error("Authentication diagnostic");
       return new Response(null, { status: 500 });
     }
@@ -126,10 +128,18 @@ export function createAuth(
               error.headers,
             );
           }
+          reportOperationalError(
+            "auth.provider",
+            operationalCode(error),
+            error,
+          );
           console.error("Authentication diagnostic");
-          throw new APIError("INTERNAL_SERVER_ERROR", {
-            message: "Authentication unavailable. Please try again.",
-          });
+          throw linkMonitoringError(
+            new APIError("INTERNAL_SERVER_ERROR", {
+              message: "Authentication unavailable. Please try again.",
+            }),
+            error,
+          );
         }
       }, endpoint);
     },

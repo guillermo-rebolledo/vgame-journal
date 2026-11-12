@@ -5,6 +5,10 @@ import { catalog } from "@/lib/catalog";
 import { type HomeSnapshot, homeEntries } from "@/lib/home-journal";
 import { JournalError, journal } from "@/lib/journal";
 import { STATUSES, type Status } from "@/lib/library";
+import {
+  operationalCode,
+  reportOperationalError,
+} from "@/lib/operational-errors";
 
 export async function readHomeJournal(): Promise<HomeSnapshot> {
   const owner = await signedInUserId();
@@ -57,10 +61,12 @@ export async function saveHomeStatus(
       preserveCompletionTag: true,
     });
   } catch (error) {
-    const snapshot = await readHomeJournal().catch(() => ({
-      owner,
-      entries: null,
-    }));
+    if (!(error instanceof JournalError))
+      reportOperationalError("home.save", operationalCode(error), error);
+    const snapshot = await readHomeJournal().catch((error) => {
+      reportOperationalError("home.recovery", operationalCode(error), error);
+      return { owner, entries: null };
+    });
     return {
       snapshot,
       error:

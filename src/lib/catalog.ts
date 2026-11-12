@@ -21,6 +21,10 @@ import {
 } from "@/lib/game-source";
 import { GAME_TAGS, type Tag, type TagShelf } from "@/lib/game-tags";
 import { igdbGameSource } from "@/lib/igdb";
+import {
+  operationalCode,
+  reportOperationalError,
+} from "@/lib/operational-errors";
 import { createRefreshState } from "@/lib/refresh-state";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -367,6 +371,18 @@ export function createCatalog(db: Db, source: GameSource) {
           const [discovery] = await Promise.allSettled([
             this.refreshDiscovery(deadline),
           ]);
+          if (wishlist.status === "rejected")
+            reportOperationalError(
+              "refresh.wishlist",
+              operationalCode(wishlist.reason),
+              wishlist.reason,
+            );
+          if (discovery.status === "rejected")
+            reportOperationalError(
+              "refresh.discovery",
+              operationalCode(discovery.reason),
+              discovery.reason,
+            );
           const checked =
             wishlist.status === "fulfilled"
               ? wishlist.value
@@ -481,7 +497,12 @@ export function createCatalog(db: Db, source: GameSource) {
               ? refreshRecent(deadline)
               : refreshShelf(key, deadline, getPage),
           );
-        } catch {
+        } catch (error) {
+          reportOperationalError(
+            key === "recent" ? "refresh.recent" : "refresh.popular",
+            operationalCode(error),
+            error,
+          );
           results[key] = "failed";
         }
       }
@@ -521,7 +542,12 @@ export function createCatalog(db: Db, source: GameSource) {
             await save([refreshed]);
             return (await loadBySlug(refreshed.slug)) ?? local;
           }
-        } catch {
+        } catch (error) {
+          reportOperationalError(
+            "catalog.refresh",
+            operationalCode(error),
+            error,
+          );
           // An optional refresh (tags, age ratings, languages) must never hide an existing Catalog game.
         }
         return local;
