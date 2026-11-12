@@ -100,6 +100,7 @@
 .game-catalog-popup {
   max-height: var(--available-height);
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .game-catalog {
   --muted-foreground: color-mix(

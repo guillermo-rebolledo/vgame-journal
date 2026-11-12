@@ -29,7 +29,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Static skeleton compositions for the first content read on Home, lists, profiles, Stats, Settings and account navigation. Reuses UI/Skeleton and the compact cover-row pattern from CollectionLoading. Each composition has one readable output and hides decorative shapes; placeholders have no focusable actions or invented data. Keep existing content during refreshes and use the Compass spinner for search, retry and mutation feedback. The catalog stays local/CI-only.",
+          "Static skeleton compositions for the first content read on Home, lists, profiles, Stats, Settings and account navigation. Reuses UI/Skeleton and the compact cover-row pattern from CollectionLoading. Home reserves the search panel and the four-cover shelf grid it resolves into. Each composition has one readable output and hides decorative shapes; placeholders have no focusable actions or invented data. Keep existing content during refreshes and use the Compass spinner for search, retry and mutation feedback. The catalog stays local/CI-only.",
       },
     },
   },

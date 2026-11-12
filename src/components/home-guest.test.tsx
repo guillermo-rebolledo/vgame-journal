@@ -5,19 +5,15 @@ import { HomeIntroduction, JournalExample } from "./home-guest";
 
 afterEach(cleanup);
 
-test("guests learn the tasks and collection vocabulary before browsing", () => {
+test("guests learn the tasks and Status vocabulary before browsing", () => {
   render(<HomeIntroduction />);
   expect(screen.getByRole("heading", { level: 1 }).textContent).toContain(
     "Track what you’re playing, build your backlog, and save games you want",
   );
   expect(
     screen.getByText(/Journal is your saved game record/).textContent,
-  ).toContain("Library includes all saved games");
-  expect(screen.getByText(/Status groups/).textContent).toContain(
-    "Played, Playing, Backlog, and Wishlist",
-  );
-  expect(screen.getByText(/Wishlist holds/).textContent).toContain(
-    "released and upcoming games",
+  ).toContain(
+    "each saved game has one Status: Played, Playing, Backlog, or Wishlist",
   );
 });
 

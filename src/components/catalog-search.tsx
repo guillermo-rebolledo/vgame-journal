@@ -86,7 +86,7 @@ export function CatalogSearch({
         >
           <div
             ref={anchor}
-            className="game-catalog-input flex h-11 min-w-0 flex-[1_1_17.5rem] items-center gap-2 rounded-lg border border-input bg-background px-3"
+            className="game-catalog-input flex h-11 min-w-0 flex-[1_1_17.5rem] items-center gap-2 rounded-lg border border-input bg-background pr-1.5 pl-3"
           >
             <Search
               className="size-4 shrink-0 text-muted-foreground"
@@ -109,7 +109,7 @@ export function CatalogSearch({
               placeholder="Search games…"
               maxLength={100}
               value={query}
-              className="game-search-input h-10 min-w-0 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+              className="game-search-input h-10 min-w-0 rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
               onClick={() => onOpenChange(true)}
               onChange={(event) => {
                 onChange({
@@ -164,7 +164,7 @@ export function CatalogSearch({
             )}
             <Popover.Trigger
               aria-label="Show games"
-              className="flex h-8 min-w-7 items-center justify-center rounded-md"
+              render={<Button variant="ghost" size="icon-sm" press="static" />}
             >
               <ChevronDown className="size-4" aria-hidden="true" />
             </Popover.Trigger>

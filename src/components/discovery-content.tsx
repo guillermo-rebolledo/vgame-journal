@@ -90,7 +90,7 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
                       },
                     ]}
                     href={`/games/${game.slug}`}
-                    className="group row-span-2 grid grid-rows-subgrid gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                    className="group row-span-2 grid grid-rows-subgrid gap-2 rounded-lg outline-none"
                     cover={
                       <GameCover
                         imageId={game.coverImageId}

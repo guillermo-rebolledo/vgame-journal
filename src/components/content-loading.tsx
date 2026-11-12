@@ -37,6 +37,25 @@ function GameRows() {
   );
 }
 
+/** Reserves the Catalog search panel's footprint so Home doesn't jump when it mounts. */
+export function HomeSearchLoading() {
+  return <Skeleton className="h-52 w-full rounded-xl" />;
+}
+
+/** The cover grid Home shelves and Discovery resolve into. */
+export function CoverTiles() {
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      {[0, 1, 2, 3].map((tile) => (
+        <div key={tile} className="flex flex-col gap-2">
+          <Skeleton className="aspect-[264/374] w-full rounded-lg" />
+          <Skeleton className="h-5 w-3/4" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function HomeCollectionsLoading() {
   return (
     <LoadingContent label="Checking Journal status…">
@@ -47,7 +66,7 @@ export function HomeCollectionsLoading() {
       </div>
       <div className="space-y-4 border-t pt-6">
         <Skeleton className="h-7 w-40" />
-        <GameRows />
+        <CoverTiles />
       </div>
     </LoadingContent>
   );
@@ -58,10 +77,10 @@ export function HomeLoading() {
     <LoadingContent label="Opening your Journal…">
       <Skeleton className="h-9 w-56 max-w-full" />
       <Skeleton className="h-5 w-80 max-w-full" />
-      <Skeleton className="h-11 w-40" />
+      <HomeSearchLoading />
       <div className="space-y-4 border-t pt-6">
         <Skeleton className="h-7 w-40" />
-        <GameRows />
+        <CoverTiles />
       </div>
     </LoadingContent>
   );
