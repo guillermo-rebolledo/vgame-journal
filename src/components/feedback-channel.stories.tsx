@@ -52,9 +52,12 @@ export const FirstSave: Story = {
     await userEvent.click(
       canvas.getByRole("button", { name: "Save first game" }),
     );
-    await expect(
-      await canvas.findByRole("complementary", { name: "First game feedback" }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        canvas.getByRole("complementary", { name: "First game feedback" }),
+      ).toBeVisible(),
+    );
+    await expect(canvas.getByRole("complementary")).toHaveClass("enter");
     await userEvent.click(
       canvas.getByRole("button", { name: "Dismiss invitation" }),
     );
@@ -62,5 +65,20 @@ export const FirstSave: Story = {
     await expect(
       canvas.getByRole("button", { name: "Something confusing or missing?" }),
     ).toBeVisible();
+  },
+};
+
+export const KeyboardFirstSave: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const save = canvas.getByRole("button", { name: "Save first game" });
+    save.focus();
+    await userEvent.keyboard("{Enter}");
+    const invitation = await canvas.findByRole("complementary", {
+      name: "First game feedback",
+    });
+    await expect(invitation).toBeVisible();
+    await expect(invitation).not.toHaveClass("enter");
+    await expect(save).toHaveFocus();
   },
 };

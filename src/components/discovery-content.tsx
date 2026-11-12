@@ -6,6 +6,7 @@ import { GameCover } from "@/components/game-cover";
 import { GameIdentificationMetadata } from "@/components/game-identification-metadata";
 import { HomeCoverLink } from "@/components/home-cover-link";
 import { HomeSaveControls } from "@/components/home-journal";
+import { ActionFeedback } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import type { catalog } from "@/lib/catalog";
 
@@ -23,11 +24,13 @@ export function DiscoveryError({
   return (
     <div className="flex min-h-28 flex-col items-start gap-3 rounded-lg border p-4">
       <output className="text-muted-foreground text-sm" aria-live="polite">
-        {pending
-          ? "Retrying discovery…"
-          : stale
-            ? "Discovery couldn’t be updated. Showing the last available picks. You can still search for a game."
-            : "Discovery is unavailable. You can still search for a game or open your Journal."}
+        {pending ? (
+          <ActionFeedback state="pending">Retrying discovery…</ActionFeedback>
+        ) : stale ? (
+          "Discovery couldn’t be updated. Showing the last available picks. You can still search for a game."
+        ) : (
+          "Discovery is unavailable. You can still search for a game or open your Journal."
+        )}
       </output>
       <Button
         variant="outline"

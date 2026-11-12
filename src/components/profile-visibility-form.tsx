@@ -140,7 +140,7 @@ export function ProfileVisibilityForm({
           className="min-h-5 text-sm"
         >
           {pending ? (
-            "Saving…"
+            <ActionFeedback state="pending">Saving…</ActionFeedback>
           ) : feedback === "saved" ? (
             <ActionFeedback state="success">Saved</ActionFeedback>
           ) : (

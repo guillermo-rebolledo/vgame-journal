@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { ActionFeedback } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 
 export function SignOutAllForm({
@@ -26,7 +27,13 @@ export function SignOutAllForm({
         aria-atomic="true"
         className="text-muted-foreground text-sm"
       >
-        {pending ? "Signing out all devices…" : ""}
+        {pending ? (
+          <ActionFeedback state="pending">
+            Signing out all devices…
+          </ActionFeedback>
+        ) : (
+          ""
+        )}
       </output>
       <Button
         type="submit"

@@ -13,7 +13,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Feedback editor with retained drafts on failure and a stable success announcement inside the drawer. It remains open so the player can read the confirmation and close it. The account menu composes this editor through renderTrigger and finalFocus; see Product/Account menu for that keyboard flow. Submissions are local callbacks.",
+          "Feedback editor with retained drafts on failure and a stable success announcement inside the drawer. It remains open so the player can read the confirmation and close it. The account menu composes this editor through renderTrigger and finalFocus; see Product/Account menu for that keyboard flow. Pointer confirmations fade in over 200ms (150ms opacity under reduced motion); keyboard submissions stay immediate. Submissions are local callbacks.",
       },
     },
   },
@@ -34,9 +34,11 @@ export const Confirmed: Story = {
     await waitFor(() =>
       expect(body.getByRole("status")).toHaveTextContent("Feedback sent."),
     );
-    await expect(
-      body.getByRole("heading", { name: "Thanks, got it." }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        body.getByRole("heading", { name: "Thanks, got it." }),
+      ).toBeVisible(),
+    );
     await userEvent.click(body.getByRole("button", { name: "Close" }));
     await waitFor(() =>
       expect(
@@ -140,5 +142,29 @@ export const Validation: Story = {
     await expect(body.getByRole("textbox", { name: "Message" })).toHaveValue(
       "Retain this draft.",
     );
+  },
+};
+
+export const KeyboardConfirmation: Story = {
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(
+      within(canvasElement).getByRole("button", { name: "Send feedback" }),
+    );
+    await userEvent.type(
+      body.getByRole("textbox", { name: "Message" }),
+      "Keyboard feedback",
+    );
+    body.getByRole("button", { name: "Send" }).focus();
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(body.getByRole("status")).toHaveTextContent("Feedback sent."),
+    );
+    await expect(
+      body.getByRole("heading", { name: "Thanks, got it." }),
+    ).toBeVisible();
+    await expect(
+      body.getByRole("dialog").querySelector(".fade-enter"),
+    ).toBeNull();
   },
 };

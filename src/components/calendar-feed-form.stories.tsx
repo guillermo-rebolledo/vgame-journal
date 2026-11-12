@@ -64,6 +64,14 @@ export const Pending: Story = {
     await expect(button).toHaveAttribute("aria-busy", "true");
     await expect(args.onRegenerate).toHaveBeenCalledOnce();
     await expect(canvas.getByRole("status")).toHaveTextContent("Regenerating…");
+    await expect(
+      canvas.getByRole("status").querySelector(".shimmer"),
+    ).toBeVisible();
+    await expect(
+      canvas
+        .getByRole("status")
+        .querySelector('[data-active="true"] [data-slot="spinner"]'),
+    ).toHaveAttribute("aria-hidden", "true");
   },
 };
 export const FailedAndRetry: Story = {

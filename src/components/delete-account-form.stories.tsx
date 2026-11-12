@@ -148,6 +148,14 @@ export const SendingCode: Story = {
     await expect(canvas.getByRole("status")).toHaveTextContent(
       "Sending confirmation code…",
     );
+    await expect(
+      canvas.getByRole("status").querySelector(".shimmer"),
+    ).toHaveTextContent("Sending confirmation code…");
+    await expect(
+      canvas
+        .getByRole("status")
+        .querySelector('[data-active="true"] [data-slot="spinner"]'),
+    ).toHaveAttribute("aria-hidden", "true");
   },
 };
 export const EmailDeliveryRetry: Story = {

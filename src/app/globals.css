@@ -227,29 +227,105 @@
 }
 
 /* Settle disclosure layout once; keyboard opening and closing stay immediate. */
-.rating-data::details-content {
+:is(.rating-data, .pointer-disclosure)::details-content {
   opacity: 0;
 }
 
-.rating-data[open]::details-content {
+:is(.rating-data, .pointer-disclosure)[open]::details-content {
   opacity: 1;
 }
 
-.rating-data[open][data-pointer-open="true"]::details-content {
+:is(
+    .rating-data,
+    .pointer-disclosure
+  )[open][data-pointer-open="true"]::details-content {
   transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rating-data::details-content {
+  :is(.rating-data, .pointer-disclosure)::details-content {
     opacity: 0.8;
   }
 
-  .rating-data[open]::details-content {
+  :is(.rating-data, .pointer-disclosure)[open]::details-content {
     opacity: 1;
   }
 
-  .rating-data[open][data-pointer-open="true"]::details-content {
+  :is(
+      .rating-data,
+      .pointer-disclosure
+    )[open][data-pointer-open="true"]::details-content {
     transition: opacity 150ms ease-out;
+  }
+}
+
+/* Inserted confirmations keep their layout settled while their contents fade. */
+.fade-enter,
+.preview-reveal[data-pointer-motion="true"] {
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.preview-reveal[data-pointer-motion="true"][data-ready="false"] {
+  opacity: 0;
+}
+@starting-style {
+  .fade-enter {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fade-enter,
+  .preview-reveal[data-pointer-motion="true"] {
+    transition: opacity 150ms ease-out;
+  }
+  .preview-reveal[data-pointer-motion="true"][data-ready="false"] {
+    opacity: 0.8;
+  }
+  @starting-style {
+    .fade-enter {
+      opacity: 0.8;
+    }
+  }
+}
+
+/* Base UI retains the confirmation through its symmetric exit transition. */
+.confirmation-popup[data-pointer-motion="true"],
+.confirmation-backdrop[data-pointer-motion="true"] {
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+:is(.confirmation-popup, .confirmation-backdrop)[data-pointer-motion="true"]:is(
+    [data-starting-style],
+    [data-ending-style]
+  ) {
+  opacity: 0;
+}
+:is(
+    .confirmation-popup,
+    .confirmation-backdrop
+  )[data-pointer-motion="true"][data-ending-style] {
+  transition-duration: 140ms;
+  transition-timing-function: ease-out;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .confirmation-popup[data-pointer-motion="true"] {
+    transition-property: opacity, transform;
+  }
+  .confirmation-popup[data-pointer-motion="true"]:is(
+      [data-starting-style],
+      [data-ending-style]
+    ) {
+    transform: scale(0.97);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confirmation-popup[data-pointer-motion="true"],
+  .confirmation-backdrop[data-pointer-motion="true"] {
+    transition: opacity 150ms ease-out;
+  }
+  :is(
+      .confirmation-popup,
+      .confirmation-backdrop
+    )[data-pointer-motion="true"][data-ending-style] {
+    transition-duration: 150ms;
   }
 }
 
@@ -519,6 +595,14 @@ body {
   }
 }
 /* Ruled action cells override Button's surface styles, including in the catalog. */
+.review-invitation output {
+  --muted-foreground: var(--keepsake-ink);
+  --foreground: color-mix(
+    in oklch,
+    var(--keepsake-ink) 70%,
+    var(--keepsake-paper)
+  );
+}
 .review-invitation :is(a, button) {
   border-radius: 0;
   background: var(--keepsake-paper);

@@ -103,7 +103,7 @@ export function CalendarFeedForm({
         </Button>
         <output aria-live="polite" aria-atomic="true" className="text-sm">
           {pending ? (
-            "Regenerating…"
+            <ActionFeedback state="pending">Regenerating…</ActionFeedback>
           ) : result && "saved" in result ? (
             <ActionFeedback state="success">Regenerated</ActionFeedback>
           ) : (

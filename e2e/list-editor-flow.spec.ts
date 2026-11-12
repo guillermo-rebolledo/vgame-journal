@@ -174,10 +174,36 @@ test("list drawers and the game-page picker reflow with narrow screens and enlar
   await page.evaluate(() => {
     document.documentElement.style.fontSize = "200%";
   });
-  await picker.getByText("Create a new list", { exact: true }).click();
+  const create = picker.getByText("Create a new list", { exact: true });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await create.click();
+  const disclosure = picker.locator("details.pointer-disclosure");
+  await expect(disclosure).toHaveAttribute("data-pointer-open", "true");
+  expect(
+    await disclosure.evaluate(
+      (el) => getComputedStyle(el, "::details-content").transitionDuration,
+    ),
+  ).toBe("0.2s");
   await expect(
     picker.getByRole("textbox", { name: "List title", exact: true }),
   ).toBeVisible();
+  await create.click();
+  await create.press("Enter");
+  await expect(disclosure).toHaveAttribute("open", "");
+  await expect(disclosure).toHaveAttribute("data-pointer-open", "false");
+  expect(
+    await disclosure.evaluate(
+      (el) => getComputedStyle(el, "::details-content").transitionDuration,
+    ),
+  ).toBe("0s");
+  await create.press("Enter");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await create.click();
+  expect(
+    await disclosure.evaluate(
+      (el) => getComputedStyle(el, "::details-content").transitionDuration,
+    ),
+  ).toBe("0.15s");
   await expect
     .poll(() =>
       page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),

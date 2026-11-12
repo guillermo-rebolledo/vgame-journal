@@ -16,7 +16,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Product control for Journal Status, Completion tags, announcements, and safe removal. Reuse this component instead of assembling a new game-save menu. Callbacks in this catalog are local test doubles; no Journal data is saved. Source: src/components/journal-status.tsx.",
+          "Product control for Journal Status, Completion tags, announcements, and safe removal. Reuse this component instead of assembling a new game-save menu. Callbacks in this catalog are local test doubles; no Journal data is saved. Pointer removal confirmations enter centered over 200ms and exit over 140ms; reduced motion fades only. Keyboard confirmation stays immediate. Source: src/components/journal-status.tsx.",
       },
     },
   },
@@ -127,9 +127,11 @@ export const RemovalKeepsBackgroundHelpClosed: Story = {
     await userEvent.click(
       await body.findByRole("menuitem", { name: "Remove from journal" }),
     );
-    await expect(
-      await body.findByRole("dialog", { name: "Remove Celeste from journal?" }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        body.getByRole("dialog", { name: "Remove Celeste from journal?" }),
+      ).toBeVisible(),
+    );
     await waitFor(() =>
       expect(
         body.queryByRole("menu", { hidden: true }),
@@ -171,5 +173,35 @@ export const Pending: Story = {
         }),
       ).not.toBeInTheDocument(),
     );
+  },
+};
+
+export const KeyboardRemoval: Story = {
+  args: {
+    entry: { status: "played", completionTag: null },
+    playthroughCount: 1,
+  },
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    const trigger = within(canvasElement).getByRole("button", {
+      name: /Change Journal status for Celeste$/,
+    });
+    await userEvent.click(trigger);
+    const remove = await body.findByRole("menuitem", {
+      name: "Remove from journal",
+    });
+    remove.focus();
+    await userEvent.keyboard("{Enter}");
+    const dialog = await body.findByRole("dialog", {
+      name: "Remove Celeste from journal?",
+    });
+    await expect(dialog).toHaveAttribute("data-pointer-motion", "false");
+    await expect(getComputedStyle(dialog).transitionDuration).toBe("0s");
+    await waitFor(() =>
+      expect(body.getByRole("button", { name: "Cancel" })).toHaveFocus(),
+    );
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
   },
 };

@@ -94,3 +94,17 @@ export const RemovedInAnotherTabKeepsDraft: Story = {
     await expect(args.onSuccess).not.toHaveBeenCalled();
   },
 };
+
+export const Pending: Story = {
+  args: { onSave: fn<SavePlaythrough>(() => new Promise(() => {})) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Save" }));
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
+    const status = canvas.getByRole("status");
+    await expect(status.querySelector(".shimmer")).toHaveTextContent("Saving…");
+    await expect(
+      status.querySelector('[data-active="true"] [data-slot="spinner"]'),
+    ).toHaveAttribute("aria-hidden", "true");
+  },
+};

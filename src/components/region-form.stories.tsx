@@ -84,5 +84,13 @@ export const Pending: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Save" }));
     await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
     await expect(canvas.getByRole("status")).toHaveTextContent("Saving…");
+    await expect(
+      canvas.getByRole("status").querySelector(".shimmer"),
+    ).toBeVisible();
+    await expect(
+      canvas
+        .getByRole("status")
+        .querySelector('[data-active="true"] [data-slot="spinner"]'),
+    ).toHaveAttribute("aria-hidden", "true");
   },
 };

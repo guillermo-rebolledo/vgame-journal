@@ -4,6 +4,7 @@ import {
   createContext,
   type ReactNode,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -15,6 +16,7 @@ type Channel = {
   open: (trigger: HTMLElement) => void;
   saved: () => void;
   invited: boolean;
+  pointerInvitation: boolean;
   dismiss: () => void;
 };
 const Context = createContext<Channel | null>(null);
@@ -33,6 +35,22 @@ export function FeedbackChannel({
   const origin = useRef<HTMLElement | null>(null);
   const opener = useRef<(() => void) | null>(null);
   const [invited, setInvited] = useState(false);
+  const [pointerInvitation, setPointerInvitation] = useState(false);
+  const pointerAction = useRef(false);
+  useEffect(() => {
+    const pointer = () => {
+      pointerAction.current = true;
+    };
+    const keyboard = () => {
+      pointerAction.current = false;
+    };
+    document.addEventListener("pointerdown", pointer, true);
+    document.addEventListener("keydown", keyboard, true);
+    return () => {
+      document.removeEventListener("pointerdown", pointer, true);
+      document.removeEventListener("keydown", keyboard, true);
+    };
+  }, []);
   const activeUsername = useRef(username);
   activeUsername.current = username;
   const [previousUsername, setPreviousUsername] = useState(username);
@@ -46,9 +64,13 @@ export function FeedbackChannel({
       opener.current?.();
     },
     saved() {
-      if (username && activeUsername.current === username) setInvited(true);
+      if (username && activeUsername.current === username) {
+        setPointerInvitation(pointerAction.current);
+        setInvited(true);
+      }
     },
     invited,
+    pointerInvitation,
     dismiss() {
       setInvited(false);
     },
@@ -90,7 +112,7 @@ export function FirstSaveFeedback() {
   return (
     <aside
       aria-label="First game feedback"
-      className="flex flex-wrap items-center gap-2 rounded-lg border p-4 text-sm"
+      className={`${channel.pointerInvitation ? "enter" : ""} flex flex-wrap items-center gap-2 rounded-lg border p-4 text-sm`}
     >
       <p>Your first game is saved.</p>
       <FeedbackLink />

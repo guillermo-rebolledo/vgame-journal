@@ -98,5 +98,13 @@ export const Pending: Story = {
     await expect(canvas.getByRole("status")).toHaveTextContent(
       "Saving your choice",
     );
+    await expect(
+      canvas.getByRole("status").querySelector(".shimmer"),
+    ).toBeVisible();
+    await expect(
+      canvas
+        .getByRole("status")
+        .querySelector('[data-active="true"] [data-slot="spinner"]'),
+    ).toHaveAttribute("aria-hidden", "true");
   },
 };

@@ -217,6 +217,17 @@ export const Pending: Story = {
 };
 export const Loading: Story = {
   args: { onRead: () => new Promise<PlayNextSnapshot>(() => {}) },
+  play: async ({ canvasElement }) => {
+    const status = within(canvasElement).getByRole("status", {
+      name: "Play next updates",
+    });
+    await expect(status.querySelector(".shimmer")).toHaveTextContent(
+      "Loading suggestions…",
+    );
+    await expect(
+      status.querySelector('[data-active="true"] [data-slot="spinner"]'),
+    ).toHaveAttribute("aria-hidden", "true");
+  },
 };
 export const Light: Story = { globals: { theme: "light" } };
 export const Phone: Story = {
