@@ -26,8 +26,11 @@ Production runtime/build requires SENTRY_ENABLED=1,
 SENTRY_PREREQUISITES_VERIFIED=1, VERCEL=1, VERCEL_ENV=production,
 NODE_ENV=production, BETTER_AUTH_URL=https://shelve.games (or www), a valid VERCEL_GIT_COMMIT_SHA, NEXT_PUBLIC_SENTRY_DSN and
 SENTRY_INGEST_HOST. The latter must exactly match the approved regional ingest
-host (`o<number>.ingest.[us.|de.]sentry.io`). CI, VITEST, STORYBOOK and E2E_TEST
-contexts always disable capture/uploads even with inherited credentials.
+host (`o<number>.ingest.[us.|de.]sentry.io`). GitHub Actions, nondeployment CI, VITEST, STORYBOOK and E2E_TEST
+contexts always disable capture/uploads even with inherited credentials. Vercel
+production builds set CI=1; that value is allowed only with a valid system-provided
+VERCEL_DEPLOYMENT_ID and every other production prerequisite. Enable access to
+Vercel System Environment Variables; do not manually override CI.
 The build derives NEXT_PUBLIC_SENTRY_ENABLED and NEXT_PUBLIC_SENTRY_RELEASE;
 never set these manually. Browser capture also checks shelve.games/www.shelve.games.
 No navigation URLs are sent, so dynamic paths fail closed by omission.
