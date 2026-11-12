@@ -157,6 +157,32 @@ test("source-map upload failures stop the build without exposing provider errors
   const handler = wrap.mock.calls[0][1]?.errorHandler;
   expect(handler).toBeTypeOf("function");
   expect(() => handler?.(new Error("provider-token-private-detail"))).toThrow(
-    /^Private source-map upload failed$/,
+    /^Private source-map upload failed \(CLI exit unknown\)$/,
   );
+});
+
+test.each([
+  21, 40, 53,
+])("upload diagnostics expose only the numeric CLI exit code %i", async (exitCode) => {
+  await configure();
+  const handler = wrap.mock.calls[0][1]?.errorHandler;
+  expect(() =>
+    handler?.(
+      Object.assign(new Error("provider-token-private-detail"), { exitCode }),
+    ),
+  ).toThrow(`Private source-map upload failed (CLI exit ${exitCode})`);
+});
+
+test.each([
+  "provider-token-private-detail",
+  NaN,
+  Infinity,
+])("noninteger upload diagnostics stay private: %s", async (exitCode) => {
+  await configure();
+  const handler = wrap.mock.calls[0][1]?.errorHandler;
+  expect(() =>
+    handler?.(
+      Object.assign(new Error("provider-token-private-detail"), { exitCode }),
+    ),
+  ).toThrow("Private source-map upload failed (CLI exit unknown)");
 });

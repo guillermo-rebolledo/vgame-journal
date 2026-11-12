@@ -111,8 +111,16 @@ export default async function configureNext(phase: string) {
         telemetry: false,
         silent: true,
         // The SDK otherwise logs upload failures and allows the deployment to continue.
-        errorHandler: () => {
-          throw new Error("Private source-map upload failed");
+        errorHandler: (error) => {
+          const code =
+            "exitCode" in error &&
+            typeof error.exitCode === "number" &&
+            Number.isSafeInteger(error.exitCode)
+              ? error.exitCode
+              : "unknown";
+          throw new Error(
+            `Private source-map upload failed (CLI exit ${code})`,
+          );
         },
         widenClientFileUpload: false,
         webpack: {
@@ -125,6 +133,8 @@ export default async function configureNext(phase: string) {
         routeManifestInjection: false,
         release: { name: monitoring.release, create: false, finalize: false },
         sourcemaps: {
+          // One upload tolerates an empty output folder without accepting an entirely empty build.
+          assets: [".next/{server,static}/**/*.{js,mjs,cjs}"],
           deleteSourcemapsAfterUpload: true,
           filesToDeleteAfterUpload: [".next/static/**/*.map"],
         },

@@ -47,6 +47,10 @@ Private upload additionally requires SENTRY_ORG, SENTRY_PROJECT and
 SENTRY_AUTH_TOKEN. The token is a build-only secret; use the hosting secret store,
 never NEXT_PUBLIC variables, chat, fixtures or logs. Missing credentials leave
 maps off and capture usable with minified frames. Upload errors fail the build.
+The SDK uploads server and static artifacts together with one glob; an empty
+individual output folder does not abort otherwise valid uploads. A build with no
+map pairs or an upload failure still fails. Only numeric CLI exit codes are
+reported, never the provider error text.
 Only generated client maps are deleted; server maps stay private. Never enable
 productionBrowserSourceMaps independently. Inspect `.next/static` for maps and
 reachable sourceMappingURL targets before deploying. Build and upload must use
