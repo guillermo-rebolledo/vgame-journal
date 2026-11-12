@@ -1,6 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const port = Number(process.env.E2E_PORT ?? 3100);
+const verificationToken =
+  process.env.E2E_SENTRY_VERIFICATION_TOKEN ??
+  `${Date.now() + 3_600_000}.${"a".repeat(64)}`;
+process.env.E2E_SENTRY_VERIFICATION_TOKEN = verificationToken;
 const supportPort = Number(process.env.E2E_SUPPORT_PORT ?? 3101);
 process.env.E2E_SUPPORT_URL = `http://127.0.0.1:${supportPort}`;
 
@@ -57,6 +61,7 @@ export default defineConfig({
       timeout: 180_000,
       env: {
         E2E_TEST: "1",
+        SENTRY_VERIFICATION_TOKEN: verificationToken,
         NEXT_PUBLIC_SENTRY_ENABLED: "",
         NEXT_PUBLIC_SENTRY_DSN: "",
         SENTRY_AUTH_TOKEN: "sentry-e2e-upload-token-sentinel",
