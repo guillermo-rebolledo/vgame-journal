@@ -42,7 +42,9 @@ test("Steam discovery is owner-only and disappears when the flag is off", async 
     [email],
   );
   await page.goto(`/u/${username}`);
-  await expect(page.getByText("No games in this library yet.")).toBeVisible();
+  await expect(
+    page.getByRole("main").getByText("No games in this library yet."),
+  ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Import from Steam" }),
   ).toHaveCount(0);

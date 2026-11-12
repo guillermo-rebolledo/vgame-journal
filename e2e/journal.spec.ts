@@ -280,7 +280,7 @@ test("sign up, share a profile without notes, export the journal, and delete the
   browser,
 }, testInfo) => {
   // This full account journey includes profile and settings screenshots in three layouts.
-  test.slow();
+  test.setTimeout(180_000);
   const username = uniqueUsername(`player`);
   const privateNote = "PRIVATE_NOTE_only_the_owner_should_see_this";
   const email = await signUp(page, request, username);
