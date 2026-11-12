@@ -3,7 +3,11 @@ import { expectedMonitoringError } from "@/lib/error-monitoring";
 import { monitoringConfig } from "@/lib/monitoring-config";
 
 export async function register() {
-  if (process.env.NEXT_RUNTIME === "nodejs" && monitoringConfig())
+  if (
+    process.env.NEXT_RUNTIME === "nodejs" &&
+    process.env.NEXT_PUBLIC_SENTRY_ENABLED === "1" &&
+    monitoringConfig()
+  )
     try {
       await import("./sentry.server.config");
     } catch {
@@ -31,7 +35,11 @@ export const onRequestError: Instrumentation.onRequestError = async (
           ? "server.proxy"
           : "server.route";
   reportOperationalError(operation, operationalCode(error), error);
-  if (process.env.NEXT_RUNTIME === "nodejs" && monitoringConfig()) {
+  if (
+    process.env.NEXT_RUNTIME === "nodejs" &&
+    process.env.NEXT_PUBLIC_SENTRY_ENABLED === "1" &&
+    monitoringConfig()
+  ) {
     try {
       const { flushErrors } = await import("./sentry.server.config");
       await flushErrors();

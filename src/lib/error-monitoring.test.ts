@@ -23,8 +23,6 @@ const production = {
   NODE_ENV: "production",
   VERCEL: "1",
   VERCEL_ENV: "production",
-  SENTRY_ENABLED: "1",
-  SENTRY_PREREQUISITES_VERIFIED: "1",
   NEXT_PUBLIC_SENTRY_DSN: dsn,
   SENTRY_INGEST_HOST: "o123.ingest.us.sentry.io",
   VERCEL_GIT_COMMIT_SHA: release,
@@ -39,8 +37,6 @@ afterEach(async () => {
 
 test.each([
   { BETTER_AUTH_URL: "http://localhost:3000" },
-  { SENTRY_ENABLED: "" },
-  { SENTRY_PREREQUISITES_VERIFIED: "" },
   { VERCEL: "" },
   { VERCEL_ENV: "preview" },
   { NODE_ENV: "development" },
@@ -362,7 +358,8 @@ test("build gate exposes only public config, exact CSP origin and no map plugin 
   vi.stubEnv("VERCEL_DEPLOYMENT_ID", "dpl_test123");
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.resetModules();
-  const { default: config } = await import("../../next.config");
+  const { default: configureNext } = await import("../../next.config");
+  const config = await configureNext("phase-production-build");
   const headers = await config.headers?.();
   expect(
     headers?.[0].headers.find(

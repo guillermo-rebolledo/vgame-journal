@@ -57,7 +57,6 @@ export default defineConfig({
       timeout: 180_000,
       env: {
         E2E_TEST: "1",
-        SENTRY_ENABLED: "",
         NEXT_PUBLIC_SENTRY_ENABLED: "",
         NEXT_PUBLIC_SENTRY_DSN: "",
         SENTRY_AUTH_TOKEN: "sentry-e2e-upload-token-sentinel",

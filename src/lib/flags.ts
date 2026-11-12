@@ -24,3 +24,5 @@ export const yearInReviewFlag = flag<boolean, { user?: { id: string } }>({
     return { user: session ? { id: session.user.id } : undefined };
   },
 });
+
+export { sentryMonitoringFlag } from "./monitoring-flag";

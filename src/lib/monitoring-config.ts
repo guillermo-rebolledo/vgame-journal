@@ -1,4 +1,4 @@
-/** Configuration is deliberately inert until the separately authorized release gates are met. */
+/** Valid production connection settings; the build snapshots flag enablement separately. */
 export function monitoringConfig(
   env: Record<string, string | undefined> = process.env,
 ) {
@@ -10,7 +10,6 @@ export function monitoringConfig(
     !["https://shelve.games", "https://www.shelve.games"].includes(
       env.BETTER_AUTH_URL ?? "",
     ) ||
-    env.SENTRY_ENABLED !== "1" ||
     env.VERCEL !== "1" ||
     env.VERCEL_ENV !== "production" ||
     env.NODE_ENV !== "production" ||
@@ -18,8 +17,7 @@ export function monitoringConfig(
     (env.CI && !vercelBuild) ||
     env.VITEST ||
     env.STORYBOOK ||
-    env.E2E_TEST ||
-    env.SENTRY_PREREQUISITES_VERIFIED !== "1"
+    env.E2E_TEST
   )
     return null;
   const dsn = env.NEXT_PUBLIC_SENTRY_DSN;

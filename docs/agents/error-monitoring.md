@@ -1,8 +1,9 @@
-# Production error monitoring (disabled by default)
+# Production error monitoring
 
 No account setup, trial, payment, deployment or production enablement is part of
-this implementation. Do not run a Sentry wizard. Keep both flags unset until the
-owner separately authorizes setup and verifies every gate below.
+this implementation. Do not run a Sentry wizard. Complete the checklist below before
+adding production credentials or deploying enabled monitoring. Verification is an
+operational checklist, not an environment variable.
 
 ## Release gates
 
@@ -22,8 +23,14 @@ owner separately authorizes setup and verifies every gate below.
 
 ## Configuration
 
-Production runtime/build requires SENTRY_ENABLED=1,
-SENTRY_PREREQUISITES_VERIFIED=1, VERCEL=1, VERCEL_ENV=production,
+The deployment-wide Vercel flag `sentry-monitoring` defaults to **on**, including
+when the provider has no value or evaluation fails. Set it off in Vercel before
+building if monitoring should be disabled. Flag evaluation uses no player identity,
+cookies or targeting attributes. Changing it requires a new production build:
+existing deployments retain their browser/server capture, CSP and upload decisions.
+Local, preview, test and catalog builds never evaluate this flag.
+
+Production runtime/build also requires VERCEL=1, VERCEL_ENV=production,
 NODE_ENV=production, BETTER_AUTH_URL=https://shelve.games (or www), a valid VERCEL_GIT_COMMIT_SHA, NEXT_PUBLIC_SENTRY_DSN and
 SENTRY_INGEST_HOST. The latter must exactly match the approved regional ingest
 host (`o<number>.ingest.[us.|de.]sentry.io`). GitHub Actions, nondeployment CI, VITEST, STORYBOOK and E2E_TEST
@@ -31,8 +38,9 @@ contexts always disable capture/uploads even with inherited credentials. Vercel
 production builds set CI=1; that value is allowed only with a valid system-provided
 VERCEL_DEPLOYMENT_ID and every other production prerequisite. Enable access to
 Vercel System Environment Variables; do not manually override CI.
-The build derives NEXT_PUBLIC_SENTRY_ENABLED and NEXT_PUBLIC_SENTRY_RELEASE;
-never set these manually. Browser capture also checks shelve.games/www.shelve.games.
+The build snapshots the flag into NEXT_PUBLIC_SENTRY_ENABLED and derives NEXT_PUBLIC_SENTRY_RELEASE;
+never set these manually. The old SENTRY_ENABLED and SENTRY_PREREQUISITES_VERIFIED
+variables are no longer used. Browser capture also checks shelve.games/www.shelve.games.
 No navigation URLs are sent, so dynamic paths fail closed by omission.
 
 Private upload additionally requires SENTRY_ORG, SENTRY_PROJECT and
@@ -46,8 +54,8 @@ the same commit/release. The normal production build applies migrations before
 Next compilation: a failed upload can leave migrations applied while old code
 serves, so migrations must remain backward compatible. No schema change here.
 
-For local checks use `pnpm exec next build` with SENTRY_ENABLED unset (not the
-production migration wrapper). Tests and catalog never need Sentry credentials.
+For local checks use `pnpm exec next build` outside a Vercel production context (not
+the production migration wrapper). Tests and catalog never need Sentry credentials.
 Only sanitized error events are transmitted; other envelope types are discarded.
 No tracing, request/database integrations, breadcrumbs, logs, metrics, Replay,
 attachments, monitors, sessions or remote CSP reports. Delivery is best effort,
