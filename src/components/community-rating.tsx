@@ -5,6 +5,7 @@ import { RotateCw } from "lucide-react";
 import { catchError } from "next/error";
 import { type ReactNode, useState, useTransition } from "react";
 import { RatingStars } from "@/components/rating-stars";
+import { ActionFeedback } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { RatingSummary } from "@/lib/journal";
@@ -151,7 +152,11 @@ export function CommunityRatingUnavailable({ retry }: { retry?: () => void }) {
     <Card>
       <dd className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
         <output aria-live="polite">
-          {pending ? "Retrying…" : "Community rating unavailable"}
+          {pending ? (
+            <ActionFeedback state="pending">Retrying…</ActionFeedback>
+          ) : (
+            "Community rating unavailable"
+          )}
         </output>
         {retry && (
           <Button

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { trackEvent } from "@/components/analytics";
 import { GameCover } from "@/components/game-cover";
+import { ActionFeedback } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -353,7 +354,11 @@ export function PlayNext({
         aria-label="Play next updates"
         className="text-muted-foreground text-sm"
       >
-        {loading ? "Loading suggestions…" : notice}
+        {loading ? (
+          <ActionFeedback state="pending">Loading suggestions…</ActionFeedback>
+        ) : (
+          notice
+        )}
       </output>
       {error ? (
         <div role="alert" className="space-y-3">

@@ -2,7 +2,7 @@
 
 import { Save } from "lucide-react";
 import { useId, useRef, useState } from "react";
-import { ActionIcon } from "@/components/ui/action-feedback";
+import { ActionFeedback, ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -203,7 +203,11 @@ export function PlaythroughForm({
       <footer className="shrink-0 border-t bg-background px-[min(1.5rem,5vw)] pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-xl flex-wrap items-center justify-end gap-3">
           <output className="mr-auto text-muted-foreground text-sm">
-            {savingPending ? "Saving…" : ""}
+            {savingPending ? (
+              <ActionFeedback state="pending">Saving…</ActionFeedback>
+            ) : (
+              ""
+            )}
           </output>
           <Button
             type="button"

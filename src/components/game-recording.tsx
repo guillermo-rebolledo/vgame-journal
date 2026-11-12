@@ -17,7 +17,7 @@ import {
 } from "@/components/playthrough-form";
 import { PlaythroughHistory } from "@/components/playthrough-history";
 import { type SaveRating, StarRating } from "@/components/star-rating";
-import { ActionIcon } from "@/components/ui/action-feedback";
+import { ActionFeedback, ActionIcon } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -354,7 +354,13 @@ export function GameRecording({
                   </span>
                 </Button>
                 <output className="block text-muted-foreground text-sm empty:hidden">
-                  {removing ? "Deleting playthrough…" : ""}
+                  {removing ? (
+                    <ActionFeedback state="pending">
+                      Deleting playthrough…
+                    </ActionFeedback>
+                  ) : (
+                    ""
+                  )}
                 </output>
                 {error && (
                   <p role="alert" className="text-destructive text-sm">

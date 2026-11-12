@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { GameCover } from "@/components/game-cover";
+import { ActionFeedback } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -121,7 +122,12 @@ export function YearInReviewPage({
   }, [onOpened]);
   const [includeUsername, setIncludeUsername] = useState(false);
   const [image, setImage] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const [loadedImage, setLoadedImage] = useState<string | null>(null);
+  const [pointerPreview, setPointerPreview] = useState(false);
+  const [operation, setOperation] = useState<"prepare" | "download" | null>(
+    null,
+  );
+  const pending = operation !== null;
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
   const busy = useRef(false);
@@ -136,7 +142,7 @@ export function YearInReviewPage({
   async function prepare() {
     if (busy.current) return;
     busy.current = true;
-    setPending(true);
+    setOperation("prepare");
     setFailed(false);
     setMessage("Preparing your image…");
     try {
@@ -150,13 +156,14 @@ export function YearInReviewPage({
       );
     } finally {
       busy.current = false;
-      setPending(false);
+      setOperation(null);
     }
   }
   async function download() {
     if (!image || busy.current) return;
     busy.current = true;
-    setPending(true);
+    setOperation("download");
+    setMessage("Preparing your download…");
     setFailed(false);
     try {
       await onAuthorizeDownload();
@@ -176,7 +183,7 @@ export function YearInReviewPage({
       );
     } finally {
       busy.current = false;
-      setPending(false);
+      setOperation(null);
     }
   }
 
@@ -393,8 +400,13 @@ export function YearInReviewPage({
             )}
             <div className="flex flex-wrap gap-3">
               <Button
-                onClick={prepare}
-                loading={pending}
+                onClick={(event) => {
+                  if (busy.current) return;
+                  setPointerPreview(event.detail > 0);
+                  void prepare();
+                }}
+                loading={operation === "prepare"}
+                disabled={pending}
                 className="min-h-11"
                 variant={image ? "outline" : "default"}
               >
@@ -407,6 +419,7 @@ export function YearInReviewPage({
               {image && (
                 <Button
                   onClick={download}
+                  loading={operation === "download"}
                   disabled={pending}
                   className="min-h-11"
                 >
@@ -418,13 +431,23 @@ export function YearInReviewPage({
               aria-live="polite"
               className="text-muted-foreground text-sm"
             >
-              {message}
+              {pending ? (
+                <ActionFeedback state="pending">{message}</ActionFeedback>
+              ) : (
+                message
+              )}
             </output>
             {image && (
-              <figure className="max-w-md space-y-2">
+              <figure
+                className="preview-reveal max-w-md space-y-2"
+                data-pointer-motion={pointerPreview}
+                data-ready={loadedImage === image}
+              >
                 {/* biome-ignore lint/performance/noImgElement: the preview is the exact on-demand PNG blob, not a Next image asset. */}
                 <img
                   src={image}
+                  onLoad={() => setLoadedImage(image)}
+                  onError={() => setLoadedImage(image)}
                   alt={`PNG preview of your ${review.year} Journal review${includeUsername && username ? ` for @${username}` : ", without your username"}`}
                   width={1080}
                   height={1350}

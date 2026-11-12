@@ -46,9 +46,11 @@ export const FeedbackFromMenu: Story = {
       "Please add shelves.",
     );
     await userEvent.click(body.getByRole("button", { name: "Send" }));
-    await expect(
-      await body.findByRole("heading", { name: "Thanks, got it." }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        body.getByRole("heading", { name: "Thanks, got it." }),
+      ).toBeVisible(),
+    );
     await userEvent.click(body.getByRole("button", { name: "Close" }));
     await waitFor(() => expect(trigger).toHaveFocus());
     await userEvent.click(trigger);

@@ -108,6 +108,7 @@ function Choices({
   const [attempt, setAttempt] = useState(0);
   const [updating, start] = useTransition();
   const [creating, setCreating] = useState(false);
+  const [pointerOpening, setPointerOpening] = useState(false);
   const pending = updating || creating;
   const [blocked, setBlocked] = useState(false);
   const pagination = useUrlPagination("pickerPage", items?.length);
@@ -282,8 +283,17 @@ function Choices({
               )}
             </PagedList>
           )}
-          <details ref={creation} open={items.length === 0}>
-            <summary className="min-h-11 cursor-pointer py-3 underline">
+          <details
+            ref={creation}
+            open={items.length === 0}
+            className="pointer-disclosure"
+            data-pointer-open={pointerOpening}
+          >
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: native summary click detail selects pointer-only motion. */}
+            <summary
+              className="min-h-11 cursor-pointer py-3 underline"
+              onClick={(event) => setPointerOpening(event.detail > 0)}
+            >
               Create a new list
             </summary>
             <CreateListForm

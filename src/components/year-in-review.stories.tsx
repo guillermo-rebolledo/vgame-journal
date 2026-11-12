@@ -41,7 +41,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Owner-only seasonal recap, distinct from Stats charts: a ruled 4:5 sheet in Geist Mono with Keepsake Paper, Ink and Marker, beside the keepsake controls. Composes GameCover, Button, Checkbox and Label. Image preparation is deferred; the preview is the exact returned PNG, matching the sheet. Stories use a local placeholder image, never a production export handler. The sheet entrance runs once per mount and honors reduced motion.",
+          "Owner-only seasonal recap, distinct from Stats charts: a ruled 4:5 sheet in Geist Mono with Keepsake Paper, Ink and Marker, beside the keepsake controls. Composes GameCover, Button, Checkbox and Label. Image preparation is deferred; the preview is the exact returned PNG, matching the sheet. Stories use a local placeholder image, never a production export handler. The sheet entrance runs once per mount and honors reduced motion. Pointer previews fade after image load, with a gentler reduced-motion fade; keyboard previews stay immediate.",
       },
     },
   },
@@ -142,9 +142,12 @@ export const PreviewAndUsername: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("checkbox")).not.toBeChecked();
     await userEvent.click(canvas.getByRole("button", { name: "Preview PNG" }));
-    await expect(
-      await canvas.findByRole("img", { name: /PNG preview/ }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(canvas.getByRole("img", { name: /PNG preview/ })).toBeVisible(),
+    );
+    await waitFor(() =>
+      expect(canvas.getByRole("figure")).toHaveAttribute("data-ready", "true"),
+    );
     await expect(args.onPrepare).toHaveBeenLastCalledWith(false, review.asOf);
     const checkbox = canvas.getByRole("checkbox");
     checkbox.focus();
@@ -152,9 +155,9 @@ export const PreviewAndUsername: Story = {
     await expect(checkbox).toBeChecked();
     await expect(canvas.queryByRole("img", { name: /PNG preview/ })).toBeNull();
     await userEvent.click(canvas.getByRole("button", { name: "Preview PNG" }));
-    await expect(
-      await canvas.findByRole("img", { name: /for @player/ }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(canvas.getByRole("img", { name: /for @player/ })).toBeVisible(),
+    );
     await expect(args.onPrepare).toHaveBeenLastCalledWith(true, review.asOf);
   },
 };
@@ -183,9 +186,56 @@ export const FailureAndRetry: Story = {
     await userEvent.click(
       await canvas.findByRole("button", { name: "Retry image" }),
     );
-    await expect(
-      await canvas.findByRole("img", { name: /for @player/ }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(canvas.getByRole("img", { name: /for @player/ })).toBeVisible(),
+    );
     await expect(canvas.getByRole("checkbox")).toBeChecked();
+  },
+};
+
+export const KeyboardPreview: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    canvas.getByRole("button", { name: "Preview PNG" }).focus();
+    await userEvent.keyboard("{Enter}");
+    const image = await canvas.findByRole("img", { name: /PNG preview/ });
+    await expect(image).toBeVisible();
+    await expect(canvas.getByRole("figure")).toHaveAttribute(
+      "data-pointer-motion",
+      "false",
+    );
+    await expect(
+      canvas.getByRole("button", { name: "Download PNG" }),
+    ).toBeEnabled();
+  },
+};
+
+export const Downloading: Story = {
+  beforeEach: ({ args }) => {
+    mocked(args.onAuthorizeDownload)?.mockImplementation(
+      () => new Promise(() => {}),
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const preview = canvas.getByRole("button", { name: "Preview PNG" });
+    await userEvent.click(preview);
+    const download = await canvas.findByRole("button", {
+      name: "Download PNG",
+    });
+    await userEvent.click(download);
+    await expect(download).toHaveAttribute("aria-busy", "true");
+    await expect(download.querySelector(".shimmer")).toHaveTextContent(
+      "Download PNG",
+    );
+    await expect(
+      download.querySelector('[data-slot="spinner"]'),
+    ).toHaveAttribute("aria-hidden", "true");
+    await expect(
+      canvas.getByRole("button", { name: "Refresh preview" }),
+    ).not.toHaveAttribute("aria-busy", "true");
+    await expect(
+      canvas.getByRole("status").querySelector(".shimmer"),
+    ).toHaveTextContent("Preparing your download…");
   },
 };

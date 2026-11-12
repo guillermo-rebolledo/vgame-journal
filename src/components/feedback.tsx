@@ -62,6 +62,8 @@ export function Feedback({
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
   const saving = useRef(false);
+  const pointerSubmit = useRef(false);
+  const [pointerSuccess, setPointerSuccess] = useState(false);
   if (!username) return null;
 
   function changeOpen(next: boolean) {
@@ -97,7 +99,10 @@ export function Feedback({
         </DrawerTrigger>
       )}
       <DrawerContent finalFocus={finalFocus}>
-        <DrawerHeader className="mx-auto w-full max-w-xl">
+        <DrawerHeader
+          key={sent ? "sent" : "form"}
+          className={`mx-auto w-full max-w-xl ${sent && pointerSuccess ? "fade-enter" : ""}`}
+        >
           <DrawerTitle>
             {sent ? "Thanks, got it." : "Send feedback"}
           </DrawerTitle>
@@ -114,7 +119,12 @@ export function Feedback({
           className={sent ? "mx-auto w-full max-w-xl px-4 text-sm" : "sr-only"}
         >
           {sent ? (
-            <ActionFeedback state="success">Feedback sent.</ActionFeedback>
+            <ActionFeedback
+              state="success"
+              className={pointerSuccess ? "fade-enter" : undefined}
+            >
+              Feedback sent.
+            </ActionFeedback>
           ) : pending ? (
             "Sending feedback…"
           ) : (
@@ -122,19 +132,25 @@ export function Feedback({
           )}
         </output>
         {sent ? (
-          <div className="mx-auto flex w-full max-w-xl justify-end p-4">
+          <div
+            className={`mx-auto flex w-full max-w-xl justify-end p-4 ${pointerSuccess ? "fade-enter" : ""}`}
+          >
             <DrawerClose render={<Button className="min-h-11" />}>
               Close
             </DrawerClose>
           </div>
         ) : (
           <form
+            onKeyDownCapture={() => {
+              pointerSubmit.current = false;
+            }}
             data-base-ui-swipe-ignore
             className="mx-auto flex w-full max-w-xl flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
             onSubmit={(event) => {
               event.preventDefault();
               if (saving.current) return;
               saving.current = true;
+              setPointerSuccess(pointerSubmit.current);
               setError(undefined);
               startTransition(async () => {
                 try {
@@ -241,6 +257,9 @@ export function Feedback({
               </DrawerClose>
               <Button
                 type="submit"
+                onClick={(event) => {
+                  pointerSubmit.current = event.detail > 0;
+                }}
                 className="min-h-11"
                 disabled={pending || !message.trim()}
                 aria-busy={pending}

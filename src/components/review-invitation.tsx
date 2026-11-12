@@ -3,6 +3,7 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useId, useRef, useState, useTransition } from "react";
+import { ActionFeedback } from "@/components/ui/action-feedback";
 import { Button, buttonVariants } from "@/components/ui/button";
 
 const actionClass = "min-h-11 px-3 py-3 font-mono";
@@ -113,7 +114,11 @@ export function ReviewInvitation({
             : "sr-only"
         }
       >
-        {pending ? "Saving your choice…" : error}
+        {pending ? (
+          <ActionFeedback state="pending">Saving your choice…</ActionFeedback>
+        ) : (
+          error
+        )}
       </output>
     </section>
   );

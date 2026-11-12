@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { PlayNext } from "@/components/play-next";
+import { ActionFeedback } from "@/components/ui/action-feedback";
 import { signedInUserId } from "@/lib/auth";
 import {
   type PlayNextRequest,
@@ -28,7 +29,15 @@ export default function PlayNextPage({
         A few choices, then back to playing. Available on describes platform
         support, not ownership, installation or subscription access.
       </p>
-      <Suspense fallback={<output>Loading suggestions…</output>}>
+      <Suspense
+        fallback={
+          <output>
+            <ActionFeedback state="pending">
+              Loading suggestions…
+            </ActionFeedback>
+          </output>
+        }
+      >
         <OwnerPicker searchParams={searchParams} />
       </Suspense>
     </section>

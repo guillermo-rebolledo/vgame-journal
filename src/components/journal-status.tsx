@@ -83,10 +83,16 @@ export function JournalStatus({
   /** What removal will delete, while its confirmation is open. */
   const [confirmation, setConfirmation] =
     useState<JournalRemovalContents | null>(null);
+  // Keep the warning in place until Base UI finishes the exit.
+  const [closingContents, setClosingContents] = useState(confirmation);
+  if (confirmation && confirmation !== closingContents)
+    setClosingContents(confirmation);
   const ownTrigger = useRef<HTMLButtonElement | null>(null);
   const trigger = triggerRef ?? ownTrigger;
   const cancel = useRef<HTMLButtonElement | null>(null);
   const busy = useRef(false);
+  const pointerAction = useRef(false);
+  const [pointerConfirmation, setPointerConfirmation] = useState(false);
   const label = confirmed
     ? `${SAVED_LABELS[confirmed.status]}${confirmed.completionTag ? ` · ${capitalize(confirmed.completionTag)}` : ""}`
     : "Add to Journal";
@@ -102,6 +108,7 @@ export function JournalStatus({
       return;
     }
     busy.current = true;
+    setPointerConfirmation(pointerAction.current);
     setPending(true);
     setError(undefined);
     setNotice(undefined);
@@ -146,6 +153,12 @@ export function JournalStatus({
   return (
     <div>
       <fieldset
+        onClickCapture={(event) => {
+          pointerAction.current = event.detail > 0;
+        }}
+        onKeyDownCapture={() => {
+          pointerAction.current = false;
+        }}
         aria-label="Game actions"
         className="flex min-w-0 flex-wrap items-start gap-3"
       >
@@ -257,7 +270,8 @@ export function JournalStatus({
                     <DropdownMenuItem
                       variant="destructive"
                       className="min-h-10"
-                      onClick={() => {
+                      onClick={(event) => {
+                        setPointerConfirmation(event.detail > 0);
                         setError(undefined);
                         setNotice(undefined);
                         if (playthroughCount > 0 || rated)
@@ -281,23 +295,36 @@ export function JournalStatus({
         onOpenChange={(open, event) => {
           if (busy.current) event.cancel();
           else if (!open) {
+            if (event.event.type.startsWith("key"))
+              setPointerConfirmation(false);
             setConfirmation(null);
             setError(undefined);
           }
         }}
       >
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50" />
+          <Dialog.Backdrop
+            data-pointer-motion={pointerConfirmation}
+            className="confirmation-backdrop fixed inset-0 z-50 bg-black/50"
+          />
           <Dialog.Popup
+            onClickCapture={(event) => {
+              pointerAction.current = event.detail > 0;
+            }}
+            onKeyDownCapture={() => {
+              pointerAction.current = false;
+            }}
+            data-pointer-motion={pointerConfirmation}
             initialFocus={cancel}
             finalFocus={trigger}
-            className="fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto overscroll-contain rounded-xl border bg-background p-6 text-foreground shadow-lg"
+            className="confirmation-popup fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto overscroll-contain rounded-xl border bg-background p-6 text-foreground shadow-lg"
           >
             <Dialog.Title className="font-heading text-lg font-medium">
               Remove {gameTitle} from journal?
             </Dialog.Title>
             <Dialog.Description className="text-muted-foreground text-sm">
-              {confirmation && removalDescription(gameTitle, confirmation)}
+              {closingContents &&
+                removalDescription(gameTitle, closingContents)}
             </Dialog.Description>
             {error && (
               <p role="alert" className="text-destructive text-sm">
@@ -306,6 +333,9 @@ export function JournalStatus({
             )}
             <div className="flex flex-wrap justify-end gap-2">
               <Dialog.Close
+                onClick={(event) => {
+                  if (event.detail === 0) setPointerConfirmation(false);
+                }}
                 render={
                   <Button
                     ref={cancel}

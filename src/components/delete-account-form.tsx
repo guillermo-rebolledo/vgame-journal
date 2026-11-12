@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { ActionFeedback } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,19 +94,23 @@ export function DeleteAccountForm({
         aria-atomic="true"
         className="text-muted-foreground text-sm"
       >
-        {pending
-          ? "Deleting account…"
-          : cancelling
-            ? "Cancelling deletion…"
-            : verifying
-              ? "Confirming identity…"
-              : sending
-                ? "Sending confirmation code…"
-                : verified
-                  ? "Identity confirmed."
-                  : sent
-                    ? "Confirmation code sent. Check your email."
-                    : ""}
+        {pending || cancelling || verifying || sending ? (
+          <ActionFeedback state="pending">
+            {pending
+              ? "Deleting account…"
+              : cancelling
+                ? "Cancelling deletion…"
+                : verifying
+                  ? "Confirming identity…"
+                  : "Sending confirmation code…"}
+          </ActionFeedback>
+        ) : verified ? (
+          "Identity confirmed."
+        ) : sent ? (
+          "Confirmation code sent. Check your email."
+        ) : (
+          ""
+        )}
       </output>
       {!verified ? (
         <>

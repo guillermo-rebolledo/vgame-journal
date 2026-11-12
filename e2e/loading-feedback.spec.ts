@@ -172,3 +172,58 @@ test("first reads show static skeletons and resolve to Home, lists and Stats con
     });
   }
 });
+
+for (const theme of ["dark", "light"] as const) {
+  test(`standalone Settings progress uses Compass and shimmer (${theme})`, async ({
+    page,
+    request,
+  }, testInfo) => {
+    await signUp(page, request, uniqueUsername("settings_loading"));
+    await page.goto("/settings");
+    await chooseTheme(page, theme);
+    await page.setViewportSize({ width: 320, height: 812 });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/settings", async (route) => {
+      if (route.request().method() === "POST") await held;
+      await route.continue();
+    });
+    const form = page.getByRole("form", { name: "Calendar feed" });
+    const status = form.getByRole("status");
+    const compass = status.locator(
+      '[data-active="true"] [data-slot="spinner"]',
+    );
+    const label = status.locator(".shimmer");
+    try {
+      await form.getByRole("button", { name: "Regenerate URL" }).click();
+      await expect(status).toHaveText("Regenerating…");
+      await expect(compass).toBeVisible();
+      await expect(compass).toHaveAttribute("aria-hidden", "true");
+      await expect(label).toBeVisible();
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await expect(compass.locator("g")).toHaveCSS(
+        "animation-name",
+        "compass-turn",
+      );
+      await expect(label).toHaveCSS("animation-name", "tw-shimmer");
+      await snap(page, testInfo, `settings-progress-${theme}`);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await expect(compass.locator("g")).toHaveCSS("animation-name", "none");
+      await expect(label).toHaveCSS("animation-name", "none");
+      await expect(label).toHaveCSS("background-image", "none");
+      await page.emulateMedia({
+        reducedMotion: "no-preference",
+        forcedColors: "active",
+      });
+      await expect(label).toHaveCSS("animation-name", "none");
+      await expect(label).toHaveCSS("background-image", "none");
+    } finally {
+      release();
+    }
+    await expect(status).toHaveText("Regenerated");
+    await expect(label).toHaveCount(0);
+    await expect(compass).toHaveCount(0);
+  });
+}
