@@ -538,6 +538,11 @@ export const CompactDefault: Story = {
     await userEvent.keyboard("{Escape}");
     await waitFor(() =>
       expect(
+        body.queryByRole("menu", { hidden: true }),
+      ).not.toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(
         canvas.getByRole("button", { name: /Change status for Celeste$/ }),
       ).toHaveFocus(),
     );
@@ -576,6 +581,24 @@ export const LongTitlePending: Story = {
 };
 
 const unresolvedJournal = new Promise<HomeSnapshot>(() => {});
+export const EmptyWithSteam: Story = {
+  render: () => (
+    <HomeJournalProvider
+      owner="storybook-player"
+      initial={Promise.resolve({ owner: "storybook-player", entries: [] })}
+    >
+      <HomeCollections steamImportEnabled />
+    </HomeJournalProvider>
+  ),
+  play: async ({ canvasElement }) => {
+    await expect(
+      await within(canvasElement).findByRole("link", {
+        name: "Import from Steam",
+      }),
+    ).toHaveAttribute("href", "/settings/steam");
+  },
+};
+
 export const LoadingPersonalShelves: Story = {
   render: () => (
     <HomeJournalProvider owner="storybook-player" initial={unresolvedJournal}>

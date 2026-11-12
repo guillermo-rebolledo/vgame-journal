@@ -37,6 +37,7 @@ import {
 import { GameCover } from "@/components/game-cover";
 import { HomeCoverLink } from "@/components/home-cover-link";
 import { HomeWishlistPreview } from "@/components/home-wishlist-preview";
+import { SteamImportInvitation } from "@/components/steam-import-invitation";
 import { ActionIcon, type ActionState } from "@/components/ui/action-feedback";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -798,7 +799,11 @@ export function HomeSaveControls({
   );
 }
 
-export function HomeCollections() {
+export function HomeCollections({
+  steamImportEnabled = false,
+}: {
+  steamImportEnabled?: boolean;
+}) {
   const home = useContext(HomeContext);
   const [initialRead, setInitialRead] = useState(true);
   if (initialRead && home?.loaded) setInitialRead(false);
@@ -841,6 +846,7 @@ export function HomeCollections() {
   return (
     <HomeJournal
       entries={entries}
+      steamImportEnabled={steamImportEnabled}
       wishlistPreview={
         <HomeWishlistPreview
           renderControls={(game) => <HomeSaveControls game={game} />}
@@ -869,9 +875,11 @@ export function HomeCollections() {
 export function HomeJournal({
   entries,
   wishlistPreview,
+  steamImportEnabled = false,
 }: {
   entries: HomeEntry[];
   wishlistPreview?: ReactNode;
+  steamImportEnabled?: boolean;
 }) {
   const playing = entries
     .filter((entry) => entry.status === "playing")
@@ -916,11 +924,14 @@ export function HomeJournal({
         {wishlistPreview}
       </div>
       {entries.length === 0 ? (
-        <p className="text-muted-foreground">
-          Your Journal is empty. Search above and add a game to Backlog or
-          Wishlist.
-          <FeedbackLink />
-        </p>
+        <div className="flex flex-col items-start gap-4">
+          <p className="text-muted-foreground">
+            Your Journal is empty. Search above and add a game to Backlog or
+            Wishlist.
+            <FeedbackLink />
+          </p>
+          {steamImportEnabled && <SteamImportInvitation />}
+        </div>
       ) : (
         <>
           {playing.length > 0 && (

@@ -12,12 +12,29 @@ const publicListStates = new Map();
 const discoveryState = { fail: false, hold: false };
 const discoveryWaiters = [];
 const steamFixtures = new Map();
+const steamFlags = new Map();
 const reviewFixtures = new Map();
 const server = createServer(async (request, response) => {
   try {
     let body = "";
     for await (const chunk of request) body += chunk;
     response.setHeader("Content-Type", "application/json");
+    if (request.url === "/steam-flag" && request.method === "POST") {
+      const fixture = JSON.parse(body);
+      steamFlags.set(fixture.username, fixture.enabled);
+      response.end("{}");
+      return;
+    }
+    if (request.url.startsWith("/steam-flag?")) {
+      const username = new URL(
+        request.url,
+        "http://localhost",
+      ).searchParams.get("username");
+      response.end(
+        JSON.stringify({ enabled: steamFlags.get(username) ?? true }),
+      );
+      return;
+    }
     if (request.url === "/broken-cover") {
       response.setHeader("Content-Type", "image/jpeg");
       response.end(Buffer.from([0xff, 0xd8]));

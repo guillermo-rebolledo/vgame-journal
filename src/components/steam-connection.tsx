@@ -74,6 +74,7 @@ export function SteamConnection({
       }
     });
   }
+  if (!enabled) return null;
   return (
     <section
       aria-labelledby="steam-heading"
@@ -95,12 +96,6 @@ export function SteamConnection({
       <p className="text-sm">
         {linked ? "Steam connected" : "Steam not connected"}
       </p>
-      {!enabled && (
-        <p className="text-sm text-muted-foreground">
-          Steam import is not available yet. You can keep adding games through
-          Catalog search.
-        </p>
-      )}
       {!linked && enabled && (
         <a
           ref={connectControl}

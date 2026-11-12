@@ -19,6 +19,7 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import { currentSession, signedInUserId } from "@/lib/auth";
 import { yearInReviewFlag } from "@/lib/flags";
 import { REVIEW_YEAR, reviewInvitation } from "@/lib/review-invitation";
+import { steamImportEnabled } from "@/lib/steam-server";
 
 /**
  * The site itself, for search engines and AI crawlers.
@@ -108,7 +109,9 @@ async function HomeContent() {
             <ReviewBanner />
           </Suspense>
         )}
-        <HomeCollections />
+        <Suspense fallback={null}>
+          <OwnerCollections owner={userId} />
+        </Suspense>
         <DiscoveryBoundary>
           <Suspense fallback={<DiscoveryLoading />}>
             <Discovery />
@@ -116,6 +119,14 @@ async function HomeContent() {
         </DiscoveryBoundary>
       </HomeJournalProvider>
     </HomeCoverTransitions>
+  );
+}
+
+async function OwnerCollections({ owner }: { owner: string | null }) {
+  return (
+    <HomeCollections
+      steamImportEnabled={!!owner && (await steamImportEnabled())}
+    />
   );
 }
 
