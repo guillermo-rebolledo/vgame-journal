@@ -1,5 +1,12 @@
 /** Only selected by the isolated E2E aliases; no production flag provider calls. */
-export const steamImportFlag = async () => true;
+export const steamImportFlag = async () => {
+  const session = await currentSession();
+  const response = await fetch(
+    `${process.env.E2E_SUPPORT_URL}/steam-flag?username=${encodeURIComponent(session?.user.username ?? "")}`,
+    { cache: "no-store" },
+  );
+  return ((await response.json()) as { enabled: boolean }).enabled;
+};
 
 import { currentSession } from "../../src/lib/auth";
 export async function reviewFixture() {

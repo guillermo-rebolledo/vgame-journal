@@ -44,7 +44,10 @@ for (const viewport of [
         await expect(
           page
             .getByRole("main")
-            .getByRole("button", { name: "Find a game", exact: true }),
+            .getByRole(collection === "Library" ? "link" : "button", {
+              name: "Find a game",
+              exact: true,
+            }),
         ).toHaveCount(0);
         await expect(
           page.getByText(`Your ${collection.toLowerCase()} is empty.`),
@@ -65,7 +68,10 @@ for (const viewport of [
           await expect(
             page
               .getByRole("main")
-              .getByRole("button", { name: "Find a game", exact: true }),
+              .getByRole(collection === "Library" ? "link" : "button", {
+                name: "Find a game",
+                exact: true,
+              }),
           ).toBeVisible();
         else
           await expect(

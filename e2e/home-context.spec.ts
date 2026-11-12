@@ -192,12 +192,17 @@ test("Find a game, shortcuts and native navigation have one active owner across 
   await page.getByRole("button", { name: "Close search", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(trigger).toBeFocused();
-  await page.getByRole("link", { name: "Find a game", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "Find a game", exact: true })
+    .click();
   await expect(input).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
-    page.getByRole("link", { name: "Find a game", exact: true }),
+    page
+      .getByRole("navigation", { name: "Main" })
+      .getByRole("link", { name: "Find a game", exact: true }),
   ).toBeFocused();
   for (const key of ["Control+k", "Meta+k"]) {
     await page.keyboard.press(key);
@@ -208,7 +213,10 @@ test("Find a game, shortcuts and native navigation have one active owner across 
   await page.getByRole("link", { name: "Library", exact: true }).click();
   await page.keyboard.press("Control+k");
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("link", { name: "Find a game", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "Find a game", exact: true })
+    .click();
   await expect(input).toBeFocused();
   await expect(page.getByRole("dialog")).toHaveCount(1);
 });

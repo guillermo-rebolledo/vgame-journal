@@ -81,7 +81,7 @@ test("an enabled flag admits the signed-in owner and still permits disconnect wh
     (
       await callback(new Request("http://localhost:3000/api/steam/callback"))
     ).headers.get("location"),
-  ).toBe("http://localhost:3000/settings?steam=connected");
+  ).toBe("http://localhost:3000/settings/steam");
   expect(mocks.link).toHaveBeenCalledWith("owner", "76561198000000000");
   expect(await readSteamImport("owner")).toEqual({ kind: "empty" });
   expect(await commitSteamImport("owner", [620])).toEqual({

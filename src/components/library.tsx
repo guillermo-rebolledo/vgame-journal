@@ -9,7 +9,8 @@ import { GameCover } from "@/components/game-cover";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformIcon, PlatformNames } from "@/components/platform";
 import { RatingStars } from "@/components/rating-stars";
-import { Button } from "@/components/ui/button";
+import { SteamImportInvitation } from "@/components/steam-import-invitation";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
@@ -53,10 +54,12 @@ export function Library({
   entries,
   initialView,
   readOnly = false,
+  steamImportEnabled = false,
 }: {
   entries: LibraryEntry[];
   initialView: LibraryView;
   readOnly?: boolean;
+  steamImportEnabled?: boolean;
 }) {
   const searchParams = useSearchParams();
   const [view, setView] = useState(initialView);
@@ -110,9 +113,16 @@ export function Library({
           Search for a game you’ve played, are playing or want to play, and add
           it to your journal.
         </p>
-        <Button render={<Link href="/?search=1" />} nativeButton={false}>
-          Find a game
-        </Button>
+        {steamImportEnabled ? (
+          <SteamImportInvitation />
+        ) : (
+          <Link
+            href="/?search=1"
+            className={buttonVariants({ className: "min-h-11" })}
+          >
+            Find a game
+          </Link>
+        )}
         <FeedbackLink />
       </div>
     );

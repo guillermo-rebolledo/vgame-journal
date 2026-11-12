@@ -33,8 +33,19 @@ export const Connected: Story = {};
 export const Disconnected: Story = { args: { connected: false } };
 export const Unavailable: Story = {
   args: { enabled: false, connected: false },
+  play: async ({ canvasElement }) => {
+    await expect(
+      within(canvasElement).queryByRole("region"),
+    ).not.toBeInTheDocument();
+    await expect(
+      within(canvasElement).queryByText("Steam import"),
+    ).not.toBeInTheDocument();
+  },
 };
-export const ConnectedWhileUnavailable: Story = { args: { enabled: false } };
+export const ConnectedWhileUnavailable: Story = {
+  ...Unavailable,
+  args: { enabled: false, connected: true },
+};
 export const Cancelled: Story = {
   args: { connected: false, connectionResult: "failed" },
 };

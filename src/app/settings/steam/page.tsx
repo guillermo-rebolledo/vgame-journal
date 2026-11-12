@@ -3,12 +3,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import { SettingLoading } from "@/components/content-loading";
+import { SteamConnection } from "@/components/steam-connection";
 import { SteamImport } from "@/components/steam-import";
 import { signedInUserId } from "@/lib/auth";
 import { journal } from "@/lib/journal";
 import { steamImport, steamImportEnabled } from "@/lib/steam-server";
-import { commitSteamImport, readSteamImport } from "../steam-actions";
+import {
+  commitSteamImport,
+  disconnectSteam,
+  readSteamImport,
+} from "../steam-actions";
 
 export const metadata: Metadata = { title: "Steam import" };
 
@@ -17,7 +21,7 @@ export const maxDuration = 180;
 export default function SteamImportPage() {
   return (
     <section className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-8">
-      <Suspense fallback={<SettingLoading label="Loading Steam import…" />}>
+      <Suspense fallback={null}>
         <GatedSteamImport />
       </Suspense>
     </section>
@@ -32,7 +36,6 @@ async function GatedSteamImport() {
     steamImport.connection(userId),
     journal.profileVisibility(userId),
   ]);
-  if (!link) redirect("/settings");
   return (
     <>
       <div className="flex flex-col gap-1">
@@ -45,11 +48,19 @@ async function GatedSteamImport() {
         </Link>
         <h1 className="font-semibold text-3xl tracking-tight">Steam import</h1>
       </div>
-      <SteamImport
-        publicProfile={visibility === "public"}
-        onRead={readSteamImport.bind(null, userId)}
-        onCommit={commitSteamImport.bind(null, userId)}
-      />
+      {link ? (
+        <SteamImport
+          publicProfile={visibility === "public"}
+          onRead={readSteamImport.bind(null, userId)}
+          onCommit={commitSteamImport.bind(null, userId)}
+        />
+      ) : (
+        <SteamConnection
+          connected={false}
+          enabled={true}
+          onDisconnect={disconnectSteam.bind(null, userId)}
+        />
+      )}
     </>
   );
 }

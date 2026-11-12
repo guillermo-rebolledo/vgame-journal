@@ -1,7 +1,84 @@
 import { expect, test } from "@playwright/test";
+import { chooseTheme } from "./support/header";
 import { seedSql } from "./support/seed-sql";
 import { signUp, uniqueUsername } from "./support/sign-up";
 import { supportUrl } from "./support/url";
+
+test("Steam discovery is owner-only and disappears when the flag is off", async ({
+  page,
+  request,
+}, testInfo) => {
+  test.setTimeout(90_000);
+  await page.goto("/");
+  await expect(page.getByText("Have games on Steam?")).toHaveCount(0);
+  const username = uniqueUsername("steamdiscover");
+  const email = await signUp(page, request, username);
+  for (const theme of ["light", "dark"] as const) {
+    await chooseTheme(page, theme);
+    for (const width of [320, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/library");
+      await expect(
+        page.getByRole("link", { name: "Import from Steam" }),
+      ).toHaveCount(2);
+      await expect(
+        page.getByRole("main").getByRole("link", { name: "Find a game" }),
+      ).toBeVisible();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+    }
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.screenshot({
+      path: testInfo.outputPath(`steam-discovery-${theme}.png`),
+      fullPage: true,
+    });
+  }
+  await seedSql(
+    request,
+    [`update "user" set profile_visibility = 'public' where email = $1`],
+    [email],
+  );
+  await page.goto(`/u/${username}`);
+  await expect(page.getByText("No games in this library yet.")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Import from Steam" }),
+  ).toHaveCount(0);
+  await request.post(supportUrl("/steam-flag"), {
+    data: { username, enabled: false },
+  });
+  for (const path of ["/", "/library", "/settings"]) {
+    await page.goto(path);
+    await expect(
+      page.getByRole("heading", {
+        name:
+          path === "/"
+            ? "Your Journal"
+            : path === "/library"
+              ? "Library"
+              : "Settings",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(page.getByText("Have games on Steam?")).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: /Import.*Steam|Sign in through Steam/ }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Steam import" }),
+    ).toHaveCount(0);
+    await expect(page.getByText("Loading Steam connection…")).toHaveCount(0);
+  }
+  await page.goto("/settings/steam");
+  await expect(page.getByRole("heading", { name: "Steam import" })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("link", { name: "Sign in through Steam" }),
+  ).toHaveCount(0);
+});
 
 test("connect, hidden-then-fixed retry, review, commit and re-import preserve Journal choices", async ({
   page,
@@ -37,14 +114,11 @@ test("connect, hidden-then-fixed retry, review, commit and re-import preserve Jo
       headers: { location: callback.href },
     });
   });
-  await page.goto("/settings");
+  await page.goto("/");
+  await expect(page.getByText("Have games on Steam?")).toBeVisible();
+  await page.getByRole("link", { name: "Import from Steam" }).click();
+  await expect(page).toHaveURL(/\/settings\/steam$/);
   await page.getByRole("link", { name: "Sign in through Steam" }).click();
-  await expect(
-    page
-      .getByText("Steam connected", { exact: true })
-      .filter({ visible: true }),
-  ).toBeVisible();
-  await page.getByRole("link", { name: "Import Steam games" }).click();
   await expect(page).toHaveURL(/\/settings\/steam$/);
   await page.getByRole("button", { name: "Start Steam import" }).click();
   await expect(
@@ -81,6 +155,9 @@ test("connect, hidden-then-fixed retry, review, commit and re-import preserve Jo
   ).toBeVisible();
   await page.goto("/library?status=backlog");
   await expect(page.getByRole("link", { name: /Hades/ }).first()).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Import from Steam" }),
+  ).toBeVisible();
   // A player's later removal is never undone by another import.
   await seedSql(
     request,
@@ -111,7 +188,9 @@ test("connect, hidden-then-fixed retry, review, commit and re-import preserve Jo
   ).toBeVisible();
   // Selection stays out of reach once the account is disconnected.
   await page.goto("/settings/steam");
-  await expect(page).toHaveURL(/\/settings$/);
+  await expect(
+    page.getByRole("link", { name: "Sign in through Steam" }),
+  ).toBeVisible();
   await page.goto("/library?status=backlog");
   await expect(page.getByRole("link", { name: /Hades/ }).first()).toBeVisible();
 });

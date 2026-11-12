@@ -14,7 +14,7 @@ export async function GET(request: Request) {
       new URL(request.url).searchParams,
     );
     await steamImport.link(session.user.id, steamId);
-    return Response.redirect(new URL("/settings?steam=connected", origin));
+    return Response.redirect(new URL("/settings/steam", origin));
   } catch {
     return Response.redirect(new URL("/settings?steam=failed", origin));
   }

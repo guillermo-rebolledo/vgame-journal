@@ -56,7 +56,7 @@ export default function SettingsPage({
       <Suspense fallback={<SettingLoading label="Loading calendar feed…" />}>
         <CalendarFeedSetting />
       </Suspense>
-      <Suspense fallback={<SettingLoading label="Loading Steam connection…" />}>
+      <Suspense fallback={null}>
         <SteamSetting searchParams={searchParams} />
       </Suspense>
       <Suspense fallback={<SettingLoading label="Loading account data…" />}>
@@ -304,15 +304,15 @@ async function SteamSetting({
 }) {
   const userId = await signedInUserId();
   if (!userId) redirect("/sign-in");
-  const [link, enabled, params] = await Promise.all([
+  if (!(await steamImportEnabled())) return null;
+  const [link, params] = await Promise.all([
     steamImport.connection(userId),
-    steamImportEnabled(),
     searchParams,
   ]);
   return (
     <SteamConnection
       connected={Boolean(link)}
-      enabled={enabled}
+      enabled={true}
       connectionResult={params.steam}
       onDisconnect={disconnectSteam.bind(null, userId)}
     />
