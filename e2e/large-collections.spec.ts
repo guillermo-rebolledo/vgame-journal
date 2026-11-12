@@ -257,7 +257,9 @@ test("large collections bound rendered rows and retain navigation, search and ed
     await expect(page).toHaveURL(/\/library\?outPage=3&sort=title$/);
   }
   await page.goto("/library?q=NoSuchCollection&libraryPage=2&outPage=3");
-  await expect(page.getByText("No games match these filters.")).toBeVisible();
+  await expect(
+    page.getByText("No games match these filters.").filter({ visible: true }),
+  ).toBeVisible();
   await expect(page).toHaveURL(/\/library\?q=NoSuchCollection&outPage=3$/);
   await page.goto("/library?libraryPage=999&outPage=3&sort=title");
   await expect(libraryPages.getByRole("status")).toHaveText("961–1000 of 1000");
