@@ -3,6 +3,7 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useId, useRef, useState, useTransition } from "react";
+import { trackEvent } from "@/components/analytics";
 import { ActionFeedback } from "@/components/ui/action-feedback";
 import { Button, buttonVariants } from "@/components/ui/button";
 
@@ -33,6 +34,9 @@ export function ReviewInvitation({
         const message = await onDismiss(duration);
         if (message) setError(message);
         else {
+          trackEvent("year_in_review_invitation", {
+            action: duration === "year" ? "hide" : "dismiss",
+          });
           setHidden(true);
           document.getElementById("home-journal-heading")?.focus();
         }
@@ -74,6 +78,9 @@ export function ReviewInvitation({
         <Link
           href="/year-in-review"
           prefetch={false}
+          onClick={() =>
+            trackEvent("year_in_review_invitation", { action: "view" })
+          }
           aria-label="Your year in the Journal · View"
           className={buttonVariants({
             variant: "link",

@@ -114,7 +114,7 @@ export function Library({
           it to your journal.
         </p>
         {steamImportEnabled ? (
-          <SteamImportInvitation />
+          <SteamImportInvitation surface="library" />
         ) : (
           <Link
             href="/?search=1"

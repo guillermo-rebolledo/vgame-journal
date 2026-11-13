@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { TrackClicks } from "@/components/analytics";
 import { CollectionLoading } from "@/components/collection-loading";
 import { Library } from "@/components/library";
 import { buttonVariants } from "@/components/ui/button";
@@ -50,12 +51,17 @@ export default function LibraryPage() {
 async function SteamImportAction() {
   if (!(await signedInUserId()) || !(await steamImportEnabled())) return null;
   return (
-    <Link
-      href="/settings/steam"
-      className={buttonVariants({ variant: "outline", className: "min-h-11" })}
-    >
-      Import from Steam
-    </Link>
+    <TrackClicks event={["steam_import_opened", { surface: "library" }]}>
+      <Link
+        href="/settings/steam"
+        className={buttonVariants({
+          variant: "outline",
+          className: "min-h-11",
+        })}
+      >
+        Import from Steam
+      </Link>
+    </TrackClicks>
   );
 }
 

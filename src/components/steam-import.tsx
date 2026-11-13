@@ -4,6 +4,7 @@ import { cn } from "cn";
 import { Check, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
+import { countBucket, trackEvent } from "@/components/analytics";
 import {
   FirstSaveFeedback,
   useFeedbackChannel,
@@ -244,6 +245,12 @@ export function SteamImport({
             onClick={() =>
               run("read", async () => {
                 const next = await onRead();
+                trackEvent("steam_import_read", {
+                  outcome: next.kind,
+                  games: countBucket(
+                    next.kind === "review" ? next.rows.length : 0,
+                  ),
+                });
                 if (next.kind !== "review" && review?.kind === "review") {
                   setError(messages[next.kind]);
                   return;
@@ -423,6 +430,10 @@ export function SteamImport({
                     setError(outcome.error);
                     return;
                   }
+                  trackEvent("steam_import_committed", {
+                    added: countBucket(outcome.added),
+                    selection: requested === ready.length ? "all" : "partial",
+                  });
                   if (outcome.feedbackInvitation) feedback?.saved();
                   setResult({ added: outcome.added, requested });
                 })

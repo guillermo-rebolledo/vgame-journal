@@ -1,8 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { trackEvent } from "@/components/analytics";
 import { buttonVariants } from "@/components/ui/button";
 
 /** Callers render this only for the owner when Steam import is enabled. */
-export function SteamImportInvitation() {
+export function SteamImportInvitation({
+  surface,
+}: {
+  surface: "home" | "library";
+}) {
   return (
     <div className="flex flex-col items-start gap-3">
       <p className="font-medium">Have games on Steam?</p>
@@ -19,6 +26,7 @@ export function SteamImportInvitation() {
         </Link>
         <Link
           href="/settings/steam"
+          onClick={() => trackEvent("steam_import_opened", { surface })}
           className={buttonVariants({
             variant: "outline",
             className: "min-h-11",

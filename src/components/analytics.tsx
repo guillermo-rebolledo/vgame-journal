@@ -7,6 +7,7 @@ import { type ReactNode, useEffect } from "react";
 import type { FeedbackType } from "@/lib/feedback-types";
 import type { CompletionTag, Status } from "@/lib/library";
 import { redactPathname } from "@/lib/pathname";
+import type { SteamReview } from "@/lib/steam-import";
 
 // Both names and values are bounded: even campaign/platform fields can contain personal text.
 const SAFE_PARAMS: Record<string, RegExp> = {
@@ -157,6 +158,19 @@ type ProductEvents = {
   calendar_feed_regenerated: undefined;
   account_data_exported: undefined;
   account_deleted: undefined;
+  steam_import_opened: { surface: "home" | "library" | "settings" };
+  steam_connect_started: undefined;
+  steam_import_read: { outcome: SteamReview["kind"]; games: CountBucket };
+  steam_import_committed: { added: CountBucket; selection: "all" | "partial" };
+  steam_disconnected: undefined;
+  discovery_game_saved: {
+    shelf: "recent_releases" | "popular";
+    status: Status;
+  };
+  discovery_retried: { stale: boolean };
+  year_in_review_invitation: { action: "view" | "dismiss" | "hide" };
+  year_in_review_viewed: { has_games: boolean };
+  year_in_review_image: { step: "preview" | "download"; username: boolean };
 };
 
 /** An event name with its properties, if it has any; serializable, so server components can hand one to a client link. */
@@ -181,3 +195,16 @@ type PositionBucket = "1-3" | "4-10" | "11+";
 /** `position` is 1-based. */
 export const positionBucket = (position: number): PositionBucket =>
   position <= 3 ? "1-3" : position <= 10 ? "4-10" : "11+";
+
+type CountBucket = "0" | "1-9" | "10-49" | "50-199" | "200+";
+/** For library-sized counts, where `resultsBucket`'s 10+ is too coarse. */
+export const countBucket = (count: number): CountBucket =>
+  count === 0
+    ? "0"
+    : count < 10
+      ? "1-9"
+      : count < 50
+        ? "10-49"
+        : count < 200
+          ? "50-199"
+          : "200+";

@@ -51,9 +51,10 @@ test("review gates owners, previews the exact PNG, retries and denies download a
   });
   await page.goto("/");
   await page.getByRole("link", { name: /Your year in the Journal/ }).click();
+  // CI WebKit can hold the route's view-transition commit past five seconds after the server has responded.
   await expect(
     page.getByRole("heading", { name: "1 game played" }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("2026-12-01", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("checkbox", { name: /Include username/ }),

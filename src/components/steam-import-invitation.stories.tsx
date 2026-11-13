@@ -13,6 +13,7 @@ const meta = {
       },
     },
   },
+  args: { surface: "home" },
 } satisfies Meta<typeof SteamImportInvitation>;
 export default meta;
 type Story = StoryObj<typeof meta>;
