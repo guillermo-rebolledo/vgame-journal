@@ -58,10 +58,6 @@ export default async function configureNext(phase: string) {
           { key: "Content-Security-Policy-Report-Only", value: reportOnlyCsp },
         ],
       },
-      {
-        source: "/internal/sentry-verification/:path*",
-        headers: [{ key: "Cache-Control", value: "private, no-store" }],
-      },
       // Rating logos never change; a new logo gets a new filename.
       {
         source: "/ratings/:file*",

@@ -31,3 +31,24 @@ test("isolated production builds expose no browser maps or Sentry traffic", asyn
     expect(code).not.toMatch(/\/\/# sourceMappingURL=.*\.map(?:\s|$)/);
   }
 });
+
+test("temporary Sentry verification routes are removed", async ({
+  request,
+}) => {
+  for (const path of [
+    "/internal/sentry-verification",
+    "/internal/sentry-verification/render",
+  ]) {
+    expect((await request.get(path)).status()).toBe(404);
+  }
+  expect(
+    (
+      await request.post("/api/internal/sentry-verification", {
+        headers: {
+          authorization: "Bearer removed-verification-capability",
+          "x-sentry-verification-kind": "route",
+        },
+      })
+    ).status(),
+  ).toBe(404);
+});

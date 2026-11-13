@@ -4,7 +4,6 @@ import { auth } from "@/lib/auth";
 import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
 import { journal } from "@/lib/journal";
 import { lists } from "@/lib/lists";
-import { sentryVerificationAllowed } from "@/lib/sentry-verification";
 
 /** Signed-in users can't use the app until they've chosen a username. */
 async function route(request: NextRequest) {
@@ -83,17 +82,6 @@ export const config = {
 
 /** Visibility-sensitive documents, Flight payloads, errors and redirects must not persist. */
 export async function proxy(request: NextRequest) {
-  const path = request.nextUrl.pathname;
-  if (
-    (path === "/internal/sentry-verification" ||
-      path.startsWith("/internal/sentry-verification/")) &&
-    !sentryVerificationAllowed(request.headers.get("authorization"))
-  ) {
-    return new NextResponse(null, {
-      status: 404,
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  }
   const response = await route(request);
   if (/^\/(?:lists|u)(?:\/|$)/.test(request.nextUrl.pathname))
     response.headers.set("Cache-Control", "private, no-store");

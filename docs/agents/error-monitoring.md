@@ -89,32 +89,16 @@ References: [manual SDK setup](https://docs.sentry.io/platforms/javascript/guide
 [options](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/),
 [pricing](https://sentry.io/pricing/). Account capabilities remain unverified.
 
-## Temporary trial verification
+## Trial verification
 
-The owner authorized technical verification during the trial ending November 26,
-2026. This does **not** verify Developer/$0 capabilities or change the billing gate.
-The owner also authorized production deployment and testing of the probes. The build explicitly
-throws a fixed, nonpersonal error on source-map upload failure; the SDK default
-only logs these failures, which can otherwise leave a green deployment without maps. No real Journal writes,
-authentication failures or provider failures are needed.
+The owner authorized technical production verification during the trial ending
+November 26, 2026. Production verification confirmed browser handler/render,
+server action/render/route, caught-error identity deduplication, independent error
+counts, private source maps, and owner email delivery. See the
+[verification record](../verification/sentry-production.md) for evidence and limits.
 
-The temporary controls at `/internal/sentry-verification` and the server-render
-probe at `/internal/sentry-verification/render` require an Authorization Bearer
-capability on every request, including Server Actions. The API at
-`/api/internal/sentry-verification` accepts POST with the same capability and a fixed
-`x-sentry-verification-kind`: `route`, `caught`, or `independent` (two distinct errors).
-These exercise the existing SDK initialization and operational-error path. Duplicate
-reporting of the same caught Error should produce one event; independent errors
-should produce two. Sanitization intentionally replaces the synthetic messages;
-identify events by the new deployment release, origin frames and capture operation.
-
-Set a temporary server-only `SENTRY_VERIFICATION_TOKEN` with a 13-digit Unix
-millisecond expiry followed by a dot and 64 cryptographically random lowercase hex
-characters. Generate it immediately before the approved deployment, with a short
-expiry. Never use URL parameters, browser props, public environment variables,
-logs, clipboard or shell arguments for this capability. Inject it only into
-same-origin verification requests. Absent, expired or mismatched capabilities
-return 404; the pages use no-store and noindex. Remove the environment value and
-these temporary routes after acceptance, then redeploy to remove the controls.
-The Playwright fixture uses its own short-lived dummy capability and disables all
-Sentry capture and uploads.
+Temporary probe routes, capability checks, and test-only environment variables
+have been removed. Do not recreate them or enable new monitoring features without
+a concrete verification need. Developer/$0 capabilities remain unverified until
+the trial ends; technical success during the trial does not establish free-plan
+upload availability.
