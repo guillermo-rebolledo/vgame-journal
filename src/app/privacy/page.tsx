@@ -145,21 +145,21 @@ export default function PrivacyPage() {
           Error diagnostics
         </h2>
         <p>
-          The app includes Sentry error monitoring, disabled until the owner
-          verifies its free Developer plan, processing region and privacy
-          settings. When enabled, it sends fixed error labels, production
-          release information and sanitized code stack locations to diagnose
-          failures. It excludes private writing, Feedback, account identity,
-          navigation URLs, cookies and request contents. No session recording is
-          used.
+          The app uses Sentry error monitoring in its US region. When enabled in
+          production, it sends fixed error labels, production release
+          information and sanitized code stack locations to diagnose failures.
+          It excludes private writing, Feedback, account identity, navigation
+          URLs, cookies and request contents. No session recording is used.
         </p>
         <p>
-          Network delivery exposes the connecting IP address to Sentry. Private
-          source-map uploads process application source with Sentry. The
-          Developer plan advertises a 30-day error lookback; source artifacts
-          have separate retention and deletion controls. Region, IP storage and
-          artifact retention must be verified and this notice updated before
-          enablement. App account deletion does not erase all provider records.
+          Network delivery exposes the connecting IP address to Sentry. We
+          configure server-side scrubbing to remove stored IP addresses and
+          derived location fields from new error records. Private source-map
+          uploads process application source with Sentry. The Developer plan
+          advertises a 30-day error lookback; source artifacts have separate
+          retention and deletion controls. Free-plan source-map upload
+          availability has not yet been verified outside the trial. App account
+          deletion does not erase all provider records.
         </p>
       </section>
       <section aria-labelledby="calendar-heading" className="space-y-3">

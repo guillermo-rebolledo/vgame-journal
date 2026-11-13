@@ -434,3 +434,23 @@ test("the fixed production RSC forwarding message is suppressed without assuming
     }),
   ).not.toBeNull();
 });
+
+test("minified React 441 forwarding is suppressed only in the browser", () => {
+  const filter = createErrorFilter(release);
+  const error = Object.assign(
+    new Error(
+      "Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.",
+    ),
+    { digest: "2003675659" },
+  );
+  const event: Sentry.ErrorEvent = {
+    type: undefined,
+    exception: { values: [{ type: "Error", value: error.message }] },
+  };
+  vi.stubGlobal("window", {});
+  expect(filter(event, { originalException: error })).toBeNull();
+  const otherError = new Error(error.message.replaceAll("441", "418"));
+  expect(filter(event, { originalException: otherError })).not.toBeNull();
+  vi.stubGlobal("window", undefined);
+  expect(filter(event, { originalException: error })).not.toBeNull();
+});
