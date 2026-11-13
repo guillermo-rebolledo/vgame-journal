@@ -68,6 +68,15 @@ test("on snapshots one identity-free decision for runtime, CSP and private uploa
   expect(decide.mock.calls[0][0].entities).toBeUndefined();
   expect([...decide.mock.calls[0][0].headers]).toEqual([]);
   expect(wrap).toHaveBeenCalledOnce();
+  expect(wrap.mock.calls[0][1]).toMatchObject({
+    release: {
+      name: "a".repeat(40),
+      create: false,
+      finalize: false,
+      setCommits: false,
+      deploy: false,
+    },
+  });
   const headers = await config.headers?.();
   expect(
     headers?.[0].headers.find(
