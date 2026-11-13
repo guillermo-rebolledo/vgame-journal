@@ -376,3 +376,61 @@ test("build gate exposes only public config, exact CSP origin and no map plugin 
   expect(config).not.toHaveProperty("productionBrowserSourceMaps", true);
   expect(config).not.toHaveProperty("compiler.runAfterProductionCompile");
 });
+
+test("instrumentation capture survives a separately bundled domain module", async () => {
+  const sink = vi.fn();
+  installErrorCapture(sink);
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.resetModules();
+  const otherLayer = await import("./operational-errors");
+  const error = new Error("private caught failure");
+  otherLayer.reportOperationalError("server.route", "unexpected", error);
+  expect(sink).toHaveBeenCalledExactlyOnceWith(
+    error,
+    "server.route",
+    "unexpected",
+  );
+});
+
+test("translation identity survives separately bundled modules", async () => {
+  const filter = createErrorFilter(release);
+  const original = new Error("private original");
+  const event: Sentry.ErrorEvent = {
+    type: undefined,
+    exception: { values: [{ type: "Error", value: "private" }] },
+  };
+  expect(filter(event, { originalException: original })).not.toBeNull();
+  vi.resetModules();
+  const otherLayer = await import("./error-monitoring");
+  const translated = otherLayer.linkMonitoringError(
+    new Error("private translated"),
+    original,
+  );
+  expect(filter(event, { originalException: translated })).toBeNull();
+});
+
+test("the fixed production RSC forwarding message is suppressed without assuming a digest format", () => {
+  vi.stubGlobal("window", {});
+  const filter = createErrorFilter(release);
+  const message =
+    "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.";
+  const event: Sentry.ErrorEvent = {
+    type: undefined,
+    exception: { values: [{ type: "Error", value: message }] },
+  };
+  for (const digest of [undefined, "123@rsc", "123"]) {
+    expect(
+      filter(event, {
+        originalException: Object.assign(new Error(message), { digest }),
+      }),
+    ).toBeNull();
+  }
+  expect(
+    filter(event, {
+      originalException: Object.assign(
+        new Error("a distinct browser failure"),
+        { digest: "123" },
+      ),
+    }),
+  ).not.toBeNull();
+});

@@ -3,6 +3,7 @@ import {
   PHASE_PRODUCTION_SERVER,
 } from "next/constants";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { installErrorCapture } from "./operational-errors";
 
 const { decide, wrap, init, capture, flush } = vi.hoisted(() => ({
   init: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock("@flags-sdk/vercel", () => ({
 vi.mock("@sentry/nextjs/config", () => ({ withSentryConfig: wrap }));
 
 beforeEach(() => {
+  installErrorCapture(() => {});
   vi.resetModules();
   decide.mockReset().mockResolvedValue(true);
   wrap.mockClear();
@@ -48,6 +50,7 @@ beforeEach(() => {
     vi.stubEnv(key, value);
 });
 afterEach(() => {
+  installErrorCapture(() => {});
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
@@ -59,6 +62,7 @@ async function configure(phase = PHASE_PRODUCTION_BUILD) {
 
 test("on snapshots one identity-free decision for runtime, CSP and private uploads", async () => {
   const config = await configure();
+  expect(config.turbopack?.debugIds).toBe(false);
   expect(config.env?.NEXT_PUBLIC_SENTRY_ENABLED).toBe("1");
   expect(decide).toHaveBeenCalledOnce();
   expect(decide.mock.calls[0][0]).toMatchObject({

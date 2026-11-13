@@ -53,11 +53,18 @@ function emitEvent(
   }
 }
 
-let capture:
-  | ((error: unknown, operation: Operation, code: OperationalCode) => void)
-  | undefined;
-export function installErrorCapture(sink: NonNullable<typeof capture>) {
-  capture = sink;
+type ErrorCapture = (
+  error: unknown,
+  operation: Operation,
+  code: OperationalCode,
+) => void;
+// Instrumentation and request handlers can contain separate copies of this module.
+const captureKey = Symbol.for("shelve.errorCapture");
+const runtime = globalThis as typeof globalThis & {
+  [captureKey]?: ErrorCapture;
+};
+export function installErrorCapture(sink: ErrorCapture) {
+  runtime[captureKey] = sink;
 }
 
 export function reportOperationalError(
@@ -69,7 +76,7 @@ export function reportOperationalError(
   emitEvent("error", { event: "operational_error", operation, code });
   try {
     if (operation !== "database.request" && !expectedMonitoringError(error))
-      capture?.(error, operation, code);
+      runtime[captureKey]?.(error, operation, code);
   } catch {
     /* Preserve the original result even if the SDK fails. */
   }
