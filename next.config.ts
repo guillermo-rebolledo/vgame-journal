@@ -131,7 +131,14 @@ export default async function configureNext(phase: string) {
         },
         buildTimeInstrumentation: false,
         routeManifestInjection: false,
-        release: { name: monitoring.release, create: false, finalize: false },
+        // Vercel metadata defaults on independently of release creation.
+        release: {
+          name: monitoring.release,
+          create: false,
+          finalize: false,
+          setCommits: false,
+          deploy: false,
+        },
         sourcemaps: {
           // One upload tolerates an empty output folder without accepting an entirely empty build.
           assets: [".next/{server,static}/**/*.{js,mjs,cjs}"],

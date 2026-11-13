@@ -50,7 +50,10 @@ maps off and capture usable with minified frames. Upload errors fail the build.
 The SDK uploads server and static artifacts together with one glob; an empty
 individual output folder does not abort otherwise valid uploads. A build with no
 map pairs or an upload failure still fails. Only numeric CLI exit codes are
-reported, never the provider error text.
+reported, never the provider error text. Automatic release commit association and
+deployment metadata are explicitly disabled: on Vercel the SDK otherwise tries
+to record a deploy before a release exists, even with release creation disabled.
+Events and uploaded maps still carry the same commit SHA.
 Only generated client maps are deleted; server maps stay private. Never enable
 productionBrowserSourceMaps independently. Inspect `.next/static` for maps and
 reachable sourceMappingURL targets before deploying. Build and upload must use
