@@ -4,7 +4,12 @@ import { ExpectedError } from "./expected-error";
 import { CODES, OPERATIONS } from "./operational-vocabulary";
 
 // Safe translated errors retain an in-memory relationship without exposing provider causes to callers.
-const originals = new WeakMap<object, unknown>();
+const originalsKey = Symbol.for("shelve.monitoringOriginals");
+const runtime = globalThis as typeof globalThis & {
+  [originalsKey]?: WeakMap<object, unknown>;
+};
+runtime[originalsKey] ??= new WeakMap<object, unknown>();
+const originals = runtime[originalsKey];
 export function linkMonitoringError<T extends Error>(
   translated: T,
   original: unknown,
@@ -136,11 +141,11 @@ export function createErrorFilter(release: string) {
       // React's production RSC forwarding message is fixed by Next/React, unlike an arbitrary digest property.
       if (
         typeof window !== "undefined" &&
-        error instanceof Error &&
+        error &&
+        typeof error === "object" &&
+        "message" in error &&
         error.message ===
-          "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error." &&
-        "digest" in error &&
-        /^\d+$/.test(String(error.digest))
+          "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error."
       )
         return null;
       const chain: object[] = [];

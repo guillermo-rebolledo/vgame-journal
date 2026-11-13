@@ -74,6 +74,8 @@ export default async function configureNext(phase: string) {
       },
     ],
     turbopack: {
+      // Let Sentry inject IDs: its uploader shifts native indexed maps incorrectly.
+      debugIds: false,
       ...(e2e && {
         resolveAlias: {
           "@/db": "./e2e/support/db.ts",

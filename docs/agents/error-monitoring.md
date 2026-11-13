@@ -54,6 +54,9 @@ reported, never the provider error text. Automatic release commit association an
 deployment metadata are explicitly disabled: on Vercel the SDK otherwise tries
 to record a deploy before a release exists, even with release creation disabled.
 Events and uploaded maps still carry the same commit SHA.
+Turbopack's native debug IDs are disabled so Sentry injects IDs into flat maps.
+The current uploader adds another runtime line to native indexed maps without
+adjusting their sections, producing unreadable frames despite a successful upload.
 Only generated client maps are deleted; server maps stay private. Never enable
 productionBrowserSourceMaps independently. Inspect `.next/static` for maps and
 reachable sourceMappingURL targets before deploying. Build and upload must use
@@ -68,7 +71,8 @@ No tracing, request/database integrations, breadcrumbs, logs, metrics, Replay,
 attachments, monitors, sessions or remote CSP reports. Delivery is best effort,
 bounded to 1.5s, without retries of app operations. Caught errors schedule a Next
 `after` flush; request hooks await flushing. Identity/cause deduplication is local
-to a runtime; separate Proxy invocations cannot share an object registry.
+to a runtime. Symbol-keyed globals share the capture sink and weak translation
+registry across separately bundled modules; separate runtimes cannot share them.
 
 ## Separately authorized production acceptance
 
@@ -89,7 +93,7 @@ References: [manual SDK setup](https://docs.sentry.io/platforms/javascript/guide
 
 The owner authorized technical verification during the trial ending November 26,
 2026. This does **not** verify Developer/$0 capabilities or change the billing gate.
-Production deployment of the probes still needs approval. The build explicitly
+The owner also authorized production deployment and testing of the probes. The build explicitly
 throws a fixed, nonpersonal error on source-map upload failure; the SDK default
 only logs these failures, which can otherwise leave a green deployment without maps. No real Journal writes,
 authentication failures or provider failures are needed.
