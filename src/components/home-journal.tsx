@@ -542,10 +542,13 @@ export function HomeSaveControls({
   game,
   presentation = "compact",
   announce = true,
+  onSaved,
 }: {
   game: Game;
   announce?: boolean;
   presentation?: "compact" | "direct";
+  /** Called after a confirmed save, e.g. so a shelf can attribute it. */
+  onSaved?: (status: Status) => void;
 }) {
   const home = useContext(HomeContext);
   const trigger = useRef<HTMLButtonElement | null>(null);
@@ -584,6 +587,7 @@ export function HomeSaveControls({
       });
     }
     const done = await result;
+    if (done) onSaved?.(status);
     if (done && presentation === "compact") {
       // Shelf membership can remove the old trigger; restore focus after that DOM update.
       requestAnimationFrame(() => {
@@ -930,7 +934,7 @@ export function HomeJournal({
             Wishlist.
             <FeedbackLink />
           </p>
-          {steamImportEnabled && <SteamImportInvitation />}
+          {steamImportEnabled && <SteamImportInvitation surface="home" />}
         </div>
       ) : (
         <>

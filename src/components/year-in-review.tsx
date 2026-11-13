@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { trackEvent } from "@/components/analytics";
 import { GameCover } from "@/components/game-cover";
 import { ActionFeedback } from "@/components/ui/action-feedback";
 import { Button } from "@/components/ui/button";
@@ -138,6 +139,9 @@ export function YearInReviewPage({
     [image],
   );
   const hasGames = review.logged.count + review.played.count > 0;
+  useEffect(() => {
+    trackEvent("year_in_review_viewed", { has_games: hasGames });
+  }, [hasGames]);
 
   async function prepare() {
     if (busy.current) return;
@@ -148,6 +152,10 @@ export function YearInReviewPage({
     try {
       const blob = await onPrepare(includeUsername, review.asOf);
       setImage(URL.createObjectURL(blob));
+      trackEvent("year_in_review_image", {
+        step: "preview",
+        username: includeUsername,
+      });
       setMessage("Your image is ready. Check the preview before downloading.");
     } catch {
       setFailed(true);
@@ -173,6 +181,10 @@ export function YearInReviewPage({
       document.body.append(link);
       link.click();
       link.remove();
+      trackEvent("year_in_review_image", {
+        step: "download",
+        username: includeUsername,
+      });
       setMessage(
         "Your PNG is ready to save. If it opens in a new view, use your browser’s Save Image or Share action.",
       );

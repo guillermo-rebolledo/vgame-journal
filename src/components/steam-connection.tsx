@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { trackEvent } from "@/components/analytics";
 import { ActionFeedback } from "@/components/ui/action-feedback";
 import { Button, buttonVariants } from "@/components/ui/button";
 
@@ -66,6 +67,7 @@ export function SteamConnection({
           setError(result.error);
           return;
         }
+        trackEvent("steam_disconnected");
         restoreFocus.current = true;
         setLinked(false);
         setNotice("Steam disconnected. Your Journal is unchanged.");
@@ -100,6 +102,7 @@ export function SteamConnection({
         <a
           ref={connectControl}
           href="/api/steam/connect"
+          onClick={() => trackEvent("steam_connect_started")}
           className="inline-flex min-h-11 self-start items-center rounded-md focus-visible:outline-2 focus-visible:outline-offset-4"
         >
           <Image
@@ -115,6 +118,9 @@ export function SteamConnection({
           {enabled && (
             <Link
               href="/settings/steam"
+              onClick={() =>
+                trackEvent("steam_import_opened", { surface: "settings" })
+              }
               className={buttonVariants({ className: "min-h-11" })}
             >
               Import Steam games

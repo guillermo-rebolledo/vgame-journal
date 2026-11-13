@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
+import { trackEvent } from "@/components/analytics";
 import { GameCover } from "@/components/game-cover";
 import { GameIdentificationMetadata } from "@/components/game-identification-metadata";
 import { HomeCoverLink } from "@/components/home-cover-link";
@@ -38,7 +39,10 @@ export function DiscoveryError({
         loading={pending}
         disabled={pending}
         aria-busy={pending}
-        onClick={() => startTransition(retry)}
+        onClick={() => {
+          trackEvent("discovery_retried", { stale });
+          startTransition(retry);
+        }}
       >
         Retry discovery
       </Button>
@@ -65,6 +69,8 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
         const title =
           shelf.key === "recent" ? "Recently released" : "Recently trending";
         const id = `${instance}-${shelf.key}`;
+        const shelfName =
+          shelf.key === "recent" ? "recent_releases" : "popular";
         return (
           <section
             key={shelf.key}
@@ -83,15 +89,7 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
                   <HomeCoverLink
                     gameId={game.id}
                     source="shelf"
-                    event={[
-                      "home_shelf_opened",
-                      {
-                        shelf:
-                          shelf.key === "recent"
-                            ? "recent_releases"
-                            : "popular",
-                      },
-                    ]}
+                    event={["home_shelf_opened", { shelf: shelfName }]}
                     href={`/games/${game.slug}`}
                     className="group row-span-2 grid grid-rows-subgrid gap-2 rounded-lg outline-none"
                     cover={
@@ -112,7 +110,15 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
                       platforms={game.platforms}
                     />
                   </div>
-                  <HomeSaveControls game={{ ...game, gameId: game.id }} />
+                  <HomeSaveControls
+                    game={{ ...game, gameId: game.id }}
+                    onSaved={(status) =>
+                      trackEvent("discovery_game_saved", {
+                        shelf: shelfName,
+                        status,
+                      })
+                    }
+                  />
                 </li>
               ))}
             </ul>

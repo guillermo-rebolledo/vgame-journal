@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { afterEach, expect, test, vi } from "vitest";
 import {
   Analytics,
+  countBucket,
   googleCallbackURL,
   positionBucket,
   redactAnalyticsEvent,
@@ -147,6 +148,18 @@ test.each([
   [250, "10+"],
 ])("resultsBucket(%i) is %s", (count, bucket) => {
   expect(resultsBucket(count)).toBe(bucket);
+});
+
+test.each([
+  [0, "0"],
+  [9, "1-9"],
+  [10, "10-49"],
+  [49, "10-49"],
+  [50, "50-199"],
+  [199, "50-199"],
+  [200, "200+"],
+])("countBucket(%i) is %s", (count, bucket) => {
+  expect(countBucket(count)).toBe(bucket);
 });
 
 test.each([
