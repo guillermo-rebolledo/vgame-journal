@@ -21,12 +21,11 @@ type Story = StoryObj<typeof meta>;
 export const Desktop: Story = {
   play: async ({ canvasElement }) => {
     const nav = within(canvasElement).getByRole("navigation", { name: "Main" });
-    const stats = within(nav).getByRole("link", { name: "Stats" });
-    await expect(stats).toHaveAttribute("aria-current", "page");
-    stats.focus();
-    await userEvent.tab({ shift: true });
+    const library = within(nav).getByRole("link", { name: "Library" });
+    library.focus();
+    await userEvent.tab();
     await expect(
-      within(nav).getByRole("link", { name: "Lists" }),
+      within(nav).getByRole("link", { name: "Wishlist" }),
     ).toHaveFocus();
   },
 };

@@ -361,10 +361,13 @@ for (const colorScheme of ["light", "dark"] as const) {
     });
     await expectForcedColorsFocus(input);
     await page.keyboard.press("Escape");
-    await page.keyboard.press("Tab");
-    await page.keyboard.press("Tab");
+    await expect(
+      page.getByRole("dialog", { name: "Search results" }),
+    ).toHaveCount(0);
     const filters = page.getByRole("button", { name: "Filters", exact: true });
-    await filters.focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
     await expectForcedColorsFocus(filters);
     await page.keyboard.press("Enter");
     await expect(filters).toHaveAttribute("aria-expanded", "true");

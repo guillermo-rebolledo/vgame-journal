@@ -76,7 +76,7 @@ export function CatalogSearch({
       >
         {guidance ?? "Search the Catalog by title."}
       </p>
-      <div ref={anchor}>
+      <div ref={anchor} className="game-catalog-controls">
         <div className="flex flex-wrap items-center gap-2">
           <Popover.Root
             open={open}

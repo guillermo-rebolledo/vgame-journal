@@ -129,7 +129,7 @@ for (const theme of ["light", "dark"] as const) {
           .poll(
             () =>
               popup.evaluate((node) => {
-                const anchor = document.querySelector(".game-catalog-input");
+                const anchor = document.querySelector(".game-catalog-controls");
                 if (!anchor) return false;
                 // Base UI updates the anchored width after a resize observer runs.
                 const positioned =
