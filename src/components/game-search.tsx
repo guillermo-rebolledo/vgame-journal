@@ -71,6 +71,7 @@ export function GameSearch({
   const input = useRef<HTMLInputElement>(null);
   const owner = useRef<HTMLDivElement>(null);
   const localSearch = useRef<string | null>(null);
+  const restoredContext = useRef<string | null>(null);
   const initiator = useRef<HTMLElement | null>(null);
   const body = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -141,11 +142,18 @@ export function GameSearch({
       }
     }
     // Local edits keep the current disclosure and focus. Route entry and Back restore results.
-    if (localSearch.current !== window.location.search) restore();
+    if (
+      restoredContext.current !== context &&
+      localSearch.current !== window.location.search
+    )
+      restore();
+    restoredContext.current = context;
     localSearch.current = null;
     window.addEventListener("popstate", restore);
     return () => {
       window.removeEventListener("popstate", restore);
+      // Retained Home restores the current results when it becomes visible again.
+      restoredContext.current = null;
     };
   }, [context, pendingIntent, presentation]);
 
