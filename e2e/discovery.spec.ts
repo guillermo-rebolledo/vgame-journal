@@ -99,10 +99,10 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
     page.getByRole("button", { name: "Show games", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(
-    page.getByRole("button", { name: "Filters", exact: true }),
-  ).toBeFocused();
+  const filters = page.getByRole("button", { name: "Filters", exact: true });
+  await expect(filters).toBeFocused();
   await page.keyboard.press("Enter");
+  await expect(filters).toHaveAttribute("aria-expanded", "true");
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("combobox", { name: "Platform", exact: true }),
