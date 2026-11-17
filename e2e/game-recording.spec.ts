@@ -64,16 +64,9 @@ test("Playthroughs stay between recording actions and Catalog information from e
     .filter({ visible: true });
   async function checkLocation() {
     await expect(history).toBeVisible();
-    expect(
-      await add.evaluate(
-        (element, section) =>
-          Boolean(
-            element.compareDocumentPosition(section as Node) &
-              Node.DOCUMENT_POSITION_FOLLOWING,
-          ),
-        await history.elementHandle(),
-      ),
-    ).toBe(true);
+    await expect(
+      history.getByRole("button", { name: "Add playthrough" }),
+    ).toBeVisible();
     expect(
       await history.evaluate(
         (element, fact) =>
@@ -84,12 +77,8 @@ test("Playthroughs stay between recording actions and Catalog information from e
         await catalog.elementHandle(),
       ),
     ).toBe(true);
-    const actionsBox = await add.boundingBox();
     const historyBox = await history.boundingBox();
     const catalogBox = await catalog.boundingBox();
-    expect(historyBox?.y).toBeGreaterThanOrEqual(
-      (actionsBox?.y ?? 0) + (actionsBox?.height ?? 0),
-    );
     expect(catalogBox?.y).toBeGreaterThanOrEqual(
       (historyBox?.y ?? 0) + (historyBox?.height ?? 0),
     );
@@ -132,10 +121,12 @@ for (const state of ["guest", "unsaved", "saved"] as const) {
     const journal = actions.getByRole(state === "guest" ? "link" : "button", {
       name: /(Add to Journal|Change Journal status) for Celeste$/,
     });
-    const add = actions.getByRole(state === "guest" ? "link" : "button", {
-      name: "Add playthrough",
-      exact: true,
-    });
+    const add = page
+      .getByRole("region", { name: "Playthroughs" })
+      .getByRole(state === "guest" ? "link" : "button", {
+        name: "Add playthrough",
+        exact: true,
+      });
     const lists = actions.getByRole("button", {
       name: "Add to list",
       exact: true,
@@ -144,8 +135,6 @@ for (const state of ["guest", "unsaved", "saved"] as const) {
     await expect(add).toHaveCount(1);
     await expect(lists).toHaveCount(1);
     await journal.focus();
-    await page.keyboard.press("Tab");
-    await expect(add).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(lists).toBeFocused();
     await page.keyboard.press("Enter");
@@ -196,7 +185,7 @@ for (const theme of ["light", "dark"] as const) {
         }
         for (const label of [
           "Add to Journal for",
-          "Add playthrough",
+          ...(slug === "celeste" ? ["Add playthrough"] : []),
           "Add to list",
         ]) {
           await expect(
@@ -508,13 +497,12 @@ test("signed-out actions lead to sign in and no-platform games explain the limit
     },
   });
   await page.goto("/games/no-platforms");
-  await page
-    .getByRole("button", { name: "Add playthrough", exact: true })
-    .click();
-  await expect(page.getByText(/no platforms listed/)).toBeVisible();
+  const history = page.getByRole("region", { name: "Playthroughs" });
+  await expect(history.getByText(/no platforms listed/)).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Save", exact: true }),
-  ).toBeDisabled();
+    history.getByRole("button", { name: "Add playthrough" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
 for (const populated of [false, true]) {

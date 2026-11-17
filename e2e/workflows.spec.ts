@@ -33,7 +33,7 @@ test("Home guides new users, and search survives slow, stale and failed requests
   await page.goto("/");
   await expect(
     page.getByRole("heading", {
-      name: "Track what you’re playing, build your backlog, and save games you want",
+      name: "Track your games",
     }),
   ).toBeVisible();
   await openCatalog(page);
@@ -202,6 +202,7 @@ test("Search filters keep keyboard focus and long platform names readable at 320
     exact: true,
   });
   await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await platform.click();
   await page.getByRole("option", { name: "PC", exact: true }).click();
   await expect(platform).toContainText("PC");
@@ -259,6 +260,10 @@ test("Library search, filters and sort survive game visits, Back and reload", as
   await expect(page.getByLabel("Search your Library")).toHaveValue("");
   await page.getByLabel("Search your Library").fill("s");
   await page.getByLabel("Status").selectOption("wishlist");
+  await page
+    .locator("summary:visible")
+    .filter({ hasText: "Filters and sort" })
+    .click();
   await page.getByLabel("Sort by").selectOption("title");
   await expect(page).toHaveURL(/\/library\?q=s&status=wishlist&sort=title$/);
   const games = page.getByRole("list", { name: "Games" });
@@ -276,6 +281,10 @@ test("Library search, filters and sort survive game visits, Back and reload", as
   await expect(games.getByRole("heading")).toHaveText(["Celeste", "Silksong"]);
   await page.reload();
   await expect(page.getByLabel("Status")).toHaveValue("wishlist");
+  await page
+    .locator("summary:visible")
+    .filter({ hasText: "Filters and sort" })
+    .click();
   await expect(page.getByLabel("Sort by")).toHaveValue("title");
   await expect(games.getByRole("heading")).toHaveText(["Celeste", "Silksong"]);
 
@@ -288,7 +297,25 @@ test("Library search, filters and sort survive game visits, Back and reload", as
   ]);
 
   await page.setViewportSize({ width: 390, height: 844 });
+  if (
+    await page
+      .locator("summary:visible")
+      .filter({ hasText: "Filters and sort" })
+      .evaluate((node) => !!node.closest("details")?.open)
+  )
+    await page
+      .locator("summary:visible")
+      .filter({ hasText: "Filters and sort" })
+      .click();
+  const searchTop = (await page.getByLabel("Search your Library").boundingBox())
+    ?.y;
   await page.getByLabel("Status").selectOption("backlog");
+  await expect(
+    page.getByRole("link", { name: "What should I play next?" }),
+  ).toBeInViewport();
+  expect((await page.getByLabel("Search your Library").boundingBox())?.y).toBe(
+    searchTop,
+  );
   await expectNoHorizontalOverflow(page);
   await snap(page, testInfo, "library-filtered-mobile", true);
 

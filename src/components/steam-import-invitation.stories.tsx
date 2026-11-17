@@ -9,11 +9,10 @@ const meta = {
     docs: {
       description: {
         component:
-          "Shared Home and Library empty-state invitation. Composes native links with shared Button styles; the server caller gates visibility with steamImportEnabled(). SteamConnection handles sign-in, while SteamImport owns game selection.",
+          "Secondary action for an empty Journal on Home. Composes native links with shared Button styles; the server caller gates visibility with steamImportEnabled(). SteamConnection handles sign-in, while SteamImport owns game selection.",
       },
     },
   },
-  args: { surface: "home" },
 } satisfies Meta<typeof SteamImportInvitation>;
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -24,10 +23,6 @@ export const Default: Story = {
       name: "Import from Steam",
     });
     await expect(link).toHaveAttribute("href", "/settings/steam");
-    await userEvent.tab();
-    await expect(
-      within(canvasElement).getByRole("link", { name: "Find a game" }),
-    ).toHaveFocus();
     await userEvent.tab();
     await expect(link).toHaveFocus();
   },

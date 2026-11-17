@@ -42,6 +42,9 @@ export function createPlayNext(reads: Catalog) {
       source,
       provenance: source === "backlog" ? "backlog" : "related",
       backlogCount: backlog.length,
+      hasReleasedBacklog: backlog.some((game) =>
+        releasedOn(game, { platform: "", genre: "" }),
+      ),
       games: [],
       bounded: false,
       platforms: [...new Set(backlog.flatMap((game) => game.platforms))].sort(),

@@ -35,7 +35,7 @@ async function filter(page: Page, label: string, value: string) {
   await page.getByRole("option", { name: value, exact: true }).click();
   await expect(
     page.getByRole("status", { name: "Play next updates" }),
-  ).not.toContainText("Loading");
+  ).not.toContainText(/Loading|Updating/);
 }
 
 test("Home and Backlog reach one Shelf; browsing, filtering and rerolls never mutate the Journal", async ({
@@ -81,6 +81,32 @@ test("Home and Backlog reach one Shelf; browsing, filtering and rerolls never mu
     .getByRole("link", { name: "What should I play next?", exact: true })
     .click();
   await expect(page.getByRole("article")).toHaveCount(3);
+});
+
+test("a Backlog with only unreleased games offers Discovery", async ({
+  page,
+  request,
+}) => {
+  const username = uniqueUsername("unreleased_next");
+  await signUp(page, request, username);
+  await seedSql(
+    request,
+    [
+      `insert into journal_entry (user_id,game_id,status,updated_at)
+    select u.id,g.id,'backlog',now() from "user" u cross join game g
+    where u.username=$1 and g.slug='silksong'`,
+    ],
+    [username],
+  );
+  await page.goto("/play-next?source=backlog");
+  await expect(
+    page.getByRole("heading", { name: "No released games in your Backlog" }),
+  ).toBeVisible();
+  const results = page.getByRole("region", { name: "Suggestions" });
+  await expect(
+    results.getByRole("button", { name: "Discover games" }),
+  ).toBeVisible();
+  await expect(results.getByRole("article")).toHaveCount(0);
 });
 
 test("cancel retains the shortlist and focus; confirmed start changes only Status", async ({
@@ -254,8 +280,10 @@ test("Shelf is accessible and fits both themes from 320px to desktop", async ({
   request,
 }) => {
   await signUp(page, request, uniqueUsername("a11ynext"));
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/play-next");
   await expect(page.getByRole("article")).toHaveCount(3);
+  await expect(page.getByRole("article").first()).toBeInViewport();
   for (const theme of ["light", "dark"] as const) {
     await chooseTheme(page, theme);
     for (const width of [320, 390, 768, 1440]) {
@@ -290,6 +318,54 @@ test("Shelf is accessible and fits both themes from 320px to desktop", async ({
   ).toEqual([]);
 });
 
+test("reloading a populated shortlist preserves mobile scroll and results geometry", async ({
+  page,
+  request,
+}) => {
+  const username = uniqueUsername("reload_next");
+  await signUp(page, request, username);
+  await seed(request, username, 3);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/play-next?source=backlog");
+  const results = page.getByRole("region", { name: "Suggestions" });
+  const reload = results.getByRole("button", { name: "Reload suggestions" });
+  const cards = results.getByRole("article");
+  await expect(cards).toHaveCount(3);
+  await reload.scrollIntoViewIfNeeded();
+  await reload.focus();
+  const before = await page.evaluate(() => scrollY);
+  expect(before).toBeGreaterThan(0);
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/play-next?source=backlog", async (route) => {
+    if (route.request().method() === "POST") await held;
+    await route.continue();
+  });
+  const footer = page.getByRole("contentinfo");
+  const footerTop = (await footer.boundingBox())?.y;
+  try {
+    await page.keyboard.press("Enter");
+    await expect(results.getByRole("status")).toContainText(
+      "Updating previous suggestions",
+    );
+    await expect(cards).toHaveCount(3);
+    expect((await footer.boundingBox())?.y).toBeCloseTo(footerTop ?? 0, 0);
+    expect(await page.evaluate(() => scrollY)).toBe(before);
+  } finally {
+    release();
+  }
+  await expect(results.getByRole("status")).toContainText(
+    "3 suggestions loaded",
+  );
+  await expect(cards).toHaveCount(3);
+  expect((await footer.boundingBox())?.y).toBeCloseTo(footerTop ?? 0, 0);
+  expect(await page.evaluate(() => scrollY)).toBe(before);
+  await expect(reload).toBeFocused();
+});
+
 test("provider failure offers Retry with filters retained; late responses cannot replace newer choices", async ({
   page,
   request,
@@ -303,34 +379,84 @@ test("provider failure offers Retry with filters retained; late responses cannot
     [`update game set platforms=array_append(platforms,$1) where id=940001`],
     [platform],
   );
-  await request.post(supportUrl("/play-next-source"), {
-    data: { key: platform, fail: true },
-  });
-  await page.goto("/play-next");
-  await page
-    .getByRole("button", { name: "Discover games", exact: true })
-    .click();
-  await filter(page, "Available on", platform);
-  await expect(page.getByRole("main").getByRole("alert")).toContainText(
-    "Couldn’t load suggestions",
-  );
-  await expect(
-    page.getByRole("heading", { name: "Popular games" }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole("combobox", { name: "Available on" }),
-  ).toContainText(platform);
-  await request.post(supportUrl("/play-next-source"), {
-    data: { key: platform, fail: false, delay: 500 },
-  });
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
-  await page.getByRole("combobox", { name: "Available on" }).click();
-  await page.getByRole("option", { name: "PC", exact: true }).click();
-  await expect(page.getByRole("article")).toHaveCount(3);
-  await expect(
-    page.getByRole("combobox", { name: "Available on" }),
-  ).toContainText("PC");
-  await expect(
-    page.getByRole("heading", { name: "Related to your Backlog" }),
-  ).toBeVisible();
+  const control = (hold: boolean, fail: boolean) =>
+    request.post(supportUrl("/play-next-source"), {
+      data: { key: platform, hold, fail },
+    });
+  const expectHeld = () =>
+    expect
+      .poll(async () => {
+        const response = await request.get(
+          supportUrl(
+            `/play-next-source?${new URLSearchParams({ key: platform, waiting: "1" })}`,
+          ),
+        );
+        return (await response.json()).waiting;
+      })
+      .toBe(true);
+  try {
+    await control(true, true);
+    await page.goto("/play-next");
+    await page
+      .getByRole("button", { name: "Discover games", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Related to your Backlog" }),
+    ).toBeVisible();
+    await expect(page.getByRole("article")).toHaveCount(3);
+    const region = page.getByRole("region", { name: "Suggestions" });
+    const documentTop = (locator: ReturnType<Page["locator"]>) =>
+      locator.evaluate((node) => node.getBoundingClientRect().top + scrollY);
+    const resultsTop = await documentTop(region);
+    const first = region.getByRole("article").first();
+    const cardTop = await documentTop(first);
+    const footerTop = await documentTop(page.getByRole("contentinfo"));
+    const available = page.getByRole("combobox", { name: "Available on" });
+    const availableTop = await documentTop(available);
+    const before = await state(request, username);
+    await available.click();
+    await page.getByRole("option", { name: platform, exact: true }).click();
+    const updates = region.getByRole("status", { name: "Play next updates" });
+    await expect(updates).toContainText("Updating previous suggestions");
+    await expect(region.getByRole("article")).toHaveCount(3);
+    const choose = region.getByRole("button", { name: /^Choose this/ }).first();
+    await expect(choose).toBeDisabled();
+    await expect(
+      region.getByRole("button", { name: /^Save to Backlog/ }).first(),
+    ).toBeDisabled();
+    expect(await documentTop(region)).toBeCloseTo(resultsTop, 0);
+    expect(await documentTop(first)).toBeCloseTo(cardTop, 0);
+    expect(await documentTop(page.getByRole("contentinfo"))).toBeCloseTo(
+      footerTop,
+      0,
+    );
+    await expectHeld();
+    await control(true, false);
+    await expect(region.getByRole("alert")).toContainText(
+      "Couldn’t load suggestions",
+    );
+    await expect(
+      region.getByRole("heading", { name: "Related to your Backlog" }),
+    ).toBeVisible();
+    await expect(choose).toBeDisabled();
+    await expect(available).toContainText(platform);
+
+    await region.getByRole("button", { name: "Retry", exact: true }).click();
+    await expect(updates).toContainText("Updating previous suggestions");
+    await expectHeld();
+    await available.click();
+    await page.getByRole("option", { name: "PC", exact: true }).click();
+    await control(false, false);
+    await expect(choose).toBeEnabled();
+    await expect(region.getByRole("article")).toHaveCount(3);
+    await expect(available).toContainText("PC");
+    expect(await documentTop(available)).toBeCloseTo(availableTop, 0);
+    expect(await documentTop(region)).toBeCloseTo(resultsTop, 0);
+    await expect(
+      region.getByRole("heading", { name: "Related to your Backlog" }),
+    ).toBeVisible();
+    expect(await state(request, username)).toEqual(before);
+  } finally {
+    await control(false, false);
+  }
 });

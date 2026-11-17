@@ -203,6 +203,11 @@ test("large collections bound rendered rows and retain navigation, search and ed
   ]) {
     await page.goto(copiedUrl);
     await expect(libraryPages.getByRole("status")).toHaveText("49–96 of 100");
+    if (label !== "Status")
+      await page
+        .locator("summary:visible")
+        .filter({ hasText: "Filters and sort" })
+        .click();
     await page.getByLabel(label, { exact: true }).selectOption(value);
     expect(new URL(page.url()).searchParams.has("libraryPage")).toBe(false);
     expect(new URL(page.url()).searchParams.get("outPage")).toBe("3");
@@ -226,6 +231,10 @@ test("large collections bound rendered rows and retain navigation, search and ed
   await page.reload();
   await expect(libraryPages.getByRole("status")).toHaveText("1–48 of 1000");
   await page.goto(copiedUrl);
+  await page
+    .locator("summary:visible")
+    .filter({ hasText: "Filters and sort" })
+    .click();
   await page.getByRole("button", { name: "Clear filters" }).click();
   await expect(page).toHaveURL(/\/library\?sort=title&outPage=3$/);
   await expect(libraryPages.getByRole("status")).toHaveText("1–48 of 1000");
@@ -248,6 +257,10 @@ test("large collections bound rendered rows and retain navigation, search and ed
   expect(new URL(page.url()).searchParams.has("libraryPage")).toBe(false);
   expect(new URL(page.url()).searchParams.get("outPage")).toBe("3");
   expect(await page.evaluate(() => window.history.length)).toBe(historyLength);
+  await page
+    .locator("summary:visible")
+    .filter({ hasText: "Filters and sort" })
+    .click();
   await page.getByRole("button", { name: "Clear filters" }).click();
 
   // Invalid positions and empty matches canonicalize only this collection's key.

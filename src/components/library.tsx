@@ -1,15 +1,20 @@
 "use client";
 
-import { LayoutGrid, List } from "lucide-react";
+import { ChevronDown, LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useDeferredValue, useEffect, useState, ViewTransition } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+  ViewTransition,
+} from "react";
 import { FeedbackLink } from "@/components/feedback-channel";
 import { GameCover } from "@/components/game-cover";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformIcon, PlatformNames } from "@/components/platform";
 import { RatingStars } from "@/components/rating-stars";
-import { SteamImportInvitation } from "@/components/steam-import-invitation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,12 +59,10 @@ export function Library({
   entries,
   initialView,
   readOnly = false,
-  steamImportEnabled = false,
 }: {
   entries: LibraryEntry[];
   initialView: LibraryView;
   readOnly?: boolean;
-  steamImportEnabled?: boolean;
 }) {
   const searchParams = useSearchParams();
   const [view, setView] = useState(initialView);
@@ -91,7 +94,10 @@ export function Library({
     year: years.find((y) => y === deferredState.filters.year),
   };
   const shown = queryLibrary(entries, resultFilters, deferredState.sort);
-  const filtered = Object.values(filters).some(Boolean);
+  const filterCount = Object.values(filters).filter(Boolean).length;
+  const filtered = filterCount > 0;
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filterSummary = useRef<HTMLElement>(null);
 
   const pagination = useUrlPagination(
     "libraryPage",
@@ -113,16 +119,12 @@ export function Library({
           Search for a game you’ve played, are playing or want to play, and add
           it to your journal.
         </p>
-        {steamImportEnabled ? (
-          <SteamImportInvitation surface="library" />
-        ) : (
-          <Link
-            href="/?search=1"
-            className={buttonVariants({ className: "min-h-11" })}
-          >
-            Find a game
-          </Link>
-        )}
+        <Link
+          href="/?search=1"
+          className={buttonVariants({ className: "min-h-11" })}
+        >
+          Find a game
+        </Link>
         <FeedbackLink />
       </div>
     );
@@ -149,6 +151,11 @@ export function Library({
   }
   const setFilters = (next: LibraryFilters) => update({ filters: next });
 
+  function clearFilters() {
+    setFilters({});
+    filterSummary.current?.focus();
+  }
+
   function choose(next: LibraryView) {
     setView(next);
     // biome-ignore lint/suspicious/noDocumentCookie: a sync one-liner; the Cookie Store API isn't in every browser yet.
@@ -156,21 +163,10 @@ export function Library({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {!readOnly && filters.status === "backlog" && (
-        <Link
-          href="/play-next"
-          className={buttonVariants({
-            variant: "outline",
-            className: "min-h-11 self-start",
-          })}
-        >
-          What should I play next?
-        </Link>
-      )}
+    <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3 sm:flex sm:flex-wrap sm:items-end">
-          <div className="col-span-full flex min-w-0 flex-col gap-1.5 sm:w-64">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] items-end gap-3 sm:flex sm:flex-wrap">
+          <div className="flex min-w-0 flex-col gap-1.5 sm:w-64">
             <Label htmlFor="library-search">Search your Library</Label>
             <Input
               id="library-search"
@@ -180,7 +176,7 @@ export function Library({
               onChange={(e) =>
                 setFilters({ ...filters, query: e.target.value || undefined })
               }
-              className="h-11 sm:pointer-fine:h-8"
+              className="h-auto min-h-11 sm:pointer-fine:min-h-8"
             />
           </div>
           <Select
@@ -197,88 +193,89 @@ export function Library({
               ...STATUSES.map((s) => [s, capitalize(s)] as const),
             ]}
           />
-          {offerRated && (
-            <Select
-              label="Rating"
-              value={filters.rated ? "rated" : ""}
-              onChange={(rated) =>
-                setFilters({
-                  ...filters,
-                  rated: rated === "rated" || undefined,
-                })
-              }
-              options={[
-                ["", "Any rating"],
-                ["rated", "Rated"],
-              ]}
-            />
-          )}
-          <Select
-            label="Sort by"
-            value={sort}
-            onChange={(s) => update({ sort: s as LibrarySort })}
-            options={LIBRARY_SORTS.map((s) => [s, SORT_LABELS[s]] as const)}
-          />
         </div>
-        {(platforms.length > 0 || years.length > 0) && (
-          <details
-            open={!!(filters.platform || filters.year) || undefined}
-            className="group"
+        <details
+          className="group/filters"
+          onToggle={(event) => setFiltersOpen(event.currentTarget.open)}
+        >
+          <summary
+            ref={filterSummary}
+            className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-md text-muted-foreground text-sm underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:pointer-fine:min-h-8"
           >
-            <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-md text-muted-foreground text-sm underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:pointer-fine:min-h-8">
-              More filters
-              {(filters.platform || filters.year) && (
-                <span className="ml-1 text-foreground">
-                  ({[filters.platform, filters.year].filter(Boolean).length} on)
-                </span>
-              )}
-            </summary>
-            <div className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3 sm:flex sm:flex-wrap sm:items-end">
-              {platforms.length > 0 && (
-                <Select
-                  label="Platform"
-                  value={filters.platform ?? ""}
-                  onChange={(platform) =>
-                    setFilters({ ...filters, platform: platform || undefined })
-                  }
-                  options={[
-                    ["", "All platforms"],
-                    ...platforms.map((p) => [p, p] as const),
-                  ]}
-                />
-              )}
-              {years.length > 0 && (
-                <Select
-                  label="Year played"
-                  value={filters.year ? String(filters.year) : ""}
-                  onChange={(year) =>
-                    setFilters({
-                      ...filters,
-                      year: year ? Number(year) : undefined,
-                    })
-                  }
-                  options={[
-                    ["", "Any year"],
-                    ...years.map((y) => [String(y), String(y)] as const),
-                  ]}
-                />
-              )}
-            </div>
-          </details>
-        )}
+            Filters and sort{" "}
+            {filtered && (
+              <span className="text-foreground tabular-nums">
+                ({filterCount} active)
+              </span>
+            )}
+            <ChevronDown
+              aria-hidden="true"
+              className="size-4 shrink-0 group-open/filters:rotate-180"
+            />
+          </summary>
+          <div className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3 sm:flex sm:flex-wrap sm:items-end">
+            {offerRated && (
+              <Select
+                label="Rating"
+                value={filters.rated ? "rated" : ""}
+                onChange={(rated) =>
+                  setFilters({
+                    ...filters,
+                    rated: rated === "rated" || undefined,
+                  })
+                }
+                options={[
+                  ["", "Any rating"],
+                  ["rated", "Rated"],
+                ]}
+              />
+            )}
+            <Select
+              label="Sort by"
+              value={sort}
+              onChange={(s) => update({ sort: s as LibrarySort })}
+              options={LIBRARY_SORTS.map((s) => [s, SORT_LABELS[s]] as const)}
+            />
+            {platforms.length > 0 && (
+              <Select
+                label="Platform"
+                value={filters.platform ?? ""}
+                onChange={(platform) =>
+                  setFilters({ ...filters, platform: platform || undefined })
+                }
+                options={[
+                  ["", "All platforms"],
+                  ...platforms.map((p) => [p, p] as const),
+                ]}
+              />
+            )}
+            {years.length > 0 && (
+              <Select
+                label="Year played"
+                value={filters.year ? String(filters.year) : ""}
+                onChange={(year) =>
+                  setFilters({
+                    ...filters,
+                    year: year ? Number(year) : undefined,
+                  })
+                }
+                options={[
+                  ["", "Any year"],
+                  ...years.map((y) => [String(y), String(y)] as const),
+                ]}
+              />
+            )}
+            {filtered && filtersOpen && <ClearFilters onClick={clearFilters} />}
+          </div>
+        </details>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-x-3">
-          <p className="text-muted-foreground text-sm" aria-live="polite">
-            {filtered
-              ? `${shown.length} of ${entries.length} games`
-              : `${entries.length} ${entries.length === 1 ? "game" : "games"}`}
-          </p>
-          {filtered && shown.length > 0 && (
-            <ClearFilters onClick={() => setFilters({})} />
-          )}
-        </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <p className="text-muted-foreground text-sm" aria-live="polite">
+          {filtered
+            ? `${shown.length} of ${entries.length} games`
+            : `${entries.length} ${entries.length === 1 ? "game" : "games"}`}
+        </p>
         <fieldset className="flex flex-wrap gap-1">
           <legend className="sr-only">View</legend>
           {(
@@ -291,7 +288,7 @@ export function Library({
               key={value}
               variant={view === value ? "secondary" : "ghost"}
               aria-pressed={view === value}
-              className="h-11 sm:pointer-fine:h-8"
+              className="h-auto min-h-11 sm:pointer-fine:min-h-8"
               onClick={() => choose(value)}
             >
               <Icon aria-hidden />
@@ -299,12 +296,29 @@ export function Library({
             </Button>
           ))}
         </fieldset>
+        {!readOnly && (
+          <div className="flex min-h-11 basis-full items-center sm:ml-auto sm:basis-auto">
+            {filters.status === "backlog" && (
+              <Link
+                href="/play-next"
+                className={buttonVariants({
+                  variant: "outline",
+                  className: "min-h-11 h-auto whitespace-normal",
+                })}
+              >
+                What should I play next?
+              </Link>
+            )}
+          </div>
+        )}
       </div>
 
       {shown.length === 0 ? (
         <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-4 sm:p-8">
           <p className="font-medium">No games match these filters.</p>
-          <ClearFilters variant="outline" onClick={() => setFilters({})} />
+          {!filtersOpen && (
+            <ClearFilters variant="outline" onClick={clearFilters} />
+          )}
         </div>
       ) : (
         <div aria-busy={query !== deferredQuery}>
@@ -444,7 +458,7 @@ function ClearFilters({
   return (
     <Button
       variant={variant}
-      className="h-11 sm:pointer-fine:h-8"
+      className="h-auto min-h-11 sm:pointer-fine:min-h-8"
       onClick={onClick}
       title="Sort and view stay as they are"
     >

@@ -24,6 +24,7 @@ export type PlayNextSnapshot = {
   source: PlayNextSource;
   provenance: "backlog" | "related" | "popular";
   backlogCount: number;
+  hasReleasedBacklog: boolean;
   games: PlayNextGame[];
   bounded: boolean;
   platforms: string[];

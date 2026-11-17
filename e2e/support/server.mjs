@@ -22,7 +22,9 @@ const server = createServer(async (request, response) => {
     response.setHeader("Content-Type", "application/json");
     if (request.url === "/play-next-source" && request.method === "POST") {
       const fixture = JSON.parse(body);
-      playNextFixtures.set(fixture.key, fixture);
+      const previous = playNextFixtures.get(fixture.key);
+      playNextFixtures.set(fixture.key, { ...fixture, waiters: [] });
+      for (const resolve of previous?.waiters ?? []) resolve();
       response.end("{}");
       return;
     }
@@ -31,8 +33,14 @@ const server = createServer(async (request, response) => {
         "key",
       );
       const fixture = playNextFixtures.get(key) ?? {};
-      if (fixture.delay)
-        await new Promise((resolve) => setTimeout(resolve, fixture.delay));
+      if (
+        new URL(request.url, "http://localhost").searchParams.has("waiting")
+      ) {
+        response.end(JSON.stringify({ waiting: !!fixture.waiters?.length }));
+        return;
+      }
+      if (fixture.hold)
+        await new Promise((resolve) => fixture.waiters.push(resolve));
       response.end(JSON.stringify({ fail: fixture.fail ?? false }));
       return;
     }

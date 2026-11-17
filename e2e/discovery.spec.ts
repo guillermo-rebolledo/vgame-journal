@@ -81,11 +81,7 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
   const headings = await page
     .getByRole("heading", { level: 2 })
     .allTextContents();
-  expect(headings).toEqual([
-    "Find your next game.",
-    "Recently released",
-    "Recently trending",
-  ]);
+  expect(headings).toEqual(["Recently released", "Recently trending"]);
   const columns = () =>
     recent
       .locator("ul")
@@ -102,6 +98,11 @@ test("guests see discovery after search, with dates below tiles, keyboard links 
   await expect(
     page.getByRole("button", { name: "Show games", exact: true }),
   ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("button", { name: "Filters", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Enter");
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("combobox", { name: "Platform", exact: true }),
@@ -159,7 +160,6 @@ test("empty and saved Journals retain priority; duplicate covers navigate from e
   await chooseStatus(page, "backlog");
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 2 })).toHaveText([
-    "Find your next game.",
     "Playing",
     "Recently added",
     "Recently released",

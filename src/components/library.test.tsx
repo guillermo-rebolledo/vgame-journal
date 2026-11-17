@@ -100,10 +100,10 @@ test("filter and sort controls change the visible games", async () => {
   await user.selectOptions(screen.getByLabelText("Status"), "Played");
   await waitFor(() => expect(titles()).toEqual(["Hollow Knight", "Celeste"]));
 
+  await user.click(screen.getByText("Filters and sort"));
   await user.selectOptions(screen.getByLabelText("Sort by"), "Title (A–Z)");
   await waitFor(() => expect(titles()).toEqual(["Celeste", "Hollow Knight"]));
 
-  await user.click(screen.getByText("More filters"));
   await user.selectOptions(screen.getByLabelText("Platform"), "PC");
   await waitFor(() => expect(titles()).toEqual(["Celeste"]));
 
@@ -158,6 +158,7 @@ test("search, filters and sort live in the URL, so reloads and Back restore them
     (screen.getByLabelText("Search your Library") as HTMLInputElement).value,
   ).toBe("l");
 
+  await user.click(screen.getByText("Filters and sort"));
   await user.selectOptions(screen.getByLabelText("Sort by"), "Recently added");
   await user.selectOptions(screen.getByLabelText("Status"), "Playing");
   // A platform none of the games has is dropped rather than hiding everything.
@@ -174,6 +175,7 @@ test("the Rated filter and Rating sort find rated games, highest first, and live
   ];
   render(<Library entries={rated} initialView="grid" />);
 
+  await user.click(screen.getByText("Filters and sort"));
   await user.selectOptions(screen.getByLabelText("Rating"), "Rated");
   await user.selectOptions(
     screen.getByLabelText("Sort by"),
@@ -224,6 +226,7 @@ test("Clear filters is offered whenever a filter is on, and keeps sort and view"
   expect(screen.queryByRole("button", { name: /clear filters/i })).toBeNull();
 
   await user.click(screen.getByRole("button", { name: "List" }));
+  await user.click(screen.getByText("Filters and sort"));
   await user.selectOptions(screen.getByLabelText("Sort by"), "Title (A–Z)");
   await user.selectOptions(screen.getByLabelText("Status"), "Played");
   expect(await screen.findByText("2 of 3 games")).toBeTruthy();
@@ -238,11 +241,12 @@ test("Clear filters is offered whenever a filter is on, and keeps sort and view"
   ).toBe("true");
 });
 
-test("platform and year filters wait behind More filters, open when one is set", () => {
+test("a bookmarked year is applied and counted with the disclosure closed", () => {
   window.history.replaceState(null, "", "/library?year=2024");
   render(<Library entries={entries} initialView="grid" />);
-  const more = screen.getByText("More filters").closest("details");
-  expect(more?.open).toBe(true);
+  const more = screen.getByText("Filters and sort").closest("details");
+  expect(more?.open).toBe(false);
+  expect(more?.textContent).toContain("(1 active)");
   expect(titles()).toEqual(["Celeste", "Elden Ring"]);
 });
 

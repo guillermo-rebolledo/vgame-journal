@@ -148,7 +148,7 @@ for (const theme of ["light", "dark"] as const) {
       await scan(page, testInfo, "settled-hades");
       const measurements = [];
       const add = main.getByRole("link", {
-        name: "Add playthrough",
+        name: "Add to Journal for Hades",
         exact: true,
       });
       for (const [name, element, threshold] of [

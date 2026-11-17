@@ -96,7 +96,11 @@ export function PlaythroughForm({
             id={`${id}-${name}`}
             className="min-h-11 w-full capitalize"
           >
-            <SelectValue />
+            <SelectValue
+              placeholder={
+                name === "platform" ? "Choose a platform" : undefined
+              }
+            />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false}>
             <SelectGroup>
@@ -221,7 +225,7 @@ export function PlaythroughForm({
           <Button
             type="submit"
             className="h-11 px-6"
-            disabled={pending || !platforms.length}
+            disabled={pending || !platforms.includes(values.platform)}
             aria-busy={savingPending}
           >
             <ActionIcon

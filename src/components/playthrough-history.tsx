@@ -1,6 +1,7 @@
 "use client";
 
 import { Pencil } from "lucide-react";
+import type { ReactNode, Ref } from "react";
 import { PagedList, useUrlPagination } from "@/components/paged-list";
 import { PlatformName } from "@/components/platform";
 import { Button } from "@/components/ui/button";
@@ -14,9 +15,13 @@ const day = (iso: string) =>
   });
 
 export function PlaythroughHistory({
+  action,
+  headingRef,
   playthroughs,
   onEdit,
 }: {
+  action?: ReactNode;
+  headingRef?: Ref<HTMLHeadingElement>;
   playthroughs: Playthrough[];
   onEdit: (playthrough: Playthrough) => void;
 }) {
@@ -26,7 +31,12 @@ export function PlaythroughHistory({
       aria-label="Playthroughs"
       className="flex flex-col gap-1 border-t pt-3"
     >
-      <h2 className="font-medium">Playthroughs</h2>
+      <div className="flex min-h-11 flex-wrap items-center justify-between gap-2">
+        <h2 ref={headingRef} tabIndex={-1} className="font-medium">
+          Playthroughs
+        </h2>
+        {action}
+      </div>
       {!playthroughs.length ? (
         <p className="text-muted-foreground text-sm">No playthroughs yet.</p>
       ) : (

@@ -37,7 +37,6 @@ import {
 import { GameCover } from "@/components/game-cover";
 import { HomeCoverLink } from "@/components/home-cover-link";
 import { HomeWishlistPreview } from "@/components/home-wishlist-preview";
-import { SteamImportInvitation } from "@/components/steam-import-invitation";
 import { ActionIcon, type ActionState } from "@/components/ui/action-feedback";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -803,11 +802,7 @@ export function HomeSaveControls({
   );
 }
 
-export function HomeCollections({
-  steamImportEnabled = false,
-}: {
-  steamImportEnabled?: boolean;
-}) {
+export function HomeCollections({ steamImport }: { steamImport?: ReactNode }) {
   const home = useContext(HomeContext);
   const [initialRead, setInitialRead] = useState(true);
   if (initialRead && home?.loaded) setInitialRead(false);
@@ -850,7 +845,7 @@ export function HomeCollections({
   return (
     <HomeJournal
       entries={entries}
-      steamImportEnabled={steamImportEnabled}
+      steamImport={steamImport}
       wishlistPreview={
         <HomeWishlistPreview
           renderControls={(game) => <HomeSaveControls game={game} />}
@@ -879,11 +874,11 @@ export function HomeCollections({
 export function HomeJournal({
   entries,
   wishlistPreview,
-  steamImportEnabled = false,
+  steamImport,
 }: {
+  steamImport?: ReactNode;
   entries: HomeEntry[];
   wishlistPreview?: ReactNode;
-  steamImportEnabled?: boolean;
 }) {
   const playing = entries
     .filter((entry) => entry.status === "playing")
@@ -891,6 +886,31 @@ export function HomeJournal({
   const recent = entries.slice(0, 4);
   return (
     <div className="mt-2 flex flex-col gap-6 border-t pt-6">
+      {entries.length === 0 ? (
+        <div className="flex flex-col items-start gap-4">
+          <p className="text-muted-foreground">
+            <span>Your Journal is empty.</span> Search above, open a game, and
+            choose Add to Journal.
+            <FeedbackLink />
+          </p>
+          {steamImport}
+        </div>
+      ) : (
+        <>
+          {playing.length > 0 && (
+            <PersonalShelf
+              title="Playing"
+              games={playing}
+              href="/library?status=playing"
+            />
+          )}
+          <PersonalShelf
+            title="Recently added"
+            games={recent}
+            href="/library?sort=added"
+          />
+        </>
+      )}
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-2">
           {(
@@ -921,37 +941,17 @@ export function HomeJournal({
             </Link>
           ))}
         </div>
-        <p className="text-muted-foreground text-sm">
-          All saved games are in Library. Backlog and Wishlist are Status groups
-          within it.
-        </p>
+        <Link
+          href="/play-next"
+          className={buttonVariants({
+            variant: "outline",
+            className: "min-h-11 self-start",
+          })}
+        >
+          What should I play next?
+        </Link>
         {wishlistPreview}
       </div>
-      {entries.length === 0 ? (
-        <div className="flex flex-col items-start gap-4">
-          <p className="text-muted-foreground">
-            Your Journal is empty. Search above and add a game to Backlog or
-            Wishlist.
-            <FeedbackLink />
-          </p>
-          {steamImportEnabled && <SteamImportInvitation surface="home" />}
-        </div>
-      ) : (
-        <>
-          {playing.length > 0 && (
-            <PersonalShelf
-              title="Playing"
-              games={playing}
-              href="/library?status=playing"
-            />
-          )}
-          <PersonalShelf
-            title="Recently added"
-            games={recent}
-            href="/library?sort=added"
-          />
-        </>
-      )}
     </div>
   );
 }

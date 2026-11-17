@@ -121,14 +121,14 @@ test("Home summaries, compact personal shelves, addition order and region-aware 
     "Home collection game 78015",
   ]);
   await expect(
-    page.getByRole("link", { name: "All saved games (6)" }),
+    page.getByRole("region", { name: "Playing" }).getByRole("listitem").first(),
   ).toBeInViewport();
   await snap(page, testInfo, "home-six-phone", true);
   const summaryBox = await page
     .getByRole("link", { name: "All saved games (6)" })
     .boundingBox();
   const shelfBox = await recent.boundingBox();
-  expect(summaryBox?.y).toBeLessThan(shelfBox?.y ?? 0);
+  expect(summaryBox?.y).toBeGreaterThan(shelfBox?.y ?? 0);
   await page.getByRole("link", { name: "View all Playing games" }).click();
   await expect(page).toHaveURL("/library?status=playing");
   await page.goto("/");

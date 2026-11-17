@@ -3,6 +3,7 @@ import { chooseTheme } from "./support/header";
 import { chooseStatus } from "./support/journal";
 import { signUp, uniqueUsername } from "./support/sign-up";
 import { snap } from "./support/snap";
+import { supportUrl } from "./support/url";
 
 for (const theme of ["dark", "light"] as const) {
   test(`spec 78: guest and returning Home remain readable in ${theme}`, async ({
@@ -11,6 +12,7 @@ for (const theme of ["dark", "light"] as const) {
   }, testInfo) => {
     test.setTimeout(120_000);
     await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 320, height: 740 });
     await page.goto("/");
     await chooseTheme(page, theme);
     const search = page;
@@ -23,6 +25,10 @@ for (const theme of ["dark", "light"] as const) {
     const signup = page.getByRole("link", {
       name: "Sign up to start a Journal",
     });
+    await expect(signup).toBeInViewport();
+    await expect(
+      search.getByRole("combobox", { name: "Search games", exact: true }),
+    ).toBeInViewport();
     const example = page.getByRole("figure", { name: "Example Journal" });
     await expect(example).toContainText("Backlog");
     await expect(example).toContainText("Wishlist");
@@ -62,7 +68,16 @@ for (const theme of ["dark", "light"] as const) {
         await snap(page, testInfo, `guest-${theme}-${width}`, true);
     }
     await page.setViewportSize({ width: 390, height: 844 });
-    await signUp(page, request, uniqueUsername(`home78_${theme}`));
+    const username = uniqueUsername(`home78_${theme}`);
+    await signUp(page, request, username);
+    await request.post(supportUrl("/review-fixture"), {
+      data: { username, enabled: true, now: "2026-12-01T00:00:00Z" },
+    });
+    await page.reload();
+    await expect(page.getByText("Your Journal is empty.")).toBeInViewport();
+    await expect(
+      page.getByRole("link", { name: "Import from Steam" }),
+    ).toHaveCount(1);
     await expect(
       page.getByRole("link", { name: "All saved games (0)", exact: true }),
     ).toBeVisible();
@@ -74,12 +89,23 @@ for (const theme of ["dark", "light"] as const) {
       page
         .getByRole("region", { name: "Playing", exact: true })
         .getByRole("link", { name: /Celeste/ }),
-    ).toBeVisible();
+    ).toBeInViewport();
     await expect(
       page
         .getByRole("region", { name: "Recently added", exact: true })
         .getByRole("link", { name: /Celeste/ }),
     ).toBeVisible();
+    const invitation = page.getByRole("link", {
+      name: /Your year in the Journal/,
+    });
+    await expect(invitation).toBeVisible();
+    const playing = page.getByRole("region", { name: "Playing", exact: true });
+    await expect(
+      playing.getByRole("heading", { name: "Playing" }),
+    ).toBeInViewport();
+    expect((await invitation.boundingBox())?.y).toBeGreaterThan(
+      (await playing.boundingBox())?.y ?? 0,
+    );
     await snap(page, testInfo, `one-entry-${theme}-390`, true);
     await page.goto("/games/silksong");
     await chooseStatus(page, "wishlist");

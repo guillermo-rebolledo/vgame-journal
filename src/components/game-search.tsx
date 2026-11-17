@@ -639,6 +639,7 @@ export function GameSearch({
     return (
       <div ref={owner}>
         <CatalogSearch
+          filtersOpen={filtersOpen}
           finalFocus={() =>
             initiator.current?.isConnected &&
             !initiator.current.closest("[hidden]") &&
