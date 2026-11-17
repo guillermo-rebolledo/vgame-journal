@@ -10,8 +10,8 @@ export async function UserMenu() {
 
   const { image, username, name } = session.user;
   return (
-    <div className="ml-auto flex w-full items-start gap-2 sm:w-auto">
-      <MainNav className="-ml-2 min-w-0 flex-1 sm:ml-0" />
+    <div className="ml-auto flex w-full items-start gap-1 sm:gap-2 sm:w-auto">
+      <MainNav className="-ml-1 min-w-0 flex-1 sm:ml-0" />
       <div className="shrink-0">
         <AccountMenu
           user={{ username, name, image }}

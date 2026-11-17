@@ -85,6 +85,7 @@ export function GameRecording({
   const [error, setError] = useState<string>();
   const drafts = useRef(new Map<string | number, Record<string, string>>());
   const addTrigger = useRef<HTMLButtonElement | null>(null);
+  const historyHeading = useRef<HTMLHeadingElement>(null);
   const statusTrigger = useRef<HTMLButtonElement | null>(null);
   const drawer = useRef<HTMLDivElement | null>(null);
   const initiator = useRef<HTMLElement | null>(null);
@@ -114,7 +115,7 @@ export function GameRecording({
       else {
         drafts.current.delete(editor.id);
         // The deleted row's Edit button can outlive dismissal until history refreshes.
-        initiator.current = addTrigger.current;
+        initiator.current = addTrigger.current ?? historyHeading.current;
         completion.current = "Playthrough deleted";
         setEditor(null);
         trackEvent("playthrough_removed");
@@ -127,36 +128,38 @@ export function GameRecording({
       setRemoving(false);
     }
   }
-  const additionalActions = (
-    <>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              ref={addTrigger}
-              aria-label="Add playthrough"
-              variant="outline"
-              disabled={pending}
-              className="journal-action min-h-11"
-              render={signedIn ? undefined : <Link href={signInHref} />}
-              onClick={signedIn ? () => open("add") : undefined}
-            />
-          }
-        >
-          <Plus />
-          Add playthrough
-        </TooltipTrigger>
-        <TooltipContent>Add playthrough</TooltipContent>
-      </Tooltip>
-      {listPicker}
-    </>
+  const playthroughAction = platforms.length ? (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            ref={addTrigger}
+            aria-label="Add playthrough"
+            variant="outline"
+            disabled={pending}
+            className="journal-action min-h-11"
+            render={signedIn ? undefined : <Link href={signInHref} />}
+            onClick={signedIn ? () => open("add") : undefined}
+          />
+        }
+      >
+        <Plus />
+        Add playthrough
+      </TooltipTrigger>
+      <TooltipContent>Add playthrough</TooltipContent>
+    </Tooltip>
+  ) : (
+    <p className="basis-full text-muted-foreground text-sm">
+      This game has no platforms listed yet. A platform is needed to add a
+      Playthrough.
+    </p>
   );
   return (
     <TooltipProvider delay={300}>
       <section aria-label="Game journal" className="flex flex-col gap-4">
         {signedIn ? (
           <JournalStatus
-            actions={additionalActions}
+            actions={listPicker}
             triggerRef={statusTrigger}
             entry={entry}
             gameTitle={gameTitle}
@@ -190,7 +193,6 @@ export function GameRecording({
                   <Button
                     render={<Link href={signInHref} />}
                     aria-label={`Add to Journal for ${gameTitle}`}
-                    variant="outline"
                     className="journal-action min-h-11"
                   />
                 }
@@ -200,7 +202,7 @@ export function GameRecording({
               </TooltipTrigger>
               <TooltipContent>Journal status</TooltipContent>
             </Tooltip>
-            {additionalActions}
+            {listPicker}
           </fieldset>
         )}
         {entry && (
@@ -220,9 +222,12 @@ export function GameRecording({
             to record and rate games and add playthroughs.
           </p>
         )}
-        {signedIn && (
-          <PlaythroughHistory playthroughs={playthroughs} onEdit={open} />
-        )}
+        <PlaythroughHistory
+          action={playthroughAction}
+          headingRef={historyHeading}
+          playthroughs={playthroughs}
+          onEdit={open}
+        />
       </section>
 
       <Drawer
@@ -251,7 +256,7 @@ export function GameRecording({
           finalFocus={() =>
             initiator.current?.isConnected
               ? initiator.current
-              : addTrigger.current
+              : (addTrigger.current ?? historyHeading.current)
           }
           className="editor-drawer w-full overflow-hidden rounded-t-3xl bg-background"
         >
@@ -276,7 +281,13 @@ export function GameRecording({
               </Button>
             </div>
           </DrawerHeader>
-          {editor !== null && key !== undefined && (
+          {editor && editor !== "add" && !platforms.length && (
+            <p className="px-4 py-3 text-muted-foreground text-sm">
+              {editor.platform} is recorded for this Playthrough. Editing
+              requires a platform listed for this game.
+            </p>
+          )}
+          {editor !== null && key !== undefined && platforms.length > 0 && (
             <PlaythroughForm
               key={key}
               disabled={pending}
@@ -286,7 +297,9 @@ export function GameRecording({
                 (editor === "add"
                   ? {}
                   : {
-                      platform: editor.platform,
+                      platform: platforms.includes(editor.platform)
+                        ? editor.platform
+                        : "",
                       startedOn: editor.startedOn,
                       endedOn: editor.endedOn ?? "",
                       hours: editor.hours === null ? "" : String(editor.hours),

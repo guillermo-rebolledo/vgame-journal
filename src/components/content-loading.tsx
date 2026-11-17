@@ -39,7 +39,7 @@ function GameRows() {
 
 /** Reserves the Catalog search panel's footprint so Home doesn't jump when it mounts. */
 export function HomeSearchLoading() {
-  return <Skeleton className="h-52 w-full rounded-xl" />;
+  return <Skeleton className="h-20 w-full rounded-xl" />;
 }
 
 /** The cover grid Home shelves and Discovery resolve into. */
@@ -59,11 +59,6 @@ export function CoverTiles() {
 export function HomeCollectionsLoading() {
   return (
     <LoadingContent label="Checking Journal status…">
-      <div className="flex flex-wrap gap-2">
-        {[0, 1, 2].map((item) => (
-          <Skeleton key={item} className="h-11 w-32" />
-        ))}
-      </div>
       <div className="space-y-4 border-t pt-6">
         <Skeleton className="h-7 w-40" />
         <CoverTiles />
@@ -76,7 +71,6 @@ export function HomeLoading() {
   return (
     <LoadingContent label="Opening your Journal…">
       <Skeleton className="h-9 w-56 max-w-full" />
-      <Skeleton className="h-5 w-80 max-w-full" />
       <HomeSearchLoading />
       <div className="space-y-4 border-t pt-6">
         <Skeleton className="h-7 w-40" />
@@ -195,8 +189,14 @@ export function ProfileVisibilityLoading() {
 
 export function HeaderLoading() {
   return (
-    <LoadingContent label="Loading account navigation…" className="ml-auto">
-      <Skeleton className="size-11 rounded-full" />
+    <LoadingContent
+      label="Loading account navigation…"
+      className="ml-auto w-full sm:w-auto"
+    >
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-8 w-40 sm:hidden" />
+        <Skeleton className="size-11 rounded-full" />
+      </div>
     </LoadingContent>
   );
 }

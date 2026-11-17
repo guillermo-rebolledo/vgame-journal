@@ -33,6 +33,10 @@ test("the Rated filter and Rating sort work in the Library and on the public pro
 
   await page.goto("/library");
   await expect.poll(() => titles(page)).toHaveLength(3);
+  await page
+    .locator("summary:visible")
+    .filter({ hasText: "Filters and sort" })
+    .click();
   await page.getByLabel("Rating", { exact: true }).selectOption("Rated");
   await page.getByLabel("Sort by").selectOption("Rating (highest first)");
   await expect.poll(() => titles(page)).toEqual(["Rated Beta", "Rated Alpha"]);
@@ -61,6 +65,10 @@ test("the Rated filter and Rating sort work in the Library and on the public pro
   await page.goto(`/u/${username}?rated=1&sort=rating`);
   await expect.poll(() => titles(page)).toEqual(["Rated Beta", "Rated Alpha"]);
   await expect(page.getByLabel("Rating", { exact: true })).toHaveValue("rated");
+  await page
+    .locator("summary:visible")
+    .filter({ hasText: "Filters and sort" })
+    .click();
   await page.getByLabel("Rating", { exact: true }).selectOption("Any rating");
   await expect.poll(() => titles(page)).toHaveLength(3);
   await expect(page).toHaveURL(new RegExp(`/u/${username}\\?sort=rating$`));

@@ -28,6 +28,7 @@ const read: PlayNextRead = async (owner, request) => ({
   source: request.source ?? "backlog",
   provenance: request.source === "discover" ? "popular" : "backlog",
   backlogCount: 7,
+  hasReleasedBacklog: true,
   games: request.platform && request.platform !== "PC" ? [] : games,
   bounded: false,
   platforms: ["PC"],
@@ -258,5 +259,33 @@ export const PopularFallbackKeepsRound: Story = {
         canvas.queryByRole("article", { name: game.title }),
       ).not.toBeInTheDocument();
     await expect(canvas.getAllByRole("article")).toHaveLength(3);
+  },
+};
+
+export const RetainedSuggestions: Story = {
+  args: {
+    onRead: (owner, request) =>
+      request.platform === "Nintendo Switch"
+        ? new Promise(() => {})
+        : read(owner, request),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const choose = await canvas.findAllByRole("button", {
+      name: /^Choose this/,
+    });
+    await expect(choose[0]).toBeEnabled();
+    await userEvent.click(
+      canvas.getByRole("combobox", { name: "Available on" }),
+    );
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(
+      await body.findByRole("option", { name: "Nintendo Switch" }),
+    );
+    await expect(
+      canvas.getByRole("status", { name: "Play next updates" }),
+    ).toHaveTextContent("Updating previous suggestions");
+    await expect(canvas.getAllByRole("article")).toHaveLength(3);
+    await expect(choose[0]).toBeDisabled();
   },
 };

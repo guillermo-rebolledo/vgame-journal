@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, within } from "storybook/test";
+import { expect, userEvent, within } from "storybook/test";
 import { Library } from "./library";
 
 const meta = {
@@ -9,40 +9,57 @@ const meta = {
     docs: {
       description: {
         component:
-          "Library reuses GameCover, PagedList and the shared filters. Empty owner views compose SteamImportInvitation only when the server enables Steam import; read-only public views never offer import. The persistent import action belongs to the owner page heading, outside these client-side filters.",
+          "Library keeps title and Status visible, with advanced filters and ordering in a disclosure. The owner page heading supplies the Steam import action.",
       },
     },
   },
-  args: { entries: [], initialView: "grid", steamImportEnabled: true },
+  args: { entries: [], initialView: "grid" },
 } satisfies Meta<typeof Library>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const EmptyWithSteam: Story = {
+export const Empty: Story = {
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
     await expect(
-      canvas.getByRole("link", { name: "Find a game" }),
+      within(canvasElement).getByRole("link", { name: "Find a game" }),
     ).toBeVisible();
-    await expect(
-      canvas.getByRole("link", { name: "Import from Steam" }),
-    ).toHaveAttribute("href", "/settings/steam");
-  },
-};
-export const EmptyWithoutSteam: Story = {
-  args: { steamImportEnabled: false },
-  play: async ({ canvasElement }) => {
-    await expect(
-      within(canvasElement).queryByText("Have games on Steam?"),
-    ).not.toBeInTheDocument();
   },
 };
 export const PublicEmpty: Story = {
   args: { readOnly: true },
   play: async ({ canvasElement }) => {
     await expect(
-      within(canvasElement).queryByRole("link", { name: "Import from Steam" }),
-    ).not.toBeInTheDocument();
+      within(canvasElement).getByText("No games in this library yet."),
+    ).toBeVisible();
   },
 };
-export const Light: Story = { ...EmptyWithSteam, globals: { theme: "light" } };
+export const CompactFilters: Story = {
+  args: {
+    entries: [
+      {
+        gameId: 1,
+        title: "Celeste",
+        slug: "celeste",
+        coverImageId: null,
+        status: "backlog",
+        completionTag: null,
+        rating: null,
+        releasedAt: new Date("2018-01-25"),
+        addedAt: new Date("2026-02-01"),
+        platforms: ["PC"],
+        years: [],
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const toggle = canvas.getByText("Filters and sort");
+    await expect(canvas.getByLabelText("Sort by")).not.toBeVisible();
+    await userEvent.click(toggle);
+    await expect(canvas.getByLabelText("Sort by")).toBeVisible();
+    await expect(canvas.getByLabelText("Platform")).toBeVisible();
+    await userEvent.click(toggle);
+    await expect(canvas.getByLabelText("Sort by")).not.toBeVisible();
+  },
+};
+export const Light: Story = { ...CompactFilters, globals: { theme: "light" } };

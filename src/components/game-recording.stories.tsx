@@ -120,10 +120,6 @@ export const GroupedActions: Story = {
       ).toHaveFocus(),
     );
     await userEvent.tab();
-    await expect(
-      actions.getByRole("button", { name: "Add playthrough" }),
-    ).toHaveFocus();
-    await userEvent.tab();
     const lists = actions.getByRole("button", { name: "Add to list" });
     await expect(lists).toHaveFocus();
     await userEvent.keyboard("{Enter}");

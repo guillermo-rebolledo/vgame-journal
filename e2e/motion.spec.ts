@@ -543,7 +543,7 @@ test("tooltips keep a visible edge in forced colors", async ({
   await page.emulateMedia({ forcedColors: "active", reducedMotion: "reduce" });
   await page.goto("/games/hades--1");
   await page
-    .getByRole("link", { name: "Add playthrough", exact: true })
+    .getByRole("link", { name: "Add to Journal for Hades", exact: true })
     .hover();
   const tooltip = page.locator('[data-slot="tooltip-content"]');
   await expect(tooltip).toBeVisible();
@@ -564,7 +564,7 @@ test("tooltips keep a visible edge in forced colors", async ({
     for (const width of [320, 390, 768, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await page
-        .getByRole("link", { name: "Add playthrough", exact: true })
+        .getByRole("link", { name: "Add to Journal for Hades", exact: true })
         .hover();
       await expect(tooltip).toBeVisible();
       await expect(tooltip).toHaveCSS("opacity", "1");

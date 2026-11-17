@@ -7,12 +7,11 @@ import {
 } from "@/components/home-journal";
 
 /** Catalog navigation retains the existing post-authentication save confirmation. */
-export function HomeSearch({ guidance }: { guidance: string }) {
+export function HomeSearch() {
   return (
     <HomePendingSave>
       {(continuation) => (
         <GameSearch
-          guidance={guidance}
           continuation={continuation}
           renderFeedback={(game) => <HomeJournalFeedback gameId={game?.id} />}
         />

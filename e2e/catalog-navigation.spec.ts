@@ -38,6 +38,8 @@ for (const activation of ["click", "Enter", "Space"] as const) {
     await page.goBack();
     await expect(input).toHaveValue("Celeste");
     await expect(input).toBeFocused();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Filters (2 active)" }).click();
     await expect(
       page.getByRole("combobox", { name: "Release year", exact: true }),
     ).toContainText("2018");
@@ -127,7 +129,7 @@ for (const theme of ["light", "dark"] as const) {
           .poll(
             () =>
               popup.evaluate((node) => {
-                const anchor = document.querySelector(".game-catalog-input");
+                const anchor = document.querySelector(".game-catalog-controls");
                 if (!anchor) return false;
                 // Base UI updates the anchored width after a resize observer runs.
                 const positioned =

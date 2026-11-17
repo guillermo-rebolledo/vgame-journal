@@ -227,7 +227,7 @@ const entry = (
   years: [],
 });
 
-test("All saved games and Status subsets precede shelves, including Playing in Recently added", async () => {
+test("Playing leads the personal shelves and collection counts remain reachable", async () => {
   const entries = [
     entry(1, "playing"),
     entry(2, "backlog"),
@@ -254,12 +254,9 @@ test("All saved games and Status subsets precede shelves, including Playing in R
   expect(
     screen.getByRole("link", { name: "Wishlist (1)" }).getAttribute("href"),
   ).toBe("/wishlist");
-  expect(
-    screen.getByText(/Backlog and Wishlist are Status groups within/),
-  ).toBeTruthy();
   const playing = screen.getByRole("region", { name: "Playing" });
   expect(
-    all.compareDocumentPosition(playing) & Node.DOCUMENT_POSITION_FOLLOWING,
+    playing.compareDocumentPosition(all) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   const recent = within(screen.getByRole("region", { name: "Recently added" }));
   expect(

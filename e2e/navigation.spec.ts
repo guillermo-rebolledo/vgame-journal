@@ -176,9 +176,15 @@ test("header forward and reverse keyboard order matches visible rows at every br
     const header = page.locator("header");
     const targets = [
       header.getByRole("link", { name: "shelve.games", exact: true }),
-      ...["Find a game", "Library", "Wishlist", "Lists", "Stats"].map((name) =>
-        header.getByRole("link", { name, exact: true }),
-      ),
+      ...[
+        "Find a game",
+        "Library",
+        "Wishlist",
+        ...(width >= 640 ? ["Lists", "Stats"] : []),
+      ].map((name) => header.getByRole("link", { name, exact: true })),
+      ...(width < 640
+        ? [header.getByRole("button", { name: "More", exact: true })]
+        : []),
       header.getByRole("button", {
         name: `Account menu, @${username}`,
         exact: true,
@@ -220,6 +226,24 @@ test("header forward and reverse keyboard order matches visible rows at every br
       page.getByRole("link", { name: "Skip to main content" }),
     ).toBeFocused();
     await expectNoHorizontalOverflow(page);
+    if (width < 640) {
+      const more = header.getByRole("button", { name: "More", exact: true });
+      await more.focus();
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("menuitem", { name: "Lists" })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(more).toBeFocused();
+      await page.keyboard.press("Enter");
+      await page.getByRole("menuitem", { name: "Stats" }).click();
+      const current = header.getByRole("button", {
+        name: "More, current page Stats",
+      });
+      await current.click();
+      await expect(
+        page.getByRole("menuitem", { name: "Stats" }),
+      ).toHaveAttribute("aria-current", "page");
+      await page.keyboard.press("Escape");
+    }
   }
 });
 
@@ -337,8 +361,17 @@ for (const colorScheme of ["light", "dark"] as const) {
     });
     await expectForcedColorsFocus(input);
     await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("dialog", { name: "Search results" }),
+    ).toHaveCount(0);
+    const filters = page.getByRole("button", { name: "Filters", exact: true });
     await page.keyboard.press("Tab");
     await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expectForcedColorsFocus(filters);
+    await page.keyboard.press("Enter");
+    await expect(filters).toHaveAttribute("aria-expanded", "true");
+    await expect(filters).toBeFocused();
     await page.keyboard.press("Tab");
     await expectForcedColorsFocus(
       page.getByRole("combobox", { name: "Platform", exact: true }),
@@ -382,7 +415,9 @@ test("populated collections keep Find a game reachable with comfortable phone co
   for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/library");
-    await expect(page.getByRole("list", { name: "Games" })).toBeVisible();
+    await expect(
+      page.getByRole("list", { name: "Games" }).getByRole("listitem").first(),
+    ).toBeInViewport();
     await expect(nav.getByRole("link", { name: "Library" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -468,10 +503,11 @@ for (const theme of ["light", "dark"] as const) {
     const nav = page.getByRole("navigation", { name: "Main", exact: true });
     const checkWidth = async (name: string, font: number, width = 320) => {
       await expect(page.locator("html")).toHaveCSS("font-size", `${font}px`);
-      expect(
-        await page.evaluate(() => document.documentElement.scrollWidth),
-        name,
-      ).toBeLessThanOrEqual(width);
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.scrollWidth), {
+          message: name,
+        })
+        .toBeLessThanOrEqual(width);
       const clipped = await page
         .locator("button:visible")
         .evaluateAll((buttons) =>
@@ -529,7 +565,10 @@ for (const theme of ["light", "dark"] as const) {
         await checkWidth("Home search results", font);
         await closeCatalog(page);
         for (const name of ["Library", "Wishlist", "Stats"] as const) {
-          await nav.getByRole("link", { name, exact: true }).click();
+          if (name === "Stats") {
+            await nav.getByRole("button", { name: /^More/ }).click();
+            await page.getByRole("menuitem", { name: "Stats" }).click();
+          } else await nav.getByRole("link", { name, exact: true }).click();
           await expect(
             page.getByRole("heading", { name, exact: true, level: 1 }),
           ).toBeVisible();
@@ -540,6 +579,10 @@ for (const theme of ["light", "dark"] as const) {
                 : page.getByText("Your library is empty.", { exact: true }),
             ).toBeVisible();
             if (populated) {
+              await page
+                .locator("summary:visible")
+                .filter({ hasText: "Filters and sort" })
+                .click();
               await page.getByLabel("Sort by").selectOption("title");
               await page
                 .getByLabel("Status", { exact: true })
@@ -551,7 +594,6 @@ for (const theme of ["light", "dark"] as const) {
               await page
                 .getByRole("button", { name: "Grid", exact: true })
                 .click();
-              await page.getByText("More filters", { exact: true }).click();
               await page
                 .getByLabel("Platform", { exact: true })
                 .filter({ visible: true })
@@ -670,7 +712,7 @@ for (const theme of ["light", "dark"] as const) {
     await chooseAccountMenuItem(page, "Sign out");
     await expect(
       page.getByRole("heading", {
-        name: "Track what you’re playing, build your backlog, and save games you want",
+        name: "Track your games",
         exact: true,
       }),
     ).toBeVisible();

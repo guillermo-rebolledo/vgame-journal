@@ -207,6 +207,12 @@ export const AdjacentFilters: Story = {
     await userEvent.type(input, "game");
     await body.findByRole("link", { name: /^Celeste / });
     const canvas = within(canvasElement);
+    await userEvent.keyboard("{Escape}");
+    const filters = canvas.getByRole("button", {
+      name: /^Filters$/,
+    });
+    await userEvent.click(filters);
+    await expect(filters).toHaveAttribute("aria-expanded", "true");
     await userEvent.click(
       canvas.getByRole("combobox", { name: "Release year" }),
     );

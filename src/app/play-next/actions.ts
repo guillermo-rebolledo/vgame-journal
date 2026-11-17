@@ -23,6 +23,7 @@ export async function loadPlayNext(
       source: "backlog",
       provenance: "backlog",
       backlogCount: 0,
+      hasReleasedBacklog: false,
       games: [],
       bounded: false,
       platforms: [],

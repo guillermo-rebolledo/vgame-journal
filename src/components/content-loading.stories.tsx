@@ -43,7 +43,9 @@ const meta = {
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getAllByRole("status")).toHaveLength(1);
     await expect(
-      canvasElement.querySelector('[data-slot="skeleton"]'),
+      Array.from(canvasElement.querySelectorAll('[data-slot="skeleton"]')).find(
+        (shape) => shape.checkVisibility(),
+      ),
     ).toBeVisible();
     await expect(canvasElement.querySelector("button, a, input")).toBeNull();
   },

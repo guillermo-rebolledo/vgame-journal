@@ -13,6 +13,7 @@ import {
   HomeJournalProvider,
   HomeSaveControls,
 } from "./home-journal";
+import { SteamImportInvitation } from "./steam-import-invitation";
 import { Button } from "./ui/button";
 
 const celeste: HomeEntry = {
@@ -587,7 +588,7 @@ export const EmptyWithSteam: Story = {
       owner="storybook-player"
       initial={Promise.resolve({ owner: "storybook-player", entries: [] })}
     >
-      <HomeCollections steamImportEnabled />
+      <HomeCollections steamImport={<SteamImportInvitation />} />
     </HomeJournalProvider>
   ),
   play: async ({ canvasElement }) => {

@@ -4,11 +4,11 @@ export function HomeIntroduction() {
   return (
     <div className="flex flex-col gap-3">
       <h1 className="font-semibold text-4xl text-balance tracking-tight [overflow-wrap:anywhere] sm:text-5xl">
-        Track what you’re playing, build your backlog, and save games you want
+        Track your games
       </h1>
       <p className="max-w-xl text-muted-foreground">
-        Your Journal is your saved game record, and each saved game has one
-        Status: Played, Playing, Backlog, or Wishlist.
+        Keep a Journal of what you’ve played, what you’re playing, and what you
+        want to play.
       </p>
     </div>
   );

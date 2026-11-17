@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { readHomeJournal } from "@/app/home-actions";
 import { dismissReviewInvitation } from "@/app/year-in-review/actions";
@@ -15,7 +14,7 @@ import {
 import { HomeSearch } from "@/components/home-search";
 import { JsonLd } from "@/components/json-ld";
 import { ReviewInvitation } from "@/components/review-invitation";
-import { buttonVariants } from "@/components/ui/button";
+import { SteamImportInvitation } from "@/components/steam-import-invitation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/config/site";
 import { currentSession, signedInUserId } from "@/lib/auth";
@@ -42,7 +41,7 @@ const siteSchema = {
 
 export default function Home() {
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-10 sm:py-16">
+    <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-6 sm:py-12">
       <JsonLd data={siteSchema} />
       <Suspense fallback={<HomeLoading />}>
         <HomeContent />
@@ -73,9 +72,6 @@ async function HomeContent() {
             >
               Your Journal
             </h1>
-            <p className="max-w-xl text-lg text-muted-foreground">
-              Find a game to add, or pick up where you left off.
-            </p>
           </div>
         ) : (
           <HomeIntroduction />
@@ -88,19 +84,8 @@ async function HomeContent() {
             </div>
           }
         >
-          <HomeSearch guidance="Search the Catalog. Choose a game to open its page." />
+          <HomeSearch />
         </Suspense>
-        {userId && (
-          <Link
-            href="/play-next"
-            className={buttonVariants({
-              variant: "outline",
-              className: "min-h-11 self-start",
-            })}
-          >
-            What should I play next?
-          </Link>
-        )}
         {!userId && (
           <div className="flex flex-col gap-4">
             <Suspense
@@ -117,14 +102,12 @@ async function HomeContent() {
             <JournalExample />
           </div>
         )}
+        <OwnerCollections owner={userId} />
         {userId && (
           <Suspense fallback={null}>
             <ReviewBanner />
           </Suspense>
         )}
-        <Suspense fallback={null}>
-          <OwnerCollections owner={userId} />
-        </Suspense>
         <DiscoveryBoundary>
           <Suspense fallback={<DiscoveryLoading />}>
             <Discovery />
@@ -135,12 +118,22 @@ async function HomeContent() {
   );
 }
 
-async function OwnerCollections({ owner }: { owner: string | null }) {
+function OwnerCollections({ owner }: { owner: string | null }) {
   return (
     <HomeCollections
-      steamImportEnabled={!!owner && (await steamImportEnabled())}
+      steamImport={
+        owner && (
+          <Suspense fallback={null}>
+            <HomeSteamImport />
+          </Suspense>
+        )
+      }
     />
   );
+}
+
+async function HomeSteamImport() {
+  return (await steamImportEnabled()) ? <SteamImportInvitation /> : null;
 }
 
 async function ReviewBanner() {

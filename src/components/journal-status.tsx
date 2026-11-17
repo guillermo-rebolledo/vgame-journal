@@ -184,7 +184,6 @@ export function JournalStatus({
                         }
                         aria-busy={pending}
                         aria-disabled={disabled || pending}
-                        variant={confirmed ? "secondary" : "outline"}
                         className="journal-action min-h-11"
                       >
                         <ActionIcon

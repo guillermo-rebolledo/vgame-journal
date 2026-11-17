@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { PlayNext } from "@/components/play-next";
-import { ActionFeedback } from "@/components/ui/action-feedback";
+import { PlayNext, PlayNextLoading } from "@/components/play-next";
 import { signedInUserId } from "@/lib/auth";
 import {
   type PlayNextRequest,
@@ -21,23 +20,11 @@ export default function PlayNextPage({
   searchParams,
 }: PageProps<"/play-next">) {
   return (
-    <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-8">
+    <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-3 px-4 py-6">
       <h1 className="font-semibold text-3xl tracking-tight">
         What should I play next?
       </h1>
-      <p className="max-w-prose text-muted-foreground">
-        A few choices, then back to playing. Available on describes platform
-        support, not ownership, installation or subscription access.
-      </p>
-      <Suspense
-        fallback={
-          <output>
-            <ActionFeedback state="pending">
-              Loading suggestions…
-            </ActionFeedback>
-          </output>
-        }
-      >
+      <Suspense fallback={<PlayNextLoading />}>
         <OwnerPicker searchParams={searchParams} />
       </Suspense>
     </section>

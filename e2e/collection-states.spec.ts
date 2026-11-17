@@ -55,6 +55,19 @@ for (const viewport of [
         await expect(
           page.getByRole("heading", { level: 1, name: collection }),
         ).toBeVisible();
+        const header = page.getByRole("heading", {
+          level: 1,
+          name: collection,
+        });
+        const initialTop = (await header.boundingBox())?.y;
+        const firstSkeleton = page
+          .getByRole("main")
+          .locator('[data-slot="skeleton"]')
+          .first();
+        const toolbarTop =
+          collection === "Library"
+            ? (await firstSkeleton.boundingBox())?.y
+            : undefined;
         expect(
           await loading.evaluate((el) => el.contains(document.activeElement)),
         ).toBe(false);
@@ -64,6 +77,7 @@ for (const viewport of [
           `${collection.toLowerCase()}-loading-${viewport.name}-${theme}`,
         );
         await expect(loading).toHaveCount(0);
+        expect((await header.boundingBox())?.y).toBe(initialTop);
         if (empty)
           await expect(
             page
@@ -80,6 +94,10 @@ for (const viewport of [
               exact: true,
             }),
           ).toBeVisible();
+        if (!empty && toolbarTop !== undefined) {
+          const title = page.getByText("Search your Library", { exact: true });
+          expect((await title.boundingBox())?.y).toBeCloseTo(toolbarTop, 0);
+        }
         await delay(0);
       };
 
@@ -190,10 +208,13 @@ for (const signedIn of [false, true]) {
       ).toBeVisible();
       await expect(
         page.getByRole(signedIn ? "button" : "link", {
-          name: "Add playthrough",
+          name: "Add to Journal for Hades",
           exact: true,
         }),
       ).toBeVisible();
+      await expect(
+        page.getByRole("region", { name: "Playthroughs" }),
+      ).toContainText("no platforms listed");
 
       // Client navigation reuses the detail image components with different sources.
       await article.getByRole("link", { name: /Dead Cells/ }).click();

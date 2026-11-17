@@ -70,6 +70,7 @@ export function GameSearch({
   }, [hasContinuation]);
   const input = useRef<HTMLInputElement>(null);
   const owner = useRef<HTMLDivElement>(null);
+  const localSearch = useRef<string | null>(null);
   const restoredContext = useRef<string | null>(null);
   const initiator = useRef<HTMLElement | null>(null);
   const body = useRef<HTMLDivElement>(null);
@@ -140,12 +141,18 @@ export function GameSearch({
         setOpen(true);
       }
     }
-    if (restoredContext.current !== context) restore();
+    // Local edits keep the current disclosure and focus. Route entry and Back restore results.
+    if (
+      restoredContext.current !== context &&
+      localSearch.current !== window.location.search
+    )
+      restore();
     restoredContext.current = context;
+    localSearch.current = null;
     window.addEventListener("popstate", restore);
     return () => {
       window.removeEventListener("popstate", restore);
-      // React's retained Home view resumes effects when navigation makes it visible again.
+      // Retained Home restores the current results when it becomes visible again.
       restoredContext.current = null;
     };
   }, [context, pendingIntent, presentation]);
@@ -215,6 +222,8 @@ export function GameSearch({
       if (value) url.searchParams.set(key, value);
       else url.searchParams.delete(key);
     }
+    if (url.search === window.location.search) return;
+    localSearch.current = url.search;
     window.history.replaceState(
       null,
       "",
@@ -639,6 +648,7 @@ export function GameSearch({
     return (
       <div ref={owner}>
         <CatalogSearch
+          filtersOpen={filtersOpen}
           finalFocus={() =>
             initiator.current?.isConnected &&
             !initiator.current.closest("[hidden]") &&

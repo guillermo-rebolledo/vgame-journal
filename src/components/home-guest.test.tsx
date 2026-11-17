@@ -5,15 +5,13 @@ import { HomeIntroduction, JournalExample } from "./home-guest";
 
 afterEach(cleanup);
 
-test("guests learn the tasks and Status vocabulary before browsing", () => {
+test("guests learn what the Journal records before browsing", () => {
   render(<HomeIntroduction />);
   expect(screen.getByRole("heading", { level: 1 }).textContent).toContain(
-    "Track what you’re playing, build your backlog, and save games you want",
+    "Track your games",
   );
-  expect(
-    screen.getByText(/Journal is your saved game record/).textContent,
-  ).toContain(
-    "each saved game has one Status: Played, Playing, Backlog, or Wishlist",
+  expect(screen.getByText(/Keep a Journal/).textContent).toContain(
+    "what you’ve played, what you’re playing, and what you want to play",
   );
 });
 

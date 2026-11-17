@@ -75,7 +75,7 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
         <GameSchema game={game} cover={cover} />
       </Suspense>
       <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 @min-[40em]:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] @min-[40em]:gap-x-8 @min-[40em]:py-12 @min-[48em]:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
-        <header className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-4 @min-[40em]:contents">
+        <header className={identityLayout}>
           <ViewTransition
             name={`game-cover-${game.id}`}
             default="none"
@@ -100,32 +100,14 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
         </header>
 
         <div className="flex min-w-0 flex-col gap-6 @min-[40em]:col-start-2">
-          <Suspense
-            fallback={
-              <output
-                aria-label="Loading journal"
-                className="flex flex-col gap-2"
-              >
-                <div className="flex flex-wrap gap-3">
-                  <Skeleton className="h-11 w-40" />
-                  <Skeleton className="h-11 w-36" />
-                  <Skeleton className="h-11 w-28" />
-                </div>
-              </output>
-            }
-          >
+          <Suspense fallback={<JournalLoading />}>
             <Playthroughs
               gameId={game.id}
               gameTitle={game.title}
               platforms={game.platforms}
               listPicker={
                 <Suspense
-                  fallback={
-                    <output className="flex items-center gap-2 text-muted-foreground text-sm">
-                      <Spinner />
-                      <span className="shimmer">Loading list controls…</span>
-                    </output>
-                  }
+                  fallback={<Skeleton className="h-11 w-28 max-w-full" />}
                 >
                   <GameLists
                     game={{ id: game.id, slug: game.slug, title: game.title }}
@@ -217,26 +199,50 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
   );
 }
 
+function JournalLoading({ announce = true }: { announce?: boolean }) {
+  return (
+    <div className="flex flex-col gap-4">
+      {announce && (
+        <output aria-label="Loading journal" className="sr-only">
+          Loading journal…
+        </output>
+      )}
+      <div aria-hidden="true" className="flex flex-wrap gap-2">
+        <Skeleton className="h-11 w-40 max-w-full" />
+        <Skeleton className="h-11 w-28 max-w-full" />
+      </div>
+      <div
+        aria-hidden="true"
+        className="flex flex-wrap items-center justify-between gap-2 border-t pt-3"
+      >
+        <Skeleton className="h-5 w-28" />
+        <Skeleton className="h-11 w-36" />
+      </div>
+    </div>
+  );
+}
+
+const identityLayout =
+  "grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-4 @min-[40em]:contents";
+
 function GameSkeleton() {
   return (
     <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 @min-[40em]:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] @min-[40em]:gap-x-8 @min-[40em]:py-12 @min-[48em]:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
-      <output className="col-span-full text-muted-foreground text-sm">
-        Loading game…
-      </output>
-      <div aria-hidden="true" className="contents">
-        <Skeleton className="aspect-[264/374] w-20 animate-none @min-[40em]:w-full" />
-        <div className="flex min-w-0 flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-9 w-3/4 animate-none @min-[40em]:h-12" />
-            <Skeleton className="h-5 w-1/2 animate-none" />
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Skeleton className="h-11 w-40 animate-none" />
-            <Skeleton className="h-11 w-36 animate-none" />
-          </div>
-          <Skeleton className="h-40 w-full animate-none" />
-          <Skeleton className="h-24 w-full animate-none" />
+      <output className="sr-only">Loading game…</output>
+      <div aria-hidden="true" className={identityLayout}>
+        <Skeleton className="aspect-[264/374] w-20 self-start @min-[40em]:row-span-2 @min-[40em]:w-full" />
+        <div className="flex min-w-0 flex-col gap-2">
+          <Skeleton className="h-9 w-3/4 @min-[40em]:h-12" />
+          <Skeleton className="h-5 w-1/2" />
         </div>
+      </div>
+      <div
+        aria-hidden="true"
+        className="flex min-w-0 flex-col gap-6 @min-[40em]:col-start-2"
+      >
+        <JournalLoading announce={false} />
+        <Skeleton className="h-40 w-full animate-none" />
+        <Skeleton className="h-24 w-full animate-none" />
       </div>
     </div>
   );
