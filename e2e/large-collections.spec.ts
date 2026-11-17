@@ -257,10 +257,6 @@ test("large collections bound rendered rows and retain navigation, search and ed
   expect(new URL(page.url()).searchParams.has("libraryPage")).toBe(false);
   expect(new URL(page.url()).searchParams.get("outPage")).toBe("3");
   expect(await page.evaluate(() => window.history.length)).toBe(historyLength);
-  await page
-    .locator("summary:visible")
-    .filter({ hasText: "Filters and sort" })
-    .click();
   await page.getByRole("button", { name: "Clear filters" }).click();
 
   // Invalid positions and empty matches canonicalize only this collection's key.

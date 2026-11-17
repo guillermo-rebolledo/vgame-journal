@@ -503,10 +503,11 @@ for (const theme of ["light", "dark"] as const) {
     const nav = page.getByRole("navigation", { name: "Main", exact: true });
     const checkWidth = async (name: string, font: number, width = 320) => {
       await expect(page.locator("html")).toHaveCSS("font-size", `${font}px`);
-      expect(
-        await page.evaluate(() => document.documentElement.scrollWidth),
-        name,
-      ).toBeLessThanOrEqual(width);
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.scrollWidth), {
+          message: name,
+        })
+        .toBeLessThanOrEqual(width);
       const clipped = await page
         .locator("button:visible")
         .evaluateAll((buttons) =>
