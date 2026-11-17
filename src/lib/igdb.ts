@@ -154,21 +154,34 @@ async function igdb<T>(
           deadline.addEventListener("abort", abort, { once: true });
         });
       }
-      res = await limit(async () => {
-        deadline.throwIfAborted();
-        if (Date.now() < retryAt) throw new OperationalError("rate_limited");
-        const access = await accessToken(deadline);
-        deadline.throwIfAborted();
-        return fetch(`https://api.igdb.com/v4/${endpoint}`, {
-          method: "POST",
-          signal: deadline,
-          headers: {
-            "Client-ID": process.env.TWITCH_CLIENT_ID ?? "",
-            Authorization: `Bearer ${access}`,
-          },
-          body,
-        });
-      }, deadline);
+      try {
+        res = await limit(async () => {
+          deadline.throwIfAborted();
+          if (Date.now() < retryAt) throw new OperationalError("rate_limited");
+          const access = await accessToken(deadline);
+          deadline.throwIfAborted();
+          return fetch(`https://api.igdb.com/v4/${endpoint}`, {
+            method: "POST",
+            signal: deadline,
+            headers: {
+              "Client-ID": process.env.TWITCH_CLIENT_ID ?? "",
+              Authorization: `Bearer ${access}`,
+            },
+            body,
+          });
+        }, deadline);
+      } catch (error) {
+        // A different request can start a cooldown while this one is queued.
+        if (
+          error instanceof OperationalError &&
+          error.code === "rate_limited" &&
+          attempt < 2 &&
+          retryAt > Date.now() &&
+          retryAt - Date.now() <= 3000
+        )
+          continue;
+        throw error;
+      }
       if (res.status !== 429 || attempt >= 2) break;
       retryAt = Math.max(
         retryAt,

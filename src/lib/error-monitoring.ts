@@ -78,6 +78,10 @@ export function sanitizeErrorEvent(
 ): ErrorEvent | null {
   try {
     if (event.type) return null;
+    const operation = OPERATIONS.find(
+      (value) => value === event.tags?.operation,
+    );
+    const code = CODES.find((value) => value === event.tags?.code);
     return {
       ...(event.event_id && /^[a-f0-9]{32}$/i.test(event.event_id)
         ? { event_id: event.event_id }
@@ -88,13 +92,12 @@ export function sanitizeErrorEvent(
         ? { timestamp: event.timestamp }
         : {}),
       tags: {
-        ...(OPERATIONS.some((value) => value === event.tags?.operation)
-          ? { operation: event.tags?.operation }
-          : {}),
-        ...(CODES.some((value) => value === event.tags?.code)
-          ? { code: event.tags?.code }
-          : {}),
+        ...(operation ? { operation } : {}),
+        ...(code ? { code } : {}),
       },
+      ...(operation && code
+        ? { fingerprint: ["{{ default }}", operation, code] }
+        : {}),
       platform: event.platform === "node" ? "node" : "javascript",
       level: "error",
       environment: "production",

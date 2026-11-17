@@ -911,6 +911,41 @@ test("short IGDB 429 retries once and returns the mapped game", async () => {
   expect(requests).toBe(2);
 });
 
+test("queued IGDB requests wait when another request starts a short cooldown", async () => {
+  vi.useFakeTimers();
+  vi.resetModules();
+  const source = (await import("./igdb")).igdbGameSource;
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  let requests = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("twitch"))
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      requests++;
+      return requests === 1
+        ? new Response(null, { status: 429, headers: { "retry-after": "2" } })
+        : Response.json([]);
+    }),
+  );
+  try {
+    const results = Promise.allSettled(
+      Array.from({ length: 5 }, (_, i) =>
+        source.mapSteamApps([i + 1], new AbortController().signal),
+      ),
+    );
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(requests).toBe(4);
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(await results).toEqual(
+      Array.from({ length: 5 }, () => ({ status: "fulfilled", value: [] })),
+    );
+    expect(requests).toBe(6);
+  } finally {
+    vi.restoreAllMocks();
+  }
+});
+
 test("Play next retrieves relationships, released version dates and most-rated pages without hype", async () => {
   const bodies: string[] = [];
   vi.stubGlobal(

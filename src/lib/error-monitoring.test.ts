@@ -16,6 +16,10 @@ import {
   reportOperationalError,
 } from "./operational-errors";
 
+vi.mock("./monitoring-flag", () => ({
+  sentryMonitoringFlag: vi.fn(async () => true),
+}));
+
 const release = "a".repeat(40);
 const dsn = `https://${"b".repeat(32)}@o123.ingest.us.sentry.io/456`;
 const production = {
@@ -27,6 +31,35 @@ const production = {
   SENTRY_INGEST_HOST: "o123.ingest.us.sentry.io",
   VERCEL_GIT_COMMIT_SHA: release,
 };
+
+test("operational fingerprints separate stackless timeouts from synthetic errors", () => {
+  const event = {
+    type: undefined,
+    tags: { operation: "game_source.request", code: "timeout" },
+  };
+  const clean = sanitizeErrorEvent(event, release);
+  expect(clean?.fingerprint).toEqual([
+    "{{ default }}",
+    "game_source.request",
+    "timeout",
+  ]);
+  expect(
+    sanitizeErrorEvent(clean as Sentry.ErrorEvent, release)?.fingerprint,
+  ).toEqual(clean?.fingerprint);
+  expect(
+    sanitizeErrorEvent(
+      {
+        type: undefined,
+        fingerprint: ["private"],
+        tags: {
+          operation: "private",
+          code: "timeout",
+        },
+      },
+      release,
+    )?.fingerprint,
+  ).toBeUndefined();
+});
 afterEach(async () => {
   await Sentry.close(2000);
   installErrorCapture(() => {});
