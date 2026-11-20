@@ -6,6 +6,7 @@ import {
   CommunityRatingFact,
   CommunityRatingSkeleton,
 } from "@/components/community-rating";
+import { TagShelvesLoading } from "@/components/content-loading";
 import { DiscoveryBoundary } from "@/components/discovery-boundary";
 import { GameCover } from "@/components/game-cover";
 import { AgeRatingFact, AgeRatingFactSkeleton } from "@/components/game-facts";
@@ -15,7 +16,6 @@ import { JsonLd } from "@/components/json-ld";
 import { PlatformName, PlatformNames } from "@/components/platform";
 import { Playthroughs } from "@/components/playthroughs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import { SITE_NAME, SITE_URL } from "@/config/site";
 import { boardName, pickRatings } from "@/lib/age-ratings";
 import { signedInUserId } from "@/lib/auth";
@@ -83,6 +83,7 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
           >
             <GameCover
               imageId={game.coverImageId}
+              priority
               className="w-20 self-start rounded-lg shadow-2xl @min-[40em]:row-span-2 @min-[40em]:w-full"
             />
           </ViewTransition>
@@ -184,14 +185,7 @@ async function Game({ params }: Pick<PageProps<"/games/[slug]">, "params">) {
         </div>
       </div>
       <DiscoveryBoundary>
-        <Suspense
-          fallback={
-            <output className="flex items-center gap-2 text-muted-foreground text-sm">
-              <Spinner />
-              <span className="shimmer">Loading similar games…</span>
-            </output>
-          }
-        >
+        <Suspense fallback={<TagShelvesLoading />}>
           <GameTagShelves game={game} />
         </Suspense>
       </DiscoveryBoundary>

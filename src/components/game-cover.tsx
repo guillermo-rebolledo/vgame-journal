@@ -8,10 +8,13 @@ import { coverUrl } from "@/lib/game-source";
 export function GameCover({
   imageId,
   size,
+  priority = false,
   className,
 }: {
   imageId: string | null;
   size?: "cover_small";
+  /** Above-the-fold covers only: discoverable immediately instead of after layout. */
+  priority?: boolean;
   className: string;
 }) {
   const classes = `aspect-[264/374] shrink-0 object-cover ${className}`;
@@ -21,7 +24,8 @@ export function GameCover({
       alt=""
       width={264}
       height={374}
-      loading="lazy"
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : undefined}
       className={`content-image ${classes}`}
       fallback={
         <div
