@@ -250,3 +250,58 @@ export function TagShelvesLoading() {
     </div>
   );
 }
+
+/**
+ * Reserves AuthForm's heading, fields and submit control. Shapes stay decorative:
+ * a real heading here would report the page as ready before its controls exist.
+ * `extras` approximates the per-page controls and notes below the submit button.
+ */
+export function AuthFormLoading({
+  fields,
+  extras = 0,
+}: {
+  fields: number;
+  extras?: number;
+}) {
+  const fieldRows = Array.from({ length: fields }, (_, index) => index);
+  const extraRows = Array.from({ length: extras }, (_, index) => index);
+  return (
+    <LoadingContent
+      label="Loading the form…"
+      className="mx-auto w-full max-w-sm flex-1 justify-center px-4 py-16"
+    >
+      <Skeleton className="h-8 w-40 max-w-full" />
+      <div className="flex flex-col gap-4">
+        {fieldRows.map((field) => (
+          <div key={field} className="flex flex-col gap-2">
+            <Skeleton className="h-3.5 w-20" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        ))}
+        <Skeleton className="h-11 w-full" />
+        {extraRows.map((extra) => (
+          <Skeleton key={extra} className="h-11 w-full" />
+        ))}
+      </div>
+    </LoadingContent>
+  );
+}
+
+/** Reserves the notice's section headings and prose while the body streams. */
+export function NoticeLoading() {
+  const sections = Array.from({ length: 4 }, (_, index) => index);
+  const lines = Array.from({ length: 4 }, (_, index) => index);
+  return (
+    <LoadingContent label="Loading the notice…" className="space-y-8">
+      {sections.map((section) => (
+        <div key={section} className="space-y-3">
+          <Skeleton className="h-6 w-56 max-w-full" />
+          {lines.map((line) => (
+            <Skeleton key={line} className="h-4 w-full" />
+          ))}
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+      ))}
+    </LoadingContent>
+  );
+}
