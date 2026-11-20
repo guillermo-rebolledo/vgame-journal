@@ -1,11 +1,22 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { AuthForm } from "@/components/auth-form";
+import { AuthFormLoading } from "@/components/content-loading";
 import { authClient } from "@/lib/auth-client";
 import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
 
+/** The search-params read lives in ForgotPasswordForm, so this route still prerenders its own form shape. */
 export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={<AuthFormLoading fields={1} />}>
+      <ForgotPasswordForm />
+    </Suspense>
+  );
+}
+
+function ForgotPasswordForm() {
   const returnTo = safeReturnTo(useSearchParams().get("returnTo"));
   return (
     <AuthForm

@@ -2,14 +2,25 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { trackEvent } from "@/components/analytics";
 import { AuthForm } from "@/components/auth-form";
+import { AuthFormLoading } from "@/components/content-loading";
 import { SupportLink } from "@/components/support-link";
 import { authClient } from "@/lib/auth-client";
 import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
 import { passwordErrorMessage } from "@/lib/password-policy";
 
+/** The search-params read lives in ResetPasswordForm, so this route still prerenders its own form shape. */
 export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<AuthFormLoading fields={1} extras={1} />}>
+      <ResetPasswordForm />
+    </Suspense>
+  );
+}
+
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");

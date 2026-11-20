@@ -37,6 +37,8 @@ export default async function configureNext(phase: string) {
       NEXT_PUBLIC_SENTRY_DSN: monitoring?.dsn ?? "",
       NEXT_PUBLIC_SENTRY_RELEASE: monitoring?.release ?? "",
     },
+    // Set by `next upgrade --agent=security` for the 16.4.2 → 16.4.6 advisory update.
+    experimental: { agentUpgrade: "security" },
     poweredByHeader: false,
     distDir: e2e ? ".next-e2e" : ".next",
     cacheComponents: true,

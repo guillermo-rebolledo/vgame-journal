@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
+import { NoticeLoading } from "@/components/content-loading";
 import { SUPPORT_EMAIL } from "@/config/site";
 
 export const metadata: Metadata = {
@@ -24,6 +26,17 @@ export default function PrivacyPage() {
           confirmation by the service owner.
         </p>
       </header>
+      <Suspense fallback={<NoticeLoading />}>
+        <PrivacyNotice />
+      </Suspense>
+    </article>
+  );
+}
+
+/** The notice body, behind its own boundary so the heading above it always prerenders. */
+function PrivacyNotice() {
+  return (
+    <>
       <section aria-labelledby="stored-heading" className="space-y-3">
         <h2 id="stored-heading" className="font-medium text-xl">
           What we store and why
@@ -279,6 +292,6 @@ export default function PrivacyPage() {
           Account settings
         </Link>
       </section>
-    </article>
+    </>
   );
 }

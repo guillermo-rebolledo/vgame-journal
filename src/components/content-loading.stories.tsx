@@ -2,34 +2,40 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, within } from "storybook/test";
 import { CollectionLoading } from "./collection-loading";
 import {
+  AuthFormLoading,
   HeaderLoading,
   HomeCollectionsLoading,
   HomeLoading,
   ListLoading,
   ListsLoading,
+  NoticeLoading,
   ProfileLoading,
   SettingLoading,
   StatsLoading,
+  TagShelvesLoading,
 } from "./content-loading";
 
 const meta = {
   title: "Product/Loading content",
   component: HomeLoading,
   subcomponents: {
+    AuthFormLoading,
     HeaderLoading,
     HomeCollectionsLoading,
     ListLoading,
     ListsLoading,
     ProfileLoading,
+    NoticeLoading,
     SettingLoading,
     StatsLoading,
+    TagShelvesLoading,
     CollectionLoading,
   },
   parameters: {
     docs: {
       description: {
         component:
-          "Static skeleton compositions for the first content read on Home, lists, profiles, Stats, Settings and account navigation. Reuses UI/Skeleton and the compact cover-row pattern from CollectionLoading. Home reserves the search panel and the four-cover shelf grid it resolves into. Each composition has one readable output and hides decorative shapes; placeholders have no focusable actions or invented data. Keep existing content during refreshes and use the Compass spinner for search, retry and mutation feedback. The catalog stays local/CI-only.",
+          "Static skeleton compositions for the first content read on Home, lists, profiles, Stats, Settings and account navigation. Reuses UI/Skeleton and the compact cover-row pattern from CollectionLoading. Home reserves the search panel, the four-cover shelf grid and Discovery's two shelves it resolves into; the game page reserves its similar-games grid, and the auth forms keep their real heading while the fields stream. Each composition has one readable output and hides decorative shapes; placeholders have no focusable actions or invented data. Keep existing content during refreshes and use the Compass spinner for search, retry and mutation feedback. The catalog stays local/CI-only.",
       },
     },
   },
@@ -75,4 +81,12 @@ export const NarrowProfile: Story = {
       <ProfileLoading />
     </div>
   ),
+};
+export const SimilarGames: Story = { render: () => <TagShelvesLoading /> };
+export const Notice: Story = { render: () => <NoticeLoading /> };
+export const SignInForm: Story = {
+  render: () => <AuthFormLoading fields={2} extras={2} />,
+};
+export const CreateAccountForm: Story = {
+  render: () => <AuthFormLoading fields={3} extras={2} />,
 };
