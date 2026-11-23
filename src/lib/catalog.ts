@@ -125,11 +125,13 @@ export function createCatalog(db: Db, source: GameSource) {
 
   /** The game with its release dates, earliest first (undated last). */
   async function loadBySlug(slug: string) {
-    const [found] = await db
-      .select()
-      .from(game)
-      .where(eq(game.slug, slug))
-      .limit(1);
+    const selectGame = () =>
+      db.select().from(game).where(eq(game.slug, slug)).limit(1).execute();
+    const [found] = await selectGame().catch((error: unknown) => {
+      if (operationalCode(error) !== "timeout") throw error;
+      // One retry gives this read up to two 10-second Neon HTTP attempts.
+      return selectGame();
+    });
     if (!found) return null;
     const releaseDates = await db
       .select()

@@ -16,12 +16,16 @@ export class OperationalError extends Error {
 }
 
 export function operationalCode(error: unknown): OperationalCode {
-  if (error instanceof OperationalError) return error.code;
-  if (
-    error instanceof Error &&
-    ["TimeoutError", "AbortError"].includes(error.name)
-  )
-    return "timeout";
+  const seen = new Set<Error>();
+  while (error instanceof Error && !seen.has(error)) {
+    if (error instanceof OperationalError) return error.code;
+    if (error.name === "TimeoutError" || error.name === "AbortError")
+      return "timeout";
+    seen.add(error);
+    // Drizzle wraps query errors in cause, while Neon uses sourceError for fetch failures.
+    error =
+      error.cause ?? ("sourceError" in error ? error.sourceError : undefined);
+  }
   return "unexpected";
 }
 
