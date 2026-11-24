@@ -64,6 +64,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <link rel="preconnect" href="https://images.igdb.com" />
+      </head>
       <body className="flex min-h-full flex-col">
         <ThemeProvider>
           <FeedbackSessionChannel onSubmit={submitFeedback}>
@@ -79,7 +82,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   width={192}
                   height={132}
                   loading="eager"
-                  className="hidden h-7 w-auto dark:block"
+                  className="hidden aspect-[192/132] h-7 w-auto dark:block"
                 />
                 <Image
                   src="/logo-light.png"
@@ -87,7 +90,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   width={192}
                   height={132}
                   loading="eager"
-                  className="h-7 w-auto dark:hidden"
+                  className="aspect-[192/132] h-7 w-auto dark:hidden"
                 />
                 {SITE_NAME}
               </Link>

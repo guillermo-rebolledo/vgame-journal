@@ -2,13 +2,24 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { googleCallbackURL, trackEvent } from "@/components/analytics";
 import { AuthForm } from "@/components/auth-form";
+import { AuthFormLoading } from "@/components/content-loading";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import { authPageHref, safeReturnTo } from "@/lib/auth-continuation";
 
+/** The search-params read lives in SignInForm, so this route still prerenders its own form shape. */
 export default function SignInPage() {
+  return (
+    <Suspense fallback={<AuthFormLoading fields={2} extras={2} />}>
+      <SignInForm />
+    </Suspense>
+  );
+}
+
+function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = safeReturnTo(searchParams.get("returnTo"));

@@ -65,7 +65,7 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
           stale={shelves.length > 0}
         />
       )}
-      {shelves.map((shelf) => {
+      {shelves.map((shelf, shelfIndex) => {
         const title =
           shelf.key === "recent" ? "Recently released" : "Recently trending";
         const id = `${instance}-${shelf.key}`;
@@ -81,7 +81,7 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
               {title}
             </h2>
             <ul className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
-              {shelf.games.map((game) => (
+              {shelf.games.map((game, index) => (
                 <li
                   key={game.id}
                   className="row-span-4 grid min-w-0 grid-rows-subgrid"
@@ -95,6 +95,7 @@ export function DiscoveryContent({ result }: { result: DiscoveryResult }) {
                     cover={
                       <GameCover
                         imageId={game.coverImageId}
+                        priority={shelfIndex === 0 && index < 2}
                         className="w-full rounded-lg shadow-lg"
                       />
                     }

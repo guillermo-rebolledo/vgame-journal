@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 
 function LoadingContent({
   label,
@@ -67,6 +68,21 @@ export function HomeCollectionsLoading() {
   );
 }
 
+/** One shelf per Discovery section, matching `DiscoveryLoading`'s two shelves. */
+function DiscoveryShelves() {
+  return (
+    <div className="flex flex-col gap-6">
+      {["recent", "popular"].map((key) => (
+        <div key={key} className="flex flex-col gap-3">
+          <Skeleton className="h-7 w-44" />
+          <CoverTiles />
+          <Skeleton className="h-4 w-32" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function HomeLoading() {
   return (
     <LoadingContent label="Opening your Journal…">
@@ -76,6 +92,8 @@ export function HomeLoading() {
         <Skeleton className="h-7 w-40" />
         <CoverTiles />
       </div>
+      {/* Home always resolves into Discovery below the shelves; reserving it keeps the page from growing. */}
+      <DiscoveryShelves />
     </LoadingContent>
   );
 }
@@ -197,6 +215,93 @@ export function HeaderLoading() {
         <Skeleton className="h-8 w-40 sm:hidden" />
         <Skeleton className="size-11 rounded-full" />
       </div>
+    </LoadingContent>
+  );
+}
+
+/**
+ * Reserves the "More like …" shelf: tag pills, caption and the six-cover grid.
+ * Without the grid's footprint the footer jumped when similar games arrived.
+ */
+export function TagShelvesLoading() {
+  return (
+    <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-4 px-4 pt-4 pb-12">
+      <output className="flex items-center gap-2 text-muted-foreground text-sm">
+        <Spinner />
+        <span className="shimmer">Loading similar games…</span>
+      </output>
+      <div aria-hidden="true" className="flex flex-col gap-4">
+        <Skeleton className="h-7 w-48 max-w-full" />
+        <div className="flex gap-2 py-1">
+          {[0, 1, 2].map((pill) => (
+            <Skeleton key={pill} className="h-8 w-24 rounded-full" />
+          ))}
+        </div>
+        <Skeleton className="h-5 w-56 max-w-full" />
+        <div className="grid grid-cols-3 gap-4 sm:grid-cols-6">
+          {[0, 1, 2, 3, 4, 5].map((cover) => (
+            <div key={cover} className="flex flex-col gap-2">
+              <Skeleton className="aspect-[264/374] w-full rounded-lg" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Reserves AuthForm's heading, fields and submit control. Shapes stay decorative:
+ * a real heading here would report the page as ready before its controls exist.
+ * `extras` approximates the per-page controls and notes below the submit button.
+ */
+export function AuthFormLoading({
+  fields,
+  extras = 0,
+}: {
+  fields: number;
+  extras?: number;
+}) {
+  const fieldRows = Array.from({ length: fields }, (_, index) => index);
+  const extraRows = Array.from({ length: extras }, (_, index) => index);
+  return (
+    <LoadingContent
+      label="Loading the form…"
+      className="mx-auto w-full max-w-sm flex-1 justify-center px-4 py-16"
+    >
+      <Skeleton className="h-8 w-40 max-w-full" />
+      <div className="flex flex-col gap-4">
+        {fieldRows.map((field) => (
+          <div key={field} className="flex flex-col gap-2">
+            <Skeleton className="h-3.5 w-20" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        ))}
+        <Skeleton className="h-11 w-full" />
+        {extraRows.map((extra) => (
+          <Skeleton key={extra} className="h-11 w-full" />
+        ))}
+      </div>
+    </LoadingContent>
+  );
+}
+
+/** Reserves the notice's section headings and prose while the body streams. */
+export function NoticeLoading() {
+  const sections = Array.from({ length: 4 }, (_, index) => index);
+  const lines = Array.from({ length: 4 }, (_, index) => index);
+  return (
+    <LoadingContent label="Loading the notice…" className="space-y-8">
+      {sections.map((section) => (
+        <div key={section} className="space-y-3">
+          <Skeleton className="h-6 w-56 max-w-full" />
+          {lines.map((line) => (
+            <Skeleton key={line} className="h-4 w-full" />
+          ))}
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+      ))}
     </LoadingContent>
   );
 }
